@@ -1,12 +1,7 @@
 #include <gtest/gtest.h>
 #include <nodel/nodel.h>
 
-using Key = nodel::Key;
-using Object = nodel::Object;
-using List = nodel::List;
-using Map = nodel::Map;
-using WalkDF = nodel::WalkDF;
-using WalkBF = nodel::WalkBF;
+using namespace nodel;
 
 TEST(Object, Null) {
 	Object v;
@@ -26,19 +21,19 @@ TEST(Object, Bool) {
 
 TEST(Object, Int64) {
 	Object v{-0x7FFFFFFFFFFFFFFFLL};
-	EXPECT_TRUE(v.is_signed_int());
+	EXPECT_TRUE(v.is_int());
 	EXPECT_EQ(v.to_json(), "-9223372036854775807");
 }
 
 TEST(Object, UInt64) {
 	Object v{0xFFFFFFFFFFFFFFFFULL};
-	EXPECT_TRUE(v.is_unsigned_int());
+	EXPECT_TRUE(v.is_uint());
 	EXPECT_EQ(v.to_json(), "18446744073709551615");
 }
 
 TEST(Object, Double) {
 	Object v{3.141593};
-	EXPECT_TRUE(v.is_double());
+	EXPECT_TRUE(v.is_float());
 	EXPECT_EQ(v.to_json(), "3.141593");
 }
 
@@ -72,9 +67,146 @@ TEST(Object, MapKeyOrder) {
 	EXPECT_EQ(map.to_json(), "{\"x\": 100, \"y\": \"tea\", 90: true}");
 }
 
+TEST(Object, ToStr) {
+	EXPECT_EQ(Object{}.to_str(), "null");
+	EXPECT_EQ(Object{false}.to_str(), "0");
+	EXPECT_EQ(Object{true}.to_str(), "1");
+	EXPECT_EQ(Object{7LL}.to_str(), "7");
+	EXPECT_EQ(Object{0xFFFFFFFFFFFFFFFFULL}.to_str(), "18446744073709551615");
+	EXPECT_EQ(Object{3.14}.to_str(), "3.14");
+	EXPECT_EQ(Object{"trivial"}.to_str(), "trivial");
+	EXPECT_EQ(Object::from_json("[1, 2, 3]").to_str(), "[1, 2, 3]");
+	EXPECT_EQ(Object::from_json("{'name': 'Dude'}").to_str(), "{\"name\": \"Dude\"}");
+}
+
+TEST(Object, CompareBoolBool) {
+	Object a{true};
+	Object b{true};
+	EXPECT_FALSE(a != b);
+	EXPECT_TRUE(a == b);
+	EXPECT_FALSE(a < b);
+	EXPECT_FALSE(a > b);
+}
+
+TEST(Object, CompareBoolInt) {
+	Object a{true};
+	Object b{1};
+	EXPECT_FALSE(a != b);
+	EXPECT_TRUE(a == b);
+	EXPECT_FALSE(a < b);
+	EXPECT_FALSE(a > b);
+}
+
+TEST(Object, CompareBoolFloat) {
+	Object a{true};
+	Object b{1.0};
+	EXPECT_FALSE(a != b);
+	EXPECT_TRUE(a == b);
+	EXPECT_FALSE(a < b);
+	EXPECT_FALSE(a > b);
+}
+
+TEST(Object, CompareIntInt) {
+	Object a{1};
+	Object b{2};
+	EXPECT_TRUE(a != b);
+	EXPECT_TRUE(a < b);
+	EXPECT_FALSE(a > b);
+}
+
+TEST(Object, CompareIntUInt) {
+	Object a{1};
+	Object b{0xFFFFFFFFFFFFFFFFULL};
+	EXPECT_TRUE(a != b);
+	EXPECT_TRUE(a < b);
+	EXPECT_FALSE(a > b);
+}
+
+TEST(Object, CompareIntFloat) {
+	Object a{1};
+	Object b{1.0};
+	EXPECT_TRUE(a == b);
+	EXPECT_FALSE(a < b);
+	EXPECT_FALSE(a > b);
+}
+
+TEST(Object, CompareUIntFloat) {
+	Object a{0xFFFFFFFFFFFFFFFFULL};
+	Object b{1e100};
+	EXPECT_TRUE(a != b);
+	EXPECT_TRUE(a < b);
+	EXPECT_FALSE(a > b);
+}
+
+TEST(Object, ToKey) {
+	Object obj{"key"};
+	EXPECT_TRUE(obj.is_string());
+	EXPECT_EQ(std::get<std::string>(obj.to_key()), "key");
+}
+
+TEST(Object, SubscriptList) {
+	Object obj = Object::from_json("[7, 8, 9]");
+	EXPECT_TRUE(obj.is_list());
+	EXPECT_EQ(obj[0].to_int(), 7);
+	EXPECT_EQ(obj[1].to_int(), 8);
+	EXPECT_EQ(obj[2].to_int(), 9);
+	EXPECT_EQ(obj[Object{0}].to_int(), 7);
+	EXPECT_EQ(obj[Object{1}].to_int(), 8);
+	EXPECT_EQ(obj[Object{2}].to_int(), 9);
+}
+
+TEST(Object, SubscriptMap) {
+	Object obj = Object::from_json("{0: 7, 1: 8, 2: 9, \"name\": \"Brian\"}");
+	EXPECT_TRUE(obj.is_map());
+	EXPECT_EQ(obj[0].to_int(), 7);
+	EXPECT_EQ(obj[1].to_int(), 8);
+	EXPECT_EQ(obj[2].to_int(), 9);
+	EXPECT_EQ(obj["name"].as_str(), "Brian");
+	EXPECT_EQ(obj[Key{0}].to_int(), 7);
+	EXPECT_EQ(obj[Key{1}].to_int(), 8);
+	EXPECT_EQ(obj[Key{2}].to_int(), 9);
+	EXPECT_EQ(obj[Object{0}].to_int(), 7);
+	EXPECT_EQ(obj[Object{1}].to_int(), 8);
+	EXPECT_EQ(obj[Object{2}].to_int(), 9);
+}
+
+TEST(Object, WalkDF) {
+	Object obj = Object::from_json("[1, [2, [3, [4, 5], 6], 7], 8]");
+	std::vector<Int> expect_order{1, 2, 3, 4, 5, 6, 7, 8};
+	std::vector<Int> actual_order;
+
+	auto visitor = [&actual_order] (const Object& parent, const Key& key, const Object& object, bool) -> void {
+		if (!object.is_container())
+			actual_order.push_back(object.to_int());
+	};
+
+	WalkDF walk{obj, visitor};
+	while (walk.next()) {}
+
+	EXPECT_EQ(actual_order.size(), expect_order.size());
+	EXPECT_EQ(actual_order, expect_order);
+}
+
+TEST(Object, WalkBF) {
+	Object obj = Object::from_json("[1, [2, [3, [4, 5], 6], 7], 8]");
+	std::vector<Int> expect_order{1, 8, 2, 7, 3, 6, 4, 5};
+	std::vector<Int> actual_order;
+
+	auto visitor = [&actual_order] (const Object& parent, const Key& key, const Object& object) -> void {
+		if (!object.is_container())
+			actual_order.push_back(object.to_int());
+	};
+
+	WalkBF walk{obj, visitor};
+	while (walk.next()) {}
+
+	EXPECT_EQ(actual_order.size(), expect_order.size());
+	EXPECT_EQ(actual_order, expect_order);
+}
+
 TEST(Object, RefCountPrimitive) {
 	Object obj{7};
-	EXPECT_TRUE(obj.is_signed_int());
+	EXPECT_TRUE(obj.is_int());
 	EXPECT_EQ(obj.ref_count(), std::numeric_limits<size_t>::max());
 }
 
@@ -159,110 +291,3 @@ TEST(Object, RefCountTemporary) {
 	EXPECT_EQ(obj.ref_count(), 1);
 }
 
-TEST(Object, ConversionBool) {
-	Object obj{true};
-	EXPECT_TRUE(obj.is_bool());
-	EXPECT_TRUE(obj);
-}
-
-TEST(Object, ConversionSignedInt) {
-	Object obj{-7};
-	EXPECT_TRUE(obj.is_signed_int());
-	int64_t v = obj;
-	EXPECT_EQ(v, -7LL);
-}
-
-TEST(Object, ConversionUnsignedInt) {
-	Object obj{7UL};
-	EXPECT_TRUE(obj.is_unsigned_int());
-	uint64_t v = obj;
-	EXPECT_EQ(v, 7UL);
-}
-
-TEST(Object, ConversionDouble) {
-	Object obj{7.3};
-	EXPECT_TRUE(obj.is_double());
-	double v = obj;
-	EXPECT_EQ(v, 7.3);
-}
-
-TEST(Object, ConversionString) {
-	Object obj{"camper"};
-	EXPECT_TRUE(obj.is_string());
-	EXPECT_EQ((std::string)obj, "camper");
-}
-
-TEST(Object, CompareBoolBool) {
-	Object a{true};
-	Object b{true};
-	EXPECT_FALSE(a != b);
-	EXPECT_TRUE(a == b);
-	EXPECT_FALSE(a < b);
-	EXPECT_FALSE(a > b);
-}
-
-TEST(Object, ToKey) {
-	Object obj{"key"};
-	EXPECT_TRUE(obj.is_string());
-	EXPECT_EQ(std::get<std::string>(obj.to_key()), "key");
-}
-
-TEST(Object, SubscriptList) {
-	Object obj = nodel::from_json("[7, 8, 9]");
-	EXPECT_TRUE(obj.is_list());
-	EXPECT_EQ((int64_t)obj[0], 7);
-	EXPECT_EQ((int64_t)obj[1], 8);
-	EXPECT_EQ((int64_t)obj[2], 9);
-	EXPECT_EQ((int64_t)obj[Object{0}], 7);
-	EXPECT_EQ((int64_t)obj[Object{1}], 8);
-	EXPECT_EQ((int64_t)obj[Object{2}], 9);
-}
-
-TEST(Object, SubscriptMap) {
-	Object obj = nodel::from_json("{0: 7, 1: 8, 2: 9, \"name\": \"Brian\"}");
-	EXPECT_TRUE(obj.is_map());
-	EXPECT_EQ((int64_t)obj[0], 7);
-	EXPECT_EQ((int64_t)obj[1], 8);
-	EXPECT_EQ((int64_t)obj[2], 9);
-	EXPECT_EQ(obj["name"].as_string(), "Brian");
-	EXPECT_EQ((int64_t)obj[Key{0}], 7);
-	EXPECT_EQ((int64_t)obj[Key{1}], 8);
-	EXPECT_EQ((int64_t)obj[Key{2}], 9);
-	EXPECT_EQ((int64_t)obj[Object{0}], 7);
-	EXPECT_EQ((int64_t)obj[Object{1}], 8);
-	EXPECT_EQ((int64_t)obj[Object{2}], 9);
-}
-
-TEST(Object, WalkDF) {
-	Object obj = nodel::from_json("[1, [2, [3, [4, 5], 6], 7], 8]");
-	std::vector<int64_t> expect_order{1, 2, 3, 4, 5, 6, 7, 8};
-	std::vector<int64_t> actual_order;
-
-	auto visitor = [&actual_order] (const Object& parent, const Key& key, const Object& object, bool) -> void {
-		if (!object.is_container())
-			actual_order.push_back(object);
-	};
-
-	WalkDF walk{obj, visitor};
-	while (walk.next()) {}
-
-	EXPECT_EQ(actual_order.size(), expect_order.size());
-	EXPECT_EQ(actual_order, expect_order);
-}
-
-TEST(Object, WalkBF) {
-	Object obj = nodel::from_json("[1, [2, [3, [4, 5], 6], 7], 8]");
-	std::vector<int64_t> expect_order{1, 8, 2, 7, 3, 6, 4, 5};
-	std::vector<int64_t> actual_order;
-
-	auto visitor = [&actual_order] (const Object& parent, const Key& key, const Object& object) -> void {
-		if (!object.is_container())
-			actual_order.push_back(object);
-	};
-
-	WalkBF walk{obj, visitor};
-	while (walk.next()) {}
-
-	EXPECT_EQ(actual_order.size(), expect_order.size());
-	EXPECT_EQ(actual_order, expect_order);
-}

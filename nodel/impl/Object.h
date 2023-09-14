@@ -18,10 +18,14 @@ namespace nodel {
 
 class Object;
 
+using Int = int64_t;
+using UInt = uint64_t;
+using Float = double;
+
 // Key is allowed by design to take more memory than Datum
 using Key = std::variant<
-	int64_t,
-	uint64_t,
+	Int,
+	UInt,
 	double,
 	std::string
 >;
@@ -51,8 +55,8 @@ using MapPtr = IRCMap*;
 using Datum = std::variant<
     void*,
     bool,
-    int64_t,
-	uint64_t,
+    Int,
+	UInt,
     double,
     StringPtr,
     ListPtr,
@@ -115,28 +119,34 @@ class Object
 
     bool is_null() const { return std::holds_alternative<void*>(dat); }
     bool is_bool() const { return std::holds_alternative<bool>(dat); }
-    bool is_signed_int() const { return std::holds_alternative<int64_t>(dat); };
-    bool is_unsigned_int() const { return std::holds_alternative<uint64_t>(dat); };
-    bool is_int() const { return is_signed_int() || is_unsigned_int(); }
-    bool is_double() const { return std::holds_alternative<double>(dat); };
+    bool is_int() const { return std::holds_alternative<Int>(dat); };
+    bool is_uint() const { return std::holds_alternative<UInt>(dat); };
+    bool is_float() const { return std::holds_alternative<double>(dat); };
     bool is_string() const { return std::holds_alternative<StringPtr>(dat); };
-    bool is_number() const { return is_int() || is_double(); }
+    bool is_number() const { return is_int() || is_uint() || is_float(); }
     bool is_list() const { return std::holds_alternative<ListPtr>(dat); }
     bool is_map() const { return std::holds_alternative<MapPtr>(dat); }
     bool is_container() const { return is_list() || is_map(); }
 
-    int64_t& as_signed_int() { return std::get<int64_t>(dat); }
-    uint64_t& as_unsigned_int() { return std::get<uint64_t>(dat); }
-    double& as_double() { return std::get<double>(dat); }
-    std::string& as_string() { return std::get<0>(*std::get<StringPtr>(dat)); }
+    Int& as_int() { return std::get<Int>(dat); }
+    UInt& as_uint() { return std::get<UInt>(dat); }
+    double& as_fp() { return std::get<double>(dat); }
+    std::string& as_str() { return std::get<0>(*std::get<StringPtr>(dat)); }
     List& as_list() { return std::get<0>(*std::get<ListPtr>(dat)); }
     Map& as_map() { return std::get<0>(*std::get<MapPtr>(dat)); }
 
-    operator bool () const;
-    operator int64_t () const;
-    operator uint64_t () const;
-    operator double () const;
-    operator std::string () const;
+    Int as_int() const { return std::get<Int>(dat); }
+    UInt as_uint() const { return std::get<UInt>(dat); }
+    double as_fp() const { return std::get<double>(dat); }
+    std::string const& as_str() const { return std::get<0>(*std::get<StringPtr>(dat)); }
+    List const& as_list() const { return std::get<0>(*std::get<ListPtr>(dat)); }
+    Map const& as_map() const { return std::get<0>(*std::get<MapPtr>(dat)); }
+
+    bool to_bool() const;
+    Int to_int() const;
+    UInt to_uint() const;
+    Float to_fp() const;
+    std::string to_str() const;
 
     Object& operator [] (auto&&);
     Object& operator [] (const char*);
@@ -145,14 +155,14 @@ class Object
     Object& operator [] (Key&&);
     Object& operator [] (Object&&);
 
-    int operator <=> (const Object&) const;
+    bool operator == (const Object&) const;
+    auto operator <=> (const Object&) const;
 
     Key to_key() const;
-    std::string to_str() const;
     std::string to_json() const;
 
     size_t ref_count() const;
-    int64_t id() const;
+    Int id() const;
 
     friend class WalkDF;
     friend class WalkBF;
@@ -173,60 +183,68 @@ class Object
 };
 
 inline
-Object::operator bool () const {
-	bool result;
+bool Object::to_bool() const {
+	bool rv;
     std::visit(overloaded {
     	[] (void*) { throw std::bad_variant_access(); },
-        [&result] (auto&& v) { result = (bool)v; },
+        [&rv] (auto&& v) { rv = (bool)v; },
         [] (StringPtr ptr) { throw std::bad_variant_access(); },
         [] (ListPtr ptr) { throw std::bad_variant_access(); },
         [] (MapPtr ptr) { throw std::bad_variant_access(); }
     }, dat);
-    return result;
+    return rv;
 }
 
 inline
-Object::operator int64_t () const {
-	int64_t result;
+Int Object::to_int() const {
+	Int rv;
     std::visit(overloaded {
     	[] (void*) { throw std::bad_variant_access(); },
-        [&result] (auto&& v) { result = (int64_t)v; },
+        [&rv] (auto&& v) { rv = (Int)v; },
         [] (StringPtr ptr) { throw std::bad_variant_access(); },
         [] (ListPtr ptr) { throw std::bad_variant_access(); },
         [] (MapPtr ptr) { throw std::bad_variant_access(); }
     }, dat);
-    return result;
+    return rv;
 }
 
 inline
-Object::operator uint64_t () const {
-	uint64_t result;
+UInt Object::to_uint() const {
+	UInt rv;
     std::visit(overloaded {
     	[] (void*) { throw std::bad_variant_access(); },
-        [&result] (auto&& v) { result = (uint64_t)v; },
+        [&rv] (auto&& v) { rv = (UInt)v; },
         [] (StringPtr ptr) { throw std::bad_variant_access(); },
         [] (ListPtr ptr) { throw std::bad_variant_access(); },
         [] (MapPtr ptr) { throw std::bad_variant_access(); }
     }, dat);
-    return result;
+    return rv;
 }
 
 inline
-Object::operator double () const {
-	double result;
+Float Object::to_fp() const {
+	double rv;
     std::visit(overloaded {
     	[] (void*) { throw std::bad_variant_access(); },
-        [&result] (auto&& v) { result = (double)v; },
+        [&rv] (auto&& v) { rv = (double)v; },
         [] (StringPtr ptr) { throw std::bad_variant_access(); },
         [] (ListPtr ptr) { throw std::bad_variant_access(); },
         [] (MapPtr ptr) { throw std::bad_variant_access(); }
     }, dat);
-    return result;
+    return rv;
 }
 
 inline
-Object::operator std::string () const {
-	return std::get<0>(*std::get<StringPtr>(dat));
+std::string Object::to_str() const {
+	std::stringstream ss;
+	std::visit(overloaded {
+		[&ss] (auto&& v) { ss << v; },
+		[&ss] (void*) { ss << "null"; },
+		[&ss] (StringPtr p) { ss << std::get<0>(*p); },
+		[this, &ss] (ListPtr p) { ss << to_json(); },
+		[this, &ss] (MapPtr p) { ss << to_json(); },
+	}, dat);
+	return ss.str();
 }
 
 inline
@@ -258,7 +276,7 @@ Object& Object::operator [] (const Key& key) {
 inline
 Object& Object::operator [] (const Object& obj) {
 	if (is_list()) {
-		return std::get<0>(*std::get<ListPtr>(dat))[(uint64_t)obj];
+		return std::get<0>(*std::get<ListPtr>(dat))[obj.to_int()];
 	} else if (is_map()) {
 		return std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()];
 	}
@@ -276,7 +294,7 @@ Object& Object::operator [] (Key&& key) {
 inline
 Object& Object::operator [] (Object&& obj) {
 	if (is_list()) {
-		return std::get<0>(*std::get<ListPtr>(dat))[(uint64_t)obj];
+		return std::get<0>(*std::get<ListPtr>(dat))[obj.to_int()];
 	} else if (is_map()) {
 		return std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()];
 	}
@@ -284,21 +302,40 @@ Object& Object::operator [] (Object&& obj) {
 }
 
 inline
-int Object::operator <=> (const Object& obj) const {
-	int result;
+bool Object::operator == (const Object& obj) const {
+	bool rv;
 	std::visit(overloaded {
 		[] (void *) { throw std::bad_variant_access(); },
-		[&obj, &result] (auto&& v) {
-			auto cmp = v <=> (decltype(v))obj;
-			if (cmp < 0) result = -1; else result = (cmp > 0)? 1: 0;
+		[&obj, &rv] (bool lhs) { rv = (lhs == obj.to_bool()); },
+		[&obj, &rv] (Int lhs) { rv = (lhs == obj.to_int()); },
+		[&obj, &rv] (UInt lhs) { rv = (lhs == obj.to_uint()); },
+		[&obj, &rv] (Float lhs) { rv = (lhs == obj.to_fp()); },
+		[&obj, &rv] (StringPtr lhs) { rv = std::get<0>(*lhs) == obj.as_str(); },
+		[] (ListPtr) { throw std::bad_variant_access(); },
+		[] (MapPtr) { throw std::bad_variant_access(); }
+	}, dat);
+	return rv;
+}
+
+inline
+auto Object::operator <=> (const Object& obj) const {
+	int rv;
+	std::visit(overloaded {
+		[] (void *) { throw std::bad_variant_access(); },
+		[this, &obj, &rv] (auto&& lhs) {
+			std::visit(overloaded {
+				[] (void*) { throw std::bad_variant_access(); },
+				[lhs, &rv] (auto&& rhs) { if (lhs < rhs) rv = -1; else if (lhs > rhs) rv = 1; else rv = 0; },
+				[this, &rv] (StringPtr rhs) { rv = std::get<0>(*rhs).compare(as_str()); },
+				[] (ListPtr) { throw std::bad_variant_access(); },
+				[] (MapPtr) { throw std::bad_variant_access(); }
+			}, obj.dat);
 		},
-		[&obj, &result] (StringPtr p) {
-			result = std::get<0>(*p).compare(obj);
-		},
+		[&obj, &rv] (StringPtr lhs) { rv = std::get<0>(*lhs).compare(obj.as_str()); },
 		[] (ListPtr p) { throw std::bad_variant_access(); },
 		[] (MapPtr p) { throw std::bad_variant_access(); }
 	}, dat);
-	return result;
+	return rv;
 }
 
 inline
@@ -306,9 +343,9 @@ Key Object::to_key() const {
 	Key key;
 	std::visit(overloaded {
 		[] (void* v) { throw std::bad_variant_access(); },
-		[&key] (bool v) { key = (int64_t)v; },
-        [&key] (int64_t v) { key = v; },
-        [&key] (uint64_t v) { key = v; },
+		[&key] (bool v) { key = (Int)v; },
+        [&key] (Int v) { key = v; },
+        [&key] (UInt v) { key = v; },
         [&key] (double v) { key = v; },
         [&key] (StringPtr ptr) { key = std::get<0>(*ptr); },
         [] (ListPtr ptr) { throw std::bad_variant_access(); },
@@ -346,7 +383,7 @@ class WalkDF
 					auto& [parent, key, object, is_last] = item;
 					visitor(parent, key, object, is_last);
 					auto& list = std::get<0>(*ptr);
-					int64_t index = list.size() - 1;
+					Int index = list.size() - 1;
 					auto it = list.crbegin();
 					if (it != list.crend()) {
 						stack.emplace(object, index, *it, true);
@@ -411,7 +448,7 @@ class WalkBF
 				[this, &item] (const ListPtr ptr) {
 					auto& [parent, key, object] = item;
 					auto& list = std::get<0>(*ptr);
-					int64_t index = 0;
+					Int index = 0;
 					for (auto it = list.cbegin(); it != list.cend(); it++, index++) {
 						const auto& child = *it;
 						deque.emplace_back(object, index, child);
@@ -438,23 +475,6 @@ class WalkBF
 
 
 inline
-std::string Object::to_str() const {
-	std::stringstream ss;
-	std::visit(overloaded {
-		[] (auto&& v) {
-			std::stringstream ss;
-			ss << v;
-			return ss.str();
-		},
-		[] (void*) { return std::string{"null"}; },
-		[] (StringPtr p) { return std::get<0>(*p); },
-		[this] (ListPtr p) { return to_json(); },
-		[this] (MapPtr p) { return to_json(); },
-	}, dat);
-	throw std::bad_variant_access();
-}
-
-inline
 std::string Object::to_json() const {
     std::string ss;
     std::string opens;
@@ -464,8 +484,8 @@ std::string Object::to_json() const {
 			[] (auto&& v) {},
 			[&ss] (void*) { ss += "null"; },
 			[&ss] (bool v) { ss += v? "true": "false"; },
-			[&ss] (int64_t v) { ss += std::to_string(v); },
-			[&ss] (uint64_t v) { ss += std::to_string(v); },
+			[&ss] (Int v) { ss += std::to_string(v); },
+			[&ss] (UInt v) { ss += std::to_string(v); },
 			[&ss] (double v) { ss += std::to_string(v); },
 			[&ss] (StringPtr p) { ss += nodel::quoted(std::get<0>(*p)); },
 			[&ss, &opens] (ListPtr p) {
@@ -510,14 +530,14 @@ std::string Object::to_json() const {
 }
 
 inline
-int64_t Object::id() const {
-	int64_t id = 0;
+Int Object::id() const {
+	Int id = 0;
     std::visit(overloaded {
         [&id] (void* p) { id = 0; },
-		[&id] (auto&& v) { id = (int64_t)v; },
-        [&id] (const StringPtr p) { id = (int64_t)&(std::get<0>(*p)); },
-        [&id] (const ListPtr p) { id = (int64_t)&(std::get<0>(*p)); },
-        [&id] (const MapPtr p) { id = (int64_t)&(std::get<0>(*p)); }
+		[&id] (auto&& v) { id = (Int)v; },
+        [&id] (const StringPtr p) { id = (Int)&(std::get<0>(*p)); },
+        [&id] (const ListPtr p) { id = (Int)&(std::get<0>(*p)); },
+        [&id] (const MapPtr p) { id = (Int)&(std::get<0>(*p)); }
     }, dat);
     return id;
 }

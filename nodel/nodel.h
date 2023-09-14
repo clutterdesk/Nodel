@@ -14,7 +14,7 @@ class JsonParseException : public std::exception
 };
 
 inline
-Object from_json(const std::string& json) {
+Object Object::from_json(const std::string& json) {
 	nodel::Parser parser{json};
 	if (!parser.parse_object())
 		throw JsonParseException(parser.error_message);
