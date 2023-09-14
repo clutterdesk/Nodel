@@ -147,6 +147,7 @@ class Object
     UInt to_uint() const;
     Float to_fp() const;
     std::string to_str() const;
+    Key to_key() const;
 
     Object& operator [] (auto&&);
     Object& operator [] (const char*);
@@ -158,7 +159,6 @@ class Object
     bool operator == (const Object&) const;
     auto operator <=> (const Object&) const;
 
-    Key to_key() const;
     std::string to_json() const;
 
     size_t ref_count() const;
