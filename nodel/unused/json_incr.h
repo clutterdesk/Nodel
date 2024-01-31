@@ -1,48 +1,34 @@
+// Incremental JSON parser.
 #pragma once
-
-#include "Object.h"
 
 #include <ctype.h>
 #include <cstdlib>
 #include <cerrno>
-#include <sstream>
 
-#include <fmt/core.h>
+#include "Object.h"
+
 
 namespace nodel {
-namespace json {
-namespace impl {
 
 template <typename StreamType>
-struct Parser
+class IncrementalParser
 {
   private:
 	struct StreamIterator
 	{
-		StreamIterator(StreamType&& stream) : stream{std::move(stream)} {}
-
-		StreamIterator(StreamIterator&&) = default;
-		StreamIterator(const StreamIterator&) = delete;
-		auto operator = (StreamIterator&&) = delete;
-		auto operator = (StreamIterator&) = delete;
-
-		auto operator * () { return stream.peek(); }
-		auto& operator ++ () { stream.get(); pos++; return *this; }
-		auto& operator ++ (int) { stream.get(); pos++; return *this; }
-		size_t consumed() const { return pos; }
+		StreamIterator(StreamType stream) : stream(stream) {}
+		auto operator * () const { return stream.peek(); }
+		auto operator ++ () { stream.get(); return *this; }
+		auto operator ++ (int) { stream.get(); return *this; }
 		bool done() const { return stream.eof(); }
-		bool error() const { return stream.fail(); }
+		bool error() const { return fail(); }
 		StreamType stream;
-		size_t pos = 0;
 	};
 
   public:
-	Parser(StreamType&& stream) : it{std::move(stream)} {}
+	enum Type {ERROR, NULL, FALSE, TRUE, NUMBER, STRING, LIST, MAP}
 
-	Parser(Parser&&) =  default;
-	Parser(const Parser&) = delete;
-	auto operator = (Parser&&) = delete;
-	auto operator = (const Parser&) = delete;
+	Parser(StreamType&& stream) : it(stream) {}
 
 	bool parse_object();
 	bool parse_number();
@@ -57,17 +43,18 @@ struct Parser
 
 	void create_error(const std::string& message);
 
-	StreamIterator it;
-	Object curr;
-	std::string scratch{32};
 	int error_offset = 0;
 	std::string error_message;
+
+  private:
+	StreamIterator it;
+	std::string scratch{32};
 };
 
-template <typename StreamType>
-bool Parser<StreamType>::parse_object()
+inline
+bool Parser::parse_object()
 {
-	for (; !it.done(); it++) {
+	for (; it != end; it++) {
 		switch (*it)
 		{
 		case ' ':
@@ -87,18 +74,18 @@ bool Parser<StreamType>::parse_object()
 		case '7':
 		case '8':
 		case '9':
-			return parse_number();
+			return Type::NUMBER;
 
 		case '\'':
 		case '"':
-			return parse_string();
+			return Type::STRING;
 
-		case '[': return parse_list();
-		case '{': return parse_map();
+		case '[': return Type::LIST;
+		case '{': return Type::MAP;
 
-		case 't': return expect("true", true);
-		case 'f': return expect("false", false);
-		case 'n': return expect("null", (void*)0);
+		case 't': return expect("true", true)? Type::TRUE: Type::ERROR;
+		case 'f': return expect("false", false)? Type::FALSE: Type::ERROR;
+		case 'n': return expect("null", (void*)0)? Type::NULL: Type::ERROR;
 
 		default:
 			break;
@@ -109,15 +96,13 @@ bool Parser<StreamType>::parse_object()
 		error_message = "No object in json stream";
 	}
 
-	return false;
+	return Type::ERROR;
 }
 
-template <typename StreamType>
-bool Parser<StreamType>::parse_number() {
-	scratch.clear();
-
+inline
+bool Parser::parse_number() {
 	bool is_float = false;
-	for (; !it.done(); it++) {
+	for (; it != end; it++) {
 		char c = *it;
 		switch (c) {
 		case '.':
@@ -130,8 +115,6 @@ bool Parser<StreamType>::parse_number() {
 		case ':':
 		case '}':
 		case ']':
-		case '\0':
-		case -1:
 			goto DONE;
 		default:
 			break;
@@ -141,7 +124,6 @@ bool Parser<StreamType>::parse_number() {
 
 DONE:
 	const char* str = scratch.c_str();
-	const char* scratch_end = str + scratch.size();
 	char* end;
 	if (is_float) {
 		curr = Object{strtod(str, &end)};
@@ -159,7 +141,7 @@ DONE:
 		create_error(strerror(errno));
 		errno = 0;
 		return false;
-	} else if (end != scratch_end) {
+	} else if (end == str) {
 		create_error("Numeric syntax error");
 		return false;
 	} else {
@@ -167,13 +149,12 @@ DONE:
 	}
 }
 
-template <typename StreamType>
-bool Parser<StreamType>::parse_string() {
-	char quote = *it;
-	it++;
+inline
+bool Parser::parse_string() {
+	char quote = *it++;
 	bool escape = false;
 	std::string str;
-	for(; !it.done(); it++) {
+	for(; it != end; it++) {
 		char c = *it;
 		if (c == '\\') {
 			escape = true;
@@ -186,7 +167,7 @@ bool Parser<StreamType>::parse_string() {
 		}
 	}
 
-	if (it.done()) {
+	if (it == end) {
 		create_error("Unterminated string");
 		return false;
 	}
@@ -195,8 +176,8 @@ bool Parser<StreamType>::parse_string() {
 	return true;
 }
 
-template <typename StreamType>
-bool Parser<StreamType>::parse_list() {
+inline
+bool Parser::parse_list() {
 	Object obj{List()};
 	List& list = obj.as_list();
 	it++;  // consume [
@@ -205,7 +186,7 @@ bool Parser<StreamType>::parse_list() {
 		curr = obj;
 		return true;
 	}
-	while (!it.done()) {
+	while (it != end) {
 		if (!parse_object()) return false;
 		list.push_back(curr);
 		consume_whitespace();
@@ -224,8 +205,8 @@ bool Parser<StreamType>::parse_list() {
 	return false;
 }
 
-template <typename StreamType>
-bool Parser<StreamType>::parse_map() {
+inline
+bool Parser::parse_map() {
 	Object obj{Map()};
 	Map& map = obj.as_map();
 	it++;  // consume {
@@ -236,7 +217,7 @@ bool Parser<StreamType>::parse_map() {
 	}
 
 	std::pair<Key, Object> item;
-	while (!it.done()) {
+	while (it != end) {
 		// key
 		if (!parse_object()) return false;
 
@@ -276,11 +257,10 @@ bool Parser<StreamType>::parse_map() {
 	return false;
 }
 
-template <typename StreamType>
 template <typename T>
-bool Parser<StreamType>::expect(const char* seq, T value) {
+bool Parser::expect(const char* seq, T value) {
 	const char* seq_it = seq;
-	for (it++; !it.done(); it++, seq_it++) {
+	for (it++; it != end; it++, seq_it++) {
 		if (*seq_it != *it) {
 			create_error("Invalid literal");
 			return false;
@@ -290,52 +270,17 @@ bool Parser<StreamType>::expect(const char* seq, T value) {
 	return true;
 }
 
-template <typename StreamType>
-void Parser<StreamType>::consume_whitespace()
+inline
+void Parser::consume_whitespace()
 {
-	while (!it.done() && std::isspace(*it)) it++;
+	while (it != end && std::isspace(*it)) it++;
 }
 
-template <typename StreamType>
-void Parser<StreamType>::create_error(const std::string& message)
+inline
+void Parser::create_error(const std::string& message)
 {
 	error_message = message;
-	error_offset = it.consumed();
+	error_offset = std::distance(it, end);
 }
 
-} // namespace impl
-
-
-struct ParseError
-{
-	int error_offset = 0;
-	std::string error_message;
-
-	std::string to_str() const {
-		if (error_message.size() > 0)
-			return fmt::format("JSON parse error at {}: {}", error_offset, error_message);
-		return "";
-	}
-};
-
-
-inline
-Object parse(const std::string& json, std::optional<ParseError>& error) {
-	impl::Parser parser{std::istringstream{json}};
-	if (!parser.parse_object()) {
-		error = ParseError{parser.error_offset, std::move(parser.error_message)};
-		return {};
-	}
-	return parser.curr;
-}
-
-inline
-Object parse(const std::string& json) {
-	impl::Parser parser{std::istringstream{json}};
-	if (!parser.parse_object()) {
-		return {};
-	}
-	return parser.curr;
-}
-
-}} // namespace nodel.json
+} // namespace nodel

@@ -16,16 +16,12 @@
 
 namespace nodel {
 
-namespace json {
-struct ParseError;
-}
-
 class Object;
+class Node;
 
 using Int = int64_t;
 using UInt = uint64_t;
 using Float = double;
-using oid_t = uint64_t;
 
 using Key = std::variant<
 	Int,
@@ -47,7 +43,6 @@ std::string key_to_str(const Key& key) {
 using Map = tsl::ordered_map<Key, Object>;
 using List = std::vector<Object>;
 
-// inplace reference count types
 using IRCString = std::tuple<std::string, size_t>;
 using IRCList = std::tuple<List, size_t>;
 using IRCMap = std::tuple<Map, size_t>;
@@ -95,6 +90,10 @@ class Object
         other.dat = (void*)0;
     }
 
+    ~Object() { free(); }
+
+    static Object from_json(const std::string& json);
+
     Object& operator = (const Object& other) {
     	free();
 
@@ -116,12 +115,6 @@ class Object
         return *this;
     }
 
-    ~Object() { free(); }
-
-    static Object from_json(const std::string& json, std::optional<nodel::json::ParseError>& error);
-    static Object from_json(const std::string& json, std::string& error);
-    static Object from_json(const std::string& json);
-
     bool is_null() const { return std::holds_alternative<void*>(dat); }
     bool is_bool() const { return std::holds_alternative<bool>(dat); }
     bool is_int() const { return std::holds_alternative<Int>(dat); };
@@ -141,10 +134,10 @@ class Object
     double as_fp() const { return std::get<double>(dat); }
     std::string& as_str() { return std::get<0>(*std::get<StringPtr>(dat)); }
     std::string const& as_str() const { return std::get<0>(*std::get<StringPtr>(dat)); }
-    List& as_list() { return std::get<0>(*std::get<ListPtr>(dat)); }
-    List const& as_list() const { return std::get<0>(*std::get<ListPtr>(dat)); }
-    Map& as_map() { return std::get<0>(*std::get<MapPtr>(dat)); }
-    Map const& as_map() const { return std::get<0>(*std::get<MapPtr>(dat)); }
+//    List& as_list() { return std::get<0>(*std::get<ListPtr>(dat)); }
+//    List const& as_list() const { return std::get<0>(*std::get<ListPtr>(dat)); }
+//    Map& as_map() { return std::get<0>(*std::get<MapPtr>(dat)); }
+//    Map const& as_map() const { return std::get<0>(*std::get<MapPtr>(dat)); }
 
     bool to_bool() const;
     Int to_int() const;
@@ -154,24 +147,18 @@ class Object
     Key to_key() const;
     std::string to_json() const;
 
-    Object operator [] (auto&&);  // numeric indices
-    Object operator [] (const char*);
-    Object operator [] (const Key&);
-    Object operator [] (const Object&);
-    Object operator [] (Key&&);
-    Object operator [] (Object&&);
-
-    template <typename Arg, typename ... Args>
-    Object operator [] (Arg arg, Args ... args) {
-    	Object child = (*this)[arg];
-    	return child[args];
-    }
+    Node& operator [] (auto&&);  // numeric indices
+    Node& operator [] (const char*);
+    Node& operator [] (const Key&);
+    Node& operator [] (const Object&);
+    Node& operator [] (Key&&);
+    Node& operator [] (Object&&);
 
     bool operator == (const Object&) const;
     auto operator <=> (const Object&) const;
 
     size_t ref_count() const;
-    oid_t id() const;
+    Int id() const;
     size_t hash() const;
 
     friend class WalkDF;
@@ -192,6 +179,45 @@ class Object
 
   private:
     Datum dat;
+};
+
+
+class Node : public Object
+{
+  public:
+	Node(const Node& node) : Object{node}, p_parent(node.p_parent) {}
+	Node(Node&& node) : Object{node}, p_parent(node.p_parent) {}
+
+	Node(const Object& object) : Object{object} {}
+	Node(Object&& object) : Object{object} {}
+
+	~Node() = default;
+
+	// Support assigning values between nodes
+	Node& operator = (const Node& node) {
+		Object& self = *this;
+		Object& obj = node;
+		self = obj;
+		return *this;
+	}
+
+	// Support assigning values between nodes
+	Node& operator = (Node&& node) {
+		Object& self = *this;
+		Object&& obj = node;
+		self = obj;
+		return *this;
+	}
+
+    Node& operator [] (auto&&);  // numeric indices
+    Node& operator [] (const char*);
+    Node& operator [] (const Key&);
+    Node& operator [] (const Object&);
+    Node& operator [] (Key&&);
+    Node& operator [] (Object&&);
+
+  private:
+    Node* p_parent;
 };
 
 
@@ -261,55 +287,55 @@ std::string Object::to_str() const {
 }
 
 inline
-Object Object::operator [] (auto&& v) {
+Node& Object::operator [] (auto&& v) {
 	if (is_list()) {
-		return std::get<0>(*std::get<ListPtr>(dat))[v];
+		return Node{std::get<0>(*std::get<ListPtr>(dat))[v]};
 	} else if (is_map()) {
-		return std::get<0>(*std::get<MapPtr>(dat))[v];
+		return Node{std::get<0>(*std::get<MapPtr>(dat))[v]};
 	}
 	throw std::bad_variant_access();
 }
 
 inline
-Object Object::operator [] (const char* key) {
+Node& Object::operator [] (const char* key) {
 	if (is_map()) {
-		return std::get<0>(*std::get<MapPtr>(dat))[key];
+		return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
 	}
 	throw std::bad_variant_access();
 }
 
 inline
-Object Object::operator [] (const Key& key) {
+Node& Object::operator [] (const Key& key) {
 	if (is_map()) {
-		return std::get<0>(*std::get<MapPtr>(dat))[key];
+		return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
 	}
 	throw std::bad_variant_access();
 }
 
 inline
-Object Object::operator [] (const Object& obj) {
+Node& Object::operator [] (const Object& obj) {
 	if (is_list()) {
-		return std::get<0>(*std::get<ListPtr>(dat))[obj.to_int()];
+		return Node{std::get<0>(*std::get<ListPtr>(dat))[obj.to_int()]};
 	} else if (is_map()) {
-		return std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()];
+		return Node{std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()]};
 	}
 	throw std::bad_variant_access();
 }
 
 inline
-Object Object::operator [] (Key&& key) {
+Node& Object::operator [] (Key&& key) {
 	if (is_map()) {
-		return std::get<0>(*std::get<MapPtr>(dat))[key];
+		return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
 	}
 	throw std::bad_variant_access();
 }
 
 inline
-Object Object::operator [] (Object&& obj) {
+Node& Object::operator [] (Object&& obj) {
 	if (is_list()) {
-		return std::get<0>(*std::get<ListPtr>(dat))[obj.to_int()];
+		return Node{std::get<0>(*std::get<ListPtr>(dat))[obj.to_int()]};
 	} else if (is_map()) {
-		return std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()];
+		return Node{std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()]};
 	}
 	throw std::bad_variant_access();
 }
@@ -543,18 +569,14 @@ std::string Object::to_json() const {
 }
 
 inline
-oid_t Object::id() const {
-	static_assert(alignof(std::string) != 1);
-	static_assert(alignof(IRCList) != 1);
-	static_assert(alignof(IRCMap) != 1);
-
-	uint64_t id = 0;
+Int Object::id() const {
+	Int id = 0;
     std::visit(overloaded {
         [&id] (void* p) { id = 0; },
-		[&id] (auto&& v) { id = (oid_t)v | (1ULL << 63); },
-        [&id] (const StringPtr p) { id = (oid_t)(&(std::get<0>(*p))) >> 1; },
-        [&id] (const ListPtr p) { id = (oid_t)&((std::get<0>(*p))) >> 1; },
-        [&id] (const MapPtr p) { id = (oid_t)&((std::get<0>(*p))) >> 1; }
+		[&id] (auto&& v) { id = (Int)v; },
+        [&id] (const StringPtr p) { id = (Int)&(std::get<0>(*p)); },
+        [&id] (const ListPtr p) { id = (Int)&(std::get<0>(*p)); },
+        [&id] (const MapPtr p) { id = (Int)&(std::get<0>(*p)); }
     }, dat);
     return id;
 }
@@ -583,6 +605,62 @@ size_t Object::ref_count() const {
     }, dat);
     return count;
 }
+
+
+inline
+Node& Node::operator [] (auto&& v) {
+	if (is_list()) {
+		return Node{this, std::get<0>(*std::get<ListPtr>(dat))[v]};
+	} else if (is_map()) {
+		return Node{std::get<0>(*std::get<MapPtr>(dat))[v]};
+	}
+	throw std::bad_variant_access();
+}
+
+inline
+Node& Node::operator [] (const char* key) {
+	if (is_map()) {
+		return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
+	}
+	throw std::bad_variant_access();
+}
+
+inline
+Node& Node::operator [] (const Key& key) {
+	if (is_map()) {
+		return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
+	}
+	throw std::bad_variant_access();
+}
+
+inline
+Node& Node::operator [] (const Object& obj) {
+	if (is_list()) {
+		return Node{std::get<0>(*std::get<ListPtr>(dat))[obj.to_int()]};
+	} else if (is_map()) {
+		return Node{std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()]};
+	}
+	throw std::bad_variant_access();
+}
+
+inline
+Node& Node::operator [] (Key&& key) {
+	if (is_map()) {
+		return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
+	}
+	throw std::bad_variant_access();
+}
+
+inline
+Node& Node::operator [] (Object&& obj) {
+	if (is_list()) {
+		return Node{std::get<0>(*std::get<ListPtr>(dat))[obj.to_int()]};
+	} else if (is_map()) {
+		return Node{std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()]};
+	}
+	throw std::bad_variant_access();
+}
+
 
 }
 // nodel namespace

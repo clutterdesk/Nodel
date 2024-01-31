@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <nodel/nodel.h>
+#include <fmt/core.h>
 
 using namespace nodel;
 
@@ -291,3 +292,60 @@ TEST(Object, RefCountTemporary) {
 	EXPECT_EQ(obj.ref_count(), 1);
 }
 
+template <typename T>
+void ptr_alignment_requirement_test() {
+	std::vector<T*> ptrs;
+	for (int i=0; i<1000; i++) {
+		auto ptr = new T{};
+		ptrs.push_back(ptr);
+		EXPECT_TRUE(((uint64_t)ptr & 0x1) == 0);
+	}
+	for (auto ptr : ptrs) {
+		delete ptr;
+	}
+}
+
+TEST(Object, StringPtrAlignmentRequirement) {
+	ptr_alignment_requirement_test<IRCString>();
+}
+
+TEST(Object, ListPtrAlignmentRequirement) {
+	ptr_alignment_requirement_test<IRCList>();
+}
+
+TEST(Object, MapPtrAlignmentRequirement) {
+	ptr_alignment_requirement_test<IRCMap>();
+}
+
+TEST(Object, PtrIDEquality) {
+	Object obj{"etc"};
+	Object copy{obj};
+	EXPECT_EQ(obj.id(), copy.id());
+}
+
+TEST(Object, NumericIDEquality) {
+	Object obj{717};
+	Object copy{obj};
+	Object other{718};
+	EXPECT_EQ(obj.id(), copy.id());
+	EXPECT_NE(obj.id(), other.id());
+}
+
+TEST(Object, NumberPtrIDConflict) {
+	Object obj{"etc"};
+	Object num{obj.id()};
+	EXPECT_NE(obj.id(), num.id());
+}
+
+TEST(Object, ZeroNullPtrIDConflict) {
+	Object obj{};
+	Object num{0};
+	EXPECT_NE(obj.id(), num.id());
+}
+
+// Omitted on purpose.  See implementation.
+//TEST(Object, CustomHash) {
+//	Object obj{"assam tea"};
+//	EXPECT_EQ(obj.hash(), std::hash<std::string>{}("assam tea"));
+//	EXPECT_EQ(std::hash<Object>{}(obj), std::hash<std::string>{}("assam tea"));
+//}
