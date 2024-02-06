@@ -1,11 +1,15 @@
 #pragma once
 
-class InvalidException : public std::exception
+namespace nodel {
+
+class JsonException : public std::exception
 {
   public:
-    JsonParseException(const std::string& msg) : msg(msg) {}
+    JsonException(const std::string& msg) : msg(msg) {}
     const char* what() const throw() override { return msg.c_str(); }
 
   private:
     const std::string msg;
 };
+
+} // namespace nodel

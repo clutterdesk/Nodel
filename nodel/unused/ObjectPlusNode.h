@@ -24,20 +24,20 @@ using UInt = uint64_t;
 using Float = double;
 
 using Key = std::variant<
-	Int,
-	UInt,
-	double,
-	std::string
+  Int,
+  UInt,
+  double,
+  std::string
 >;
 
 inline
 std::string key_to_str(const Key& key) {
-	std::stringstream ss;
-	std::visit(overloaded {
-		[&ss] (const auto v) { ss << v; },
-		[&ss] (const std::string& v) { ss << std::quoted(v); }
-	}, key);
-	return ss.str();
+  std::stringstream ss;
+  std::visit(overloaded {
+    [&ss] (const auto v) { ss << v; },
+    [&ss] (const std::string& v) { ss << std::quoted(v); }
+  }, key);
+  return ss.str();
 };
 
 using Map = tsl::ordered_map<Key, Object>;
@@ -56,7 +56,7 @@ using Datum = std::variant<
     void*,  // empty type (does not point to anything)
     bool,
     Int,
-	UInt,
+  UInt,
     double,
     StringPtr,
     ListPtr,
@@ -95,9 +95,9 @@ class Object
     static Object from_json(const std::string& json);
 
     Object& operator = (const Object& other) {
-    	free();
+      free();
 
-    	dat = other.dat;
+      dat = other.dat;
         std::visit(overloaded {
             [] (auto&&) {},
             [] (StringPtr ptr) { std::get<1>(*ptr)++; },
@@ -109,7 +109,7 @@ class Object
     }
 
     Object& operator = (Object&& other) {
-    	free();
+      free();
         dat = other.dat;
         other.dat = (void*)0;
         return *this;
@@ -166,8 +166,8 @@ class Object
 
   private:
     void free() {
-    	// TODO: instead of immediately releasing memory, queue this object to
-    	// a different thread for garbage collection.
+      // TODO: instead of immediately releasing memory, queue this object to
+      // a different thread for garbage collection.
         std::visit(overloaded {
             [] (auto&&) {},
             [] (StringPtr ptr) { if (--std::get<1>(*ptr) == 0) delete ptr; },
@@ -185,29 +185,29 @@ class Object
 class Node : public Object
 {
   public:
-	Node(const Node& node) : Object{node}, p_parent(node.p_parent) {}
-	Node(Node&& node) : Object{node}, p_parent(node.p_parent) {}
+  Node(const Node& node) : Object{node}, p_parent(node.p_parent) {}
+  Node(Node&& node) : Object{node}, p_parent(node.p_parent) {}
 
-	Node(const Object& object) : Object{object} {}
-	Node(Object&& object) : Object{object} {}
+  Node(const Object& object) : Object{object} {}
+  Node(Object&& object) : Object{object} {}
 
-	~Node() = default;
+  ~Node() = default;
 
-	// Support assigning values between nodes
-	Node& operator = (const Node& node) {
-		Object& self = *this;
-		Object& obj = node;
-		self = obj;
-		return *this;
-	}
+  // Support assigning values between nodes
+  Node& operator = (const Node& node) {
+    Object& self = *this;
+    Object& obj = node;
+    self = obj;
+    return *this;
+  }
 
-	// Support assigning values between nodes
-	Node& operator = (Node&& node) {
-		Object& self = *this;
-		Object&& obj = node;
-		self = obj;
-		return *this;
-	}
+  // Support assigning values between nodes
+  Node& operator = (Node&& node) {
+    Object& self = *this;
+    Object&& obj = node;
+    self = obj;
+    return *this;
+  }
 
     Node& operator [] (auto&&);  // numeric indices
     Node& operator [] (const char*);
@@ -223,9 +223,9 @@ class Node : public Object
 
 inline
 bool Object::to_bool() const {
-	bool rv;
+  bool rv;
     std::visit(overloaded {
-    	[] (void*) { throw std::bad_variant_access(); },
+      [] (void*) { throw std::bad_variant_access(); },
         [&rv] (auto&& v) { rv = (bool)v; },
         [] (StringPtr ptr) { throw std::bad_variant_access(); },
         [] (ListPtr ptr) { throw std::bad_variant_access(); },
@@ -236,9 +236,9 @@ bool Object::to_bool() const {
 
 inline
 Int Object::to_int() const {
-	Int rv;
+  Int rv;
     std::visit(overloaded {
-    	[] (void*) { throw std::bad_variant_access(); },
+      [] (void*) { throw std::bad_variant_access(); },
         [&rv] (auto&& v) { rv = (Int)v; },
         [] (StringPtr ptr) { throw std::bad_variant_access(); },
         [] (ListPtr ptr) { throw std::bad_variant_access(); },
@@ -249,9 +249,9 @@ Int Object::to_int() const {
 
 inline
 UInt Object::to_uint() const {
-	UInt rv;
+  UInt rv;
     std::visit(overloaded {
-    	[] (void*) { throw std::bad_variant_access(); },
+      [] (void*) { throw std::bad_variant_access(); },
         [&rv] (auto&& v) { rv = (UInt)v; },
         [] (StringPtr ptr) { throw std::bad_variant_access(); },
         [] (ListPtr ptr) { throw std::bad_variant_access(); },
@@ -262,9 +262,9 @@ UInt Object::to_uint() const {
 
 inline
 Float Object::to_fp() const {
-	double rv;
+  double rv;
     std::visit(overloaded {
-    	[] (void*) { throw std::bad_variant_access(); },
+      [] (void*) { throw std::bad_variant_access(); },
         [&rv] (auto&& v) { rv = (double)v; },
         [] (StringPtr ptr) { throw std::bad_variant_access(); },
         [] (ListPtr ptr) { throw std::bad_variant_access(); },
@@ -275,122 +275,122 @@ Float Object::to_fp() const {
 
 inline
 std::string Object::to_str() const {
-	std::stringstream ss;
-	std::visit(overloaded {
-		[&ss] (auto&& v) { ss << v; },
-		[&ss] (void*) { ss << "null"; },
-		[&ss] (StringPtr p) { ss << std::get<0>(*p); },
-		[this, &ss] (ListPtr p) { ss << to_json(); },
-		[this, &ss] (MapPtr p) { ss << to_json(); },
-	}, dat);
-	return ss.str();
+  std::stringstream ss;
+  std::visit(overloaded {
+    [&ss] (auto&& v) { ss << v; },
+    [&ss] (void*) { ss << "null"; },
+    [&ss] (StringPtr p) { ss << std::get<0>(*p); },
+    [this, &ss] (ListPtr p) { ss << to_json(); },
+    [this, &ss] (MapPtr p) { ss << to_json(); },
+  }, dat);
+  return ss.str();
 }
 
 inline
 Node& Object::operator [] (auto&& v) {
-	if (is_list()) {
-		return Node{std::get<0>(*std::get<ListPtr>(dat))[v]};
-	} else if (is_map()) {
-		return Node{std::get<0>(*std::get<MapPtr>(dat))[v]};
-	}
-	throw std::bad_variant_access();
+  if (is_list()) {
+    return Node{std::get<0>(*std::get<ListPtr>(dat))[v]};
+  } else if (is_map()) {
+    return Node{std::get<0>(*std::get<MapPtr>(dat))[v]};
+  }
+  throw std::bad_variant_access();
 }
 
 inline
 Node& Object::operator [] (const char* key) {
-	if (is_map()) {
-		return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
-	}
-	throw std::bad_variant_access();
+  if (is_map()) {
+    return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
+  }
+  throw std::bad_variant_access();
 }
 
 inline
 Node& Object::operator [] (const Key& key) {
-	if (is_map()) {
-		return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
-	}
-	throw std::bad_variant_access();
+  if (is_map()) {
+    return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
+  }
+  throw std::bad_variant_access();
 }
 
 inline
 Node& Object::operator [] (const Object& obj) {
-	if (is_list()) {
-		return Node{std::get<0>(*std::get<ListPtr>(dat))[obj.to_int()]};
-	} else if (is_map()) {
-		return Node{std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()]};
-	}
-	throw std::bad_variant_access();
+  if (is_list()) {
+    return Node{std::get<0>(*std::get<ListPtr>(dat))[obj.to_int()]};
+  } else if (is_map()) {
+    return Node{std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()]};
+  }
+  throw std::bad_variant_access();
 }
 
 inline
 Node& Object::operator [] (Key&& key) {
-	if (is_map()) {
-		return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
-	}
-	throw std::bad_variant_access();
+  if (is_map()) {
+    return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
+  }
+  throw std::bad_variant_access();
 }
 
 inline
 Node& Object::operator [] (Object&& obj) {
-	if (is_list()) {
-		return Node{std::get<0>(*std::get<ListPtr>(dat))[obj.to_int()]};
-	} else if (is_map()) {
-		return Node{std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()]};
-	}
-	throw std::bad_variant_access();
+  if (is_list()) {
+    return Node{std::get<0>(*std::get<ListPtr>(dat))[obj.to_int()]};
+  } else if (is_map()) {
+    return Node{std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()]};
+  }
+  throw std::bad_variant_access();
 }
 
 inline
 bool Object::operator == (const Object& obj) const {
-	bool rv;
-	std::visit(overloaded {
-		[] (void *) { throw std::bad_variant_access(); },
-		[&obj, &rv] (bool lhs) { rv = (lhs == obj.to_bool()); },
-		[&obj, &rv] (Int lhs) { rv = (lhs == obj.to_int()); },
-		[&obj, &rv] (UInt lhs) { rv = (lhs == obj.to_uint()); },
-		[&obj, &rv] (Float lhs) { rv = (lhs == obj.to_fp()); },
-		[&obj, &rv] (StringPtr lhs) { rv = std::get<0>(*lhs) == obj.as_str(); },
-		[] (ListPtr) { throw std::bad_variant_access(); },
-		[] (MapPtr) { throw std::bad_variant_access(); }
-	}, dat);
-	return rv;
+  bool rv;
+  std::visit(overloaded {
+    [] (void *) { throw std::bad_variant_access(); },
+    [&obj, &rv] (bool lhs) { rv = (lhs == obj.to_bool()); },
+    [&obj, &rv] (Int lhs) { rv = (lhs == obj.to_int()); },
+    [&obj, &rv] (UInt lhs) { rv = (lhs == obj.to_uint()); },
+    [&obj, &rv] (Float lhs) { rv = (lhs == obj.to_fp()); },
+    [&obj, &rv] (StringPtr lhs) { rv = std::get<0>(*lhs) == obj.as_str(); },
+    [] (ListPtr) { throw std::bad_variant_access(); },
+    [] (MapPtr) { throw std::bad_variant_access(); }
+  }, dat);
+  return rv;
 }
 
 inline
 auto Object::operator <=> (const Object& obj) const {
-	int rv;
-	std::visit(overloaded {
-		[] (void *) { throw std::bad_variant_access(); },
-		[this, &obj, &rv] (auto&& lhs) {
-			std::visit(overloaded {
-				[] (void*) { throw std::bad_variant_access(); },
-				[lhs, &rv] (auto&& rhs) { if (lhs < rhs) rv = -1; else if (lhs > rhs) rv = 1; else rv = 0; },
-				[this, &rv] (StringPtr rhs) { rv = std::get<0>(*rhs).compare(as_str()); },
-				[] (ListPtr) { throw std::bad_variant_access(); },
-				[] (MapPtr) { throw std::bad_variant_access(); }
-			}, obj.dat);
-		},
-		[&obj, &rv] (StringPtr lhs) { rv = std::get<0>(*lhs).compare(obj.as_str()); },
-		[] (ListPtr p) { throw std::bad_variant_access(); },
-		[] (MapPtr p) { throw std::bad_variant_access(); }
-	}, dat);
-	return rv;
+  int rv;
+  std::visit(overloaded {
+    [] (void *) { throw std::bad_variant_access(); },
+    [this, &obj, &rv] (auto&& lhs) {
+      std::visit(overloaded {
+        [] (void*) { throw std::bad_variant_access(); },
+        [lhs, &rv] (auto&& rhs) { if (lhs < rhs) rv = -1; else if (lhs > rhs) rv = 1; else rv = 0; },
+        [this, &rv] (StringPtr rhs) { rv = std::get<0>(*rhs).compare(as_str()); },
+        [] (ListPtr) { throw std::bad_variant_access(); },
+        [] (MapPtr) { throw std::bad_variant_access(); }
+      }, obj.dat);
+    },
+    [&obj, &rv] (StringPtr lhs) { rv = std::get<0>(*lhs).compare(obj.as_str()); },
+    [] (ListPtr p) { throw std::bad_variant_access(); },
+    [] (MapPtr p) { throw std::bad_variant_access(); }
+  }, dat);
+  return rv;
 }
 
 inline
 Key Object::to_key() const {
-	Key key;
-	std::visit(overloaded {
-		[] (void* v) { throw std::bad_variant_access(); },
-		[&key] (bool v) { key = (Int)v; },
+  Key key;
+  std::visit(overloaded {
+    [] (void* v) { throw std::bad_variant_access(); },
+    [&key] (bool v) { key = (Int)v; },
         [&key] (Int v) { key = v; },
         [&key] (UInt v) { key = v; },
         [&key] (double v) { key = v; },
         [&key] (StringPtr ptr) { key = std::get<0>(*ptr); },
         [] (ListPtr ptr) { throw std::bad_variant_access(); },
         [] (MapPtr ptr) { throw std::bad_variant_access(); }
-	}, dat);
-	return key;
+  }, dat);
+  return key;
 }
 
 class WalkDF
@@ -410,44 +410,44 @@ class WalkDF
     bool next() {
         bool has_next = !stack.empty();
         if (has_next) {
-        	const auto item = stack.top();
+          const auto item = stack.top();
             stack.pop();
 
-			std::visit(overloaded {
-				[this, &item] (auto&& v) {
-					auto& [parent, key, object, is_last] = item;
-					visitor(parent, key, object, is_last);
-				},
-				[this, &item] (const ListPtr ptr) {
-					auto& [parent, key, object, is_last] = item;
-					visitor(parent, key, object, is_last);
-					auto& list = std::get<0>(*ptr);
-					Int index = list.size() - 1;
-					auto it = list.crbegin();
-					if (it != list.crend()) {
-						stack.emplace(object, index, *it, true);
-						it++; index--;
-						for (; it != list.crend(); it++, index--) {
-							stack.emplace(object, index, *it, false);
-						}
-					}
-				},
-				[this, &item] (const MapPtr ptr) {
-					auto& [parent, key, object, is_last] = item;
-					visitor(parent, key, object, is_last);
-					auto& map = std::get<0>(*ptr);
-					auto it = map.rcbegin();
-					if (it != map.rcend()) {
-						auto& [key, child] = *it;
-						stack.emplace(object, key, child, true);
-						it++;
-						for (; it != map.rcend(); it++) {
-							auto& [key, child] = *it;
-							stack.emplace(object, key, child, false);
-						};
-					}
-				}
-			}, std::get<2>(item).dat);
+      std::visit(overloaded {
+        [this, &item] (auto&& v) {
+          auto& [parent, key, object, is_last] = item;
+          visitor(parent, key, object, is_last);
+        },
+        [this, &item] (const ListPtr ptr) {
+          auto& [parent, key, object, is_last] = item;
+          visitor(parent, key, object, is_last);
+          auto& list = std::get<0>(*ptr);
+          Int index = list.size() - 1;
+          auto it = list.crbegin();
+          if (it != list.crend()) {
+            stack.emplace(object, index, *it, true);
+            it++; index--;
+            for (; it != list.crend(); it++, index--) {
+              stack.emplace(object, index, *it, false);
+            }
+          }
+        },
+        [this, &item] (const MapPtr ptr) {
+          auto& [parent, key, object, is_last] = item;
+          visitor(parent, key, object, is_last);
+          auto& map = std::get<0>(*ptr);
+          auto it = map.rcbegin();
+          if (it != map.rcend()) {
+            auto& [key, child] = *it;
+            stack.emplace(object, key, child, true);
+            it++;
+            for (; it != map.rcend(); it++) {
+              auto& [key, child] = *it;
+              stack.emplace(object, key, child, false);
+            };
+          }
+        }
+      }, std::get<2>(item).dat);
         }
         return has_next;
     }
@@ -476,33 +476,33 @@ class WalkBF
     bool next() {
         bool has_next = !deque.empty();
         if (has_next) {
-        	const auto item = deque.front();
+          const auto item = deque.front();
             deque.pop_front();
 
-			std::visit(overloaded {
-				[this, &item] (auto&& v) {
-					auto& [parent, key, object] = item;
-					visitor(parent, key, object);
-				},
-				[this, &item] (const ListPtr ptr) {
-					auto& [parent, key, object] = item;
-					auto& list = std::get<0>(*ptr);
-					Int index = 0;
-					for (auto it = list.cbegin(); it != list.cend(); it++, index++) {
-						const auto& child = *it;
-						deque.emplace_back(object, index, child);
-					}
-				},
-				[this, &item] (const MapPtr ptr) {
-					auto& [parent, key, object] = item;
-					auto& map = std::get<0>(*ptr);
-					for (auto it = map.cbegin(); it != map.cend(); it++) {
-						auto& [key, child] = *it;
-						deque.emplace_back(object, key, child);
-					}
-				}
-			}, std::get<2>(item).dat);
-		}
+      std::visit(overloaded {
+        [this, &item] (auto&& v) {
+          auto& [parent, key, object] = item;
+          visitor(parent, key, object);
+        },
+        [this, &item] (const ListPtr ptr) {
+          auto& [parent, key, object] = item;
+          auto& list = std::get<0>(*ptr);
+          Int index = 0;
+          for (auto it = list.cbegin(); it != list.cend(); it++, index++) {
+            const auto& child = *it;
+            deque.emplace_back(object, index, child);
+          }
+        },
+        [this, &item] (const MapPtr ptr) {
+          auto& [parent, key, object] = item;
+          auto& map = std::get<0>(*ptr);
+          for (auto it = map.cbegin(); it != map.cend(); it++) {
+            auto& [key, child] = *it;
+            deque.emplace_back(object, key, child);
+          }
+        }
+      }, std::get<2>(item).dat);
+    }
         return has_next;
     }
 
@@ -519,45 +519,45 @@ std::string Object::to_json() const {
     std::string opens;
 
     auto visitor = [&ss, &opens] (const Object& parent, const Key& key, const Object& object, bool is_last) -> void {
-		auto visit_prim = overloaded {
-			[] (auto&& v) {},
-			[&ss] (void*) { ss += "null"; },
-			[&ss] (bool v) { ss += v? "true": "false"; },
-			[&ss] (Int v) { ss += std::to_string(v); },
-			[&ss] (UInt v) { ss += std::to_string(v); },
-			[&ss] (double v) { ss += std::to_string(v); },
-			[&ss] (StringPtr p) { ss += nodel::quoted(std::get<0>(*p)); },
-			[&ss, &opens] (ListPtr p) {
-				ss += '[';
-				opens.insert(opens.begin(), ']');
-			},
-			[&ss, &opens] (MapPtr p) {
-				ss += '{';
-				opens.insert(opens.begin(), '}');
-			}
-		};
+    auto visit_prim = overloaded {
+      [] (auto&& v) {},
+      [&ss] (void*) { ss += "null"; },
+      [&ss] (bool v) { ss += v? "true": "false"; },
+      [&ss] (Int v) { ss += std::to_string(v); },
+      [&ss] (UInt v) { ss += std::to_string(v); },
+      [&ss] (double v) { ss += std::to_string(v); },
+      [&ss] (StringPtr p) { ss += nodel::quoted(std::get<0>(*p)); },
+      [&ss, &opens] (ListPtr p) {
+        ss += '[';
+        opens.insert(opens.begin(), ']');
+      },
+      [&ss, &opens] (MapPtr p) {
+        ss += '{';
+        opens.insert(opens.begin(), '}');
+      }
+    };
 
-		bool is_parent_container = true;
+    bool is_parent_container = true;
 
-		if (parent.is_list()) {
-			std::visit(visit_prim, object.dat);
-		} else if (parent.is_map()) {
-			ss += key_to_str(key);
-			ss += ": ";
-			std::visit(visit_prim, object.dat);
-		} else {
-			is_parent_container = false;
-			std::visit(visit_prim, object.dat);
-		}
+    if (parent.is_list()) {
+      std::visit(visit_prim, object.dat);
+    } else if (parent.is_map()) {
+      ss += key_to_str(key);
+      ss += ": ";
+      std::visit(visit_prim, object.dat);
+    } else {
+      is_parent_container = false;
+      std::visit(visit_prim, object.dat);
+    }
 
-		if (is_parent_container) {
-			if (is_last) {
-				ss += opens;
-				opens.clear();
-			} else {
-				ss += ", ";
-			}
-		}
+    if (is_parent_container) {
+      if (is_last) {
+        ss += opens;
+        opens.clear();
+      } else {
+        ss += ", ";
+      }
+    }
     };
 
     WalkDF walk{*this, visitor};
@@ -570,10 +570,10 @@ std::string Object::to_json() const {
 
 inline
 Int Object::id() const {
-	Int id = 0;
+  Int id = 0;
     std::visit(overloaded {
         [&id] (void* p) { id = 0; },
-		[&id] (auto&& v) { id = (Int)v; },
+    [&id] (auto&& v) { id = (Int)v; },
         [&id] (const StringPtr p) { id = (Int)&(std::get<0>(*p)); },
         [&id] (const ListPtr p) { id = (Int)&(std::get<0>(*p)); },
         [&id] (const MapPtr p) { id = (Int)&(std::get<0>(*p)); }
@@ -583,22 +583,22 @@ Int Object::id() const {
 
 inline
 size_t Object::hash() const {
-	Int id = 0;
+  Int id = 0;
     std::visit(overloaded {
         [&id] (void* p) { id = 0; },
-		[&id] (auto&& v) { id = (size_t)v; },
+    [&id] (auto&& v) { id = (size_t)v; },
         [&id] (const StringPtr p) { id = std::hash<std::string>{}(std::get<0>(*p)); },
-		[] (ListPtr) { throw std::bad_variant_access(); },
-		[] (MapPtr) { throw std::bad_variant_access(); }
+    [] (ListPtr) { throw std::bad_variant_access(); },
+    [] (MapPtr) { throw std::bad_variant_access(); }
     }, dat);
     return id;
 }
 
 inline
 size_t Object::ref_count() const {
-	size_t count = std::numeric_limits<size_t>::max();
+  size_t count = std::numeric_limits<size_t>::max();
     std::visit(overloaded {
-		[] (auto&& v) {},
+    [] (auto&& v) {},
         [&count] (const StringPtr p) { count = std::get<1>(*p); },
         [&count] (const ListPtr p) { count = std::get<1>(*p); },
         [&count] (const MapPtr p) { count = std::get<1>(*p);  }
@@ -609,56 +609,56 @@ size_t Object::ref_count() const {
 
 inline
 Node& Node::operator [] (auto&& v) {
-	if (is_list()) {
-		return Node{this, std::get<0>(*std::get<ListPtr>(dat))[v]};
-	} else if (is_map()) {
-		return Node{std::get<0>(*std::get<MapPtr>(dat))[v]};
-	}
-	throw std::bad_variant_access();
+  if (is_list()) {
+    return Node{this, std::get<0>(*std::get<ListPtr>(dat))[v]};
+  } else if (is_map()) {
+    return Node{std::get<0>(*std::get<MapPtr>(dat))[v]};
+  }
+  throw std::bad_variant_access();
 }
 
 inline
 Node& Node::operator [] (const char* key) {
-	if (is_map()) {
-		return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
-	}
-	throw std::bad_variant_access();
+  if (is_map()) {
+    return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
+  }
+  throw std::bad_variant_access();
 }
 
 inline
 Node& Node::operator [] (const Key& key) {
-	if (is_map()) {
-		return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
-	}
-	throw std::bad_variant_access();
+  if (is_map()) {
+    return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
+  }
+  throw std::bad_variant_access();
 }
 
 inline
 Node& Node::operator [] (const Object& obj) {
-	if (is_list()) {
-		return Node{std::get<0>(*std::get<ListPtr>(dat))[obj.to_int()]};
-	} else if (is_map()) {
-		return Node{std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()]};
-	}
-	throw std::bad_variant_access();
+  if (is_list()) {
+    return Node{std::get<0>(*std::get<ListPtr>(dat))[obj.to_int()]};
+  } else if (is_map()) {
+    return Node{std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()]};
+  }
+  throw std::bad_variant_access();
 }
 
 inline
 Node& Node::operator [] (Key&& key) {
-	if (is_map()) {
-		return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
-	}
-	throw std::bad_variant_access();
+  if (is_map()) {
+    return Node{std::get<0>(*std::get<MapPtr>(dat))[key]};
+  }
+  throw std::bad_variant_access();
 }
 
 inline
 Node& Node::operator [] (Object&& obj) {
-	if (is_list()) {
-		return Node{std::get<0>(*std::get<ListPtr>(dat))[obj.to_int()]};
-	} else if (is_map()) {
-		return Node{std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()]};
-	}
-	throw std::bad_variant_access();
+  if (is_list()) {
+    return Node{std::get<0>(*std::get<ListPtr>(dat))[obj.to_int()]};
+  } else if (is_map()) {
+    return Node{std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()]};
+  }
+  throw std::bad_variant_access();
 }
 
 
@@ -672,6 +672,6 @@ Node& Node::operator [] (Object&& obj) {
 //struct std::hash<nodel::Object>
 //{
 //    std::size_t operator () (const nodel::Object& obj) const noexcept {
-//    	return obj.hash();
+//      return obj.hash();
 //    }
 //};
