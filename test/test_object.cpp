@@ -176,6 +176,7 @@ TEST(Object, SubscriptMap) {
   EXPECT_EQ(obj[1].to_int(), 8);
   EXPECT_EQ(obj[2].to_int(), 9);
   EXPECT_EQ(obj["name"].as_str(), "Brian");
+  EXPECT_EQ(obj[Key{"name"}].as_str(), "Brian");
   EXPECT_EQ(obj[Key{0}].to_int(), 7);
   EXPECT_EQ(obj[Key{1}].to_int(), 8);
   EXPECT_EQ(obj[Key{2}].to_int(), 9);
@@ -188,6 +189,18 @@ TEST(Object, MultipleSubscriptMap) {
   Object obj = from_json(R"({"a": {"b": {"c": 7}}})");
   EXPECT_TRUE(obj.is_map());
   EXPECT_EQ(obj.get("a").get("b").get("c"), 7);
+}
+
+TEST(Object, MoveCtorRefCountIntegrity) {
+    Object obj = from_json("{}");
+    Object copy{obj};
+    EXPECT_EQ(obj.ref_count(), 2);
+    EXPECT_EQ(copy.ref_count(), 2);
+
+    Object move{std::move(obj)};
+    EXPECT_EQ(copy.ref_count(), 2);
+    EXPECT_TRUE(obj.is_null());
+    EXPECT_EQ(obj.ref_count(), Object::no_ref_count);
 }
 
 TEST(Object, WalkDF) {
@@ -227,7 +240,7 @@ TEST(Object, WalkBF) {
 TEST(Object, RefCountPrimitive) {
   Object obj{7};
   EXPECT_TRUE(obj.is_int());
-  EXPECT_EQ(obj.ref_count(), std::numeric_limits<size_t>::max());
+  EXPECT_EQ(obj.ref_count(), Object::no_ref_count);
 }
 
 TEST(Object, RefCountNewString) {
@@ -272,7 +285,7 @@ TEST(Object, RefCountMove) {
   Object copy{std::move(obj)};
   EXPECT_TRUE(obj.is_null());
   EXPECT_TRUE(copy.is_str());
-  EXPECT_EQ(obj.ref_count(), std::numeric_limits<size_t>::max());
+  EXPECT_EQ(obj.ref_count(), Object::no_ref_count);
   EXPECT_EQ(copy.ref_count(), 1);
 }
 
@@ -301,7 +314,7 @@ TEST(Object, RefCountMoveAssign) {
   copy = std::move(obj);
   EXPECT_TRUE(obj.is_null());
   EXPECT_TRUE(copy.is_str());
-  EXPECT_EQ(obj.ref_count(), std::numeric_limits<size_t>::max());
+  EXPECT_EQ(obj.ref_count(), Object::no_ref_count);
   EXPECT_EQ(copy.ref_count(), 1);
 }
 

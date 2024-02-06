@@ -189,6 +189,8 @@ using Datum = std::variant<
 class Object
 {
   public:
+    static constexpr size_t no_ref_count = std::numeric_limits<size_t>::max();
+
     Object() : dat{(void*)0} {}
 
     Object(const char* v) : dat{new IRCString{v, 1}} {}
@@ -205,7 +207,7 @@ class Object
     Object(Map&& map) : dat{new IRCMap(map, 1)} {}
 
     Object(const Object& other) : dat{other.dat} { inc_ref_count(); }
-    Object(Object&& other) : dat(other.dat) { other.dat = (void*)0; }
+    Object(Object&& other) { std::swap(dat, other.dat); }
 
     Object& operator = (const Object& other) {
       free();
@@ -710,7 +712,7 @@ size_t Object::hash() const {
 
 inline
 size_t Object::ref_count() const {
-    size_t count = std::numeric_limits<size_t>::max();
+    size_t count = no_ref_count;
     std::visit(overloaded {
         [] (auto&& v) {},
         [&count] (const StringPtr p) { count = std::get<1>(*p); },

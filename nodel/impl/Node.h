@@ -43,26 +43,30 @@ class NodeRef
 
 } // namespace impl
 
-class NodeAccess;
-
 class Node
 {
   public:
+    class Access;
+
     Node() {}
-    Node(const NodeAccess&);
-    Node(NodeAccess&&);
+    Node(const Access&);
+    Node(Access&&);
     Node(Object& obj) : child{obj} {}
 
     Node(const Node& other) : child{other.child}, r_parent{other.r_parent}  {}
     Node(Node&& other) : child{std::move(other.child)}, r_parent{other.r_parent} {}
 
     Node& operator = (const Node& other) {
+//        fmt::print("Node::operator=(const Node&) <- {}\n", other.to_str());
         child = other.child;
+        r_parent = other.r_parent;
         return *this;
     }
 
     Node& operator = (Node&& other) {
+//        fmt::print("Node::operator=(Node&&) <- {}\n", other.to_str());
         child = std::move(other.child);
+        r_parent = std::move(other.r_parent);
         return *this;
     }
 
@@ -112,13 +116,13 @@ class Node
     std::string to_json() const { return child.to_json(); }
 
     template <typename Arg>
-    NodeAccess operator [] (Arg&& arg);
+    Access operator [] (Arg&& arg);
 
     template <typename Arg>
-    NodeAccess get(Arg&& arg);
+    Access get(Arg&& arg);
 
     template <typename Arg, typename ... Args>
-    NodeAccess get(Arg&& arg, Args&& ... args);
+    Access get(Arg&& arg, Args&& ... args);
 
     bool operator == (const Node& other) const { return child == other.child; }
     auto operator <=> (const Node& other) const { return child <=> other.child; }
@@ -135,60 +139,74 @@ class Node
     impl::NodeRef r_parent;
 
   friend class impl::NodeRef;
-  friend class NodeAccess;
+  friend class Node::Access;
 };
 
 
-class NodeAccess : public Node
+class Node::Access : public Node
 {
   public:
-    NodeAccess& operator = (const Node& node);
-    NodeAccess& operator = (Node&& node);
+    Access& operator = (const Node& node);
+    Access& operator = (Node&& node);
 
   protected:
-    NodeAccess(Node* p_parent, Object&& child) : Node{p_parent, std::forward<Object>(child)} {}
+    Access(Node* p_parent, Object&& child) : Node{p_parent, std::forward<Object>(child)} {}
+    Access(const Access& other) : Node{other} {}
+    Access(Access&& other) : Node{std::forward<Access>(other)} {}
 
   friend class Node;
 };
 
 
 inline
-Node::Node(const NodeAccess& access) : Node{(Node&)access} {}
+Node::Node(const Node::Access& access) : Node{(Node&)access} {}
 
 inline
-Node::Node(NodeAccess&& access) : Node{std::forward<Node>((Node&&)access)} {}
+Node::Node(Node::Access&& access) : Node{std::forward<Node>((Node&&)access)} {}
 
 template <typename Arg>
-NodeAccess Node::operator [] (Arg&& arg) {
+Node::Access Node::operator [] (Arg&& arg) {
     return get(std::forward<Arg>(arg));
 }
 
 template <typename Arg>
-NodeAccess Node::get(Arg&& arg) {
+Node::Access Node::get(Arg&& arg) {
     return {this, child.get(std::forward<Arg>(arg))};
 }
 
 template <typename Arg, typename ... Args>
-NodeAccess Node::get(Arg&& arg, Args&& ... args) {
+Node::Access Node::get(Arg&& arg, Args&& ... args) {
     Node node{get(arg)};
     return node.get(std::forward<Args>(args) ...);
 }
 
 inline
-NodeAccess& NodeAccess::operator = (const Node& node) {
-    std::visit(overloaded {
-        [] (auto&&) {},
-        [this, &node] (ListPtr ptr) { std::get<0>(*ptr).at(key().to_uint()) = node.child; },
-        [this, &node] (MapPtr ptr) { std::get<0>(*ptr).at(key()) = node.child; }
-    }, child.dat);
+Node::Access& Node::Access::operator = (const Node& node) {
+//    fmt::print("Access::operator=(const Node&) <- {}\n", node.to_str());
+    if (r_parent.is_null()) {
+        child = node.child;
+    } else {
+        std::visit(overloaded {
+            [] (auto&&) {},
+            [this, &node] (ListPtr ptr) { std::get<0>(*ptr).at(key().to_uint()) = node.child; },
+            [this, &node] (MapPtr ptr) { std::get<0>(*ptr).at(key()) = node.child; }
+        }, r_parent->child.dat);
+    }
     return *this;
 }
 
 inline
-NodeAccess& NodeAccess::operator = (Node&& node) {
-    child.free();
-    node.child.inc_ref_count();
-    child.dat.swap(node.child.dat);
+Node::Access& Node::Access::operator = (Node&& node) {
+//    fmt::print("Access::operator=(Node&&) <- {}\n", node.to_str());
+    if (r_parent.is_null()) {
+        child = std::move(node.child);
+    } else {
+        std::visit(overloaded {
+            [] (auto&&) {},
+            [this, &node] (ListPtr ptr) { std::get<0>(*ptr).at(key().to_uint()) = std::move(node.child); },
+            [this, &node] (MapPtr ptr) { std::get<0>(*ptr).at(key()) = std::move(node.child); }
+        }, r_parent->child.dat);
+    }
     return *this;
 }
 

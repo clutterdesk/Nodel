@@ -76,10 +76,22 @@ TEST(Node, AssignMap) {
 TEST(Node, AccessAssignMap) {
     Node rhs = Node::from_json(R"({'u': 7})");
     Node lhs = Node::from_json(R"({'x': {}})");
+    EXPECT_EQ(lhs.id(), lhs["x"].parent().id());
     lhs["x"] = rhs;
-    EXPECT_EQ(lhs["x"], 7);
+    EXPECT_EQ(lhs["x"]["u"], 7);
     EXPECT_EQ(lhs["x"].parent().id(), lhs.id());
-    EXPECT_TRUE(rhs.parent().is_null());
+}
+
+TEST(Node, AccessAssignMapRefIntegrity) {
+    Node rhs = Node::from_json(R"({'u': 7})");
+    Node lhs = Node::from_json(R"({'x': {'u': 8}})");
+    EXPECT_EQ(lhs.id(), lhs["x"].parent().id());
+
+    Node x = lhs["x"];
+    lhs["x"] = rhs;
+    EXPECT_EQ(x.parent().id(), lhs.id());
+    EXPECT_EQ(x["u"], 8);
+    EXPECT_EQ(lhs["x"]["u"], 7);
 }
 
 TEST(Node, RedundantAssignment) {
@@ -136,12 +148,4 @@ TEST(Node, ParentRefCountIntegrity) {
 
   b = Node{};
   EXPECT_EQ(root.ref_count(), 1);
-}
-
-TEST(Node, AssignmentScopes) {
-    Node node = Node::from_json("{'x': {'a': 1, 'b': 2}}");
-    node["x"] = Node::from_json("{'u': 3, 'v': 4}");
-    auto val = node.get("x").get("u");
-    fmt::print("{}\n", val.to_str());
-    EXPECT_EQ(val, 3);
 }
