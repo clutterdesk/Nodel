@@ -73,7 +73,7 @@ class Node
     Node(auto v) : child{v} {}
 
     const Node parent() const { return (r_parent.get_ptr() != nullptr)? *r_parent: Node{}; }
-    Node parent() { return (r_parent.get_ptr() != nullptr)? *r_parent: Node{}; }
+    Node parent()             { return (r_parent.get_ptr() != nullptr)? *r_parent: Node{}; }
 
     const Key key() const;
     const Key key_of(const Node& child) const;
@@ -87,33 +87,34 @@ class Node
         child.dat = new LoaderClass(std::forward<Args>(args) ...);
     }
 
-    bool is_null() const      { return child.is_type<void*>(); }
-    bool is_bool() const      { return child.is_type<bool>(); }
-    bool is_int() const       { return child.is_type<Int>(); };
-    bool is_uint() const      { return child.is_type<UInt>(); };
-    bool is_float() const     { return child.is_type<Float>(); };
-    bool is_str() const       { return child.is_type<StringPtr>(); };
-    bool is_num() const       { return child.is_int() || is_uint() || is_float(); }
-    bool is_list() const      { return child.is_type<ListPtr>(); }
-    bool is_map() const       { return child.is_type<MapPtr>(); }
-    bool is_container() const { return child.is_list() || child.is_map(); }
+    bool is_null() const      { lazy(); return child.is_type<void*>(); }
+    bool is_bool() const      { lazy(); return child.is_type<bool>(); }
+    bool is_int() const       { lazy(); return child.is_type<Int>(); };
+    bool is_uint() const      { lazy(); return child.is_type<UInt>(); };
+    bool is_float() const     { lazy(); return child.is_type<Float>(); };
+    bool is_str() const       { lazy(); return child.is_type<StringPtr>(); };
+    bool is_num() const       { lazy(); return child.is_int() || is_uint() || is_float(); }
+    bool is_list() const      { lazy(); return child.is_type<ListPtr>(); }
+    bool is_map() const       { lazy(); return child.is_type<MapPtr>(); }
+    bool is_container() const { lazy(); return child.is_list() || child.is_map(); }
 
-    Int& as_int() { return child.as_int(); }
-    Int as_int() const{ return child.as_int(); }
-    UInt& as_uint() { return child.as_uint(); }
-    UInt as_uint() const{ return child.as_uint(); }
-    double& as_fp() { return child.as_fp(); }
-    double as_fp() const{ return child.as_fp(); }
-    std::string& as_str() { return child.as_str(); }
-    std::string const& as_str() const { return child.as_str(); }
+    Int& as_int()         { lazy(); return child.as_int(); }
+    UInt& as_uint()       { lazy(); return child.as_uint(); }
+    double& as_fp()       { lazy(); return child.as_fp(); }
+    std::string& as_str() { lazy(); return child.as_str(); }
 
-    bool to_bool() const { return child.to_bool(); }
-    Int to_int() const { return child.to_int(); }
-    UInt to_uint() const { return child.to_uint(); }
-    Float to_fp() const { return child.to_fp(); }
-    std::string to_str() const { return child.to_str(); }
-    Key to_key() const { return child.to_key(); }
-    std::string to_json() const { return child.to_json(); }
+    Int as_int() const                { lazy(); return child.as_int(); }
+    UInt as_uint() const              { lazy(); return child.as_uint(); }
+    double as_fp() const              { lazy(); return child.as_fp(); }
+    std::string const& as_str() const { lazy(); return child.as_str(); }
+
+    bool to_bool() const        { lazy(); return child.to_bool(); }
+    Int to_int() const          { lazy(); return child.to_int(); }
+    UInt to_uint() const        { lazy(); return child.to_uint(); }
+    Float to_fp() const         { lazy(); return child.to_fp(); }
+    std::string to_str() const  { lazy(); return child.to_str(); }
+    Key to_key() const          { lazy(); return child.to_key(); }
+    std::string to_json() const { lazy(); return child.to_json(); }
 
     template <typename Arg>
     Access operator [] (Arg&& arg);
@@ -124,15 +125,17 @@ class Node
     template <typename Arg, typename ... Args>
     Access get(Arg&& arg, Args&& ... args);
 
-    bool operator == (const Node& other) const { return child == other.child; }
-    auto operator <=> (const Node& other) const { return child <=> other.child; }
+    bool operator == (const Node& other) const  { lazy(); other.lazy(); return child == other.child; }
+    auto operator <=> (const Node& other) const { lazy(); other.lazy(); return child <=> other.child; }
 
-    Oid id() const { return child.id(); }
-    size_t hash() const { return child.hash(); }
+    Oid id() const { lazy(); return child.id(); }
+    size_t hash() const { lazy(); return child.hash(); }
     size_t ref_count() const { return child.ref_count(); }
 
   protected:
     Node(Node* p_parent, Object&& child) : child{std::move(child)}, r_parent{p_parent} {}
+
+    void lazy() const;
 
   private:
     Object child;
@@ -171,6 +174,7 @@ Node::Access Node::operator [] (Arg&& arg) {
 
 template <typename Arg>
 Node::Access Node::get(Arg&& arg) {
+    lazy();
     return {this, child.get(std::forward<Arg>(arg))};
 }
 
@@ -183,6 +187,8 @@ Node::Access Node::get(Arg&& arg, Args&& ... args) {
 inline
 Node::Access& Node::Access::operator = (const Node& node) {
 //    fmt::print("Access::operator=(const Node&) <- {}\n", node.to_str());
+    lazy();
+    node.lazy();
     if (r_parent.is_null()) {
         child = node.child;
     } else {
@@ -198,6 +204,8 @@ Node::Access& Node::Access::operator = (const Node& node) {
 inline
 Node::Access& Node::Access::operator = (Node&& node) {
 //    fmt::print("Access::operator=(Node&&) <- {}\n", node.to_str());
+    lazy();
+    node.lazy();
     if (r_parent.is_null()) {
         child = std::move(node.child);
     } else {
@@ -212,6 +220,9 @@ Node::Access& Node::Access::operator = (Node&& node) {
 
 inline
 const Key Node::key_of(const Node& node) const {
+    lazy();
+    node.lazy();
+
     if (child.is_list()) {
         Oid node_id = node.child.id();
         const List& list = child.as_list();
@@ -229,6 +240,7 @@ const Key Node::key_of(const Node& node) const {
                 return key;
         }
     }
+
     return Key{};
 }
 
@@ -238,6 +250,10 @@ const Key Node::key() const {
         return r_parent->key_of(child);
     }
     return Key{};
+}
+
+inline
+void Node::lazy() const {
 }
 
 namespace impl {

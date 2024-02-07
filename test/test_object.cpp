@@ -383,3 +383,103 @@ TEST(Object, ZeroNullPtrIDConflict) {
 //  EXPECT_EQ(obj.hash(), std::hash<std::string>{}("assam tea"));
 //  EXPECT_EQ(std::hash<Object>{}(obj), std::hash<std::string>{}("assam tea"));
 //}
+
+struct TestLoader : public AbstractLoader
+{
+    TestLoader(const char* json, int* deleted=nullptr) : deleted{deleted} {
+        object = from_json(json);
+        if (deleted) *deleted = 0;
+    }
+    ~TestLoader() override { if (deleted) *deleted = 1; }
+
+    void handle_read(Node& node) override {}
+    void handle_read(Node& node, Key key) override {}
+
+    void handle_write(Node& node) override {}
+    void handle_write(Node& node, Key key) override {}
+
+    void handle_reset(Node& node) override {}
+    void handle_refresh(Node& node) override {}
+
+    int* deleted;
+};
+
+TEST(Object, LoaderWithInt) {
+    Object obj = Object::new_remote<TestLoader>("{'a': 1, 'b': 2}");
+    EXPECT_EQ(obj.ref_count(), 1);
+    EXPECT_EQ(obj["b"], 2);
+    EXPECT_EQ(obj["a"], 1);
+    EXPECT_TRUE(obj.is_map());
+}
+
+TEST(Object, LoaderWithMap) {
+    Object obj = Object::new_remote<TestLoader>("7");
+    EXPECT_EQ(obj.ref_count(), 1);
+    EXPECT_TRUE(obj == 7);
+    EXPECT_TRUE(obj < 8);
+    EXPECT_TRUE(obj > 6);
+    EXPECT_EQ(obj.as_int(), 7);
+    EXPECT_TRUE(obj.is_int());
+    EXPECT_TRUE(obj.to_bool());
+    EXPECT_EQ(obj.to_fp(), 7.0);
+}
+
+TEST(Object, LoaderToKey) {
+    Object obj = Object::new_remote<TestLoader>("'foo'");
+    Key key = obj.to_key();
+    EXPECT_TRUE(key.is_str());
+    EXPECT_EQ(key, "foo");
+}
+
+TEST(Object, LoaderToStr) {
+    Object obj = Object::new_remote<TestLoader>("'foo'");
+    EXPECT_EQ(obj.to_str(), "foo");
+}
+
+TEST(Object, LoaderToJson) {
+    Object obj = Object::new_remote<TestLoader>("'foo'");
+    EXPECT_EQ(obj.to_json(), R"("foo")");
+}
+
+TEST(Object, FreeLoader) {
+    int deleted = 0;
+    Object obj = Object::new_remote<TestLoader>("'foo'", &deleted);
+    EXPECT_EQ(deleted, 0);
+    obj = 0;
+    EXPECT_EQ(deleted, 1);
+}
+
+TEST(Object, LoaderWalkDF) {
+  Object obj = Object::new_remote<TestLoader>("[1, [2, [3, [4, 5], 6], 7], 8]");
+  std::vector<Int> expect_order{1, 2, 3, 4, 5, 6, 7, 8};
+  std::vector<Int> actual_order;
+
+  auto visitor = [&actual_order] (const Object& parent, const Key& key, const Object& object, int) -> void {
+    if (!object.is_container())
+      actual_order.push_back(object.to_int());
+  };
+
+  WalkDF walk{obj, visitor};
+  while (walk.next()) {}
+
+  EXPECT_EQ(actual_order.size(), expect_order.size());
+  EXPECT_EQ(actual_order, expect_order);
+}
+
+TEST(Object, LoaderWalkBF) {
+  Object obj = Object::new_remote<TestLoader>("[1, [2, [3, [4, 5], 6], 7], 8]");
+  std::vector<Int> expect_order{1, 8, 2, 7, 3, 6, 4, 5};
+  std::vector<Int> actual_order;
+
+  auto visitor = [&actual_order] (const Object& parent, const Key& key, const Object& object) -> void {
+    if (!object.is_container())
+      actual_order.push_back(object.to_int());
+  };
+
+  WalkBF walk{obj, visitor};
+  while (walk.next()) {}
+
+  EXPECT_EQ(actual_order.size(), expect_order.size());
+  EXPECT_EQ(actual_order, expect_order);
+}
+
