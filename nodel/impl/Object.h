@@ -29,7 +29,10 @@ template<typename T>
 concept is_like_Int = std::is_signed<T>::value && std::is_integral<T>::value && std::is_convertible_v<T, Int>;
 
 template<typename T>
-concept is_like_UInt = std::is_unsigned<T>::value && std::is_integral<T>::value&& std::is_convertible_v<T, UInt>;
+concept is_like_UInt = std::is_unsigned<T>::value && std::is_integral<T>::value && std::is_convertible_v<T, UInt>;
+
+template<typename T>
+concept is_integral = std::is_integral<T>::value;
 
 template<typename T>
 concept is_like_Float = std::is_floating_point<T>::value;
@@ -42,6 +45,7 @@ struct Key
         Int,
         UInt,
         Float,
+//        const char*,
         std::string
     >;
 
@@ -68,7 +72,8 @@ struct Key
         bool rv;
         std::visit(overloaded {
             [] (void*) { throw std::bad_variant_access{}; },
-            [&rv, &other] (auto v) { rv = (v == other); },
+            [&rv, &other] (auto v)       { rv = (v == other); },
+//            [&rv] (const char* s)        { rv = false; },
             [&rv] (const std::string& v) { rv = false; }
         }, dat);
         return rv;
@@ -92,6 +97,17 @@ struct Key
     UInt as_uint() const       { return std::get<UInt>(dat); }
     Float as_float() const     { return std::get<Float>(dat); }
     std::string as_str() const { return std::get<std::string>(dat); }
+
+    Int to_int() const {
+        Int rv;
+        std::visit(overloaded {
+            [&rv] (bool v) { rv = (Int)v; },
+            [&rv] (Int v) { rv = v; },
+            [&rv] (UInt v) { rv = (Int)v; },
+            [] (auto&&) { throw std::bad_variant_access(); }
+        }, dat);
+        return rv;
+    }
 
     UInt to_uint() const {
         UInt rv;
@@ -136,20 +152,21 @@ struct KeyHash
 };
 
 
+class Path;
 class AbstractLoader;
 
 using Map = tsl::ordered_map<Key, Object, KeyHash>;
 using List = std::vector<Object>;
 
 // inplace reference count types
-using IRCString = std::tuple<std::string, size_t>;
-using IRCList = std::tuple<List, size_t>;
-using IRCMap = std::tuple<Map, size_t>;
+using ref_count_t = uint32_t;
+using IRCString = std::tuple<std::string, ref_count_t>;
+using IRCList = std::tuple<List, ref_count_t>;
+using IRCMap = std::tuple<Map, ref_count_t>;
 
 using StringPtr = IRCString*;
 using ListPtr = IRCList*;
 using MapPtr = IRCMap*;
-using LoaderPtr = AbstractLoader*;
 
 // Datum must have a minimal footprint since it is the primary data representation
 using Datum = std::variant<
@@ -160,16 +177,25 @@ using Datum = std::variant<
     Float,
     StringPtr,
     ListPtr,
-    MapPtr,
-    LoaderPtr
+    MapPtr
 >;
 
+enum {
+    NULL_TYPE,
+    BOOL_TYPE,
+    INT_TYPE,
+    UINT_TYPE,
+    FLOAT_TYPE,
+    STRING_TYPE,
+    GENERIC_LIST_TYPE,
+    GENERIC_MAP_TYPE
+};
 
 // NOTE: use by-value semantics
 class Object
 {
   public:
-    static constexpr size_t no_ref_count = std::numeric_limits<size_t>::max();
+    static constexpr ref_count_t no_ref_count = std::numeric_limits<ref_count_t>::max();
 
     Object() : dat{(void*)0} {}
 
@@ -205,13 +231,6 @@ class Object
 
     ~Object() { free(); }
 
-    template <class LoaderType, typename ... Args>
-    static Object new_remote(Args&& ... args) {
-        Object obj;
-        obj.dat = new LoaderType{std::forward<Args>(args) ...};
-        return obj;
-    }
-
     template <typename T>
     bool is_type() const;
 
@@ -219,7 +238,7 @@ class Object
     T value_cast() const;
 
     template <typename T>
-    T as() const;
+    const T& as() const;
 
     template <typename T>
     T& as();
@@ -234,7 +253,6 @@ class Object
     bool is_list() const      { return is_type<ListPtr>(); }
     bool is_map() const       { return is_type<MapPtr>(); }
     bool is_container() const { return is_list() || is_map(); }
-    bool is_remote() const    { return std::holds_alternative<LoaderPtr>(dat); }
 
     Int& as_int()         { return as<Int>(); }
     UInt& as_uint()       { return as<UInt>(); }
@@ -259,38 +277,46 @@ class Object
     std::string to_json() const;
 
     // TODO: simplify with auto
-    Object operator [] (is_like_Int auto v) const   { return get(v); }
-    Object operator [] (is_like_UInt auto v) const  { return get(v); }
-    Object operator [] (const char* v) const        { return get(v); }
-    Object operator [] (const std::string& v) const { return get(v); }
-    Object operator [] (bool v) const               { return get(v); }
-    Object operator [] (const Key& key) const       { return get(key); }
-    Object operator [] (const Object& obj) const    { return get(obj); }
-    Object operator [] (Key&& key) const            { return get(std::forward<Key>(key)); }
-    Object operator [] (Object&& obj) const         { return get(std::forward<Object>(obj)); }
+    const Object operator [] (is_integral auto v) const   { return get(v); }
+    const Object operator [] (const char* v) const        { return get(v); }
+    const Object operator [] (const std::string& v) const { return get(v); }
+    const Object operator [] (bool v) const               { return get(v); }
+    const Object operator [] (const Key& key) const       { return get(key); }
+    const Object operator [] (const Object& obj) const    { return get(obj); }
 
-    Object get(is_like_Int auto v) const;
-    Object get(is_like_UInt auto v) const;
-    Object get(const char* v) const;
-    Object get(const std::string& v) const;
-    Object get(bool v) const;
-    Object get(const Key& key) const;
-    Object get(const Object& obj) const;
-    Object get(Key&& key) const;
-    Object get(Object&& obj) const;
+    Object operator [] (is_integral auto v)     { return get(v); }
+    Object operator [] (const char* v)         { return get(v); }
+    Object operator [] (const std::string& v)  { return get(v); }
+    Object operator [] (bool v)                { return get(v); }
+    Object operator [] (const Key& key)        { return get(key); }
+    Object operator [] (const Object& obj)     { return get(obj); }
+
+    const Object get(is_integral auto v) const   { return const_cast<Object*>(this)->get(v); }
+    const Object get(const char* v) const        { return const_cast<Object*>(this)->get(v); }
+    const Object get(const std::string& v) const { return const_cast<Object*>(this)->get(v); }
+    const Object get(bool v) const               { return const_cast<Object*>(this)->get(v); }
+    const Object get(const Key& key) const       { return const_cast<Object*>(this)->get(key); }
+    const Object get(const Object& obj) const    { return const_cast<Object*>(this)->get(obj); }
+
+    Object get(is_integral auto v);
+    Object get(const char* v);
+    Object get(const std::string& v);
+    Object get(bool v);
+    Object get(const Key& key);
+    Object get(const Object& obj);
 
     bool operator == (const Object&) const;
     auto operator <=> (const Object&) const;
 
     Oid id() const;
     size_t hash() const;
-    size_t ref_count() const;
+    ref_count_t ref_count() const;
 
     friend class WalkDF;
     friend class WalkBF;
 
-    void inc_ref_count();
-    void dec_ref_count();
+    void inc_ref_count() const;
+    void dec_ref_count() const;
 
   private:
     void free() {
@@ -308,59 +334,18 @@ class Object
 };
 
 
-class AbstractLoader
-{
-  public:
-    virtual ~AbstractLoader() = default;
-
-    virtual void handle_read(Node& node) = 0;
-    virtual void handle_read(Node& node, Key key) = 0;
-
-    virtual void handle_write(Node& node) = 0;
-    virtual void handle_write(Node& node, Key key) = 0;
-
-    virtual void handle_reset(Node& node) = 0;
-    virtual void handle_refresh(Node& node) = 0;
-
-    const Object& get_object() const { return object; }
-
-  protected:
-    AbstractLoader() = default;
-
-    AbstractLoader(const AbstractLoader&) = delete;
-    AbstractLoader(AbstractLoader&&) = delete;
-    auto& operator = (const AbstractLoader&) = delete;
-    auto& operator = (AbstractLoader&&) = delete;
-
-  protected:
-    Object object;
-
-  private:
-    size_t ref_count = 1;
-
-    friend class Object;
-    friend class Node;
-};
-
-
 template <typename T>
 bool Object::is_type() const {
-    auto ptr = std::get_if<LoaderPtr>(&dat);
-    if (ptr != nullptr) return (*ptr)->object.is_type<T>();
     return std::holds_alternative<T>(dat);
 }
 
 template <typename T>
-T Object::as() const {
-    auto ptr = std::get_if<LoaderPtr>(&dat);
-    if (ptr != nullptr) return (*ptr)->object.as<T>();
+const T& Object::as() const {
     return std::get<T>(dat);
 }
 
 template <typename T>
 T& Object::as() {
-    auto ptr = std::get_if<LoaderPtr>(&dat);
-    if (ptr != nullptr) return (*ptr)->object.as<T>();
     return std::get<T>(dat);
 }
 
@@ -376,9 +361,7 @@ T Object::value_cast() const {
       [&rv] (Float v) { rv = (T)v; },
       [] (StringPtr ptr) { throw std::bad_variant_access(); },
       [] (ListPtr ptr) { throw std::bad_variant_access(); },
-      [] (MapPtr ptr) { throw std::bad_variant_access(); },
-      // NOTE: Only Node class invokes Loader
-      [&rv] (LoaderPtr ptr) { rv = ptr->object.value_cast<T>(); }
+      [] (MapPtr ptr) { throw std::bad_variant_access(); }
     }, dat);
     return rv;
 }
@@ -395,42 +378,32 @@ std::string Object::to_str() const {
     [&ss] (Float v) { ss << v; },
     [&ss] (StringPtr p) { ss << std::get<0>(*p); },
     [this, &ss] (ListPtr p) { ss << to_json(); },
-    [this, &ss] (MapPtr p) { ss << to_json(); },
-    // NOTE: Only Node class invokes Loader
-    [&ss] (LoaderPtr ptr) { ss << ptr->object.to_str(); }
+    [this, &ss] (MapPtr p) { ss << to_json(); }
   }, dat);
   return ss.str();
 }
 
 inline
-Object Object::get(const char* v) const {
-    switch (dat.index()) {
-        case 7:  // MapPtr
-            return std::get<0>(*std::get<MapPtr>(dat))[Key{v}];
-        case 8: {  // LoaderPtr
-            auto ptr = std::get<LoaderPtr>(dat);
-            return ptr->object.get(v);
-        }
-        default:
-            throw std::bad_variant_access();
-    }
+Object Object::get(const char* v) {
+    auto ptr = std::get_if<MapPtr>(&dat);
+    if (ptr != nullptr) return std::get<0>(**ptr).at(Key{v});
+    throw std::bad_variant_access();
 }
 
 inline
-Object Object::get(const std::string& v) const {
+Object Object::get(const std::string& v) {
     return get(v.c_str());
 }
 
 inline
-Object Object::get(is_like_Int auto v) const {
+Object Object::get(is_integral auto index) {
     switch (dat.index()) {
-        case 6:  // ListPtr
-            return std::get<0>(*std::get<ListPtr>(dat))[v];
-        case 7:  // MapPtr
-            return std::get<0>(*std::get<MapPtr>(dat))[Key{v}];
-        case 8: {  // LoaderPtr
-            auto ptr = std::get<LoaderPtr>(dat);
-            return ptr->object.get(v);
+        case GENERIC_LIST_TYPE: {
+            List& list = std::get<0>(*std::get<ListPtr>(dat));
+            return (index < 0)? list[list.size() + index]: list[index];
+        }
+        case GENERIC_MAP_TYPE: {
+            return std::get<0>(*std::get<MapPtr>(dat))[Key{index}];
         }
         default:
             throw std::bad_variant_access();
@@ -438,50 +411,22 @@ Object Object::get(is_like_Int auto v) const {
 }
 
 inline
-Object Object::get(is_like_UInt auto v) const {
-    switch (dat.index()) {
-        case 6:  // ListPtr
-            return std::get<0>(*std::get<ListPtr>(dat))[v];
-        case 7:  // MapPtr
-            return std::get<0>(*std::get<MapPtr>(dat))[Key{v}];
-        case 8: { // LoaderPtr
-            auto ptr = std::get<LoaderPtr>(dat);
-            return ptr->object.get(v);
-        }
-        default:
-            throw std::bad_variant_access();
-    }
+Object Object::get(bool v) {
+    auto ptr = std::get_if<MapPtr>(&dat);
+    if (ptr != nullptr) return std::get<0>(**ptr).at(Key{v});
+    throw std::bad_variant_access();
 }
 
 inline
-Object Object::get(bool v) const {
+Object Object::get(const Key& key) {
     switch (dat.index()) {
-        case 7:  // MapPtr
-            return std::get<0>(*std::get<MapPtr>(dat))[Key{v}];
-        case 8: { // LoaderPtr
-            auto ptr = std::get<LoaderPtr>(dat);
-            return ptr->object.get(v);
+        case GENERIC_LIST_TYPE: {
+            List& list = std::get<0>(*std::get<ListPtr>(dat));
+            Int index = key.to_int();
+            return (index < 0)? list[list.size() + index]: list[index];
         }
-        default:
-            throw std::bad_variant_access();
-    }
-}
-
-inline
-Object Object::get(const Key& key) const {
-    switch (dat.index()) {
-        case 6:  // ListPtr
-            if (key.is_int()) {
-                return std::get<0>(*std::get<ListPtr>(dat))[key.as_int()];
-            } else if (key.is_uint()) {
-                return std::get<0>(*std::get<ListPtr>(dat))[key.as_uint()];
-            }
-            throw std::invalid_argument("key");
-        case 7:  // MapPtr
+        case GENERIC_MAP_TYPE: {
             return std::get<0>(*std::get<MapPtr>(dat))[key];
-        case 8: {  // LoaderPtr
-            auto ptr = std::get<LoaderPtr>(dat);
-            return ptr->object.get(key);
         }
         default:
             throw std::bad_variant_access();
@@ -489,62 +434,15 @@ Object Object::get(const Key& key) const {
 }
 
 inline
-Object Object::get(const Object& obj) const {
+Object Object::get(const Object& obj) {
     switch (dat.index()) {
-        case 6:  // ListPtr
-            if (obj.is_int()) {
-                return std::get<0>(*std::get<ListPtr>(dat))[obj.as_int()];
-            } else if (obj.is_uint()) {
-                return std::get<0>(*std::get<ListPtr>(dat))[obj.as_uint()];
-            }
-            throw std::invalid_argument("obj");
-        case 7:  // MapPtr
+        case GENERIC_LIST_TYPE: {
+            List& list = std::get<0>(*std::get<ListPtr>(dat));
+            Int index = obj.to_int();
+            return (index < 0)? list[list.size() + index]: list[index];
+        }
+        case GENERIC_MAP_TYPE: {
             return std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()];
-        case 8: { // LoaderPtr
-            auto ptr = std::get<LoaderPtr>(dat);
-            return ptr->object.get(obj);
-        }
-        default:
-            throw std::bad_variant_access();
-    }
-}
-
-inline
-Object Object::get(Key&& key) const {
-    switch (dat.index()) {
-        case 6:  // ListPtr
-            if (key.is_int()) {
-                return std::get<0>(*std::get<ListPtr>(dat))[key.as_int()];
-            } else if (key.is_uint()) {
-                return std::get<0>(*std::get<ListPtr>(dat))[key.as_uint()];
-            }
-            throw std::invalid_argument("key");
-        case 7:  // MapPtr
-            return std::get<0>(*std::get<MapPtr>(dat))[std::forward<Key>(key)];
-        case 8: {  // LoaderPtr
-            auto ptr = std::get<LoaderPtr>(dat);
-            return ptr->object.get(std::forward<Key>(key));
-        }
-        default:
-            throw std::bad_variant_access();
-    }
-}
-
-inline
-Object Object::get(Object&& obj) const {
-    switch (dat.index()) {
-        case 6:  // ListPtr
-            if (obj.is_int()) {
-                return std::get<0>(*std::get<ListPtr>(dat))[obj.as_int()];
-            } else if (obj.is_uint()) {
-                return std::get<0>(*std::get<ListPtr>(dat))[obj.as_uint()];
-            }
-            throw std::invalid_argument("obj");
-        case 7:  // MapPtr
-            return std::get<0>(*std::get<MapPtr>(dat))[obj.to_key()];
-        case 8: {  // LoaderPtr
-            auto ptr = std::get<LoaderPtr>(dat);
-            return ptr->object.get(std::forward<Object>(obj));
         }
         default:
             throw std::bad_variant_access();
@@ -563,36 +461,30 @@ bool Object::operator == (const Object& obj) const {
         [&obj, &rv] (Float lhs) { rv = (lhs == obj.to_fp()); },
         [&obj, &rv] (StringPtr lhs) { rv = std::get<0>(*lhs) == obj.as_str(); },
         [] (ListPtr) { throw std::bad_variant_access(); },
-        [] (MapPtr) { throw std::bad_variant_access(); },
-        [&obj, &rv] (LoaderPtr ptr) { rv = ptr->object == obj; }
+        [] (MapPtr) { throw std::bad_variant_access(); }
     }, dat);
     return rv;
 }
 
 inline
 auto Object::operator <=> (const Object& obj) const {
-    const Object& lhs = is_remote()? std::get<LoaderPtr>(dat)->object: *this;
-    const Object& rhs = obj.is_remote()? std::get<LoaderPtr>(obj.dat)->object: obj;
-
     int rv;
 
     std::visit(overloaded {
         [] (void *) { throw std::bad_variant_access(); },
-        [&lhs, &rhs, &rv] (auto&& lhs_v) {
+        [&obj, &rv] (auto&& lhs) {
             std::visit(overloaded {
                 [] (void*) { throw std::bad_variant_access(); },
-                [lhs_v, &rv] (auto&& rhs) { if (lhs_v < rhs) rv = -1; else if (lhs_v > rhs) rv = 1; else rv = 0; },
-                [&lhs, &rv] (StringPtr rhs_p) { rv = std::get<0>(*rhs_p).compare(lhs.as_str()); },
+                [lhs, &rv] (auto&& rhs) { if (lhs < rhs) rv = -1; else if (lhs > rhs) rv = 1; else rv = 0; },
+                [&obj, &rv] (StringPtr p_rhs) { rv = obj.as_str().compare(std::get<0>(*p_rhs)); },
                 [] (ListPtr) { throw std::bad_variant_access(); },
-                [] (MapPtr) { throw std::bad_variant_access(); },
-                [] (LoaderPtr ptr) { throw std::logic_error("rhs data should already be loaded"); }  // never called
-            }, rhs.dat);
+                [] (MapPtr) { throw std::bad_variant_access(); }
+            }, obj.dat);
         },
-        [&rhs, &rv] (StringPtr lhs_v) { rv = std::get<0>(*lhs_v).compare(rhs.as_str()); },
+        [&obj, &rv] (StringPtr p_lhs) { rv = std::get<0>(*p_lhs).compare(obj.as_str()); },
         [] (ListPtr p) { throw std::bad_variant_access(); },
-        [] (MapPtr p) { throw std::bad_variant_access(); },
-        [] (LoaderPtr ptr) { throw std::logic_error("lhs data should already be loaded"); }  // never called
-    }, lhs.dat);
+        [] (MapPtr p) { throw std::bad_variant_access(); }
+    }, dat);
 
     return rv;
 }
@@ -609,8 +501,7 @@ Key Object::to_key() const {
         [&key] (Float v) { key = v; },
         [&key] (StringPtr ptr) { key = std::get<0>(*ptr); },
         [] (ListPtr) { throw std::bad_variant_access(); },
-        [] (MapPtr) { throw std::bad_variant_access(); },
-        [&key] (LoaderPtr ptr) { key = ptr->object.to_key(); }
+        [] (MapPtr) { throw std::bad_variant_access(); }
     }, dat);
     return key;
 }
@@ -669,10 +560,6 @@ public:
                             auto& [key, child] = *it;
                             stack.emplace(object, key, child, (index == 0)? FIRST_VALUE: NEXT_VALUE);
                         }
-                    },
-                    [this, &item] (LoaderPtr ptr) {
-                        auto& [parent, key, object, event] = item;
-                        stack.emplace(parent, key, ptr->get_object(), event);
                     }
                 }, std::get<2>(item).dat);
             }
@@ -728,10 +615,6 @@ public:
                         auto& [key, child] = *it;
                         deque.emplace_back(object, key, child);
                     }
-                },
-                [this, &item] (LoaderPtr ptr) {
-                    auto& [parent, key, object] = item;
-                    deque.emplace_front(parent, key, ptr->get_object());
                 }
             }, std::get<2>(item).dat);
         }
@@ -756,8 +639,7 @@ std::string Object::to_json() const {
             [&ss] (bool v) { ss << (v? "true": "false"); },
             [&ss] (StringPtr p) { ss << nodel::quoted(std::get<0>(*p)); },
             [&ss, event] (ListPtr p) { ss << ((event & WalkDF::BEGIN_PARENT)? '[': ']'); },
-            [&ss, event] (MapPtr p) { ss << ((event & WalkDF::BEGIN_PARENT)? '{': '}'); },
-            [] (LoaderPtr) {}  // never called
+            [&ss, event] (MapPtr p) { ss << ((event & WalkDF::BEGIN_PARENT)? '{': '}'); }
         };
 
         if (event & WalkDF::NEXT_VALUE && !(event & WalkDF::END_PARENT)) {
@@ -797,8 +679,7 @@ Oid Object::id() const {
         [&id] (Float v) { id = Oid{4, *((uint64_t*)(&v))}; },
         [&id] (const StringPtr p) { id = Oid{5, (uint64_t)(&(std::get<0>(*p)))}; },
         [&id] (const ListPtr p) { id = Oid{5, (uint64_t)(&(std::get<0>(*p)))}; },
-        [&id] (const MapPtr p) { id = Oid{5, (uint64_t)(&(std::get<0>(*p)))}; },
-        [&id] (const LoaderPtr p) { id = p->object.id(); }
+        [&id] (const MapPtr p) { id = Oid{5, (uint64_t)(&(std::get<0>(*p)))}; }
     }, dat);
     return id;
 }
@@ -815,45 +696,41 @@ size_t Object::hash() const {
         [&hash] (Float v) { hash = *((size_t*)(&v)); },
         [&hash] (const StringPtr p) { hash = std::hash<std::string>{}(std::get<0>(*p)); },
         [] (ListPtr) { throw std::bad_variant_access(); },
-        [] (MapPtr) { throw std::bad_variant_access(); },
-        [&hash] (LoaderPtr p) { hash = p->object.hash(); }
+        [] (MapPtr) { throw std::bad_variant_access(); }
     }, dat);
     return hash;
 }
 
 inline
-size_t Object::ref_count() const {
-    size_t count = no_ref_count;
+ref_count_t Object::ref_count() const {
+    ref_count_t count = no_ref_count;
     std::visit(overloaded {
         [] (auto&& v) {},
         [&count] (const StringPtr p) { count = std::get<1>(*p); },
         [&count] (const ListPtr p) { count = std::get<1>(*p); },
-        [&count] (const MapPtr p) { count = std::get<1>(*p);  },
-        [&count] (const LoaderPtr p) { count = p->ref_count;  }
+        [&count] (const MapPtr p) { count = std::get<1>(*p);  }
     }, dat);
     return count;
 }
 
 inline
-void Object::inc_ref_count() {
+void Object::inc_ref_count() const {
     std::visit(overloaded {
         [] (auto&&) {},
         [] (StringPtr ptr) { std::get<1>(*ptr)++; },
         [] (ListPtr ptr) { std::get<1>(*ptr)++; },
-        [] (MapPtr ptr) { std::get<1>(*ptr)++; },
-        [] (LoaderPtr ptr) { ptr->ref_count++; }
-    }, dat);
+        [] (MapPtr ptr) { std::get<1>(*ptr)++; }
+    }, const_cast<Datum&>(dat));
 }
 
 inline
-void Object::dec_ref_count() {
+void Object::dec_ref_count() const {
     std::visit(overloaded {
         [] (auto&&) {},
         [] (StringPtr ptr) { if (--std::get<1>(*ptr) == 0) delete ptr; },
         [] (ListPtr ptr) { if (--std::get<1>(*ptr) == 0) delete ptr; },
-        [] (MapPtr ptr) { if (--std::get<1>(*ptr) == 0) delete ptr; },
-        [] (LoaderPtr ptr) { if (--(ptr->ref_count) == 0) delete ptr; }
-    }, dat);
+        [] (MapPtr ptr) { if (--std::get<1>(*ptr) == 0) delete ptr; }
+    }, const_cast<Datum&>(dat));
 }
 
 } // nodel namespace

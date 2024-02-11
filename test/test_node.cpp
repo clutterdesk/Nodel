@@ -16,16 +16,6 @@ TEST(Node, FromJson) {
   EXPECT_EQ(node.to_json(), "\"food\"");
 }
 
-TEST(Node, FindNodeKey) {
-    Node root = Node::from_json("{'a': [1, [1], 1], 'b': {'x': 3, 'y': 4}}");
-    EXPECT_EQ(root.key_of(root["b"]), "b");
-    EXPECT_EQ(root["b"].key(), "b");
-    EXPECT_EQ(root["a"][1].key(), 1);
-
-    // NOTE: this doesn't work, but isn't explicitly disallowed for performance reasons
-    EXPECT_NE(root["a"][2].key(), 2);
-}
-
 TEST(Node, SubscriptCheckParent) {
   Node node = Node::from_json("['a', 'b']");
   EXPECT_TRUE(node.is_list());
@@ -41,6 +31,9 @@ TEST(Node, MultipleSubscriptCheckAncestors) {
   Node a = root["a"];
   Node b = root["b"];
 
+  EXPECT_EQ(root.id(), a.parent().id());
+  EXPECT_EQ(root.id(), b.parent().id());
+
   EXPECT_EQ(a.id(), a[0].parent().id());
   EXPECT_EQ(root.id(), a[0].parent().parent().id());
 
@@ -52,6 +45,16 @@ TEST(Node, MultipleSubscriptCheckAncestors) {
 
   EXPECT_EQ(b.id(), b[1].parent().id());
   EXPECT_EQ(root.id(), b[1].parent().parent().id());
+}
+
+TEST(Node, FindNodeKey) {
+    Node root = Node::from_json("{'a': [1, [1], 1], 'b': {'x': 3, 'y': 4}}");
+    EXPECT_EQ(root.key_of(root["b"]), "b");
+    EXPECT_EQ(root["b"].key(), "b");
+    EXPECT_EQ(root["a"][1].key(), 1);
+
+    // NOTE: this doesn't work, but isn't explicitly disallowed for performance reasons
+    EXPECT_NE(root["a"][2].key(), 2);
 }
 
 TEST(Node, AssignList) {
@@ -149,3 +152,110 @@ TEST(Node, ParentRefCountIntegrity) {
   b = Node{};
   EXPECT_EQ(root.ref_count(), 1);
 }
+
+struct TestStore : public IDataStore
+{
+    TestStore(const char* json, int* deleted=nullptr) : IDataStore{OBJECT}, json{json}, deleted{deleted} {
+        if (deleted) *deleted = 0;
+    }
+
+    ~TestStore() override { if (deleted) *deleted = 1; }
+
+    Object read(Node& from_node) override {
+        return Node::from_json(json);
+    }
+
+    Object read(Node& from_node, const Key& key) override {
+        Node node = Node::from_json(json);
+        return node.get_immed(key);
+    }
+
+    void write(Node& to_node, const Node& from_node) override {}
+    void write(Node& to_node, const Key& key, const Node& from_node) override {}
+
+    void reset(Node& node) override {}
+    void refresh(Node& node) override {}
+
+    const char* json;
+    int* deleted;
+};
+
+TEST(Node, DataStoreWithInt) {
+    Node obj;
+    obj.bind<TestStore>("{'a': 1, 'b': 2}");
+    EXPECT_EQ(obj.ref_count(), 1);
+    EXPECT_EQ(obj["b"], 2);
+    EXPECT_EQ(obj["a"], 1);
+    EXPECT_TRUE(obj.is_map());
+}
+
+//TEST(Node, DataStoreWithMap) {
+//    Object obj = Object::new_remote<TestStore>("7");
+//    EXPECT_EQ(obj.ref_count(), 1);
+//    EXPECT_TRUE(obj == 7);
+//    EXPECT_TRUE(obj < 8);
+//    EXPECT_TRUE(obj > 6);
+//    EXPECT_EQ(obj.as_int(), 7);
+//    EXPECT_TRUE(obj.is_int());
+//    EXPECT_TRUE(obj.to_bool());
+//    EXPECT_EQ(obj.to_fp(), 7.0);
+//}
+//
+//TEST(Node, DataStoreToKey) {
+//    Object obj = Object::new_remote<TestStore>("'foo'");
+//    Key key = obj.to_key();
+//    EXPECT_TRUE(key.is_str());
+//    EXPECT_EQ(key, "foo");
+//}
+//
+//TEST(Node, DataStoreToStr) {
+//    Object obj = Object::new_remote<TestStore>("'foo'");
+//    EXPECT_EQ(obj.to_str(), "foo");
+//}
+//
+//TEST(Node, DataStoreToJson) {
+//    Object obj = Object::new_remote<TestStore>("'foo'");
+//    EXPECT_EQ(obj.to_json(), R"("foo")");
+//}
+//
+//TEST(Node, FreeDataStore) {
+//    int deleted = 0;
+//    Object obj = Object::new_remote<TestStore>("'foo'", &deleted);
+//    EXPECT_EQ(deleted, 0);
+//    obj = 0;
+//    EXPECT_EQ(deleted, 1);
+//}
+//
+//TEST(Node, DataStoreWalkDF) {
+//  Object obj = Object::new_remote<TestStore>("[1, [2, [3, [4, 5], 6], 7], 8]");
+//  std::vector<Int> expect_order{1, 2, 3, 4, 5, 6, 7, 8};
+//  std::vector<Int> actual_order;
+//
+//  auto visitor = [&actual_order] (const Object& parent, const Key& key, const Object& object, int) -> void {
+//    if (!object.is_container())
+//      actual_order.push_back(object.to_int());
+//  };
+//
+//  WalkDF walk{obj, visitor};
+//  while (walk.next()) {}
+//
+//  EXPECT_EQ(actual_order.size(), expect_order.size());
+//  EXPECT_EQ(actual_order, expect_order);
+//}
+//
+//TEST(Node, DataStoreWalkBF) {
+//  Object obj = Object::new_remote<TestStore>("[1, [2, [3, [4, 5], 6], 7], 8]");
+//  std::vector<Int> expect_order{1, 8, 2, 7, 3, 6, 4, 5};
+//  std::vector<Int> actual_order;
+//
+//  auto visitor = [&actual_order] (const Object& parent, const Key& key, const Object& object) -> void {
+//    if (!object.is_container())
+//      actual_order.push_back(object.to_int());
+//  };
+//
+//  WalkBF walk{obj, visitor};
+//  while (walk.next()) {}
+//
+//  EXPECT_EQ(actual_order.size(), expect_order.size());
+//  EXPECT_EQ(actual_order, expect_order);
+//}
