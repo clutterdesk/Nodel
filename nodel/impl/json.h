@@ -145,11 +145,14 @@ bool Parser<StreamType>::parse_number() {
     const char* scratch_end = str + scratch.size();
     char* end;
     if (is_float) {
+        curr.free();
         curr = Object{strtod(str, &end)};
     } else {
+        curr.free();
         curr = Object{strtoll(str, &end, 10)};
         if (errno) {
             errno = 0;
+            curr.free();
             curr = Object{strtoull(str, &end, 10)};
         }
     }
@@ -192,18 +195,19 @@ bool Parser<StreamType>::parse_string() {
         return false;
     }
 
+    curr.free();
     curr = std::move(str);
     return true;
 }
 
 template <typename StreamType>
 bool Parser<StreamType>::parse_list() {
-    Object obj{List()};
-    List& list = obj.as_list();
+    List list;
     it++;  // consume [
     consume_whitespace();
     if (*it == ']') {
-        curr = obj;
+        curr.free();
+        curr = std::move(list);
         return true;
     }
     while (!it.done()) {
@@ -213,7 +217,8 @@ bool Parser<StreamType>::parse_list() {
         char c = *it;
         if (c == ']') {
             it++;
-            curr = obj;
+            curr.free();
+            curr = std::move(list);
             return true;
         } else if (c == ',') {
             it++;
@@ -227,12 +232,12 @@ bool Parser<StreamType>::parse_list() {
 
 template <typename StreamType>
 bool Parser<StreamType>::parse_map() {
-    Object obj{Map()};
-    Map& map = obj.as_map();
+    Map map;
     it++;  // consume {
     consume_whitespace();
     if (*it == '}') {
-        curr = obj;
+        curr.free();
+        curr = std::move(map);
         return true;
     }
 
@@ -265,7 +270,8 @@ bool Parser<StreamType>::parse_map() {
         c = *it;
         if (c == '}') {
             it++;
-            curr = obj;
+            curr.free();
+            curr = std::move(map);
             return true;
         } else if (c == ',') {
             it++;
@@ -287,6 +293,7 @@ bool Parser<StreamType>::expect(const char* seq, T value) {
             return false;
         }
     }
+    curr.free();
     curr = value;
     return true;
 }

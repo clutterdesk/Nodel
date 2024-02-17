@@ -35,7 +35,7 @@ class IDataStore
     virtual void reset(Node&) = 0;
     virtual void refresh(Node&) = 0;
 
-    ref_count_t dec_ref_count() { return --ref_count; }
+    refcnt_t dec_ref_count() { return --ref_count; }
     void inc_ref_count()        { ++ref_count; }
 
   protected:
@@ -45,7 +45,7 @@ class IDataStore
 
   private:
     SyncMode sync_mode;
-    ref_count_t ref_count = 1;
+    refcnt_t ref_count = 1;
 };
 
 
@@ -55,7 +55,7 @@ class NodeRef
 {
   public:
     NodeRef() {}
-    NodeRef(Node* p_node) { set(p_node); }
+    NodeRef(const Node& p_node) { set(p_node); }
 
     ~NodeRef() { reset(); }
 
@@ -64,7 +64,7 @@ class NodeRef
     NodeRef& operator = (const NodeRef& other) { set(other.ptr); return *this; }
     NodeRef& operator = (NodeRef&& other) { set(other.ptr); return *this; }
 
-    void set(const Node*);
+    void set(const Node&);
     void reset();
 
     bool is_null() const { return ptr == nullptr; }
@@ -205,20 +205,15 @@ class Node
     bool is_map() const         { return get_object().is_type<MapPtr>(); }
     bool is_container() const   { return get_object().is_list() || object.is_map(); }
 
-    Int& as_int()         { return get_object().as_int(); }
-    UInt& as_uint()       { return get_object().as_uint(); }
-    Float& as_fp()        { return get_object().as_fp(); }
-    std::string& as_str() { return get_object().as_str(); }
-
-    Int as_int() const                { return get_object().as_int(); }
-    UInt as_uint() const              { return get_object().as_uint(); }
-    Float as_fp() const               { return get_object().as_fp(); }
-    std::string const& as_str() const { return get_object().as_str(); }
+    template <typename T> const T& as() const        { return get_object().as<T>(); }
+    template <typename T> T& as()                    { return get_object().as<T>(); }
+    template <typename T> const T& unsafe_as() const { return get_object().unsafe_as<T>(); }
+    template <typename T> T& unsafe_as()             { return get_object().unsafe_as<T>(); }
 
     bool to_bool() const        { return get_object().to_bool(); }
     Int to_int() const          { return get_object().to_int(); }
     UInt to_uint() const        { return get_object().to_uint(); }
-    Float to_fp() const         { return get_object().to_fp(); }
+    Float to_float() const      { return get_object().to_float(); }
     std::string to_str() const  { return get_object().to_str(); }
     Key to_key() const          { return get_object().to_key(); }
     std::string to_json() const { return get_object().to_json(); }
@@ -246,7 +241,7 @@ class Node
 
     Oid id() const                { return get_object().id(); }
     size_t hash() const           { return get_object().hash(); }
-    ref_count_t ref_count() const { return get_object().ref_count(); }
+    refcnt_t ref_count() const { return get_object().ref_count(); }
 
     operator Object () const { return get_object(); }
     operator Object ()       { return get_object(); }
@@ -373,7 +368,7 @@ class Access
 
     Oid id() const           { return finish().id(); }
     size_t hash() const      { return finish().hash(); }
-    ref_count_t ref_count() const { return finish().ref_count(); }
+    refcnt_t ref_count() const { return finish().ref_count(); }
 
   protected:
     Access(Node& node, const T& spec) : node{node}, spec{spec} {}
@@ -493,7 +488,7 @@ inline
 const Key Node::key_of(const Node& node) const {
     if (object.is_list()) {
         Oid node_id = node.object.id();
-        const List& list = object.as_list();
+        const List& list = object.unsafe_as<List>();
         UInt index = 0;
         for (const auto& item : list) {
             if (item.id() == node_id)
@@ -502,7 +497,7 @@ const Key Node::key_of(const Node& node) const {
         }
     } else if (object.is_map()) {
         Oid node_id = node.object.id();
-        const Map& map = object.as_map();
+        const Map& map = object.unsafe_as<Map>();
         for (auto& [key, value] : map) {
             if (value.id() == node_id)
                 return key;
@@ -561,29 +556,41 @@ const Node Node::get_immed(const Key& key) const {
 
 inline
 Node& Node::replace(const Node& other) {
-    std::visit(overloaded {
-        [] (auto&&) {},
-        [this, &other] (ListPtr ptr) {
-            std::get<0>(*ptr).at(key().to_uint()) = other.get_object();
-        },
-        [this, &other] (MapPtr ptr) {
-            std::get<0>(*ptr).at(key()) = other.get_object();
+    Object parent_obj = parent().object;
+    switch (parent_obj.repr_ix) {
+        case Object::LIST_I: {
+            List& list = parent_obj.as<List>();
+            list[key().to_uint()] = other.get_object();
+            break;
         }
-    }, parent().object.dat);
+        case Object::MAP_I: {
+            Map& map = parent_obj.as<Map>();
+            map[key()] = other.get_object();
+            break;
+        }
+        default:
+            throw Object::wrong_type(parent_obj.repr_ix);
+    }
     return *this;
 }
 
 inline
 Node& Node::replace(Node&& other) {
-    std::visit(overloaded {
-        [] (auto&&) {},
-        [this, &other] (ListPtr ptr) {
-            std::get<0>(*ptr).at(key().to_uint()) = std::move(other.get_object());
-        },
-        [this, &other] (MapPtr ptr) {
-            std::get<0>(*ptr).at(key()) = std::move(other.get_object());
+    Object parent_obj = parent().object;
+    switch (parent_obj.repr_ix) {
+        case Object::LIST_I: {
+            List& list = parent_obj.as<List>();
+            list[key().to_uint()] = std::move(other.get_object());
+            break;
         }
-    }, parent().object.dat);
+        case Object::MAP_I: {
+            Map& map = parent_obj.as<Map>();
+            map[key()] = std::move(other.get_object());
+            break;
+        }
+        default:
+            throw Object::wrong_type(parent_obj.repr_ix);
+    }
     return *this;
 }
 
@@ -634,12 +641,14 @@ bool IDataStore::is_synced(Node& node, const Key& key) {
 namespace impl {
 
 inline
-void NodeRef::set(const Node* p_const_node) {
-    Node* new_ptr = const_cast<Node*>(p_const_node);
+void NodeRef::set(const Node& p_const_node) {
+    Node* new_ptr = new Node{const_cast<Node&>(p_const_node)};
     Node* old_ptr = ptr;
     ptr = new_ptr;
     if (ptr != nullptr) ptr->object.inc_ref_count();
-    if (old_ptr != nullptr) old_ptr->object.dec_ref_count();
+    if (old_ptr != nullptr && old_ptr->object.dec_ref_count()) {
+        delete old_ptr;
+    }
 }
 
 inline

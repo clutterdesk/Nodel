@@ -1,3 +1,21 @@
+## Data Structures
+
+Why use by-value semantics, instead of Map<Key, Object*> and List<Object*>?
+
+Since the Object class may hold different underlying types (integers, strings, maps, etc...), the 
+types with a large footprint must be stored as pointers.
+
+In order to minimize the pointer dereferencing depth of operations on Object, by-value semantics
+are used.  Therefore, an Object instance is a reference to the data it holds.  With many Object
+instances being passed around by-value, it is essential to have a memory management architecture.
+To avoid the thread-safety overhead of std::shared_ptr, the Object class uses an intrusive 
+reference count, instead.  Thus, the total size of an Object is 16 bytes.  However, the Object
+class has native storage for vectors of integers and floating point numbers, and hints can be
+provided to the included JSON parser to insure that data is deserialized to compact vector
+representations, instead of large lists of Objects.
+
+The Object class also provides an API for registering custom types
+
 ## DataStore Strategy
 
 Originally, the class implementing the data-source was going to be another member of the Datum variant.
