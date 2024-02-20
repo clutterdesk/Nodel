@@ -85,6 +85,7 @@ struct Parser
     auto operator = (Parser&&) = delete;
     auto operator = (const Parser&) = delete;
 
+    Object::ReprType parse_type();  // quickly determine type without full parse
     bool parse_object();
     bool parse_object(char term_char);
     bool parse_number();
@@ -106,6 +107,40 @@ struct Parser
     std::string error_message;
     debug::Stopwatch swatch;
 };
+
+template <typename StreamType>
+Object::ReprType Parser<StreamType>::parse_type() {
+    consume_whitespace();
+    switch (it.peek()) {
+        case '{': return Object::MAP_I;
+        case '[': return Object::LIST_I;
+        case 'n': return Object::NULL_I;
+        case 't':
+        case 'f': return Object::BOOL_I;
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+        case '+':
+        case '-':
+        case '.':
+            if (parse_number())
+                return curr.type();
+            break;
+        case '"':
+        case '\'':
+            return Object::STR_I;
+        default:
+            break;
+    }
+    return Object::BAD_I;
+}
 
 template <typename StreamType>
 bool Parser<StreamType>::parse_object()
@@ -209,14 +244,14 @@ bool Parser<StreamType>::parse_number() {
     const char* scratch_end = str + scratch.size();
     char* end = 0;
     if (is_float) {
-        curr.free();
+        curr.empty();
         curr = Object{strtod(str, &end)};
     } else {
-        curr.free();
+        curr.empty();
         curr = Object{strtoll(str, &end, 10)};
         if (errno) {
             errno = 0;
-            curr.free();
+            curr.empty();
             curr = Object{strtoull(str, &end, 10)};
         }
     }
@@ -259,7 +294,7 @@ bool Parser<StreamType>::parse_string() {
         return false;
     }
 
-    curr.free();
+    curr.empty();
     curr = std::move(str);
     return true;
 }
@@ -271,7 +306,7 @@ bool Parser<StreamType>::parse_list() {
     consume_whitespace();
     if (it.peek() == ']') {
         it.next();
-        curr.free();
+        curr.empty();
         curr = std::move(list);
         return true;
     }
@@ -285,7 +320,7 @@ bool Parser<StreamType>::parse_list() {
         char c = it.peek();
         if (c == ']') {
             it.next();
-            curr.free();
+            curr.empty();
             curr = std::move(list);
             return true;
         } else if (c == ',') {
@@ -305,7 +340,7 @@ bool Parser<StreamType>::parse_map() {
     consume_whitespace();
     if (it.peek() == '}') {
         it.next();
-        curr.free();
+        curr.empty();
         curr = std::move(map);
         return true;
     }
@@ -346,7 +381,7 @@ bool Parser<StreamType>::parse_map() {
         c = it.peek();
         if (c == '}') {
             it.next();
-            curr.free();
+            curr.empty();
             curr = std::move(map);
             return true;
         } else if (c == ',') {
@@ -369,7 +404,7 @@ bool Parser<StreamType>::expect(const char* seq, T value) {
             return false;
         }
     }
-    curr.free();
+    curr.empty();
     curr = value;
     return true;
 }

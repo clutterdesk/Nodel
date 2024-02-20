@@ -1,7 +1,6 @@
 #pragma once
 
 #include "str_util.h"
-#include "ops.h"
 #include "types.h"
 
 #include <string>

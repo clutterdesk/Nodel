@@ -2,17 +2,9 @@
 #include <nodel/nodel.h>
 #include <fmt/core.h>
 
-using namespace nodel;
+#include <nodel/impl/json.h>
 
-static Object from_json(std::string&& json) {
-    std::optional<nodel::json::ParseError> parse_error;
-    Object result = nodel::json::parse(std::forward<std::string>(json), parse_error);
-    if (parse_error) {
-        throw json::JsonException(parse_error->to_str());
-        return {};
-    }
-    return result;
-}
+using namespace nodel;
 
 TEST(Object, Empty) {
   Object v;
@@ -20,7 +12,7 @@ TEST(Object, Empty) {
 }
 
 TEST(Object, Null) {
-  Object v{nullptr};
+  Object v{null};
   EXPECT_TRUE(v.is_null());
   EXPECT_TRUE(v.is(null));
   EXPECT_EQ(v.to_json(), "null");
@@ -89,11 +81,11 @@ TEST(Object, ToStr) {
   EXPECT_EQ(Object{0xFFFFFFFFFFFFFFFFULL}.to_str(), "18446744073709551615");
   EXPECT_EQ(Object{3.14}.to_str(), "3.14");
   EXPECT_EQ(Object{"trivial"}.to_str(), "trivial");
-  EXPECT_EQ(from_json("[1, 2, 3]").to_str(), "[1, 2, 3]");
-  EXPECT_EQ(from_json("{'name': 'Dude'}").to_str(), "{\"name\": \"Dude\"}");
+  EXPECT_EQ(parse_json("[1, 2, 3]").to_str(), "[1, 2, 3]");
+  EXPECT_EQ(parse_json("{'name': 'Dude'}").to_str(), "{\"name\": \"Dude\"}");
 
   const char* json = R"({"a": [], "b": [1], "c": [2, 3], "d": [4, [5, 6]]})";
-  EXPECT_EQ(from_json(json).to_str(), json);
+  EXPECT_EQ(parse_json(json).to_str(), json);
 }
 
 TEST(Object, IdentityComparison) {
@@ -191,7 +183,7 @@ TEST(Object, CompareBoolStr) {
 
 TEST(Object, CompareBoolList) {
     Object a{true};
-    Object b = from_json("[1]");
+    Object b = parse_json("[1]");
     try {
         EXPECT_FALSE(a == b);
         FAIL();
@@ -311,7 +303,7 @@ TEST(Object, CompareIntStr) {
 
 TEST(Object, CompareIntList) {
     Object a{1};
-    Object b = from_json("[1]");
+    Object b = parse_json("[1]");
     try {
         EXPECT_FALSE(a == b);
         FAIL();
@@ -337,7 +329,7 @@ TEST(Object, CompareIntList) {
 
 TEST(Object, CompareIntMap) {
     Object a{1};
-    Object b = from_json("{}");
+    Object b = parse_json("{}");
     EXPECT_TRUE(b.is_map());
     try {
         EXPECT_FALSE(a == b);
@@ -403,7 +395,7 @@ TEST(Object, CompareUIntStr) {
 
 TEST(Object, CompareUIntList) {
     Object a{1ULL};
-    Object b = from_json("[1]");
+    Object b = parse_json("[1]");
     try {
         EXPECT_FALSE(a == b);
         FAIL();
@@ -429,7 +421,7 @@ TEST(Object, CompareUIntList) {
 
 TEST(Object, CompareUIntMap) {
     Object a{1ULL};
-    Object b = from_json("{}");
+    Object b = parse_json("{}");
     EXPECT_TRUE(b.is_map());
     try {
         EXPECT_FALSE(a == b);
@@ -464,7 +456,7 @@ TEST(Object, CompareStrStr) {
 
 TEST(Object, CompareStrList) {
     Object a{"[1]"};
-    Object b = from_json("[1]");
+    Object b = parse_json("[1]");
     try {
         EXPECT_TRUE(a == b);
         FAIL();
@@ -490,7 +482,7 @@ TEST(Object, CompareStrList) {
 
 TEST(Object, CompareStrMap) {
     Object a{"{}"};
-    Object b = from_json("{}");
+    Object b = parse_json("{}");
     EXPECT_TRUE(b.is_map());
     try {
         EXPECT_TRUE(a == b);
@@ -522,7 +514,7 @@ TEST(Object, ToKey) {
 }
 
 TEST(Object, SubscriptList) {
-  Object obj = from_json("[7, 8, 9]");
+  Object obj = parse_json("[7, 8, 9]");
   EXPECT_TRUE(obj.is_list());
   EXPECT_EQ(obj[0].to_int(), 7);
   EXPECT_EQ(obj[1].to_int(), 8);
@@ -533,7 +525,7 @@ TEST(Object, SubscriptList) {
 }
 
 TEST(Object, SubscriptMap) {
-  Object obj = from_json(R"({0: 7, 1: 8, 2: 9, "name": "Brian"})");
+  Object obj = parse_json(R"({0: 7, 1: 8, 2: 9, "name": "Brian"})");
   EXPECT_TRUE(obj.is_map());
   EXPECT_EQ(obj[0].to_int(), 7);
   EXPECT_EQ(obj[1].to_int(), 8);
@@ -549,13 +541,13 @@ TEST(Object, SubscriptMap) {
 }
 
 TEST(Object, MultipleSubscriptMap) {
-  Object obj = from_json(R"({"a": {"b": {"c": 7}}})");
+  Object obj = parse_json(R"({"a": {"b": {"c": 7}}})");
   EXPECT_TRUE(obj.is_map());
   EXPECT_EQ(obj.get("a").get("b").get("c"), 7);
 }
 
 TEST(Object, CopyCtorRefCountIntegrity) {
-    Object obj = from_json("{}");
+    Object obj = parse_json("{}");
     EXPECT_EQ(obj.ref_count(), 1);
     Object copy{obj};
     EXPECT_EQ(obj.ref_count(), 2);
@@ -563,7 +555,7 @@ TEST(Object, CopyCtorRefCountIntegrity) {
 }
 
 TEST(Object, MoveCtorRefCountIntegrity) {
-    Object obj = from_json("{}");
+    Object obj = parse_json("{}");
     Object move{std::move(obj)};
     EXPECT_EQ(move.ref_count(), 1);
     EXPECT_TRUE(obj.is_empty());
@@ -571,7 +563,7 @@ TEST(Object, MoveCtorRefCountIntegrity) {
 }
 
 TEST(Object, WalkDF) {
-  Object obj = from_json("[1, [2, [3, [4, 5], 6], 7], 8]");
+  Object obj = parse_json("[1, [2, [3, [4, 5], 6], 7], 8]");
   std::vector<Int> expect_order{1, 2, 3, 4, 5, 6, 7, 8};
   std::vector<Int> actual_order;
 
@@ -588,7 +580,7 @@ TEST(Object, WalkDF) {
 }
 
 TEST(Object, WalkBF) {
-  Object obj = from_json("[1, [2, [3, [4, 5], 6], 7], 8]");
+  Object obj = parse_json("[1, [2, [3, [4, 5], 6], 7], 8]");
   std::vector<Int> expect_order{1, 8, 2, 7, 3, 6, 4, 5};
   std::vector<Int> actual_order;
 
@@ -795,7 +787,7 @@ TEST(Object, AssignString) {
 }
 
 TEST(Object, RedundantAssign) {
-    Object obj = from_json(R"({"x": [1], "y": [2]})");
+    Object obj = parse_json(R"({"x": [1], "y": [2]})");
     EXPECT_TRUE(obj["x"].is_list());
     EXPECT_EQ(obj["x"][0], 1);
     // ref count error might not manifest with one try
@@ -807,7 +799,7 @@ TEST(Object, RedundantAssign) {
 }
 
 TEST(Object, RootParentIsEmpty) {
-    Object root = from_json(R"({"x": [1], "y": [2]})");
+    Object root = parse_json(R"({"x": [1], "y": [2]})");
     EXPECT_TRUE(root.parent().is_null());
 }
 
@@ -827,7 +819,7 @@ TEST(Object, ClearParentOnOverwrite) {
 }
 
 //TEST(Object, ParentIntegrityOnRemove) {
-//    Object par = from_json(R"({"x": [1], "y": [2]})");
+//    Object par = parse_json(R"({"x": [1], "y": [2]})");
 //    Object x1 = par["x"];
 //    Object x2 = par["x"];
 //    EXPECT_TRUE(x1.parent().is_map());
@@ -839,22 +831,144 @@ TEST(Object, ClearParentOnOverwrite) {
 //    EXPECT_TRUE(x2.parent().is_null());
 //}
 
-struct ShallowMapSource : public ISource
+struct ShallowSource : public ISource
 {
-    ShallowMapSource() : cached{from_json(R"( {"a": 1, "b": 2} )")} {}
+    ShallowSource(const std::string& json) {
+        data = parse_json(json);
+    }
 
-    Object read()                   { return cached; }
-    Object read_key(const Key& key) { return cached[key]; }
-    void write(const Object& obj)   { cached = obj; }
-    void write(Object&& obj)        { cached = std::forward<Object>(obj); }
-    size_t size()                   { return cached.size(); }
-    Object::ReprType type()         { return Object::MAP_I; }
+    Object read() override {
+        read_key_called = false;
+        if (cached.is_empty()) cached = data;
+        return cached;
+    }
 
-    void reset()                    {}
-    void refresh()                  {}
+    Object read_key(const Key& key) override {
+        read_key_called = true;
+        if (cached.is_empty()) cached = data;
+        return cached[key];
+    }
 
+    void write(const Object& obj) override {
+        memory_bypass = false;
+        if (obj.has_data_source()) {  // for test purposes, assume same data-source
+            // cache bypass
+            memory_bypass = true;
+            auto& dsrc = *dynamic_cast<ShallowSource*>(obj.data_source());
+            data.empty();
+            data = dsrc.data;
+        } else {
+            data.empty();
+            data = obj;
+        }
+    }
+
+    void write(Object&& obj) override {
+        memory_bypass = false;
+        if (obj.has_data_source()) {  // for test purposes, assume same data-source
+            // cache bypass
+            memory_bypass = true;
+            auto& dsrc = *dynamic_cast<ShallowSource*>(obj.data_source());
+            data.empty();
+            data = dsrc.data;
+        } else {
+            data.empty();
+            data = std::forward<Object>(obj);
+        }
+    }
+
+    size_t size() override {
+        if (cached.is_empty()) cached = data;
+        return cached.size();
+    }
+
+    Object::ReprType type() const override {
+        if (cached_type == Object::BAD_I) {
+            std::istringstream in{data.to_json()};
+            json::impl::Parser parser{in};
+            const_cast<ShallowSource*>(this)->cached_type = parser.parse_type();
+        }
+        return cached_type;
+    }
+
+    Oid id() const override {
+        return data.id();
+    }
+
+    void reset() override   { cached.empty(); }
+    void refresh() override {}  // not implemented
+
+    Object data;
+    Object::ReprType cached_type = Object::BAD_I;
     Object cached;
+    bool read_key_called = false;
+    bool memory_bypass = false;
 };
 
-TEST(Object, ShallowMapSource) {
+TEST(Object, ShallowSource_RefCountCopyAssign) {
+    Object obj{new ShallowSource(R"("foo")")};
+    EXPECT_EQ(obj.ref_count(), 1);
+    Object copy = obj;
+    EXPECT_EQ(obj.ref_count(), 2);
+    EXPECT_EQ(copy.ref_count(), 2);
+    obj.empty();
+    EXPECT_EQ(copy.ref_count(), 1);
+}
+
+TEST(Object, ShallowSource_RefCountMoveAssign) {
+    Object obj{new ShallowSource(R"("foo")")};
+    EXPECT_EQ(obj.ref_count(), 1);
+    Object copy = std::move(obj);
+    EXPECT_EQ(copy.ref_count(), 1);
+    obj.empty();
+    EXPECT_EQ(copy.ref_count(), 1);
+}
+
+TEST(Object, ShallowSource_GetType) {
+    Object obj{new ShallowSource(R"({"x": 1, "y": 2})")};
+    EXPECT_TRUE(obj.is_map());
+}
+
+TEST(Object, ShallowSource_Read) {
+    auto dsrc = new ShallowSource(R"("Strong, black tea")");
+    Object obj{dsrc};
+    EXPECT_EQ(obj, "Strong, black tea");
+    EXPECT_FALSE(dsrc->read_key_called);
+}
+
+TEST(Object, ShallowSource_ReadKey) {
+    auto dsrc = new ShallowSource(R"({"x": 1, "y": 2})");
+    Object obj{dsrc};
+    EXPECT_EQ(obj["x"], 1);
+    EXPECT_TRUE(dsrc->read_key_called);
+    dsrc->read_key_called = false;
+    EXPECT_EQ(obj["y"], 2);
+    EXPECT_TRUE(dsrc->read_key_called);
+}
+
+TEST(Object, ShallowSource_Write) {
+    auto dsrc = new ShallowSource(R"({"x": 1, "y": 2})");
+    Object obj{dsrc};
+    obj = parse_json(R"({"x": 9, "y": 10})");
+    EXPECT_EQ(dsrc->data["x"], 9);
+    EXPECT_TRUE(dsrc->cached.is_empty());
+    EXPECT_EQ(obj["x"], 9);
+    EXPECT_TRUE(dsrc->read_key_called);
+    dsrc->read_key_called = false;
+    EXPECT_EQ(obj["y"], 10);
+    EXPECT_TRUE(dsrc->read_key_called);
+}
+
+TEST(Object, ShallowSource_WriteMemoryBypass) {
+    auto dsrc_1 = new ShallowSource(R"({"x": 1, "y": 2})");
+    auto dsrc_2 = new ShallowSource(R"({"x": 3, "y": 4})");
+    Object obj_1{dsrc_1};
+    Object obj_2{dsrc_2};
+    obj_1 = obj_2;
+    EXPECT_TRUE(dsrc_1->memory_bypass);
+    EXPECT_TRUE(dsrc_2->cached.is_empty());
+    EXPECT_EQ(obj_1["x"], 3);
+    EXPECT_FALSE(dsrc_2->read_key_called);
+    EXPECT_EQ(obj_2["x"], 3);
+    EXPECT_TRUE(dsrc_2->read_key_called);
 }
