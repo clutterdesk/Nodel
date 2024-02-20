@@ -20,6 +20,26 @@
 #include "Oid.h"
 #include "Key.h"
 
+
+#ifndef NODEL_ARCH
+#if _WIN32 || _WIN64
+#if _WIN64
+#define NODEL_ARCH 64
+#else
+#define NODEL_ARCH 32
+#endif
+#endif
+
+#if __GNUC__
+#if __x86_64__ || __ppc64__
+#define NODEL_ARCH 64
+#else
+#define NODEL_ARCH 32
+#endif
+#endif
+#endif // NODEL_ARCH
+
+
 namespace nodel {
 
 struct EmptyReference : std::exception
@@ -35,16 +55,29 @@ struct EmptyReference : std::exception
     std::string msg;
 };
 
+struct Json
+{
+    Json(std::string_view&& text) : text{std::move(text)} {}
+    Json(const Json&) = delete;
+    Json(Json&&) = delete;
+    std::string_view text;
+};
+
 class Object;
-class Node;
+class ISource;
 class Path;
+
+#if NODEL_ARCH == 32
+using refcnt_t = uint32_t;                     // only least-significant 28-bits used
+#else
+using refcnt_t = uint64_t;                     // only least-significant 56-bits used
+#endif
 
 using String = std::string;
 using List = std::vector<Object>;
 using Map = tsl::ordered_map<Key, Object, KeyHash>;
 
 // inplace reference count types
-using refcnt_t = uint64_t;                     // only least-significant 56-bits used
 using IRCString = std::tuple<String, Object>;  // ref-count moved to parent bit-field (brain twister, but correct)
 using IRCList = std::tuple<List, Object>;      // ref-count moved to parent bit-field (brain twister, but correct)
 using IRCMap = std::tuple<Map, Object>;        // ref-count moved to parent bit-field (brain twister, but correct)
@@ -52,47 +85,16 @@ using IRCMap = std::tuple<Map, Object>;        // ref-count moved to parent bit-
 using StringPtr = IRCString*;
 using ListPtr = IRCList*;
 using MapPtr = IRCMap*;
+using ISourcePtr = ISource*;
 
 constexpr const char* null = nullptr;
-
-template<typename T>
-concept IRCType = std::is_same<T, IRCString>::value ||
-                  std::is_same<T, IRCList>::value ||
-                  std::is_same<T, IRCMap>::value;
-
-template <IRCType T>
-class ISource
-{
-  public:
-    virtual ~ISource() {}
-
-    bool is_synced(Node& node);
-    bool is_synced(Node& node, const Key& key);
-
-    virtual Object read(Node& from_node) = 0;
-    virtual Object read(Node& from_node, const Key& key) = 0;
-
-    // creating a change-log requires being able to associate changes to a specific Node, but
-    // if the Node has not yet been loaded, it has null identity.
-    virtual void write(Node& to_node, const Node& from_node) = 0;
-    virtual void write(Node& to_node, const Key& to_key, const Node& from_node) = 0;
-
-    virtual void reset(Node&) = 0;
-    virtual void refresh(Node&) = 0;
-
-    refcnt_t dec_ref_count() { return --(std::get<1>(*p_cache).fields.ref_count); }
-    void inc_ref_count()     { (std::get<1>(*p_cache).fields.ref_count)++; }
-
-  protected:
-    std::unique_ptr<T> p_cache;
-};
 
 
 // NOTE: use by-value semantics
 class Object
 {
-  private:
-      enum {
+  public:
+      enum ReprType {
           EMPTY_I,  // uninitialized
           NULL_I,   // json null
           BOOL_I,
@@ -103,9 +105,10 @@ class Object
           SSTR_I,
           LIST_I,
           MAP_I,
-          LATER_I  // object representing deferred subscript
+          DSRC_I
       };
 
+  private:
       union Repr {
           Repr()            : z{nullptr} {}
           Repr(bool v)      : b{v} {}
@@ -116,28 +119,34 @@ class Object
           Repr(ListPtr p)   : pl{p} {}
           Repr(MapPtr p)    : pm{p} {}
 
-          void*     z;
-          bool      b;
-          Int       i;
-          UInt      u;
-          Float     f;
-          StringPtr ps;
-          ListPtr   pl;
-          MapPtr    pm;
+          void*      z;
+          bool       b;
+          Int        i;
+          UInt       u;
+          Float      f;
+          StringPtr  ps;
+          ListPtr    pl;
+          MapPtr     pm;
+          ISourcePtr ds;
       };
 
       struct Fields
       {
           Fields(uint8_t repr_ix) : repr_ix{repr_ix}, ref_count{1} {}
-          Fields(uint8_t repr_ix, uint64_t ref_count) : repr_ix{repr_ix}, ref_count{ref_count} {}
+          Fields(uint8_t repr_ix, refcnt_t ref_count) : repr_ix{repr_ix}, ref_count{ref_count} {}
 
           Fields(const Fields&) = delete;
           Fields(Fields&&) = delete;
           auto operator = (const Fields&) = delete;
           auto operator = (Fields&&) = delete;
 
+#if NODEL_ARCH == 32
+          uint8_t repr_ix:4;
+          uint32_t ref_count:28;
+#else
           uint8_t repr_ix:8;
           uint64_t ref_count:56;
+#endif
       };
 
   private:
@@ -157,6 +166,7 @@ class Object
           case STR_I:   return "string";
           case LIST_I:  return "list";
           case MAP_I:   return "map";
+          case DSRC_I:  return "dsrc";
           default:      throw std::logic_error("invalid repr_ix");
       }
     }
@@ -182,118 +192,146 @@ class Object
     Object(is_like_Float auto v)       : repr{(Float)v}, fields{FLOAT_I} {}
     Object(is_like_Int auto v)         : repr{(Int)v}, fields{INT_I} {}
     Object(is_like_UInt auto v)        : repr{(UInt)v}, fields{UINT_I} {}
-
-//    Object(const List& list);
     Object(List&& list);
-//    Object(const Map& map);
     Object(Map&& map);
-
     Object(const Key& key);
     Object(Key&& key);
+    Object(Json&& json);  // implemented in nodel.h
 
-    Object(const Object& other) : fields{other.fields.repr_ix} {
-//        fmt::print("Object(const Object& other)\n");
-        switch (fields.repr_ix) {
-            case EMPTY_I: repr.z = nullptr; break;
-            case NULL_I:  repr.z = nullptr; break;
-            case BOOL_I:  repr.b = other.repr.b; break;
-            case INT_I:   repr.i = other.repr.i; break;
-            case UINT_I:  repr.u = other.repr.u; break;
-            case FLOAT_I: repr.f = other.repr.f; break;
-            case STR_I:   other.inc_ref_count(); repr.ps = other.repr.ps; break;
-            case LIST_I:  other.inc_ref_count(); repr.pl = other.repr.pl; break;
-            case MAP_I:   other.inc_ref_count(); repr.pm = other.repr.pm; break;
-        }
-    }
-
-    Object(Object&& other) : fields{other.fields.repr_ix} {
-//        fmt::print("Object(Object&& other)\n");
-        switch (fields.repr_ix) {
-            case EMPTY_I: repr.z = nullptr; break;
-            case NULL_I:  repr.z = nullptr; break;
-            case BOOL_I:  repr.b = other.repr.b; break;
-            case INT_I:   repr.i = other.repr.i; break;
-            case UINT_I:  repr.u = other.repr.u; break;
-            case FLOAT_I: repr.f = other.repr.f; break;
-            case STR_I:   repr.ps = other.repr.ps; break;
-            case LIST_I:  repr.pl = other.repr.pl; break;
-            case MAP_I:   repr.pm = other.repr.pm; break;
-        }
-
-        other.fields.repr_ix = EMPTY_I;
-        other.repr.z = nullptr;
-    }
+    Object(const Object& other);
+    Object(Object&& other);
 
     ~Object() { free(); }
 
     const Object parent() const;
     Object parent();
 
-    template <typename T> T value_cast() const;
+    template <typename T>
+    T value_cast() const;
 
-    template <typename T> bool is_type() const;
-    template <> bool is_type<bool>() const   { return fields.repr_ix == BOOL_I; }
-    template <> bool is_type<Int>() const    { return fields.repr_ix == INT_I; }
-    template <> bool is_type<UInt>() const   { return fields.repr_ix == UINT_I; }
-    template <> bool is_type<Float>() const  { return fields.repr_ix == FLOAT_I; }
-    template <> bool is_type<String>() const { return fields.repr_ix == STR_I; }
-    template <> bool is_type<List>() const   { return fields.repr_ix == LIST_I; }
-    template <> bool is_type<Map>() const    { return fields.repr_ix == MAP_I; }
+    template <typename T>
+    bool is_type() const;
+    template <> bool is_type<bool>() const   { return repr_ix() == BOOL_I; }
+    template <> bool is_type<Int>() const    { return repr_ix() == INT_I; }
+    template <> bool is_type<UInt>() const   { return repr_ix() == UINT_I; }
+    template <> bool is_type<Float>() const  { return repr_ix() == FLOAT_I; }
+    template <> bool is_type<String>() const { return repr_ix() == STR_I; }
+    template <> bool is_type<List>() const   { return repr_ix() == LIST_I; }
+    template <> bool is_type<Map>() const    { return repr_ix() == MAP_I; }
 
     template <typename V>
-    void visit(V&& visitor) const {
-        switch (fields.repr_ix) {
-            case EMPTY_I: throw wrong_type(EMPTY_I);
-            case NULL_I:  visitor(nullptr); break;
-            case BOOL_I:  visitor(repr.b); break;
-            case INT_I:   visitor(repr.i); break;
-            case UINT_I:  visitor(repr.u); break;
-            case FLOAT_I: visitor(repr.f); break;
-            case STR_I:   visitor(std::get<0>(*repr.ps)); break;
-            case LIST_I:  visitor(std::get<0>(*repr.pl)); break;
-            case MAP_I:   visitor(std::get<0>(*repr.pm)); break;
+    void visit(V&& visitor) const;
+
+    template <typename T>
+    T& as();
+    template <> bool& as<bool>() {
+        if (fields.repr_ix != BOOL_I) {
+            if (fields.repr_ix == DSRC_I)
+                return dsrc_read().as<bool>();
+            throw wrong_type(fields.repr_ix, BOOL_I);
         }
+        return repr.b;
     }
 
-    template <typename T> const T& as() const;
-    template <> const bool& as<bool>() const     { if (fields.repr_ix != BOOL_I) throw wrong_type(fields.repr_ix, BOOL_I); return repr.b; }
-    template <> const Int& as<Int>() const       { if (fields.repr_ix != INT_I) throw wrong_type(fields.repr_ix, INT_I); return repr.i; }
-    template <> const UInt& as<UInt>() const     { if (fields.repr_ix != UINT_I) throw wrong_type(fields.repr_ix, UINT_I); return repr.u; }
-    template <> const Float& as<Float>() const   { if (fields.repr_ix != FLOAT_I) throw wrong_type(fields.repr_ix, FLOAT_I); return repr.f; }
-    template <> const String& as<String>() const { if (fields.repr_ix != STR_I) throw wrong_type(fields.repr_ix, STR_I); return std::get<0>(*repr.ps); }
+    template <> Int& as<Int>() {
+        if (fields.repr_ix != INT_I) {
+            if (fields.repr_ix == DSRC_I)
+                return dsrc_read().as<Int>();
+            throw wrong_type(fields.repr_ix, INT_I);
+        }
+        return repr.i;
+    }
 
-    template <typename T> T& as();
-    template <> bool& as<bool>()     { if (fields.repr_ix != BOOL_I) throw wrong_type(fields.repr_ix, BOOL_I); return repr.b; }
-    template <> Int& as<Int>()       { if (fields.repr_ix != INT_I) throw wrong_type(fields.repr_ix, INT_I); return repr.i; }
-    template <> UInt& as<UInt>()     { if (fields.repr_ix != UINT_I) throw wrong_type(fields.repr_ix, UINT_I); return repr.u; }
-    template <> Float& as<Float>()   { if (fields.repr_ix != FLOAT_I) throw wrong_type(fields.repr_ix, FLOAT_I); return repr.f; }
-    template <> String& as<String>() { if (fields.repr_ix != STR_I) throw wrong_type(fields.repr_ix, STR_I); return std::get<0>(*repr.ps); }
+    template <> UInt& as<UInt>() {
+        if (fields.repr_ix != UINT_I) {
+            if (fields.repr_ix == DSRC_I)
+                return dsrc_read().as<UInt>();
+            throw wrong_type(fields.repr_ix, UINT_I);
+        }
+        return repr.u;
+    }
 
-    template <typename T> const T& unsafe_as() const;
-    template <> const bool& unsafe_as<bool>() const     { return repr.b; }
-    template <> const Int& unsafe_as<Int>() const       { return repr.i; }
-    template <> const UInt& unsafe_as<UInt>() const     { return repr.u; }
-    template <> const Float& unsafe_as<Float>() const   { return repr.f; }
-    template <> const String& unsafe_as<String>() const { return std::get<0>(*repr.ps); }
+    template <> Float& as<Float>() {
+        if (fields.repr_ix != FLOAT_I) {
+            if (fields.repr_ix == DSRC_I)
+                return dsrc_read().as<Float>();
+            throw wrong_type(fields.repr_ix, FLOAT_I);
+        }
+        return repr.f;
+    }
 
-    template <typename T> T& unsafe_as();
-    template <> bool& unsafe_as<bool>()     { return repr.b; }
-    template <> Int& unsafe_as<Int>()       { return repr.i; }
-    template <> UInt& unsafe_as<UInt>()     { return repr.u; }
-    template <> Float& unsafe_as<Float>()   { return repr.f; }
-    template <> String& unsafe_as<String>() { return std::get<0>(*repr.ps); }
+    template <> String& as<String>() {
+        if (fields.repr_ix != STR_I) {
+            if (fields.repr_ix == DSRC_I)
+                return dsrc_read().as<String>();
+            throw wrong_type(fields.repr_ix, STR_I);
+        }
+        return std::get<0>(*repr.ps);
+    }
 
-    bool is_empty() const     { return fields.repr_ix == EMPTY_I; }
-    bool is_null() const      { return fields.repr_ix == NULL_I; }
-    bool is_bool() const      { return fields.repr_ix == BOOL_I; }
-    bool is_int() const       { return fields.repr_ix == INT_I; };
-    bool is_uint() const      { return fields.repr_ix == UINT_I; };
-    bool is_float() const     { return fields.repr_ix == FLOAT_I; };
-    bool is_str() const       { return fields.repr_ix == STR_I; };
-    bool is_num() const       { return is_int() || is_uint() || is_float(); }
-    bool is_list() const      { return fields.repr_ix == LIST_I; };
-    bool is_map() const       { return fields.repr_ix == MAP_I; };
-    bool is_container() const { return is_list() || is_map(); }
+    template <typename T>
+    const T& as() const;
+    template <> const bool& as<bool>() const {
+        if (fields.repr_ix != BOOL_I) {
+            if (fields.repr_ix == DSRC_I) {
+                return dsrc_read().as<bool>();
+            }
+            throw wrong_type(fields.repr_ix, BOOL_I);
+        }
+        return repr.b;
+    }
+
+    template <> const Int& as<Int>() const {
+        if (fields.repr_ix != INT_I) {
+            if (fields.repr_ix == DSRC_I) {
+                return dsrc_read().as<Int>();
+            }
+            throw wrong_type(fields.repr_ix, INT_I);
+        }
+        return repr.i;
+    }
+
+    template <> const UInt& as<UInt>() const {
+        if (fields.repr_ix != UINT_I) {
+            if (fields.repr_ix == DSRC_I) {
+                return dsrc_read().as<UInt>();
+            }
+            throw wrong_type(fields.repr_ix, UINT_I);
+        }
+        return repr.u;
+    }
+
+    template <> const Float& as<Float>() const {
+        if (fields.repr_ix != FLOAT_I) {
+            if (fields.repr_ix == DSRC_I) {
+                return dsrc_read().as<Float>();
+            }
+            throw wrong_type(fields.repr_ix, FLOAT_I);
+        }
+        return repr.f;
+    }
+
+    template <> const String& as<String>() const {
+        if (fields.repr_ix != STR_I) {
+            if (fields.repr_ix == DSRC_I) {
+                return dsrc_read().as<String>();
+            }
+            throw wrong_type(fields.repr_ix, STR_I);
+        }
+        return std::get<0>(*repr.ps);
+    }
+
+    bool is_empty() const;
+    bool is_null() const;
+    bool is_bool() const;
+    bool is_int() const;;
+    bool is_uint() const;;
+    bool is_float() const;;
+    bool is_str() const;;
+    bool is_num() const;
+    bool is_list() const;;
+    bool is_map() const;;
+    bool is_container() const;
 
     bool to_bool() const;
     Int to_int() const;
@@ -326,7 +364,7 @@ class Object
     std::partial_ordering operator <=> (const Object&) const;
 
     Oid id() const;
-    bool same_as(const Object& other) const { return id() == other.id(); }
+    bool is(const Object& other) const { return id() == other.id(); }
     refcnt_t ref_count() const;
     void inc_ref_count() const;
     void dec_ref_count() const;
@@ -335,8 +373,12 @@ class Object
     // OTHER
     Object& operator = (const Object& other);
     Object& operator = (Object&& other);
+    // NEED other assignment ops to avoid Object temporaries
 
   private:
+    int repr_ix() const;
+    Object dsrc_read() const;
+
     void set_reference(const Object& object);
     void set_parent(const Object& parent);
     void set_children_parent(IRCList& irc_list);
@@ -356,6 +398,72 @@ class Object
   friend class WalkBF;
 };
 
+
+class ISource
+{
+  public:
+    virtual ~ISource() {}
+
+    // this operation may throw a WrongType exception, if it's a partial map
+    virtual Object read() = 0;
+    virtual Object read_key(const Key&) = 0;
+    virtual void write(const Object&) = 0;
+    virtual void write(Object&&) = 0;
+    virtual size_t size() = 0;
+    virtual Object::ReprType type() = 0;
+
+    virtual void reset() = 0;
+    virtual void refresh() = 0;
+
+    Object get_parent() const           { return parent; }
+    void set_parent(Object& new_parent) { parent.free(); parent = new_parent; }
+
+    refcnt_t ref_count() const { return rc; }
+    void inc_ref_count()       { rc++; }
+    refcnt_t dec_ref_count()   { return --rc; }
+
+  private:
+    Object parent;
+    refcnt_t rc = 1;
+};
+
+
+inline
+Object::Object(const Object& other) : fields{other.fields.repr_ix} {
+//        fmt::print("Object(const Object& other)\n");
+    switch (fields.repr_ix) {
+        case EMPTY_I: repr.z = nullptr; break;
+        case NULL_I:  repr.z = nullptr; break;
+        case BOOL_I:  repr.b = other.repr.b; break;
+        case INT_I:   repr.i = other.repr.i; break;
+        case UINT_I:  repr.u = other.repr.u; break;
+        case FLOAT_I: repr.f = other.repr.f; break;
+        case STR_I:   other.inc_ref_count(); repr.ps = other.repr.ps; break;
+        case LIST_I:  other.inc_ref_count(); repr.pl = other.repr.pl; break;
+        case MAP_I:   other.inc_ref_count(); repr.pm = other.repr.pm; break;
+        case DSRC_I:  repr.ds->inc_ref_count(); repr.ds = other.repr.ds; break;
+    }
+}
+
+inline
+Object::Object(Object&& other) : fields{other.fields.repr_ix} {
+//        fmt::print("Object(Object&& other)\n");
+    switch (fields.repr_ix) {
+        case EMPTY_I: repr.z = nullptr; break;
+        case NULL_I:  repr.z = nullptr; break;
+        case BOOL_I:  repr.b = other.repr.b; break;
+        case INT_I:   repr.i = other.repr.i; break;
+        case UINT_I:  repr.u = other.repr.u; break;
+        case FLOAT_I: repr.f = other.repr.f; break;
+        case STR_I:   repr.ps = other.repr.ps; break;
+        case LIST_I:  repr.pl = other.repr.pl; break;
+        case MAP_I:   repr.pm = other.repr.pm; break;
+        case DSRC_I:  repr.ds = other.repr.ds; break;
+    }
+
+    other.fields.repr_ix = EMPTY_I;
+    other.repr.z = nullptr;
+}
 
 inline
 Object::Object(List&& list) : repr{new IRCList(std::move(list), NoParent{})}, fields{LIST_I} {
@@ -429,8 +537,138 @@ Object Object::parent() {
         case STR_I:   return std::get<1>(*repr.ps);
         case LIST_I:  return std::get<1>(*repr.pl);
         case MAP_I:   return std::get<1>(*repr.pm);
+        case DSRC_I:  return repr.ds->get_parent();
         default:      return nullptr;
     }
+}
+
+template <typename V>
+void Object::visit(V&& visitor) const {
+    switch (fields.repr_ix) {
+        case EMPTY_I: throw wrong_type(EMPTY_I);
+        case NULL_I:  visitor(nullptr); break;
+        case BOOL_I:  visitor(repr.b); break;
+        case INT_I:   visitor(repr.i); break;
+        case UINT_I:  visitor(repr.u); break;
+        case FLOAT_I: visitor(repr.f); break;
+        case STR_I:   visitor(std::get<0>(*repr.ps)); break;
+        case DSRC_I:  repr.ds->read().visit(std::forward<V>(visitor)); break;
+        default:      throw wrong_type(fields.repr_ix);
+    }
+}
+
+
+inline
+bool Object::is_empty() const {
+    return fields.repr_ix == EMPTY_I;
+}
+
+inline
+bool Object::is_null() const {
+    if (fields.repr_ix != NULL_I) {
+        if (fields.repr_ix == DSRC_I)
+            return repr.ds->read().is_null();
+        return false;
+    }
+    return true;
+}
+
+inline
+bool Object::is_bool() const {
+    if (fields.repr_ix != BOOL_I) {
+        if (fields.repr_ix == DSRC_I)
+            return repr.ds->read().is_bool();
+        return false;
+    }
+    return true;
+}
+
+inline
+bool Object::is_int() const {
+    if (fields.repr_ix != INT_I) {
+        if (fields.repr_ix == DSRC_I)
+            return repr.ds->read().is_int();
+        return false;
+    }
+    return true;
+}
+
+inline
+bool Object::is_uint() const {
+    if (fields.repr_ix != UINT_I) {
+        if (fields.repr_ix == DSRC_I)
+            return repr.ds->read().is_uint();
+        return false;
+    }
+    return true;
+}
+
+inline
+bool Object::is_float() const {
+    if (fields.repr_ix != FLOAT_I) {
+        if (fields.repr_ix == DSRC_I)
+            return repr.ds->read().is_float();
+        return false;
+    }
+    return true;
+}
+
+inline
+bool Object::is_str() const {
+    if (fields.repr_ix != STR_I) {
+        if (fields.repr_ix == DSRC_I)
+            return repr.ds->read().is_str();
+        return false;
+    }
+    return true;
+}
+
+inline
+bool Object::is_num() const {
+    int repr_ix = fields.repr_ix;
+    if (repr_ix == DSRC_I) {
+        repr_ix = const_cast<ISourcePtr>(repr.ds)->read().fields.repr_ix;
+    }
+    return repr_ix == INT_I || repr_ix == UINT_I || repr_ix == FLOAT_I;
+}
+
+inline
+bool Object::is_list() const {
+    if (fields.repr_ix != LIST_I) {
+        if (fields.repr_ix == DSRC_I)
+            return repr.ds->read().is_list();
+        return false;
+    }
+    return true;
+}
+
+inline
+bool Object::is_map() const {
+    if (fields.repr_ix != MAP_I) {
+        if (fields.repr_ix == DSRC_I)
+            return repr.ds->read().is_map();
+        return false;
+    }
+    return true;
+}
+
+inline
+bool Object::is_container() const {
+    int repr_ix = fields.repr_ix;
+    if (repr_ix == DSRC_I) {
+        repr_ix = const_cast<ISourcePtr>(repr.ds)->read().fields.repr_ix;
+    }
+    return repr_ix == LIST_I || repr_ix == MAP_I;
+}
+
+inline
+int Object::repr_ix() const {
+    return (fields.repr_ix == DSRC_I)? const_cast<ISourcePtr>(repr.ds)->type(): fields.repr_ix;
+}
+
+inline
+Object Object::dsrc_read() const {
+    return const_cast<ISourcePtr>(repr.ds)->read();
 }
 
 inline
@@ -460,6 +698,12 @@ void Object::set_parent(const Object& new_parent) {
             parent = new_parent;
             break;
         }
+        case DSRC_I: {
+            auto parent = repr.ds->get_parent();
+            parent.free();
+            parent = new_parent;
+            break;
+        }
         default:
             break;
     }
@@ -472,6 +716,7 @@ T Object::value_cast() const {
         case INT_I:   return (T)repr.i;
         case UINT_I:  return (T)repr.u;
         case FLOAT_I: return (T)repr.f;
+        case DSRC_I:  return repr.ds->read().value_cast<T>();
         default:
             throw wrong_type(fields.repr_ix);
     }
@@ -484,6 +729,7 @@ const T& Object::as() const {
         case INT_I:   return repr.i;
         case UINT_I:  return repr.u;
         case FLOAT_I: return repr.f;
+        case DSRC_I:  return const_cast<ISourcePtr>(repr.ds)->read().as<T>();
         default:
             throw wrong_type(fields.repr_ix);
     }
@@ -502,6 +748,8 @@ std::string Object::to_str() const {
         case LIST_I:
         case MAP_I:
             return to_json();
+        case DSRC_I:
+            return const_cast<ISourcePtr>(repr.ds)->read().to_str();
         default:
             throw std::logic_error("Unknown representation index");
     }
@@ -520,6 +768,8 @@ bool Object::to_bool() const {
         case LIST_I:
         case MAP_I:
             throw wrong_type(fields.repr_ix, BOOL_I);
+        case DSRC_I:
+            return const_cast<ISourcePtr>(repr.ds)->read().to_bool();
         default:
             throw std::logic_error("Unknown representation index");
     }
@@ -538,6 +788,8 @@ Int Object::to_int() const {
         case LIST_I:
         case MAP_I:
             throw wrong_type(fields.repr_ix, INT_I);
+        case DSRC_I:
+            return const_cast<ISourcePtr>(repr.ds)->read().to_int();
         default:
             throw std::logic_error("Unknown representation index");
     }
@@ -556,6 +808,8 @@ UInt Object::to_uint() const {
         case LIST_I:
         case MAP_I:
             throw wrong_type(fields.repr_ix, UINT_I);
+        case DSRC_I:
+            return const_cast<ISourcePtr>(repr.ds)->read().to_uint();
         default:
             throw std::logic_error("Unknown representation index");
     }
@@ -574,6 +828,8 @@ Float Object::to_float() const {
         case LIST_I:
         case MAP_I:
             throw wrong_type(fields.repr_ix, FLOAT_I);
+        case DSRC_I:
+            return const_cast<ISourcePtr>(repr.ds)->read().to_float();
         default:
             throw std::logic_error("Unknown representation index");
     }
@@ -591,6 +847,9 @@ Key Object::to_key() const {
         case STR_I:   return std::get<0>(*repr.ps);
         case LIST_I:
         case MAP_I:
+            throw wrong_type(fields.repr_ix);
+        case DSRC_I:
+            return const_cast<ISourcePtr>(repr.ds)->read().to_key();
         default:
             throw wrong_type(fields.repr_ix);
     }
@@ -601,13 +860,21 @@ Key Object::swap_key() {
     switch (fields.repr_ix) {
         case EMPTY_I: throw empty_reference(__FUNCTION__);
         case NULL_I:  { return nullptr; }
-        case BOOL_I:  { Key k{repr.b}; repr.z = nullptr; fields.repr_ix = NULL_I; return k; }
-        case INT_I:   { Key k{repr.i}; repr.z = nullptr; fields.repr_ix = NULL_I; return k; }
-        case UINT_I:  { Key k{repr.u}; repr.z = nullptr; fields.repr_ix = NULL_I; return k; }
-        case FLOAT_I: { Key k{repr.f}; repr.z = nullptr; fields.repr_ix = NULL_I; return k; }
-        case STR_I:   { Key k{std::move(std::get<0>(*repr.ps))}; repr.z = nullptr; fields.repr_ix = NULL_I; return k; }
+        case BOOL_I:  { Key k{repr.b}; repr.z = nullptr; fields.repr_ix = EMPTY_I; return k; }
+        case INT_I:   { Key k{repr.i}; repr.z = nullptr; fields.repr_ix = EMPTY_I; return k; }
+        case UINT_I:  { Key k{repr.u}; repr.z = nullptr; fields.repr_ix = EMPTY_I; return k; }
+        case FLOAT_I: { Key k{repr.f}; repr.z = nullptr; fields.repr_ix = EMPTY_I; return k; }
+        case STR_I:   {
+            Key k{std::move(std::get<0>(*repr.ps))};
+            repr.z = nullptr;
+            fields.repr_ix = EMPTY_I;
+            return k;
+        }
         case LIST_I:
         case MAP_I:
+            throw wrong_type(fields.repr_ix);
+        case DSRC_I:
+            return repr.ds->read().swap_key();
         default:
             throw wrong_type(fields.repr_ix);
     }
@@ -618,6 +885,7 @@ Object Object::get(const char* v) const {
     switch (fields.repr_ix) {
         case EMPTY_I: throw empty_reference(__FUNCTION__);
         case MAP_I:   return std::get<0>(*repr.pm).at(v);
+        case DSRC_I:  return repr.ds->read_key(Key{v});
         default:      throw wrong_type(fields.repr_ix);
     }
 }
@@ -627,6 +895,7 @@ Object Object::get(const std::string_view& v) const {
     switch (fields.repr_ix) {
         case EMPTY_I: throw empty_reference(__FUNCTION__);
         case MAP_I:   return std::get<0>(*repr.pm).at(v);
+        case DSRC_I:  return repr.ds->read_key(Key{v});
         default:      throw wrong_type(fields.repr_ix);
     }
 }
@@ -636,6 +905,7 @@ Object Object::get(const std::string& v) const {
     switch (fields.repr_ix) {
         case EMPTY_I: throw empty_reference(__FUNCTION__);
         case MAP_I:   return std::get<0>(*repr.pm).at((std::string_view)v);
+        case DSRC_I:  return repr.ds->read_key(Key{v});
         default:      throw wrong_type(fields.repr_ix);
     }
 }
@@ -649,6 +919,7 @@ Object Object::get(is_integral auto index) const {
             return (index < 0)? list[list.size() + index]: list[index];
         }
         case MAP_I:  return std::get<0>(*repr.pm).at(index);
+        case DSRC_I: return repr.ds->read_key(Key{index});
         default:
             throw wrong_type(fields.repr_ix);
     }
@@ -659,6 +930,7 @@ Object Object::get(bool v) const {
     switch (fields.repr_ix) {
         case EMPTY_I: throw empty_reference(__FUNCTION__);
         case MAP_I:   return std::get<0>(*repr.pm).at(v);
+        case DSRC_I: return repr.ds->read_key(Key{v});
         default:      throw wrong_type(fields.repr_ix);
     }
 }
@@ -673,6 +945,7 @@ Object Object::get(const Key& key) const {
             return (index < 0)? list[list.size() + index]: list[index];
         }
         case MAP_I:  return std::get<0>(*repr.pm).at(key);
+        case DSRC_I: return repr.ds->read_key(key);
         default:
             throw wrong_type(fields.repr_ix);
     }
@@ -687,7 +960,8 @@ Object Object::get(const Object& obj) const {
             Int index = obj.to_int();
             return (index < 0)? list[list.size() + index]: list[index];
         }
-        case MAP_I: {
+        case MAP_I:
+        case DSRC_I: {
             // make temporary key without copy
             Key key;
             switch (obj.fields.repr_ix) {
@@ -702,7 +976,7 @@ Object Object::get(const Object& obj) const {
                 default:
                     throw wrong_type(fields.repr_ix);
             }
-            return std::get<0>(*repr.pm).at(key);
+            return (fields.repr_ix == DSRC_I)? repr.ds->read_key(key): std::get<0>(*repr.pm).at(key);
         }
         default:
             throw wrong_type(fields.repr_ix);
@@ -716,6 +990,7 @@ size_t Object::size() const {
         case STR_I:   return std::get<0>(*repr.ps).size();
         case LIST_I:  return std::get<0>(*repr.pl).size();
         case MAP_I:   return std::get<0>(*repr.pm).size();
+        case DSRC_I:  return repr.ds->size();
         default:
             return 0;
     }
@@ -724,7 +999,7 @@ size_t Object::size() const {
 inline
 bool Object::operator == (const Object& obj) const {
     if (is_empty() || obj.is_empty()) throw empty_reference(__FUNCTION__);
-    if (same_as(obj)) return true;
+    if (is(obj)) return true;
 
     switch (fields.repr_ix) {
         case NULL_I: {
@@ -779,8 +1054,8 @@ bool Object::operator == (const Object& obj) const {
             if (obj.fields.repr_ix == STR_I) return std::get<0>(*repr.ps) == std::get<0>(*obj.repr.ps);
             throw wrong_type(fields.repr_ix);
         }
-        case LIST_I:
-        case MAP_I:
+        case DSRC_I:
+            return const_cast<ISourcePtr>(repr.ds)->read() == obj;
         default:
             throw wrong_type(fields.repr_ix);
     }
@@ -791,7 +1066,7 @@ std::partial_ordering Object::operator <=> (const Object& obj) const {
     using ordering = std::partial_ordering;
 
     if (is_empty() || obj.is_empty()) throw empty_reference(__FUNCTION__);
-    if (same_as(obj)) return ordering::equivalent;
+    if (is(obj)) return ordering::equivalent;
 
     switch (fields.repr_ix) {
         case NULL_I: {
@@ -842,12 +1117,14 @@ std::partial_ordering Object::operator <=> (const Object& obj) const {
                 throw wrong_type(fields.repr_ix);
             return std::get<0>(*repr.ps) <=> std::get<0>(*obj.repr.ps);
         }
-        case LIST_I:
-        case MAP_I:
+        case DSRC_I:
+            return const_cast<ISourcePtr>(repr.ds)->read() <=> obj;
         default:
             throw wrong_type(fields.repr_ix);
     }
 }
+
+
 
 class WalkDF
 {
@@ -898,6 +1175,10 @@ public:
                             auto& [key, child] = *it;
                             stack.emplace(object, key, child, (index == 0)? FIRST_VALUE: NEXT_VALUE);
                         }
+                        break;
+                    }
+                    case Object::DSRC_I: {
+                        stack.emplace(parent, key, object.repr.ds->read(), FIRST_VALUE);
                         break;
                     }
                     default: {
@@ -956,6 +1237,10 @@ public:
                     }
                     break;
                 }
+                case Object::DSRC_I: {
+                    deque.emplace_front(parent, key, object.repr.ds->read());
+                    break;
+                }
                 default: {
                     visitor(parent, key, object);
                     break;
@@ -995,6 +1280,8 @@ std::string Object::to_json() const {
             case STR_I:   ss << std::quoted(std::get<0>(*object.repr.ps)); break;
             case LIST_I:  ss << ((event & WalkDF::BEGIN_PARENT)? '[': ']'); break;
             case MAP_I:   ss << ((event & WalkDF::BEGIN_PARENT)? '{': '}'); break;
+            case DSRC_I:
+                throw wrong_type(DSRC_I);
             default:
                 throw std::logic_error("Unknown representation index");
         }
@@ -1015,9 +1302,10 @@ Oid Object::id() const {
         case INT_I:   return Oid{2, *((uint64_t*)(&repr.i))};
         case UINT_I:  return Oid{3, repr.u};;
         case FLOAT_I: return Oid{4, *((uint64_t*)(&repr.f))};;
-        case STR_I:   return Oid{5, (uint64_t)(&(std::get<0>(*repr.ps)))};  // TODO: ???
+        case STR_I:   return Oid{5, (uint64_t)(&(std::get<0>(*repr.ps)))};
         case LIST_I:  return Oid{6, (uint64_t)(&(std::get<0>(*repr.pl)))};
         case MAP_I:   return Oid{7, (uint64_t)(&(std::get<0>(*repr.pm)))};
+        case DSRC_I:  return Oid{8, (uint64_t)(repr.ds)};
         default:
             throw std::logic_error("Unknown representation index");
     }
@@ -1029,6 +1317,7 @@ refcnt_t Object::ref_count() const {
         case STR_I:   return std::get<1>(*repr.ps).fields.ref_count;
         case LIST_I:  return std::get<1>(*repr.pl).fields.ref_count;
         case MAP_I:   return std::get<1>(*repr.pm).fields.ref_count;
+        case DSRC_I:  return repr.ds->ref_count();
         default:
             return no_ref_count;
     }
@@ -1042,6 +1331,7 @@ void Object::inc_ref_count() const {
         case STR_I:   (std::get<1>(*self.repr.ps).fields.ref_count)++; break;
         case LIST_I:  (std::get<1>(*self.repr.pl).fields.ref_count)++; break;
         case MAP_I:   (std::get<1>(*self.repr.pm).fields.ref_count)++; break;
+        case DSRC_I:  repr.ds->inc_ref_count(); break;
         default:      break;
     }
 }
@@ -1054,6 +1344,7 @@ void Object::dec_ref_count() const {
         case STR_I:   if (--(std::get<1>(*self.repr.ps).fields.ref_count) == 0) delete self.repr.ps; break;
         case LIST_I:  if (--(std::get<1>(*self.repr.pl).fields.ref_count) == 0) delete self.repr.pl; break;
         case MAP_I:   if (--(std::get<1>(*self.repr.pm).fields.ref_count) == 0) delete self.repr.pm; break;
+        case DSRC_I:  if (repr.ds->dec_ref_count() == 0) delete self.repr.ds; break;
         default:      break;
     }
 }
@@ -1096,7 +1387,8 @@ void Object::clear_children_parent(IRCMap& irc_map) {
 
 inline
 Object& Object::operator = (const Object& other) {
-    if (is_empty())
+//    fmt::print("Object::operator = (const Object&)\n");
+    if (fields.repr_ix == EMPTY_I)
     {
         fields.repr_ix = other.fields.repr_ix;
         switch (fields.repr_ix) {
@@ -1121,6 +1413,44 @@ Object& Object::operator = (const Object& other) {
                 inc_ref_count();
                 break;
             }
+            case DSRC_I: {
+                repr.ds = other.repr.ds;
+                inc_ref_count();
+                break;
+            }
+        }
+    }
+    else if (fields.repr_ix == other.fields.repr_ix)
+    {
+        if (!is(other)) {
+            switch (fields.repr_ix) {
+                case EMPTY_I: throw empty_reference(__FUNCTION__);
+                case NULL_I:  repr.z = nullptr; break;
+                case BOOL_I:  repr.b = other.repr.b; break;
+                case INT_I:   repr.i = other.repr.i; break;
+                case UINT_I:  repr.u = other.repr.u; break;
+                case FLOAT_I: repr.f = other.repr.f; break;
+                case STR_I: {
+                    std::get<0>(*repr.ps) = std::get<0>(*other.repr.ps);
+                    break;
+                }
+                case LIST_I: {
+                    clear_children_parent(*repr.pl);
+                    std::get<0>(*repr.pl) = std::get<0>(*other.repr.pl);
+                    set_children_parent(*repr.pl);
+                    break;
+                }
+                case MAP_I: {
+                    clear_children_parent(*repr.pm);
+                    std::get<0>(*repr.pm) = std::get<0>(*other.repr.pm);
+                    set_children_parent(*repr.pm);
+                    break;
+                }
+                case DSRC_I: {
+                    repr.ds->write(other);
+                    break;
+                }
+            }
         }
     }
     else
@@ -1128,12 +1458,11 @@ Object& Object::operator = (const Object& other) {
         Object curr_parent{parent()};
 
         switch (fields.repr_ix) {
-            case LIST_I: clear_children_parent(*repr.pl); break;
-            case MAP_I:  clear_children_parent(*repr.pm); break;
+            case STR_I:  dec_ref_count(); break;
+            case LIST_I: clear_children_parent(*repr.pl); dec_ref_count(); break;
+            case MAP_I:  clear_children_parent(*repr.pm); dec_ref_count(); break;
             default:     break;
         }
-
-        dec_ref_count();
 
         fields.repr_ix = other.fields.repr_ix;
         switch (fields.repr_ix) {
@@ -1144,23 +1473,24 @@ Object& Object::operator = (const Object& other) {
             case UINT_I:  repr.u = other.repr.u; break;
             case FLOAT_I: repr.f = other.repr.f; break;
             case STR_I: {
-                // TODO: need copy-on-READ optimization
                 String& str = std::get<0>(*other.repr.ps);
                 repr.ps = new IRCString{str, curr_parent};
                 break;
             }
             case LIST_I: {
-                // TODO: need copy-on-READ optimization
                 List& list = std::get<0>(*other.repr.pl);
                 repr.pl = new IRCList{list, curr_parent};
                 set_children_parent(*repr.pl);
                 break;
             }
             case MAP_I: {
-                // TODO: need copy-on-READ optimization
                 Map& map = std::get<0>(*other.repr.pm);
                 repr.pm = new IRCMap{map, curr_parent};
                 set_children_parent(*repr.pm);
+                break;
+            }
+            case DSRC_I: {
+                repr.ds->write(other);
                 break;
             }
         }
@@ -1170,7 +1500,8 @@ Object& Object::operator = (const Object& other) {
 
 inline
 Object& Object::operator = (Object&& other) {
-    if (is_empty())
+//    fmt::print("Object::operator = (Object&&)\n");
+    if (fields.repr_ix == EMPTY_I)
     {
         fields.repr_ix = other.fields.repr_ix;
         switch (fields.repr_ix) {
@@ -1183,6 +1514,41 @@ Object& Object::operator = (Object&& other) {
             case STR_I:   repr.ps = other.repr.ps; break;
             case LIST_I:  repr.pl = other.repr.pl; break;
             case MAP_I:   repr.pm = other.repr.pm; break;
+            case DSRC_I:   repr.ds = other.repr.ds; break;
+        }
+    }
+    else if (fields.repr_ix == other.fields.repr_ix)
+    {
+        if (!is(other)) {
+            fields.repr_ix = other.fields.repr_ix;
+            switch (fields.repr_ix) {
+                case EMPTY_I: throw empty_reference(__FUNCTION__);
+                case NULL_I:  repr.z = nullptr; break;
+                case BOOL_I:  repr.b = other.repr.b; break;
+                case INT_I:   repr.i = other.repr.i; break;
+                case UINT_I:  repr.u = other.repr.u; break;
+                case FLOAT_I: repr.f = other.repr.f; break;
+                case STR_I: {
+                    std::get<0>(*repr.ps) = std::get<0>(*other.repr.ps);
+                    break;
+                }
+                case LIST_I: {
+                    clear_children_parent(*repr.pl);
+                    std::get<0>(*repr.pl) = std::get<0>(*other.repr.pl);
+                    set_children_parent(*repr.pl);
+                    break;
+                }
+                case MAP_I: {
+                    clear_children_parent(*repr.pm);
+                    std::get<0>(*repr.pm) = std::get<0>(*other.repr.pm);
+                    set_children_parent(*repr.pm);
+                    break;
+                }
+                case DSRC_I: {
+                    repr.ds->write(other);
+                    break;
+                }
+            }
         }
     }
     else
@@ -1190,12 +1556,11 @@ Object& Object::operator = (Object&& other) {
         Object curr_parent{parent()};
 
         switch (fields.repr_ix) {
-            case LIST_I: clear_children_parent(*repr.pl); break;
-            case MAP_I:  clear_children_parent(*repr.pm); break;
+            case STR_I:  dec_ref_count(); break;
+            case LIST_I: clear_children_parent(*repr.pl); dec_ref_count(); break;
+            case MAP_I:  clear_children_parent(*repr.pm); dec_ref_count(); break;
             default:     break;
         }
-
-        dec_ref_count();
 
         fields.repr_ix = other.fields.repr_ix;
         switch (fields.repr_ix) {
@@ -1206,23 +1571,24 @@ Object& Object::operator = (Object&& other) {
             case UINT_I:  repr.u = other.repr.u; break;
             case FLOAT_I: repr.f = other.repr.f; break;
             case STR_I: {
-                // TODO: need copy-on-READ optimization
                 String& str = std::get<0>(*other.repr.ps);
-                repr.ps = new IRCString{str, curr_parent};
+                repr.ps = new IRCString{std::move(str), curr_parent};
                 break;
             }
             case LIST_I: {
-                // TODO: need copy-on-READ optimization
                 List& list = std::get<0>(*other.repr.pl);
-                repr.pl = new IRCList{list, curr_parent};
+                repr.pl = new IRCList{std::move(list), curr_parent};
                 set_children_parent(*repr.pl);
                 break;
             }
             case MAP_I: {
-                // TODO: need copy-on-READ optimization
                 Map& map = std::get<0>(*other.repr.pm);
-                repr.pm = new IRCMap{map, curr_parent};
+                repr.pm = new IRCMap{std::move(map), curr_parent};
                 set_children_parent(*repr.pm);
+                break;
+            }
+            case DSRC_I: {
+                repr.ds->write(other);
                 break;
             }
         }

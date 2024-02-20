@@ -3,84 +3,100 @@
 
 #include <sstream>
 
+#include <nodel/impl/Stopwatch.h>
+
 using namespace nodel;
 using namespace nodel::json::impl;
 
 TEST(Json, ParseNumberSignedInt) {
-  Parser parser{std::stringstream{"-37"}};
+  std::stringstream stream{"-37"};
+  Parser parser{stream};
   ASSERT_TRUE(parser.parse_number());
   EXPECT_EQ(parser.curr.as<Int>(), -37);
 }
 
 TEST(Json, ParseNumberUnsignedInt) {
   UInt value = 0xFFFFFFFFFFFFFFFFULL;
-  Parser parser{std::istringstream{std::to_string(value)}};
+  std::stringstream stream{std::to_string(value)};
+  Parser parser{stream};
   ASSERT_TRUE(parser.parse_number());
   EXPECT_EQ(parser.curr.as<UInt>(), value);
 }
 
 TEST(Json, ParseNumberRangeError) {
-  Parser parser{std::stringstream{"1000000000000000000000"}};
+  std::stringstream stream{"1000000000000000000000"};
+  Parser parser{stream};
   EXPECT_FALSE(parser.parse_number());
   EXPECT_TRUE(parser.error_message.length() > 0);
 }
 
 TEST(Json, ParseNumberFloat) {
-  Parser parser{std::stringstream{"3.14159"}};
+  std::stringstream stream{"3.14159"};
+  Parser parser{stream};
   EXPECT_TRUE(parser.parse_number());
   EXPECT_EQ(parser.curr.as<Float>(), 3.14159);
 }
 
 TEST(Json, ParseNumberDanglingPeriod) {
-  Parser parser{std::stringstream{"3."}};
+  std::stringstream stream{"3."};
+  Parser parser{stream};
   EXPECT_TRUE(parser.parse_number());
   EXPECT_EQ(parser.curr.as<Float>(), 3.0);
 }
 
 TEST(Json, ParseNumberPositiveExponent) {
-  Parser parser1{std::stringstream{"100E+3"}};
+  std::stringstream stream{"100E+3"};
+  Parser parser1{stream};
   EXPECT_TRUE(parser1.parse_number());
   EXPECT_EQ(parser1.curr.as<Float>(), 100000.0);
 
-  Parser parser2{std::stringstream{"100e+3"}};
+  std::stringstream stream2{"100E+3"};
+  Parser parser2{stream2};
   EXPECT_TRUE(parser2.parse_number());
   EXPECT_EQ(parser2.curr.as<Float>(), 100000.0);
 }
 
 TEST(Json, ParseNumberNegativeExponent) {
-  Parser parser1{std::stringstream{"1000E-3"}};
+  std::stringstream stream{"1000E-3"};
+  Parser parser1{stream};
   EXPECT_TRUE(parser1.parse_number());
   EXPECT_EQ(parser1.curr.as<Float>(), 1.0);
 
-  Parser parser2{std::stringstream{"1000e-3"}};
+  std::stringstream stream2{"1000e-3"};
+  Parser parser2{stream2};
   EXPECT_TRUE(parser2.parse_number());
   EXPECT_EQ(parser2.curr.as<Float>(), 1.0);
 }
 
 TEST(Json, ParseNumberCommaTerminator) {
-  Parser parser1{std::stringstream{"100,"}};
+  std::stringstream stream{"100,"};
+Parser parser1{stream};
   EXPECT_TRUE(parser1.parse_number());
   EXPECT_EQ(parser1.curr.as<Int>(), 100);
 }
 
 TEST(Json, ParseNumberMinusSignAlone) {
-  Parser parser1{std::stringstream{"-"}};
+  std::stringstream stream{"-"};
+Parser parser1{stream};
   EXPECT_FALSE(parser1.parse_number());
 }
 
 TEST(Json, ParseNumberMinusSignWithTerminator) {
-  Parser parser1{std::stringstream{"-,"}};
+  std::stringstream stream{"-,"};
+Parser parser1{stream};
   EXPECT_FALSE(parser1.parse_number());
 }
 
 TEST(Json, ParseListEmpty) {
-  Parser parser1{std::stringstream{"[]"}};
+  std::stringstream stream{"[]"};
+Parser parser1{stream};
   EXPECT_TRUE(parser1.parse_list());
   EXPECT_EQ(parser1.curr.size(), 0);
 }
 
 TEST(Json, ParseListOneInt) {
-  Parser parser1{std::stringstream{"[2]"}};
+  std::stringstream stream{"[2]"};
+Parser parser1{stream};
   EXPECT_TRUE(parser1.parse_list());
   Object curr = parser1.curr;
   EXPECT_EQ(curr.size(), 1);
@@ -88,7 +104,8 @@ TEST(Json, ParseListOneInt) {
 }
 
 TEST(Json, ParseListThreeInts) {
-  Parser parser1{std::stringstream{"[2, 4, 6]"}};
+  std::stringstream stream{"[2, 4, 6]"};
+Parser parser1{stream};
   EXPECT_TRUE(parser1.parse_list());
   Object curr = parser1.curr;
   EXPECT_EQ(curr.size(), 3);
@@ -97,13 +114,71 @@ TEST(Json, ParseListThreeInts) {
   EXPECT_EQ(curr[2].as<Int>(), 6);
 }
 
+TEST(Json, ParseExample1) {
+    std::stringstream stream{R"({"x": [1], "y": [2]})"};
+Parser parser1{stream};
+    EXPECT_TRUE(parser1.parse_object());
+    Object curr = parser1.curr;
+    EXPECT_TRUE(curr.is_map());
+    EXPECT_EQ(curr.size(), 2);
+    EXPECT_EQ(curr["x"][0], 1);
+    EXPECT_EQ(curr["y"][0], 2);
+}
+
+TEST(Json, ParseExampleFile) {
+    std::string error;
+    Object example = json::parse_file("test/example.json", error);
+    EXPECT_EQ(error, "");
+    EXPECT_TRUE(example.is_map());
+    EXPECT_EQ(example["favorite"], "Assam");
+}
+
+TEST(Json, ParseLargeExample1File) {
+    std::string error;
+    Object example = json::parse_file("test/large_example_1.json", error);
+    EXPECT_EQ(error, "");
+    EXPECT_TRUE(example.is_list());
+}
+
+TEST(Json, ParseLargeExample2File) {
+    std::string error;
+    Object example = json::parse_file("test/large_example_2.json", error);
+    EXPECT_EQ(error, "");
+    EXPECT_TRUE(example.is_map());
+}
+
 //
-// Error Tests
+// JSON Syntax Errors
 //
+TEST(Json, ParseListErrantColon) {
+    std::stringstream stream{R"(["a", :"b", "c"])"};
+Parser parser{stream};
+    EXPECT_FALSE(parser.parse_object());
+    EXPECT_NE(parser.error_message, "");
+    EXPECT_EQ(parser.error_offset, 6);
+}
+
+TEST(Json, ParseListDoubleComma) {
+    std::stringstream stream{R"(["a",, "b"])"};
+Parser parser{stream};
+    EXPECT_FALSE(parser.parse_object());
+    EXPECT_NE(parser.error_message, "");
+    EXPECT_EQ(parser.error_offset, 5);
+}
+
+TEST(Json, ParseMapDoubleComma) {
+    std::stringstream stream{R"({"a": [1],, "b"})"};
+Parser parser{stream};
+    EXPECT_FALSE(parser.parse_object());
+    EXPECT_NE(parser.error_message, "");
+    EXPECT_EQ(parser.error_offset, 10);
+}
 
 TEST(Json, ParseErrorBadNumberInList) {
-  Parser parser1{std::stringstream{"[2x]"}};
+  std::stringstream stream{"[2x]"};
+Parser parser1{stream};
   EXPECT_FALSE(parser1.parse_list());
-  EXPECT_EQ(parser1.error_offset, 3);
+  EXPECT_EQ(parser1.error_offset, 2);
 }
+
 

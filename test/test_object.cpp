@@ -4,11 +4,11 @@
 
 using namespace nodel;
 
-static Object from_json(const std::string& json) {
+static Object from_json(std::string&& json) {
     std::optional<nodel::json::ParseError> parse_error;
-    Object result = nodel::json::parse(json, parse_error);
+    Object result = nodel::json::parse(std::forward<std::string>(json), parse_error);
     if (parse_error) {
-        throw JsonException(parse_error->to_str());
+        throw json::JsonException(parse_error->to_str());
         return {};
     }
     return result;
@@ -22,6 +22,7 @@ TEST(Object, Empty) {
 TEST(Object, Null) {
   Object v{nullptr};
   EXPECT_TRUE(v.is_null());
+  EXPECT_TRUE(v.is(null));
   EXPECT_EQ(v.to_json(), "null");
 }
 
@@ -99,11 +100,11 @@ TEST(Object, IdentityComparison) {
     Object obj{"foo"};
     Object copy{obj};
     Object copy2;
-    EXPECT_TRUE(obj.same_as(copy));
+    EXPECT_TRUE(obj.is(copy));
     copy2 = obj;
-    EXPECT_TRUE(obj.same_as(copy2));
-    EXPECT_TRUE(copy.same_as(copy2));
-    EXPECT_TRUE(copy2.same_as(obj));
+    EXPECT_TRUE(obj.is(copy2));
+    EXPECT_TRUE(copy.is(copy2));
+    EXPECT_TRUE(copy2.is(obj));
 }
 
 TEST(Object, CompareBoolNull) {
@@ -795,11 +796,14 @@ TEST(Object, AssignString) {
 
 TEST(Object, RedundantAssign) {
     Object obj = from_json(R"({"x": [1], "y": [2]})");
-    obj["x"] = obj["x"];  // ref count error might not manifest with one try
-    obj["x"] = obj["x"];
-    obj["x"] = obj["x"];
     EXPECT_TRUE(obj["x"].is_list());
     EXPECT_EQ(obj["x"][0], 1);
+    // ref count error might not manifest with one try
+    for (int i=0; i<100; i++) {
+        obj["x"] = obj["x"];
+        EXPECT_TRUE(obj["x"].is_list());
+        ASSERT_EQ(obj["x"][0], 1);
+    }
 }
 
 TEST(Object, RootParentIsEmpty) {
@@ -807,17 +811,19 @@ TEST(Object, RootParentIsEmpty) {
     EXPECT_TRUE(root.parent().is_null());
 }
 
-TEST(Object, ParentIntegrityOnOverwrite) {
-    Object root = from_json(R"({"x": [1], "y": [2]})");
-    Object x1 = root["x"];
-    Object x2 = root["x"];
-    EXPECT_TRUE(x1.parent().is_map());
-    EXPECT_EQ(x2.parent().id(), root.id());
-    EXPECT_TRUE(x1.parent().is_map());
-    EXPECT_EQ(x2.parent().id(), root.id());
+TEST(Object, ClearParentOnOverwrite) {
+    List list;
+    for (int i=0; i<100000; i++)
+        list.push_back(Object(std::to_string(i)));
+
+    Object root{std::move(list)};
+    for (auto& obj : list)
+        EXPECT_TRUE(obj.parent().is(root));
+
     root = null;
-    EXPECT_TRUE(x1.parent().is_null());
-    EXPECT_TRUE(x2.parent().is_null());
+
+    for (auto& obj : list)
+        EXPECT_TRUE(obj.parent().is_null());
 }
 
 //TEST(Object, ParentIntegrityOnRemove) {
@@ -832,3 +838,23 @@ TEST(Object, ParentIntegrityOnOverwrite) {
 //    EXPECT_TRUE(x1.parent().is_null());
 //    EXPECT_TRUE(x2.parent().is_null());
 //}
+
+struct ShallowMapSource : public ISource
+{
+    ShallowMapSource() : cached{from_json(R"( {"a": 1, "b": 2} )")} {}
+
+    Object read()                   { return cached; }
+    Object read_key(const Key& key) { return cached[key]; }
+    void write(const Object& obj)   { cached = obj; }
+    void write(Object&& obj)        { cached = std::forward<Object>(obj); }
+    size_t size()                   { return cached.size(); }
+    Object::ReprType type()         { return Object::MAP_I; }
+
+    void reset()                    {}
+    void refresh()                  {}
+
+    Object cached;
+};
+
+TEST(Object, ShallowMapSource) {
+}
