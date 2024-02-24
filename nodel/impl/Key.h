@@ -1,6 +1,6 @@
 #pragma once
 
-#include "str_util.h"
+#include "support.h"
 #include "types.h"
 
 #include <string>
@@ -226,23 +226,25 @@ class Key
     }
 
     bool operator == (const std::string& other) const {
-        if (repr_ix == STR_I) {
-            return *(repr.p_s) == other;
-        } else if (repr_ix == STRV_I) {
-            return repr.sv == other;
-        } else {
-            return false;
+        switch (repr_ix) {
+            case NULL_I: return other == "null";
+            case STR_I:  return *(repr.p_s) == other;
+            case STRV_I: return repr.sv == other;
+            default:
+                break;
         }
+        return false;
     }
 
     bool operator == (const std::string_view& other) const {
-        if (repr_ix == STR_I) {
-            return *(repr.p_s) == other;
-        } else if (repr_ix == STRV_I) {
-            return repr.sv == other;
-        } else {
-            return false;
+        switch (repr_ix) {
+            case NULL_I: return other == "null";
+            case STR_I:  return *(repr.p_s) == other;
+            case STRV_I: return repr.sv == other;
+            default:
+                break;
         }
+        return false;
     }
 
     bool operator == (const char *other) const {
@@ -260,13 +262,14 @@ class Key
         }
     }
 
-    bool is_null() const  { return repr_ix == NULL_I; }
-    bool is_bool() const  { return repr_ix == BOOL_I; }
-    bool is_int() const   { return repr_ix == INT_I; }
-    bool is_uint() const  { return repr_ix == UINT_I; }
-    bool is_float() const { return repr_ix == FLOAT_I; }
-    bool is_str() const   { return repr_ix >= STR_I; }
-    bool is_num() const   { return repr_ix && repr_ix < STR_I; }
+    bool is_null() const    { return repr_ix == NULL_I; }
+    bool is_bool() const    { return repr_ix == BOOL_I; }
+    bool is_int() const     { return repr_ix == INT_I; }
+    bool is_uint() const    { return repr_ix == UINT_I; }
+    bool is_any_int() const { return repr_ix == INT_I || repr_ix == UINT_I; }
+    bool is_float() const   { return repr_ix == FLOAT_I; }
+    bool is_str() const     { return repr_ix >= STR_I; }
+    bool is_num() const     { return repr_ix && repr_ix < STR_I; }
 
     // unsafe
     bool as_bool() const                        { return repr.b; }

@@ -33,7 +33,7 @@ template <typename StreamType>
 struct Parser
 {
   private:
-    struct StreamIterator
+    struct StreamIterator  // TODO: replace with std::stream_iterator?
     {
         StreamIterator(StreamType& stream) : stream{stream} {
             if (!stream.eof())
@@ -112,7 +112,7 @@ template <typename StreamType>
 Object::ReprType Parser<StreamType>::parse_type() {
     consume_whitespace();
     switch (it.peek()) {
-        case '{': return Object::MAP_I;
+        case '{': return Object::OMAP_I;
         case '[': return Object::LIST_I;
         case 'n': return Object::NULL_I;
         case 't':
@@ -352,7 +352,7 @@ bool Parser<StreamType>::parse_map() {
             return false;
         }
 
-        Key key = curr.swap_key();
+        Key key = curr.into_key();
 
         if (curr.is_container()) {
             create_error("Map keys must be a primitive type");

@@ -563,7 +563,7 @@ Node& Node::replace(const Node& other) {
             list[key().to_uint()] = other.get_object();
             break;
         }
-        case Object::MAP_I: {
+        case Object::OMAP_I: {
             Map& map = parent_obj.as<Map>();
             map[key()] = other.get_object();
             break;
@@ -583,7 +583,7 @@ Node& Node::replace(Node&& other) {
             list[key().to_uint()] = std::move(other.get_object());
             break;
         }
-        case Object::MAP_I: {
+        case Object::OMAP_I: {
             Map& map = parent_obj.as<Map>();
             map[key()] = std::move(other.get_object());
             break;
