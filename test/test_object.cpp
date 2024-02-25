@@ -533,6 +533,10 @@ TEST(Object, SubscriptMap) {
   EXPECT_EQ(obj[2].to_int(), 9);
   EXPECT_EQ(obj["name"sv].as<String>(), "Brian");
   EXPECT_EQ(obj[Key{"name"sv}].as<String>(), "Brian");
+  EXPECT_EQ(obj["name"].as<String>(), "Brian");
+  EXPECT_EQ(obj[Key{"name"}].as<String>(), "Brian");
+  EXPECT_EQ(obj["name"s].as<String>(), "Brian");
+  EXPECT_EQ(obj[Key{"name"s}].as<String>(), "Brian");
   EXPECT_EQ(obj[Key{0}].to_int(), 7);
   EXPECT_EQ(obj[Key{1}].to_int(), 8);
   EXPECT_EQ(obj[Key{2}].to_int(), 9);
@@ -1026,10 +1030,10 @@ struct TestObjectSource : public ObjectDataSource
             // cache bypass
             memory_bypass = true;
             auto& dsrc = obj.data_source<TestObjectSource>();
-            data.empty();
+            data.release();
             data = dsrc.data;
         } else {
-            data.empty();
+            data.release();
             data = obj;
         }
     }
@@ -1040,10 +1044,10 @@ struct TestObjectSource : public ObjectDataSource
             // cache bypass
             memory_bypass = true;
             auto& dsrc = obj.data_source<TestObjectSource>();
-            data.empty();
+            data.release();
             data = dsrc.data;
         } else {
-            data.empty();
+            data.release();
             data = std::forward<Object>(obj);
         }
     }
@@ -1142,6 +1146,7 @@ struct TestObjectSource : public ObjectDataSource
 struct TestKeySource : public KeyDataSource
 {
     TestKeySource(const std::string& json) {
+        cache = Map{};
         data = parse_json(json);
     }
 
@@ -1157,7 +1162,8 @@ struct TestKeySource : public KeyDataSource
     Object read_key(const Key& key) override {
         read_key_called = true;
         if (cache.is_empty()) cache = Object{Object::OMAP_I};
-        cache[key] = data[key];
+//        fmt::print("-->{} from {}\b", key.to_str(), data.to_json());
+        cache.set(key, data[key]);
         return cache[key];
     }
 
@@ -1229,7 +1235,7 @@ TEST(Object, TestObjectSource_RefCountCopyAssign) {
     Object copy = obj;
     EXPECT_EQ(obj.ref_count(), 2);
     EXPECT_EQ(copy.ref_count(), 2);
-    obj.empty();
+    obj.release();
     EXPECT_EQ(copy.ref_count(), 1);
 }
 
@@ -1238,7 +1244,7 @@ TEST(Object, ShallowTestObjectSource_RefCountMoveAssign) {
     EXPECT_EQ(obj.ref_count(), 1);
     Object copy = std::move(obj);
     EXPECT_EQ(copy.ref_count(), 1);
-    obj.empty();
+    obj.release();
     EXPECT_EQ(copy.ref_count(), 1);
 }
 

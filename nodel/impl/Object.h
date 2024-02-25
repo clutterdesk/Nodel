@@ -76,6 +76,7 @@ struct PathSyntax : std::exception
 
 
 class Object;
+class Result;
 class Path;
 class ObjectDataSource;
 class KeyDataSource;
@@ -102,7 +103,6 @@ using MapPtr = IRCMap*;
 using ObjectDataSourcePtr = ObjectDataSource*;
 using KeyDataSourcePtr = KeyDataSource*;
 
-constexpr const char* null = nullptr;
 constexpr size_t min_key_chunk_size = 128;
 
 
@@ -124,6 +124,10 @@ class Object
         FLOAT_I,
         STR_I,
         LIST_I,
+        OMAP_I,   // ordered map
+        UMAP_I,   // TODO unordered map
+        MAP_I,    // TODO red-black tree
+        CMAP_I,   // TODO compact map
         VBOOL_I,  // TODO
         VINT4_I,  // TODO
         VINT8_I,  // TODO
@@ -131,10 +135,6 @@ class Object
         VUINT8_I, // TODO
         VFP4_I,   // TODO
         VFP8_I,   // TODO
-        OMAP_I,   // ordered map
-        UMAP_I,   // TODO unordered map
-        MAP_I,    // TODO red-black tree
-        CMAP_I,   // TODO compact map
         BLOB_I,   // TODO
         DSOBJ_I,  // object data-source
         DSKEY_I,  // key/value data-source
@@ -226,24 +226,16 @@ class Object
   public:
     static constexpr refcnt_t no_ref_count = std::numeric_limits<refcnt_t>::max();
 
-    Object(const char* v) : repr{}, fields{EMPTY_I} {
-        if (v == nullptr) {
-            fields.repr_ix = NULL_I;
-            repr.z = nullptr;
-        } else {
-            fields.repr_ix = STR_I;
-            repr.ps = new IRCString{v, {}};
-        }
-    }
-
     Object()                           : repr{}, fields{EMPTY_I} {}
     Object(const std::string& str)     : repr{new IRCString{str, {}}}, fields{STR_I} {}
     Object(std::string&& str)          : repr{new IRCString(std::move(str), {})}, fields{STR_I} {}
     Object(const std::string_view& sv) : repr{new IRCString{{sv.data(), sv.size()}, {}}}, fields{STR_I} {}
+    Object(const char* v)              : repr{new IRCString{v, {}}}, fields{STR_I} { assert(v != nullptr); }
     Object(bool v)                     : repr{v}, fields{BOOL_I} {}
     Object(is_like_Float auto v)       : repr{(Float)v}, fields{FLOAT_I} {}
     Object(is_like_Int auto v)         : repr{(Int)v}, fields{INT_I} {}
     Object(is_like_UInt auto v)        : repr{(UInt)v}, fields{UINT_I} {}
+    Object(const Result&);
 
     Object(ObjectDataSourcePtr ptr)    : repr{ptr}, fields{DSOBJ_I} {}  // ownership transferred
     Object(KeyDataSourcePtr ptr)       : repr{ptr}, fields{DSKEY_I} {}  // ownership transferred
@@ -259,9 +251,9 @@ class Object
     Object(const Object& other);
     Object(Object&& other);
 
-    ~Object() { empty(); }
+    ~Object() { dec_ref_count(); }
 
-    Object::ReprType type() const;
+    ReprType type() const;
 
     Object root() const;
     Object parent() const;
@@ -320,14 +312,21 @@ class Object
     Key into_key();
     std::string to_json() const;
 
-    Object operator [] (is_integral auto v) const        { return get(v); }
-    Object operator [] (const char* v) const             { return get(v); }
-    Object operator [] (const std::string_view& v) const { return get(v); }
-    Object operator [] (const std::string& v) const      { return get(v); }
-    Object operator [] (bool v) const                    { return get(v); }
-    Object operator [] (const Key& key) const            { return get(key); }
-    Object operator [] (const Object& obj) const         { return get(obj); }
-//    Object operator [] (const Path& path) const          { return get(path); }
+    const Result operator [] (is_byvalue auto) const;
+    const Result operator [] (const char*) const;
+    const Result operator [] (const std::string_view& v) const;
+    const Result operator [] (const std::string& v) const;
+    const Result operator [] (const Key& key) const;
+    const Result operator [] (const Object& obj) const;
+    const Result operator [] (Object&& obj) const;
+
+    Result operator [] (is_byvalue auto);
+    Result operator [] (const char*);
+    Result operator [] (const std::string_view& v);
+    Result operator [] (const std::string& v);
+    Result operator [] (const Key& key);
+    Result operator [] (const Object& obj);
+    Result operator [] (Object&& obj);
 
     Object get(is_integral auto v) const;
     Object get(const char* v) const;
@@ -337,6 +336,11 @@ class Object
     Object get(const Key& key) const;
     Object get(const Object& obj) const;
 //    Object get(const Path& path) const;
+
+    void set(const Key& key, const Object& value);
+    void set(const Object& key, const Object& value);
+    void set(std::pair<const Key&, const Object&> item);
+//    Object set(const Path& path, const Object& value);
 
     size_t size() const;
 
@@ -353,8 +357,8 @@ class Object
     refcnt_t ref_count() const;
     void inc_ref_count() const;
     void dec_ref_count() const;
-    void empty();
-    void set_reference(const Object&);
+    void release();
+    void refer_to(const Object&);
 
     Object& operator = (const Object& other);
     Object& operator = (Object&& other);
@@ -403,9 +407,150 @@ class Object
   friend class DescendantIterator;
 };
 
+constexpr Object::ReprType null = Object::NULL_I;
 
-//#include "path.h"
 
+// syntactic sugar
+class Result
+{
+  public:
+    using ReprType = Object::ReprType;
+    using ChildrenRange = Object::ChildrenRange;
+    using AncestorRange = Object::AncestorRange;
+    using SiblingRange = Object::SiblingRange;
+    using DescendantRange = Object::DescendantRange;
+
+  public:
+    Result(const Object& object, const Key& key) : object{object} { subscripts.push_back(key); }
+    Result(const Object& object, Key&& key)      : object{object} { subscripts.push_back(std::forward<Key>(key)); }
+    Result(const Result& result, const Key& key) : Result(result) { subscripts.push_back(key); }
+    Result(const Result& result, Key&& key)      : Result(result) { subscripts.push_back(std::forward<Key>(key)); }
+
+    Result(Result&& result, const Key& key) : Result(std::forward<Result>(result)) { subscripts.push_back(key); }
+    Result(Result&& result, Key&& key)      : Result(std::forward<Result>(result)) { subscripts.push_back(std::forward<Key>(key)); }
+
+    explicit Result(const Result& other) : object{other.object}, subscripts{other.subscripts} {}
+    explicit Result(Result&& other)      : object{other.object}, subscripts{std::forward<KeyList>(other.subscripts)} {}
+
+    ReprType type() const         { return resolve().type(); }
+    Object root() const           { return object.root(); }
+    Object parent() const         { return object; }
+    ChildrenRange children() const;
+    AncestorRange ancestors() const;
+    SiblingRange siblings() const;
+    DescendantRange descendants() const;
+
+    const Key key() const { return subscripts.back(); }
+//    Path path() const;
+
+    template <typename T> T value_cast() const          { return resolve().value_cast<T>(); }
+    template <typename T> bool is_type() const          { return resolve().is_type<T>(); }
+    template <typename V> void visit(V&& visitor) const { return resolve().visit(visitor); }
+    template <typename T> const T& as() const           { return resolve().as<T>(); }
+    template <typename T> T& as()                       { return resolve().as<T>(); }
+
+    bool is_empty() const     { return resolve().is_empty(); }
+    bool is_null() const      { return resolve().is_null(); }
+    bool is_bool() const      { return resolve().is_bool(); }
+    bool is_int() const       { return resolve().is_int(); }
+    bool is_uint() const      { return resolve().is_uint(); }
+    bool is_float() const     { return resolve().is_float(); }
+    bool is_str() const       { return resolve().is_str(); }
+    bool is_num() const       { return resolve().is_num(); }
+    bool is_list() const      { return resolve().is_list(); }
+    bool is_map() const       { return resolve().is_map(); }
+    bool is_container() const { return resolve().is_container(); }
+
+    bool to_bool() const        { return resolve().to_bool(); }
+    Int to_int() const          { return resolve().to_int(); }
+    UInt to_uint() const        { return resolve().to_uint(); }
+    Float to_float() const      { return resolve().to_float(); }
+    std::string to_str() const  { return resolve().to_str(); }
+    Key to_key() const          { return resolve().to_key(); }
+    Key to_tmp_key() const      { return resolve().to_tmp_key(); }
+    Key into_key() const        { return resolve().into_key(); }
+    std::string to_json() const { return resolve().to_json(); }
+
+    const Result operator [] (is_byvalue auto v) const         { return {*this, Key{v}}; }
+    const Result operator [] (const char* v) const             { return {*this, Key{v}}; }
+    const Result operator [] (const std::string_view& v) const { return {*this, Key{v}}; }
+    const Result operator [] (const std::string& v) const      { return {*this, Key{v}}; }
+    const Result operator [] (const Key& key) const            { return {*this, key}; }
+    const Result operator [] (const Object& obj) const         { return {*this, obj.to_key()}; }
+    const Result operator [] (Object&& obj) const              { return {*this, obj.into_key()}; }
+
+    Result operator [] (is_byvalue auto v)          { return {*this, Key{v}}; }
+    Result operator [] (const char* v)              { return {*this, Key{v}}; }
+    Result operator [] (const std::string_view& v)  { return {*this, Key{v}}; }
+    Result operator [] (const std::string& v)       { return {*this, Key{v}}; }
+    Result operator [] (const Key& key)             { return {*this, key}; }
+    Result operator [] (const Object& obj)          { return {*this, obj.to_key()}; }
+    Result operator [] (Object&& obj)               { return {*this, obj.into_key()}; }
+
+    Object get(is_integral auto v) const        { return resolve().get(v); }
+    Object get(const char* v) const             { return resolve().get(v); }
+    Object get(const std::string_view& v) const { return resolve().get(v); }
+    Object get(const std::string& v) const      { return resolve().get(v); }
+    Object get(bool v) const                    { return resolve().get(v); }
+    Object get(const Key& key) const            { return resolve().get(key); }
+    Object get(const Object& obj) const         { return resolve().get(obj); }
+//    Object get(const Path& path) const          { return resolve().get(path); }
+
+    void set(const Key& key, const Object& value)       { resolve().set(key, value); }
+    void set(const Object& key, const Object& value)    { resolve().set(key, value); }
+    void set(std::pair<const Key&, const Object&> item) { resolve().set(item); }
+//    Object set(const Path& path, const Object& value)   { resolve().set(path, value); }
+
+    size_t size() const { return resolve().size(); }
+
+    template <typename Visitor>
+    void iter_visit(Visitor&& visitor) const { resolve().iter_visit(visitor); }
+
+    const KeyList keys() const { return resolve().keys(); }
+
+    bool operator == (const Object& obj) const                   { return resolve() == obj; }
+    std::partial_ordering operator <=> (const Object& obj) const { return resolve() <=> obj; }
+
+    Oid id() const                         { return resolve().id(); }
+    bool is(const Object& other) const     { return resolve().is(other); }
+
+    void release()                   { subscripts.clear(); object.release(); }
+    void refer_to(const Object& obj) { subscripts.clear(); object.refer_to(obj); }
+
+    Object operator = (const Object& other) { return resolve() = other; }
+    Object operator = (Object&& other)      { return resolve() = std::forward<Object>(other); }
+    Object operator = (const Result& other) { return resolve() = other.resolve(); }
+    // TODO: Need other assignment ops to avoid Object temporaries
+
+    bool has_data_source() const { return resolve().has_data_source(); }
+
+    template <class DataSourceType>
+    DataSourceType& data_source() const { return resolve().data_source<DataSourceType>(); }
+
+    void reset_cache()   { resolve().reset_cache(); }
+    void refresh_cache() { resolve().refresh_cache(); }
+
+    operator Object () const { return resolve(); }
+    operator Object () { return resolve(); }
+
+    Object resolve() const {
+        Result& self = *const_cast<Result*>(this);
+        for (auto& key : subscripts) {
+            Object obj = self.object.get(key);
+            if (obj.is_empty()) {
+                self.object.release();
+                break;
+            }
+            self.object.refer_to(obj);
+        }
+        self.subscripts.clear();
+        return self.object;
+    }
+
+  private:
+    Object object;
+    KeyList subscripts;
+};
 
 class IDataSourceIterator
 {
@@ -437,7 +582,7 @@ class DataSource
 
   private:
     Object get_parent() const           { return parent; }
-    void set_parent(Object& new_parent) { parent.empty(); parent = new_parent; }
+    void set_parent(Object& new_parent) { parent.refer_to(new_parent); }
 
     refcnt_t ref_count() const { return parent.fields.ref_count; }
     void inc_ref_count()       { parent.fields.ref_count++; }
@@ -468,12 +613,17 @@ class ObjectDataSource : public DataSource
     size_t size()              { if (cache.is_empty()) read(); return cache.size(); }
     Object get(const Key& key) { if (cache.is_empty()) read(); return cache.get(key); }
 
+    void set(const Key& key, const Object& value) {
+        if (cache.is_empty()) read();
+        cache.set(key, value);
+    }
+
     const Key key_of(const Object& obj) { return cache.key_of(obj); }
 
     ReprType type() { if (cache.is_empty()) read_meta(); return cache.type(); }
     Oid id()        { if (cache.is_empty()) read_meta(); return cache.id(); }
 
-    void reset()   { cache.empty(); }
+    void reset()   { cache.release(); }
     void refresh() {}  // TODO: implement
 
     friend class Object;
@@ -495,19 +645,18 @@ class KeyDataSource : public DataSource
     Object& get_partial_cached()             { return cache; }
 
     Object get(const Key& key) {
-        if (cache.is_empty()) {
-            Object obj = read_key(key);
-            cache[key] = obj;
-            return obj;
-        } else {
-            Object obj = cache.get(key);
-            fmt::print("{} -> {}\n", key.to_str(), Object::type_name(obj.type()));
-            if (obj.is_empty()) {
-                Object obj = read_key(key);
-                cache[key] = obj;
-            }
-            return obj;
+        assert (!cache.is_empty());
+        Object value = cache.get(key);
+        if (value.is_empty()) {
+            value = read_key(key);
+            cache.set(key, value);
         }
+        return value;
+    }
+
+    void set(const Key& key, const Object& value) {
+        assert (!cache.is_empty());
+        cache.set(key, value);
     }
 
     const Key key_of(const Object& obj) { return cache.key_of(obj); }
@@ -515,7 +664,7 @@ class KeyDataSource : public DataSource
     ReprType type() { if (cache.is_empty()) read_meta(); return cache.type(); }
     Oid id()        { if (cache.is_empty()) read_meta(); return cache.id(); }
 
-    void reset()   { cache.empty(); }
+    void reset()   { cache.release(); }
     void refresh() {}  // TODO: implement
 
     friend class Object;
@@ -651,8 +800,8 @@ Object Object::root() const {
     Object obj = *this;
     Object par = parent();
     while (!par.is_null()) {
-        obj.set_reference(par);
-        par.set_reference(par.parent());
+        obj.refer_to(par);
+        par.refer_to(par.parent());
     }
     return obj;
 }
@@ -664,8 +813,8 @@ Object Object::parent() const {
         case STR_I:   return std::get<1>(*repr.ps);
         case LIST_I:  return std::get<1>(*repr.pl);
         case OMAP_I:  return std::get<1>(*repr.pm);
-        case DSOBJ_I:  return repr.ods->get_parent();
-        case DSKEY_I:  return repr.kds->get_parent();
+        case DSOBJ_I: return repr.ods->get_parent();
+        case DSKEY_I: return repr.kds->get_parent();
         default:      return null;
     }
 }
@@ -701,8 +850,8 @@ Object Object::ods_read() const {
 }
 
 inline
-void Object::set_reference(const Object& object) {
-    empty();
+void Object::refer_to(const Object& object) {
+    release();
     (*this) = object;
 }
 
@@ -711,31 +860,31 @@ void Object::set_parent(const Object& new_parent) {
     switch (fields.repr_ix) {
         case STR_I: {
             auto& parent = std::get<1>(*repr.ps);
-            parent.empty();
+            parent.release();
             parent = new_parent;
             break;
         }
         case LIST_I: {
             auto& parent = std::get<1>(*repr.pl);
-            parent.empty();
+            parent.release();
             parent = new_parent;
             break;
         }
         case OMAP_I: {
             auto& parent = std::get<1>(*repr.pm);
-            parent.empty();
+            parent.release();
             parent = new_parent;
             break;
         }
         case DSOBJ_I: {
             auto parent = repr.ods->get_parent();
-            parent.empty();
+            parent.release();
             parent = new_parent;
             break;
         }
         case DSKEY_I: {
             auto parent = repr.kds->get_parent();
-            parent.empty();
+            parent.release();
             parent = new_parent;
             break;
         }
@@ -755,7 +904,7 @@ const Key Object::key_of(const Object& obj) const {
         case NULL_I: break;
         case LIST_I: {
             Oid oid = obj.id();
-            const List& list = std::get<0>(*repr.pl);
+            const auto& list = std::get<0>(*repr.pl);
             UInt index = 0;
             for (const auto& item : list) {
                 if (item.id() == oid)
@@ -766,7 +915,7 @@ const Key Object::key_of(const Object& obj) const {
         }
         case OMAP_I: {
             Oid oid = obj.id();
-            const Map& map = std::get<0>(*repr.pm);
+            const auto& map = std::get<0>(*repr.pm);
             for (auto& [key, value] : map) {
                 if (value.id() == oid)
                     return key;
@@ -794,8 +943,8 @@ const Key Object::key_of(const Object& obj) const {
 //    auto& key_list = path.key_list;
 //    while (!par.is_null()) {
 //        key_list.insert(key_list.begin(), par.key_of(obj));
-//        obj.set_reference(par);
-//        par.set_reference(obj.parent());
+//        obj.refer_to(par);
+//        par.refer_to(obj.parent());
 //    }
 //    return path;
 //}
@@ -925,18 +1074,18 @@ Key Object::into_key() {
     switch (fields.repr_ix) {
         case EMPTY_I: throw empty_reference(__FUNCTION__);
         case NULL_I:  { return nullptr; }
-        case BOOL_I:  { Key k{repr.b}; empty(); return k; }
-        case INT_I:   { Key k{repr.i}; empty();  return k; }
-        case UINT_I:  { Key k{repr.u}; empty();  return k; }
-        case FLOAT_I: { Key k{repr.f}; empty();  return k; }
+        case BOOL_I:  { Key k{repr.b}; release(); return k; }
+        case INT_I:   { Key k{repr.i}; release();  return k; }
+        case UINT_I:  { Key k{repr.u}; release();  return k; }
+        case FLOAT_I: { Key k{repr.f}; release();  return k; }
         case STR_I:   {
             Key k{std::move(std::get<0>(*repr.ps))};
-            empty();
+            release();
             return k;
         }
         case DSOBJ_I: {
             Key k{repr.ods->read().into_key()};
-            empty();
+            release();
             return k;
         }
         default:
@@ -944,11 +1093,32 @@ Key Object::into_key() {
     }
 }
 
+inline const Result Object::operator [] (is_byvalue auto v) const         { return {*this, Key{v}}; }
+inline const Result Object::operator [] (const char* v) const             { return {*this, Key{v}}; }
+inline const Result Object::operator [] (const std::string_view& v) const { return {*this, Key{v}}; }
+inline const Result Object::operator [] (const std::string& v) const      { return {*this, Key{v}}; }
+inline const Result Object::operator [] (const Key& key) const            { return {*this, key}; }
+inline const Result Object::operator [] (const Object& obj) const         { return {*this, obj.to_key()}; }
+inline const Result Object::operator [] (Object&& obj) const              { return {*this, obj.into_key()}; }
+
+inline Result Object::operator [] (is_byvalue auto v)         { return {*this, Key{v}}; }
+inline Result Object::operator [] (const char* v)             { return {*this, Key{v}}; }
+inline Result Object::operator [] (const std::string_view& v) { return {*this, Key{v}}; }
+inline Result Object::operator [] (const std::string& v)      { return {*this, Key{v}}; }
+inline Result Object::operator [] (const Key& key)            { return {*this, key}; }
+inline Result Object::operator [] (const Object& obj)         { return {*this, obj.to_key()}; }
+inline Result Object::operator [] (Object&& obj)              { return {*this, obj.into_key()}; }
+
 inline
 Object Object::get(const char* v) const {
     switch (fields.repr_ix) {
         case EMPTY_I: throw empty_reference(__FUNCTION__);
-        case OMAP_I:  return std::get<0>(*repr.pm).at(v);
+        case OMAP_I: {
+            auto& map = std::get<0>(*repr.pm);
+            auto it = map.find(v);
+            if (it == map.end()) return {};
+            return it->second;
+        }
         case DSOBJ_I: return repr.ods->get(v);
         case DSKEY_I: return repr.kds->get(v);
         default:      throw wrong_type(fields.repr_ix);
@@ -959,7 +1129,12 @@ inline
 Object Object::get(const std::string_view& v) const {
     switch (fields.repr_ix) {
         case EMPTY_I: throw empty_reference(__FUNCTION__);
-        case OMAP_I:  return std::get<0>(*repr.pm).at(v);
+        case OMAP_I: {
+            auto& map = std::get<0>(*repr.pm);
+            auto it = map.find(v);
+            if (it == map.end()) return {};
+            return it->second;
+        }
         case DSOBJ_I: return repr.ods->get(v);
         case DSKEY_I: return repr.kds->get(v);
         default:      throw wrong_type(fields.repr_ix);
@@ -970,7 +1145,12 @@ inline
 Object Object::get(const std::string& v) const {
     switch (fields.repr_ix) {
         case EMPTY_I: throw empty_reference(__FUNCTION__);
-        case OMAP_I:  return std::get<0>(*repr.pm).at((std::string_view)v);
+        case OMAP_I: {
+            auto& map = std::get<0>(*repr.pm);
+            auto it = map.find((std::string_view)v);
+            if (it == map.end()) return {};
+            return it->second;
+        }
         case DSOBJ_I: return repr.ods->get(v);
         case DSKEY_I: return repr.kds->get(v);
         default:      throw wrong_type(fields.repr_ix);
@@ -982,10 +1162,15 @@ Object Object::get(is_integral auto index) const {
     switch (fields.repr_ix) {
         case EMPTY_I: throw empty_reference(__FUNCTION__);
         case LIST_I: {
-            List& list = std::get<0>(*repr.pl);
+            auto& list = std::get<0>(*repr.pl);
             return (index < 0)? list[list.size() + index]: list[index];
         }
-        case OMAP_I:  return std::get<0>(*repr.pm).at(index);
+        case OMAP_I: {
+            auto& map = std::get<0>(*repr.pm);
+            auto it = map.find(index);
+            if (it == map.end()) return {};
+            return it->second;
+        }
         case DSOBJ_I: return repr.ods->get(index);
         case DSKEY_I: return repr.kds->get(index);
         default:      throw wrong_type(fields.repr_ix);
@@ -996,7 +1181,12 @@ inline
 Object Object::get(bool v) const {
     switch (fields.repr_ix) {
         case EMPTY_I: throw empty_reference(__FUNCTION__);
-        case OMAP_I:  return std::get<0>(*repr.pm).at(v);
+        case OMAP_I: {
+            auto& map = std::get<0>(*repr.pm);
+            auto it = map.find(v);
+            if (it == map.end()) return {};
+            return it->second;
+        }
         case DSOBJ_I: return repr.ods->get(v);
         case DSKEY_I: return repr.kds->get(v);
         default:      throw wrong_type(fields.repr_ix);
@@ -1008,11 +1198,16 @@ Object Object::get(const Key& key) const {
     switch (fields.repr_ix) {
         case EMPTY_I: throw empty_reference(__FUNCTION__);
         case LIST_I: {
-            List& list = std::get<0>(*repr.pl);
+            auto& list = std::get<0>(*repr.pl);
             Int index = key.to_int();
             return (index < 0)? list[list.size() + index]: list[index];
         }
-        case OMAP_I: return std::get<0>(*repr.pm).at(key);
+        case OMAP_I: {
+            auto& map = std::get<0>(*repr.pm);
+            auto it = map.find(key);
+            if (it == map.end()) return {};
+            return it->second;
+        }
         case DSOBJ_I: return repr.ods->get(key);
         case DSKEY_I: return repr.kds->get(key);
         default:
@@ -1025,11 +1220,16 @@ Object Object::get(const Object& obj) const {
     switch (fields.repr_ix) {
         case EMPTY_I: throw empty_reference(__FUNCTION__);
         case LIST_I: {
-            List& list = std::get<0>(*repr.pl);
+            auto& list = std::get<0>(*repr.pl);
             Int index = obj.to_int();
             return (index < 0)? list[list.size() + index]: list[index];
         }
-        case OMAP_I:  return std::get<0>(*repr.pm).at(obj.to_tmp_key());
+        case OMAP_I: {
+            auto& map = std::get<0>(*repr.pm);
+            auto it = map.find(obj.to_tmp_key());
+            if (it == map.end()) return {};
+            return it->second;
+        }
         case DSOBJ_I: return repr.ods->get(obj.to_tmp_key());
         case DSKEY_I: return repr.kds->get(obj.to_tmp_key());
         default:      throw wrong_type(fields.repr_ix);
@@ -1039,6 +1239,46 @@ Object Object::get(const Object& obj) const {
 //inline
 //Object Object::get(const Path& path) const {
 //    return path.lookup(*this);
+//}
+
+inline
+void Object::set(const Key& key, const Object& value) {
+    switch (fields.repr_ix) {
+        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case LIST_I: {
+            auto& list = std::get<0>(*repr.pl);
+            Int index = key.to_int();
+            auto size = list.size();
+            if (index < 0) index += size;
+            if (index > size) index = size;
+            list[index] = value;
+            break;
+        }
+        case OMAP_I: {
+            auto& map = std::get<0>(*repr.pm);
+            map.insert_or_assign(key, value);
+            break;
+        }
+        case DSOBJ_I: return repr.ods->set(key, value);
+        case DSKEY_I: return repr.kds->set(key, value);
+        default:
+            throw wrong_type(fields.repr_ix);
+    }
+}
+
+inline
+void Object::set(const Object& key, const Object& value) {
+    set(key.to_key(), value);
+}
+
+inline
+void Object::set(std::pair<const Key&, const Object&> item) {
+    set(item.first, item.second);
+}
+
+//inline
+//void Object::set(const Path& path, const Object& value) {
+    // create intermediates
 //}
 
 inline
@@ -1074,7 +1314,7 @@ void Object::iter_visit(VisitFunc&& visit) const {
             return;
         }
         case OMAP_I: {
-            Map& map = std::get<0>(*repr.pm);
+            auto& map = std::get<0>(*repr.pm);
             for (const auto& item : map) {
                 if (!visit(std::get<0>(item)))
                     break;
@@ -1516,7 +1756,7 @@ void Object::dec_ref_count() const {
 }
 
 inline
-void Object::empty() {
+void Object::release() {
     dec_ref_count();
     repr.z = nullptr;
     fields.repr_ix = EMPTY_I;
@@ -1525,28 +1765,28 @@ void Object::empty() {
 inline
 void Object::set_children_parent(IRCList& irc_list) {
     Object& self = *this;
-    List& list = std::get<0>(irc_list);
+    auto& list = std::get<0>(irc_list);
     for (auto& obj : list)
         obj.set_parent(self);
 }
 
 inline
 void Object::set_children_parent(IRCMap& irc_map) {
-    Map& map = std::get<0>(irc_map);
+    auto& map = std::get<0>(irc_map);
     for (auto& [key, obj] : map)
         const_cast<Object&>(obj).set_parent(*this);
 }
 
 inline
 void Object::clear_children_parent(IRCList& irc_list) {
-    List& list = std::get<0>(irc_list);
+    auto& list = std::get<0>(irc_list);
     for (auto& obj : list)
         obj.set_parent(null);
 }
 
 inline
 void Object::clear_children_parent(IRCMap& irc_map) {
-    Map& map = std::get<0>(irc_map);
+    auto& map = std::get<0>(irc_map);
     for (auto& [key, obj] : map)
         const_cast<Object&>(obj).set_parent(null);
 }
@@ -1654,13 +1894,13 @@ Object& Object::operator = (const Object& other) {
                     break;
                 }
                 case LIST_I: {
-                    List& list = std::get<0>(*other.repr.pl);
+                    auto& list = std::get<0>(*other.repr.pl);
                     repr.pl = new IRCList{list, curr_parent};
                     set_children_parent(*repr.pl);
                     break;
                 }
                 case OMAP_I: {
-                    Map& map = std::get<0>(*other.repr.pm);
+                    auto& map = std::get<0>(*other.repr.pm);
                     repr.pm = new IRCMap{map, curr_parent};
                     set_children_parent(*repr.pm);
                     break;
@@ -1751,13 +1991,13 @@ Object& Object::operator = (Object&& other) {
                     break;
                 }
                 case LIST_I: {
-                    List& list = std::get<0>(*other.repr.pl);
+                    auto& list = std::get<0>(*other.repr.pl);
                     repr.pl = new IRCList{std::move(list), curr_parent};
                     set_children_parent(*repr.pl);
                     break;
                 }
                 case OMAP_I: {
-                    Map& map = std::get<0>(*other.repr.pm);
+                    auto& map = std::get<0>(*other.repr.pm);
                     repr.pm = new IRCMap{std::move(map), curr_parent};
                     set_children_parent(*repr.pm);
                     break;
@@ -1801,8 +2041,8 @@ class AncestorIterator
     AncestorIterator(AncestorIterator&&) = default;
 
     AncestorIterator& operator ++ () {
-        object.set_reference(object.parent());
-        if (object.is_null()) object.empty();
+        object.refer_to(object.parent());
+        if (object.is_null()) object.release();
         return *this;
     }
     Object operator * () const { return object; }
@@ -1827,6 +2067,11 @@ class Object::AncestorRange
 inline
 Object::AncestorRange Object::ancestors() const {
     return *this;
+}
+
+inline
+Object::AncestorRange Result::ancestors() const {
+    return resolve();  // TODO: return object.ancestors_or_self()
 }
 
 class ChildrenIterator
@@ -1967,6 +2212,11 @@ Object::ChildrenRange Object::children() const {
     return *this;
 }
 
+inline
+Object::ChildrenRange Result::children() const {
+    return resolve();
+}
+
 class SiblingIterator
 {
   public:
@@ -2002,6 +2252,11 @@ class Object::SiblingRange
 inline
 Object::SiblingRange Object::siblings() const {
     return *this;
+}
+
+inline
+Object::SiblingRange Result::siblings() const {
+    return resolve();
 }
 
 class DescendantIterator
@@ -2060,6 +2315,11 @@ class Object::DescendantRange
 inline
 Object::DescendantRange Object::descendants() const {
     return *this;
+}
+
+inline
+Object::DescendantRange Result::descendants() const {
+    return resolve();
 }
 
 //

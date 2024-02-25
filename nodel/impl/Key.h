@@ -89,7 +89,7 @@ class Key
     Key(std::string&& s)            : repr{new std::string(std::forward<std::string>(s))}, repr_ix{STR_I} {}
     Key(const char* s)              : repr{new std::string(s)}, repr_ix{STR_I} {}  // slow, use std::literals::string_view_literals
 
-    ~Key() { free(); }
+    ~Key() { release(); }
 
     Key(const Key& key) {
         repr_ix = key.repr_ix;
@@ -100,7 +100,7 @@ class Key
             case UINT_I:  repr.u = key.repr.u; break;
             case FLOAT_I: repr.f = key.repr.f; break;
             case STR_I:   repr.p_s = new std::string{*(key.repr.p_s)}; break;
-            case STRV_I:  repr.sv = repr.sv; break;
+            case STRV_I:  repr.sv = key.repr.sv; break;
         }
     }
 
@@ -117,7 +117,7 @@ class Key
     }
 
     Key& operator = (const Key& key) {
-        free();
+        release();
         repr_ix = key.repr_ix;
         switch (repr_ix) {
             case NULL_I:  repr.z = key.repr.z; break;
@@ -132,7 +132,7 @@ class Key
     }
 
     Key& operator = (Key&& key) {
-        free();
+        release();
         repr_ix = key.repr_ix;
         switch (repr_ix) {
             case NULL_I:  repr.z = key.repr.z; break;
@@ -150,35 +150,35 @@ class Key
         return *this;
     }
 
-    Key& operator = (std::nullptr_t)       { free(); repr.z = nullptr; repr_ix = NULL_I; return *this; }
-    Key& operator = (bool v)               { free(); repr.b = v; repr_ix = BOOL_I; return *this; }
-    Key& operator = (is_like_Int auto v)   { free(); repr.i = v; repr_ix = INT_I; return *this; }
-    Key& operator = (is_like_UInt auto v)  { free(); repr.u = v; repr_ix = UINT_I; return *this; }
-    Key& operator = (Float v)              { free(); repr.f = v; repr_ix = FLOAT_I; return *this; }
+    Key& operator = (std::nullptr_t)       { release(); repr.z = nullptr; repr_ix = NULL_I; return *this; }
+    Key& operator = (bool v)               { release(); repr.b = v; repr_ix = BOOL_I; return *this; }
+    Key& operator = (is_like_Int auto v)   { release(); repr.i = v; repr_ix = INT_I; return *this; }
+    Key& operator = (is_like_UInt auto v)  { release(); repr.u = v; repr_ix = UINT_I; return *this; }
+    Key& operator = (Float v)              { release(); repr.f = v; repr_ix = FLOAT_I; return *this; }
 
     Key& operator = (const std::string& s) {
-        free();
+        release();
         repr.p_s = new std::string{s};
         repr_ix = STR_I;
         return *this;
     }
 
     Key& operator = (std::string&& s) {
-        free();
+        release();
         repr.p_s = new std::string{std::forward<std::string>(s)};
         repr_ix = STR_I;
         return *this;
     }
 
     Key& operator = (const std::string_view& sv) {
-        free();
+        release();
         repr.sv = sv;
         repr_ix = STRV_I;
         return *this;
     }
 
     Key& operator = (std::string_view&& sv) {
-        free();
+        release();
         repr.sv = std::forward<std::string_view>(sv);
         repr_ix = STRV_I;
         return *this;
@@ -375,13 +375,13 @@ class Key
             case UINT_I:  return (size_t)repr.u;
             case FLOAT_I: return (size_t)float_hash(repr.f);
             case STR_I:   return string_hash((std::string_view)(*(repr.p_s)));
-            case STRV_I:  return string_hash(repr.sv.data());
+            case STRV_I:  return string_hash(repr.sv);
             default:      return 0;
         }
     }
 
   private:
-    void free() {
+    void release() {
         if (repr_ix == STR_I) delete repr.p_s;
         repr.z = nullptr;
         repr_ix = NULL_I;
@@ -412,7 +412,6 @@ std::ostream& operator<< (std::ostream& ostream, const Key& key) {
         default:      throw std::invalid_argument("key");
     }
 }
-
 
 struct KeyHash
 {

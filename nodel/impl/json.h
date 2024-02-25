@@ -244,15 +244,12 @@ bool Parser<StreamType>::parse_number() {
     const char* scratch_end = str + scratch.size();
     char* end = 0;
     if (is_float) {
-        curr.empty();
-        curr = Object{strtod(str, &end)};
+        curr.refer_to(Object{strtod(str, &end)});
     } else {
-        curr.empty();
-        curr = Object{strtoll(str, &end, 10)};
+        curr.refer_to(Object{strtoll(str, &end, 10)});
         if (errno) {
             errno = 0;
-            curr.empty();
-            curr = Object{strtoull(str, &end, 10)};
+            curr.refer_to(Object{strtoull(str, &end, 10)});
         }
     }
 
@@ -294,8 +291,7 @@ bool Parser<StreamType>::parse_string() {
         return false;
     }
 
-    curr.empty();
-    curr = std::move(str);
+    curr.refer_to(std::move(str));
     return true;
 }
 
@@ -306,8 +302,7 @@ bool Parser<StreamType>::parse_list() {
     consume_whitespace();
     if (it.peek() == ']') {
         it.next();
-        curr.empty();
-        curr = std::move(list);
+        curr.refer_to(std::move(list));
         return true;
     }
     while (!it.done()) {
@@ -320,8 +315,7 @@ bool Parser<StreamType>::parse_list() {
         char c = it.peek();
         if (c == ']') {
             it.next();
-            curr.empty();
-            curr = std::move(list);
+            curr.refer_to(std::move(list));
             return true;
         } else if (c == ',') {
             it.next();
@@ -340,8 +334,7 @@ bool Parser<StreamType>::parse_map() {
     consume_whitespace();
     if (it.peek() == '}') {
         it.next();
-        curr.empty();
-        curr = std::move(map);
+        curr.refer_to(std::move(map));
         return true;
     }
 
@@ -381,8 +374,7 @@ bool Parser<StreamType>::parse_map() {
         c = it.peek();
         if (c == '}') {
             it.next();
-            curr.empty();
-            curr = std::move(map);
+            curr.refer_to(std::move(map));
             return true;
         } else if (c == ',') {
             it.next();
@@ -404,8 +396,7 @@ bool Parser<StreamType>::expect(const char* seq, T value) {
             return false;
         }
     }
-    curr.empty();
-    curr = value;
+    curr.refer_to(value);
     return true;
 }
 

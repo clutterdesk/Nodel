@@ -18,3 +18,6 @@ concept is_like_Float = std::is_floating_point<T>::value;
 
 template<typename T>
 concept is_number = is_integral<T> || is_like_Float<T>;
+
+template <typename T>
+concept is_byvalue = std::is_same<T, bool>::value || is_number<T>;
