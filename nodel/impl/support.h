@@ -25,6 +25,15 @@ std::string quoted(const std::string& str) {
 }
 
 inline
+void make_path_step(const std::string_view& str, std::ostream& stream) {
+    if (str.contains('"')) {
+        stream << '[' << quoted(str) << ']';
+    } else {
+        stream << '.' << str;
+    }
+}
+
+inline
 std::string int_to_str(auto v) {
     // max digits=20
     std::string str(20, ' ');

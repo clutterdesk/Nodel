@@ -286,7 +286,7 @@ class Key
             case INT_I:   return (bool)repr.i;
             case UINT_I:  return (bool)repr.u;
             case FLOAT_I: return (bool)repr.f;
-            default:
+            default: // TODO
                 return std::numeric_limits<Int>::max();
         }
     }
@@ -297,7 +297,7 @@ class Key
             case INT_I:   return repr.i;
             case UINT_I:  return (Int)repr.u;
             case FLOAT_I: return (Int)repr.f;
-            default:
+            default: // TODO
                 return std::numeric_limits<Int>::max();
         }
     }
@@ -308,7 +308,7 @@ class Key
             case INT_I:   return (UInt)repr.i;
             case UINT_I:  return repr.u;
             case FLOAT_I: return (UInt)repr.f;
-            default:
+            default:  // TODO
                 return std::numeric_limits<UInt>::max();
         }
     }
@@ -319,8 +319,27 @@ class Key
             case INT_I:   return (Float)repr.i;
             case UINT_I:  return (Float)repr.u;
             case FLOAT_I: return repr.f;
-            default:
+            default:  // TODO
                 return std::numeric_limits<UInt>::max();
+        }
+    }
+
+    void to_step(std::ostream& stream) const {
+        switch (repr_ix) {
+            case BOOL_I:  stream << (repr.b? "[1]": "[0]"); break;
+            case INT_I:   stream << '[' << nodel::int_to_str(repr.i) << ']'; break;
+            case UINT_I:  stream << '[' << nodel::int_to_str(repr.u) << ']'; break;
+            case FLOAT_I: stream << '[' << nodel::float_to_str(repr.f) << ']'; break;
+            case STR_I: {
+                make_path_step((std::string_view)(*(repr.p_s)), stream);
+                break;
+            }
+            case STRV_I: {
+                make_path_step(repr.sv, stream);
+                break;
+            }
+            default:
+                throw wrong_type(repr_ix);
         }
     }
 
@@ -331,9 +350,9 @@ class Key
             case INT_I:   return nodel::int_to_str(repr.i);
             case UINT_I:  return nodel::int_to_str(repr.u);
             case FLOAT_I: return nodel::float_to_str(repr.f);
-            case STR_I:  return *(repr.p_s);
-            case STRV_I: return std::string(repr.sv);
-            default:     return "?";
+            case STR_I:   return *(repr.p_s);
+            case STRV_I:  return std::string(repr.sv);
+            default:      throw wrong_type(repr_ix);
         }
     }
 
@@ -409,7 +428,7 @@ std::ostream& operator<< (std::ostream& ostream, const Key& key) {
         case Key::FLOAT_I: return ostream << key.repr.f;
         case Key::STR_I:   return ostream << *key.repr.p_s;
         case Key::STRV_I:  return ostream << key.repr.sv;
-        default:      throw std::invalid_argument("key");
+        default:           throw std::invalid_argument("key");
     }
 }
 

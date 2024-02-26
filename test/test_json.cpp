@@ -70,33 +70,33 @@ TEST(Json, ParseNumberNegativeExponent) {
 
 TEST(Json, ParseNumberCommaTerminator) {
   std::stringstream stream{"100,"};
-Parser parser1{stream};
+  Parser parser1{stream};
   EXPECT_TRUE(parser1.parse_number());
   EXPECT_EQ(parser1.curr.as<Int>(), 100);
 }
 
 TEST(Json, ParseNumberMinusSignAlone) {
   std::stringstream stream{"-"};
-Parser parser1{stream};
+  Parser parser1{stream};
   EXPECT_FALSE(parser1.parse_number());
 }
 
 TEST(Json, ParseNumberMinusSignWithTerminator) {
   std::stringstream stream{"-,"};
-Parser parser1{stream};
+  Parser parser1{stream};
   EXPECT_FALSE(parser1.parse_number());
 }
 
 TEST(Json, ParseListEmpty) {
   std::stringstream stream{"[]"};
-Parser parser1{stream};
+  Parser parser1{stream};
   EXPECT_TRUE(parser1.parse_list());
   EXPECT_EQ(parser1.curr.size(), 0);
 }
 
 TEST(Json, ParseListOneInt) {
   std::stringstream stream{"[2]"};
-Parser parser1{stream};
+  Parser parser1{stream};
   EXPECT_TRUE(parser1.parse_list());
   Object curr = parser1.curr;
   EXPECT_EQ(curr.size(), 1);
@@ -105,7 +105,7 @@ Parser parser1{stream};
 
 TEST(Json, ParseListThreeInts) {
   std::stringstream stream{"[2, 4, 6]"};
-Parser parser1{stream};
+  Parser parser1{stream};
   EXPECT_TRUE(parser1.parse_list());
   Object curr = parser1.curr;
   EXPECT_EQ(curr.size(), 3);
@@ -116,7 +116,7 @@ Parser parser1{stream};
 
 TEST(Json, ParseExample1) {
     std::stringstream stream{R"({"x": [1], "y": [2]})"};
-Parser parser1{stream};
+  Parser parser1{stream};
     EXPECT_TRUE(parser1.parse_object());
     Object curr = parser1.curr;
     EXPECT_TRUE(curr.is_map());
@@ -152,7 +152,7 @@ TEST(Json, ParseLargeExample2File) {
 //
 TEST(Json, ParseListErrantColon) {
     std::stringstream stream{R"(["a", :"b", "c"])"};
-Parser parser{stream};
+  Parser parser{stream};
     EXPECT_FALSE(parser.parse_object());
     EXPECT_NE(parser.error_message, "");
     EXPECT_EQ(parser.error_offset, 6);
@@ -160,7 +160,7 @@ Parser parser{stream};
 
 TEST(Json, ParseListDoubleComma) {
     std::stringstream stream{R"(["a",, "b"])"};
-Parser parser{stream};
+  Parser parser{stream};
     EXPECT_FALSE(parser.parse_object());
     EXPECT_NE(parser.error_message, "");
     EXPECT_EQ(parser.error_offset, 5);
@@ -168,7 +168,7 @@ Parser parser{stream};
 
 TEST(Json, ParseMapDoubleComma) {
     std::stringstream stream{R"({"a": [1],, "b"})"};
-Parser parser{stream};
+  Parser parser{stream};
     EXPECT_FALSE(parser.parse_object());
     EXPECT_NE(parser.error_message, "");
     EXPECT_EQ(parser.error_offset, 10);
@@ -176,9 +176,7 @@ Parser parser{stream};
 
 TEST(Json, ParseErrorBadNumberInList) {
   std::stringstream stream{"[2x]"};
-Parser parser1{stream};
+  Parser parser1{stream};
   EXPECT_FALSE(parser1.parse_list());
   EXPECT_EQ(parser1.error_offset, 2);
 }
-
-

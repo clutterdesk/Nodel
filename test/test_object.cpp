@@ -683,15 +683,16 @@ TEST(Object, ChildrenRangeMultiuser) {
     }
 }
 
-//TEST(Object, GetPath) {
-//    Object obj = parse_json(R"({"a": {"b": ["Assam", "Ceylon"]}})");
-//    fmt::print("{}\n", obj["a"]["b"].path().to_str());
-//    EXPECT_EQ(obj["a"].path().to_str(), "a");
-//    EXPECT_EQ(obj["a"]["b"].path().to_str(), "a.b");
-//    EXPECT_EQ(obj["a"]["b"][1].path().to_str(), "a.b[1]");
-//    EXPECT_EQ(obj["a"]["b"][0].path().to_str(), "a.b[0]");
-//}
-//
+TEST(Object, GetPath) {
+    Object obj = parse_json(R"({"a": {"b": ["Assam", "Ceylon"]}})");
+    EXPECT_EQ(obj["a"].path().to_str(), ".a");
+    EXPECT_EQ(obj["a"]["b"].path().to_str(), ".a.b");
+    EXPECT_EQ(obj["a"]["b"][1].path().to_str(), ".a.b[1]");
+    EXPECT_EQ(obj["a"]["b"][0].path().to_str(), ".a.b[0]");
+    Path path = obj["a"]["b"][1].path();
+    EXPECT_EQ(obj.get(path).id(), obj["a"]["b"][1].id());
+}
+
 //TEST(Object, ParsePath) {
 //    Path path{"a.b[1].c[2][3].d"};
 //    KeyList keys = {"a", "b", 1, "c", 2, 3, "d"};
@@ -1003,6 +1004,7 @@ TEST(Object, IterString) {
     EXPECT_EQ(got, "01234");
 }
 
+
 struct TestObjectSource : public ObjectDataSource
 {
     TestObjectSource(const std::string& json) {
@@ -1011,17 +1013,15 @@ struct TestObjectSource : public ObjectDataSource
 
     ~TestObjectSource() override {}
 
-    Object read_meta() override {
+    void read_meta(Object& cache) override {
         std::istringstream in{data.to_json()};
         json::impl::Parser parser{in};
         cache = Object{(Object::ReprType)parser.parse_type()};
-        return cache;
     }
 
-    Object read() override {
-        read_called = false;
-        if (cache.is_empty()) cache = data;
-        return cache;
+    void read(Object& cache) override {
+        read_called = true;
+        cache = data;
     }
 
     void write(const Object& obj) override {
@@ -1091,7 +1091,7 @@ struct TestObjectSource : public ObjectDataSource
             switch (data.type()) {
                 case Object::STR_I: {
                     auto& chunk = *sc;
-                    std::string& str = data.as<String>();
+                    const auto& str = data.as<String>();
                     chunk.resize(std::min(chunk_size, str.size() - pos));
                     memcpy(chunk.data(), data.as<String>().data() + pos, chunk.size());
                     pos += chunk.size();
@@ -1152,19 +1152,16 @@ struct TestKeySource : public KeyDataSource
 
     ~TestKeySource() override {}
 
-    Object read_meta() override {
+    void read_meta(Object& cache) override {
         std::istringstream in{data.to_json()};
         json::impl::Parser parser{in};
         cache = Object{(Object::ReprType)parser.parse_type()};
-        return cache;
     }
 
     Object read_key(const Key& key) override {
         read_key_called = true;
-        if (cache.is_empty()) cache = Object{Object::OMAP_I};
-//        fmt::print("-->{} from {}\b", key.to_str(), data.to_json());
-        cache.set(key, data[key]);
-        return cache[key];
+        cache.set(key, data.get(key));
+        return cache.get(key);
     }
 
     void write_key(const Key& key, const Object& obj) override {
@@ -1257,7 +1254,7 @@ TEST(Object, TestObjectSource_Read) {
     auto dsrc = new TestObjectSource(R"("Strong, black tea")");
     Object obj{dsrc};
     EXPECT_EQ(obj, "Strong, black tea");
-    EXPECT_FALSE(dsrc->read_called);
+    EXPECT_TRUE(dsrc->read_called);
 }
 
 TEST(Object, TestKeySource_ReadKey) {
@@ -1351,4 +1348,24 @@ TEST(Object, TestKeySource_ReadKey) {
 //    EXPECT_FALSE(dsrc->read_called);
 //    EXPECT_FALSE(dsrc->read_key_called);
 //}
+
+TEST(Object, StringSubscriptDangling) {
+  Object obj = parse_json(R"({"tea": "FTGFOP"})");
+  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
+  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
+  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
+  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
+  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
+  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
+  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
+  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
+  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
+  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
+  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
+  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
+  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
+  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
+  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
+  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
+}
 

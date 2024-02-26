@@ -301,3 +301,45 @@ TEST(Key, HeterogenousKeyMap) {
     EXPECT_EQ(map[7], "K7"sv);
     EXPECT_EQ(map[true], "TRUE"sv);
 }
+
+TEST(Key, BoolStep) {
+    Key k = true;
+    std::stringstream ss;
+    k.to_step(ss);
+    EXPECT_EQ(ss.str(), "[1]");
+}
+
+TEST(Key, IntStep) {
+    Key k = 7;
+    std::stringstream ss;
+    k.to_step(ss);
+    EXPECT_EQ(ss.str(), "[7]");
+}
+
+TEST(Key, UIntStep) {
+    Key k = 0xFFFFFFFFFFFFFFFFULL;
+    std::stringstream ss;
+    k.to_step(ss);
+    EXPECT_EQ(ss.str(), "[18446744073709551615]");
+}
+
+TEST(Key, FloatStep) {
+    Key k = 7.3;
+    std::stringstream ss;
+    k.to_step(ss);
+    EXPECT_EQ(ss.str(), "[7.3]");
+}
+
+TEST(Key, SimpleString) {
+    Key k = "tea";
+    std::stringstream ss;
+    k.to_step(ss);
+    EXPECT_EQ(ss.str(), ".tea");
+}
+
+TEST(Key, StringWithDQuote) {
+    Key k = "a\"b";
+    std::stringstream ss;
+    k.to_step(ss);
+    EXPECT_EQ(ss.str(), R"(["a\"b"])");
+}

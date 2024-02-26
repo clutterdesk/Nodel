@@ -115,6 +115,7 @@ class Object
     class SiblingRange;
     class DescendantRange;
 
+    // TODO: remove _I suffix
     enum ReprType {
         EMPTY_I,  // uninitialized
         NULL_I,   // json null
@@ -126,15 +127,16 @@ class Object
         LIST_I,
         OMAP_I,   // ordered map
         UMAP_I,   // TODO unordered map
-        MAP_I,    // TODO red-black tree
-        CMAP_I,   // TODO compact map
-        VBOOL_I,  // TODO
-        VINT4_I,  // TODO
-        VINT8_I,  // TODO
-        VUINT4_I, // TODO
-        VUINT8_I, // TODO
-        VFP4_I,   // TODO
-        VFP8_I,   // TODO
+        RBMAP_I,  // TODO red-black tree
+        TABLE_I,  // TODO map-like key access, all rows have same keys (ex: CSV)
+        BIGI_I,   // TODO big integer with
+        BIGF_I,   // TODO
+        VI4_I,    // TODO
+        VI8_I,    // TODO
+        VU4_I,    // TODO
+        VU8_I,    // TODO
+        VF4_I,    // TODO
+        VF8_I,    // TODO
         BLOB_I,   // TODO
         DSOBJ_I,  // object data-source
         DSKEY_I,  // key/value data-source
@@ -186,19 +188,22 @@ class Object
       };
 
   private:
-    template <typename T> ReprType ix_conv();
-    template <> ReprType ix_conv<bool>()   { return BOOL_I; }
-    template <> ReprType ix_conv<Int>()    { return INT_I; }
-    template <> ReprType ix_conv<UInt>()   { return UINT_I; }
-    template <> ReprType ix_conv<Float>()  { return FLOAT_I; }
-    template <> ReprType ix_conv<String>() { return STR_I; }
+    template <typename T> ReprType ix_conv() const;
+    template <> ReprType ix_conv<bool>() const   { return BOOL_I; }
+    template <> ReprType ix_conv<Int>() const    { return INT_I; }
+    template <> ReprType ix_conv<UInt>() const   { return UINT_I; }
+    template <> ReprType ix_conv<Float>() const  { return FLOAT_I; }
+    template <> ReprType ix_conv<String>() const { return STR_I; }
 
-    template <typename T> T& val_conv();
-    template <> bool& val_conv<bool>()     { return repr.b; }
-    template <> Int& val_conv<Int>()       { return repr.i; }
-    template <> UInt& val_conv<UInt>()     { return repr.u; }
-    template <> Float& val_conv<Float>()   { return repr.f; }
-    template <> String& val_conv<String>() { return std::get<0>(*repr.ps); }
+    template <typename T> T val_conv() const requires is_byvalue<T>;
+    template <> bool val_conv<bool>() const     { return repr.b; }
+    template <> Int val_conv<Int>() const       { return repr.i; }
+    template <> UInt val_conv<UInt>() const     { return repr.u; }
+    template <> Float val_conv<Float>() const   { return repr.f; }
+
+    template <typename T> const T& val_conv() const requires std::is_same<T, String>::value {
+        return std::get<0>(*repr.ps);
+    }
 
   private:
     struct NoParent {};
@@ -265,7 +270,7 @@ class Object
 
     const Key key() const;
     const Key key_of(const Object&) const;
-//    Path path() const;
+    Path path() const;
 
     template <typename T>
     T value_cast() const;
@@ -276,15 +281,29 @@ class Object
     template <typename V>
     void visit(V&& visitor) const;
 
+//    template <typename T>
+//    T as() requires is_byvalue<T> {
+//        if (fields.repr_ix == ix_conv<T>()) return val_conv<T>();
+//        else if (fields.repr_ix == DSOBJ_I) return ods_read().as<T>();
+//        throw wrong_type(fields.repr_ix);
+//    }
+//
     template <typename T>
-    T& as() {
+    const T as() const requires is_byvalue<T> {
         if (fields.repr_ix == ix_conv<T>()) return val_conv<T>();
         else if (fields.repr_ix == DSOBJ_I) return ods_read().as<T>();
         throw wrong_type(fields.repr_ix);
     }
 
+//    template <typename T>
+//    T& as() requires std::is_same<T, String>::value {
+//        if (fields.repr_ix == ix_conv<T>()) return val_conv<T>();
+//        else if (fields.repr_ix == DSOBJ_I) return ods_read().as<T>();
+//        throw wrong_type(fields.repr_ix);
+//    }
+
     template <typename T>
-    const T& as() const {
+    const T& as() const requires std::is_same<T, String>::value {
         if (fields.repr_ix == ix_conv<T>()) return val_conv<T>();
         else if (fields.repr_ix == DSOBJ_I) return ods_read().as<T>();
         throw wrong_type(fields.repr_ix);
@@ -335,9 +354,10 @@ class Object
     Object get(bool v) const;
     Object get(const Key& key) const;
     Object get(const Object& obj) const;
-//    Object get(const Path& path) const;
+    Object get(const Path& path) const;
 
     void set(const Key& key, const Object& value);
+    void set(const Key& key, const Result& result);
     void set(const Object& key, const Object& value);
     void set(std::pair<const Key&, const Object&> item);
 //    Object set(const Path& path, const Object& value);
@@ -421,16 +441,11 @@ class Result
     using DescendantRange = Object::DescendantRange;
 
   public:
-    Result(const Object& object, const Key& key) : object{object} { subscripts.push_back(key); }
-    Result(const Object& object, Key&& key)      : object{object} { subscripts.push_back(std::forward<Key>(key)); }
-    Result(const Result& result, const Key& key) : Result(result) { subscripts.push_back(key); }
-    Result(const Result& result, Key&& key)      : Result(result) { subscripts.push_back(std::forward<Key>(key)); }
+    Result(const Object& object, const Key& key) : object{object}, latent_key{key} {}
+    Result(const Object& object, Key&& key)      : object{object}, latent_key{std::forward<Key>(key)} {}
 
-    Result(Result&& result, const Key& key) : Result(std::forward<Result>(result)) { subscripts.push_back(key); }
-    Result(Result&& result, Key&& key)      : Result(std::forward<Result>(result)) { subscripts.push_back(std::forward<Key>(key)); }
-
-    explicit Result(const Result& other) : object{other.object}, subscripts{other.subscripts} {}
-    explicit Result(Result&& other)      : object{other.object}, subscripts{std::forward<KeyList>(other.subscripts)} {}
+    explicit Result(const Result& other) : object{other.object}, latent_key{other.latent_key} {}
+    explicit Result(Result&& other)      : object{other.object}, latent_key{std::forward<Key>(other.latent_key)} {}
 
     ReprType type() const         { return resolve().type(); }
     Object root() const           { return object.root(); }
@@ -440,14 +455,16 @@ class Result
     SiblingRange siblings() const;
     DescendantRange descendants() const;
 
-    const Key key() const { return subscripts.back(); }
-//    Path path() const;
+    const Key key() const { return resolve().key(); }
+    Path path() const;
 
     template <typename T> T value_cast() const          { return resolve().value_cast<T>(); }
     template <typename T> bool is_type() const          { return resolve().is_type<T>(); }
     template <typename V> void visit(V&& visitor) const { return resolve().visit(visitor); }
-    template <typename T> const T& as() const           { return resolve().as<T>(); }
-    template <typename T> T& as()                       { return resolve().as<T>(); }
+
+    template <typename T> const T as() const  requires is_byvalue<T>                  { return resolve().as<T>(); }
+    template <typename T> T as()              requires is_byvalue<T>                  { return resolve().as<T>(); }
+    template <typename T> const T& as() const requires std::is_same<T, String>::value { return resolve().as<T>(); }
 
     bool is_empty() const     { return resolve().is_empty(); }
     bool is_null() const      { return resolve().is_null(); }
@@ -471,21 +488,21 @@ class Result
     Key into_key() const        { return resolve().into_key(); }
     std::string to_json() const { return resolve().to_json(); }
 
-    const Result operator [] (is_byvalue auto v) const         { return {*this, Key{v}}; }
-    const Result operator [] (const char* v) const             { return {*this, Key{v}}; }
-    const Result operator [] (const std::string_view& v) const { return {*this, Key{v}}; }
-    const Result operator [] (const std::string& v) const      { return {*this, Key{v}}; }
-    const Result operator [] (const Key& key) const            { return {*this, key}; }
-    const Result operator [] (const Object& obj) const         { return {*this, obj.to_key()}; }
-    const Result operator [] (Object&& obj) const              { return {*this, obj.into_key()}; }
+    const Result operator [] (is_byvalue auto v) const         { return {resolve(), Key{v}}; }
+    const Result operator [] (const char* v) const             { return {resolve(), Key{v}}; }
+    const Result operator [] (const std::string_view& v) const { return {resolve(), Key{v}}; }
+    const Result operator [] (const std::string& v) const      { return {resolve(), Key{v}}; }
+    const Result operator [] (const Key& key) const            { return {resolve(), key}; }
+    const Result operator [] (const Object& obj) const         { return {resolve(), obj.to_key()}; }
+    const Result operator [] (Object&& obj) const              { return {resolve(), obj.into_key()}; }
 
-    Result operator [] (is_byvalue auto v)          { return {*this, Key{v}}; }
-    Result operator [] (const char* v)              { return {*this, Key{v}}; }
-    Result operator [] (const std::string_view& v)  { return {*this, Key{v}}; }
-    Result operator [] (const std::string& v)       { return {*this, Key{v}}; }
-    Result operator [] (const Key& key)             { return {*this, key}; }
-    Result operator [] (const Object& obj)          { return {*this, obj.to_key()}; }
-    Result operator [] (Object&& obj)               { return {*this, obj.into_key()}; }
+    Result operator [] (is_byvalue auto v)          { return {resolve(), Key{v}}; }
+    Result operator [] (const char* v)              { return {resolve(), Key{v}}; }
+    Result operator [] (const std::string_view& v)  { return {resolve(), Key{v}}; }
+    Result operator [] (const std::string& v)       { return {resolve(), Key{v}}; }
+    Result operator [] (const Key& key)             { return {resolve(), key}; }
+    Result operator [] (const Object& obj)          { return {resolve(), obj.to_key()}; }
+    Result operator [] (Object&& obj)               { return {resolve(), obj.into_key()}; }
 
     Object get(is_integral auto v) const        { return resolve().get(v); }
     Object get(const char* v) const             { return resolve().get(v); }
@@ -494,7 +511,7 @@ class Result
     Object get(bool v) const                    { return resolve().get(v); }
     Object get(const Key& key) const            { return resolve().get(key); }
     Object get(const Object& obj) const         { return resolve().get(obj); }
-//    Object get(const Path& path) const          { return resolve().get(path); }
+    Object get(const Path& path) const          { return resolve().get(path); }
 
     void set(const Key& key, const Object& value)       { resolve().set(key, value); }
     void set(const Object& key, const Object& value)    { resolve().set(key, value); }
@@ -514,12 +531,32 @@ class Result
     Oid id() const                         { return resolve().id(); }
     bool is(const Object& other) const     { return resolve().is(other); }
 
-    void release()                   { subscripts.clear(); object.release(); }
-    void refer_to(const Object& obj) { subscripts.clear(); object.refer_to(obj); }
+    void release()                   { latent_key = Key{}; object.release(); }
+    void refer_to(const Object& obj) { latent_key = Key{}; object.refer_to(obj); }
 
-    Object operator = (const Object& other) { return resolve() = other; }
-    Object operator = (Object&& other)      { return resolve() = std::forward<Object>(other); }
-    Object operator = (const Result& other) { return resolve() = other.resolve(); }
+    Object operator = (const Object& other) {
+        if (latent_key.is_null())
+            object = other;
+        else
+            object.set(latent_key, other);
+        return object;
+    }
+
+    Object operator = (Object&& other) {
+        if (latent_key.is_null())
+            object = std::forward<Object>(other);
+        else
+            object.set(latent_key, std::forward<Object>(other));
+        return object;
+    }
+
+    Object operator = (const Result& other) {
+        if (latent_key.is_null())
+            object = other.resolve();
+        else
+            object.set(latent_key, other);
+        return object;
+    }
     // TODO: Need other assignment ops to avoid Object temporaries
 
     bool has_data_source() const { return resolve().has_data_source(); }
@@ -533,25 +570,107 @@ class Result
     operator Object () const { return resolve(); }
     operator Object () { return resolve(); }
 
+    bool is_resolved() const { return latent_key.is_null(); }
+
     Object resolve() const {
+        if (is_resolved()) return object;
         Result& self = *const_cast<Result*>(this);
-        for (auto& key : subscripts) {
-            Object obj = self.object.get(key);
-            if (obj.is_empty()) {
-                self.object.release();
-                break;
-            }
-            self.object.refer_to(obj);
-        }
-        self.subscripts.clear();
+        self.object.refer_to(object.get(latent_key));
+        self.latent_key = Key{};
         return self.object;
     }
 
   private:
     Object object;
-    KeyList subscripts;
+    Key latent_key;
 };
 
+
+class Path
+{
+  public:
+    Path() {}
+    Path(const KeyList& keys)              : keys{keys} {}
+    Path(KeyList&& keys)                   : keys{std::forward<KeyList>(keys)} {}
+    Path(const Key& key)                   : keys{} { append(key); }
+    Path(Key&& key)                        : keys{} { append(std::forward<Key>(key)); }
+
+    void append(const Key& key)  { keys.push_back(key); }
+    void append(Key&& key)       { keys.emplace_back(std::forward<Key>(key)); }
+    void prepend(const Key& key) { keys.insert(keys.begin(), key); }
+    void prepend(Key&& key)      { keys.emplace(keys.begin(), std::forward<Key>(key)); }
+
+    Object lookup(const Object& origin) const {
+        Object obj = origin;
+        for (auto& key : keys)
+            obj.refer_to(obj.get(key));
+        return obj;
+    }
+
+    std::string to_str() const {
+        std::stringstream ss;
+        for (auto& key : keys)
+            key.to_step(ss);
+        return ss.str();
+    }
+
+  private:
+    KeyList keys;
+};
+
+
+inline
+Path Object::path() const {
+    Path path;
+    Object obj = *this;
+    Object par = parent();
+    while (!par.is_null()) {
+        path.prepend(par.key_of(obj));
+        obj.refer_to(par);
+        par.refer_to(obj.parent());
+    }
+    return path;
+}
+
+
+inline
+Path Result::path() const {
+    if (is_resolved()) return object.path();
+    Path path{object.path()};
+    path.append(latent_key);
+    return path;
+}
+
+
+class ChangeSet
+{
+  public:
+    using Record = std::tuple<Key, Object, Path>;
+
+  public:
+    ChangeSet() = default;
+
+    void add(const Key& key, const Object& object, const Path& parent_path) {
+        records.emplace_back(key, object, parent_path);
+    }
+
+    void clear() {
+        records.clear();
+    }
+
+    void apply(Object& object) {
+        for (auto& [key, value, parent_path] : records) {
+            // parent_path is irrelevant, here
+            object.set(key, value);
+        }
+    }
+
+  private:
+    std::vector<Record> records;
+};
+
+
+// TODO: move into DataSource class namespace
 class IDataSourceIterator
 {
   public:
@@ -578,7 +697,7 @@ class DataSource
   public:
     virtual ~DataSource() {}
 
-    virtual Object read_meta() = 0;    // load meta-data including type and id
+    virtual void read_meta(Object&) = 0;    // load meta-data including type and id
 
   private:
     Object get_parent() const           { return parent; }
@@ -588,13 +707,13 @@ class DataSource
     void inc_ref_count()       { parent.fields.ref_count++; }
     refcnt_t dec_ref_count()   { return --(parent.fields.ref_count); }
 
-  protected:
-    Object cache;  // implementations must cache data here
-
   private:
     Object parent;  // ref-count moved to parent bit-field
 
-    friend class Object;
+  protected:
+    Object cache;  // implementations must cache data here
+
+  friend class Object;
 };
 
 class ObjectDataSource : public DataSource
@@ -602,31 +721,49 @@ class ObjectDataSource : public DataSource
   public:
     using ReprType = Object::ReprType;
 
-    virtual Object read() = 0;
-    virtual IDataSourceIterator* new_iter() const { return nullptr; }  // default implementation has no iterator
+    virtual void read(Object& cache) = 0;
     virtual void write(const Object&) = 0;
     virtual void write(Object&&) = 0;
 
-    const Object& get_cached() const { return const_cast<ObjectDataSource&>(*this).get_cached(); }
-    Object& get_cached()             { if (cache.is_empty()) read(); return cache; }
+    virtual IDataSourceIterator* new_iter() const { return nullptr; }  // default implementation has no iterator
 
-    size_t size()              { if (cache.is_empty()) read(); return cache.size(); }
-    Object get(const Key& key) { if (cache.is_empty()) read(); return cache.get(key); }
+    const Object& get_cached() const { return const_cast<ObjectDataSource&>(*this).get_cached(); }
+    Object& get_cached()             { insure_cached(); return cache; }
+
+    size_t size()              { insure_cached(); return cache.size(); }
+    Object get(const Key& key) { insure_cached(); return cache.get(key); }
 
     void set(const Key& key, const Object& value) {
-        if (cache.is_empty()) read();
-        cache.set(key, value);
+        if (!is_cached) {
+            records.add(key, value, value.parent().path());
+        } else {
+            cache.set(key, value);
+        }
     }
 
-    const Key key_of(const Object& obj) { return cache.key_of(obj); }
+    const Key key_of(const Object& obj) { assert (is_cached); return cache.key_of(obj); }
 
-    ReprType type() { if (cache.is_empty()) read_meta(); return cache.type(); }
-    Oid id()        { if (cache.is_empty()) read_meta(); return cache.id(); }
+    ReprType type() { if (cache.is_empty()) read_meta(cache); return cache.type(); }
+    Oid id()        { if (cache.is_empty()) read_meta(cache); return cache.id(); }
 
-    void reset()   { cache.release(); }
+    void reset()   { cache.release(); is_cached = false; }
     void refresh() {}  // TODO: implement
 
-    friend class Object;
+  private:
+    void insure_cached() {
+        if (!is_cached) {
+            read(cache);
+            records.apply(cache);
+            records.clear();
+            is_cached = true;
+        }
+    }
+
+  private:
+    ChangeSet records;
+    bool is_cached;
+
+  friend class Object;
 };
 
 class KeyDataSource : public DataSource
@@ -637,37 +774,47 @@ class KeyDataSource : public DataSource
     virtual Object read_key(const Key&) = 0;
     virtual void write_key(const Key&, const Object&) = 0;
     virtual void write_key(const Key&, Object&&) = 0;
+
     virtual KeyList keys() = 0;
     virtual size_t size() = 0;
+
     virtual IDataSourceIterator* new_iter() const = 0;
 
     const Object& get_partial_cached() const { return cache; }
     Object& get_partial_cached()             { return cache; }
 
     Object get(const Key& key) {
-        assert (!cache.is_empty());
+        // KeyDataSources always know their type upfront before accessing external storage,
+        // so just call read_meta to initialize the cache object.
+        if (cache.is_empty()) read_meta(cache);
+
+        // Cache object is an incomplete map containing only the keys that have been loaded.
+        // In this context, a key mapped to a null value indicates a key that has been loaded,
+        // but is not defined in external storage.  A refresh will update keys that materialized
+        // after first being accessed and before the call to refresh().
         Object value = cache.get(key);
         if (value.is_empty()) {
             value = read_key(key);
             cache.set(key, value);
         }
+
         return value;
     }
 
     void set(const Key& key, const Object& value) {
-        assert (!cache.is_empty());
+        if (cache.is_empty()) read_meta(cache);
         cache.set(key, value);
     }
 
     const Key key_of(const Object& obj) { return cache.key_of(obj); }
 
-    ReprType type() { if (cache.is_empty()) read_meta(); return cache.type(); }
-    Oid id()        { if (cache.is_empty()) read_meta(); return cache.id(); }
+    ReprType type() { if (cache.is_empty()) read_meta(cache); return cache.type(); }
+    Oid id()        { if (cache.is_empty()) read_meta(cache); return cache.id(); }
 
     void reset()   { cache.release(); }
     void refresh() {}  // TODO: implement
 
-    friend class Object;
+  friend class Object;
 };
 
 
@@ -829,7 +976,7 @@ void Object::visit(V&& visitor) const {
         case UINT_I:  visitor(repr.u); break;
         case FLOAT_I: visitor(repr.f); break;
         case STR_I:   visitor(std::get<0>(*repr.ps)); break;
-        case DSOBJ_I: repr.ods->read().visit(std::forward<V>(visitor)); break;
+        case DSOBJ_I: repr.ods->get_cached().visit(std::forward<V>(visitor)); break;
         case DSKEY_I: // TODO: visit a wrapper API (also LIST_I, MAP_I, and other containers)
         default:      throw wrong_type(fields.repr_ix);
     }
@@ -846,7 +993,7 @@ int Object::resolve_repr_ix() const {
 
 inline
 Object Object::ods_read() const {
-    return const_cast<ObjectDataSourcePtr>(repr.ods)->read();
+    return const_cast<ObjectDataSourcePtr>(repr.ods)->get_cached();
 }
 
 inline
@@ -934,21 +1081,6 @@ const Key Object::key_of(const Object& obj) const {
     return Key{};
 }
 
-//inline
-//Path Object::path() const {
-//    fmt::print("Object::path\n");
-//    Path path;
-//    Object obj = *this;
-//    Object par = parent();
-//    auto& key_list = path.key_list;
-//    while (!par.is_null()) {
-//        key_list.insert(key_list.begin(), par.key_of(obj));
-//        obj.refer_to(par);
-//        par.refer_to(obj.parent());
-//    }
-//    return path;
-//}
-
 template <typename T>
 T Object::value_cast() const {
     switch (fields.repr_ix) {
@@ -973,7 +1105,7 @@ std::string Object::to_str() const {
         case STR_I:   return std::get<0>(*repr.ps);
         case LIST_I:
         case OMAP_I:  return to_json();
-        case DSOBJ_I: return const_cast<ObjectDataSourcePtr>(repr.ods)->read().to_str();
+        case DSOBJ_I: return const_cast<ObjectDataSourcePtr>(repr.ods)->get_cached().to_str();
         default:
             throw wrong_type(fields.repr_ix);
     }
@@ -989,7 +1121,7 @@ bool Object::to_bool() const {
         case UINT_I:  return repr.u;
         case FLOAT_I: return repr.f;
         case STR_I:   return str_to_bool(std::get<0>(*repr.ps));
-        case DSOBJ_I: return const_cast<ObjectDataSourcePtr>(repr.ods)->read().to_bool();
+        case DSOBJ_I: return const_cast<ObjectDataSourcePtr>(repr.ods)->get_cached().to_bool();
         default:      throw wrong_type(fields.repr_ix, BOOL_I);
     }
 }
@@ -1004,7 +1136,7 @@ Int Object::to_int() const {
         case UINT_I:  return repr.u;
         case FLOAT_I: return repr.f;
         case STR_I:   return str_to_int(std::get<0>(*repr.ps));
-        case DSOBJ_I: return const_cast<ObjectDataSourcePtr>(repr.ods)->read().to_int();
+        case DSOBJ_I: return const_cast<ObjectDataSourcePtr>(repr.ods)->get_cached().to_int();
         default:      throw wrong_type(fields.repr_ix, INT_I);
     }
 }
@@ -1019,7 +1151,7 @@ UInt Object::to_uint() const {
         case UINT_I:  return repr.u;
         case FLOAT_I: return repr.f;
         case STR_I:   return str_to_int(std::get<0>(*repr.ps));
-        case DSOBJ_I: return const_cast<ObjectDataSourcePtr>(repr.ods)->read().to_uint();
+        case DSOBJ_I: return const_cast<ObjectDataSourcePtr>(repr.ods)->get_cached().to_uint();
         default:      throw wrong_type(fields.repr_ix, UINT_I);
     }
 }
@@ -1034,7 +1166,7 @@ Float Object::to_float() const {
         case UINT_I:  return repr.u;
         case FLOAT_I: return repr.f;
         case STR_I:   return str_to_float(std::get<0>(*repr.ps));
-        case DSOBJ_I: return const_cast<ObjectDataSourcePtr>(repr.ods)->read().to_float();
+        case DSOBJ_I: return const_cast<ObjectDataSourcePtr>(repr.ods)->get_cached().to_float();
         default:      throw wrong_type(fields.repr_ix, FLOAT_I);
     }
 }
@@ -1049,7 +1181,7 @@ Key Object::to_key() const {
         case UINT_I:  return repr.u;
         case FLOAT_I: return repr.f;
         case STR_I:   return std::get<0>(*repr.ps);
-        case DSOBJ_I: return const_cast<ObjectDataSourcePtr>(repr.ods)->read().to_key();
+        case DSOBJ_I: return const_cast<ObjectDataSourcePtr>(repr.ods)->get_cached().to_key();
         default:      throw wrong_type(fields.repr_ix);
     }
 }
@@ -1064,7 +1196,7 @@ Key Object::to_tmp_key() const {
         case UINT_I:  return repr.u;
         case FLOAT_I: return repr.f;
         case STR_I:   return (std::string_view)(std::get<0>(*repr.ps));
-        case DSOBJ_I: return const_cast<ObjectDataSourcePtr>(repr.ods)->read().to_tmp_key();
+        case DSOBJ_I: return const_cast<ObjectDataSourcePtr>(repr.ods)->get_cached().to_tmp_key();
         default:      throw wrong_type(fields.repr_ix);
     }
 }
@@ -1084,7 +1216,7 @@ Key Object::into_key() {
             return k;
         }
         case DSOBJ_I: {
-            Key k{repr.ods->read().into_key()};
+            Key k{repr.ods->get_cached().into_key()};
             release();
             return k;
         }
@@ -1236,10 +1368,10 @@ Object Object::get(const Object& obj) const {
     }
 }
 
-//inline
-//Object Object::get(const Path& path) const {
-//    return path.lookup(*this);
-//}
+inline
+Object Object::get(const Path& path) const {
+    return path.lookup(*this);
+}
 
 inline
 void Object::set(const Key& key, const Object& value) {
@@ -1261,6 +1393,19 @@ void Object::set(const Key& key, const Object& value) {
         }
         case DSOBJ_I: return repr.ods->set(key, value);
         case DSKEY_I: return repr.kds->set(key, value);
+        default:
+            throw wrong_type(fields.repr_ix);
+    }
+}
+
+inline
+void Object::set(const Key& key, const Result& result) {
+    switch (fields.repr_ix) {
+        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case LIST_I:
+        case OMAP_I:  set(key, result.resolve()); break;
+        case DSOBJ_I: return repr.ods->set(key, result.resolve());
+        case DSKEY_I: return repr.kds->set(key, result.resolve());
         default:
             throw wrong_type(fields.repr_ix);
     }
@@ -1727,14 +1872,15 @@ refcnt_t Object::ref_count() const {
     }
 }
 
+
 inline
 void Object::inc_ref_count() const {
     Object& self = *const_cast<Object*>(this);
     switch (fields.repr_ix) {
         case EMPTY_I: throw empty_reference(__FUNCTION__);
-        case STR_I:   (std::get<1>(*self.repr.ps).fields.ref_count)++; break;
-        case LIST_I:  (std::get<1>(*self.repr.pl).fields.ref_count)++; break;
-        case OMAP_I:  (std::get<1>(*self.repr.pm).fields.ref_count)++; break;
+        case STR_I:   ++(std::get<1>(*self.repr.ps).fields.ref_count); break;
+        case LIST_I:  ++(std::get<1>(*self.repr.pl).fields.ref_count); break;
+        case OMAP_I:  ++(std::get<1>(*self.repr.pm).fields.ref_count); break;
         case DSOBJ_I: repr.ods->inc_ref_count(); break;
         case DSKEY_I: repr.kds->inc_ref_count(); break;
         default:      break;
@@ -1743,7 +1889,6 @@ void Object::inc_ref_count() const {
 
 inline
 void Object::dec_ref_count() const {
-    assert (ref_count() != 0);  // TODO: remove later
     Object& self = *const_cast<Object*>(this);
     switch (fields.repr_ix) {
         case STR_I:   if (--(std::get<1>(*self.repr.ps).fields.ref_count) == 0) delete self.repr.ps; break;
