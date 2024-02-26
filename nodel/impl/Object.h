@@ -76,7 +76,6 @@ struct PathSyntax : std::exception
 
 
 class Object;
-class Result;
 class Path;
 class ObjectDataSource;
 class KeyDataSource;
@@ -240,7 +239,6 @@ class Object
     Object(is_like_Float auto v)       : repr{(Float)v}, fields{FLOAT_I} {}
     Object(is_like_Int auto v)         : repr{(Int)v}, fields{INT_I} {}
     Object(is_like_UInt auto v)        : repr{(UInt)v}, fields{UINT_I} {}
-    Object(const Result&);
 
     Object(ObjectDataSourcePtr ptr)    : repr{ptr}, fields{DSOBJ_I} {}  // ownership transferred
     Object(KeyDataSourcePtr ptr)       : repr{ptr}, fields{DSKEY_I} {}  // ownership transferred
@@ -331,21 +329,13 @@ class Object
     Key into_key();
     std::string to_json() const;
 
-    const Result operator [] (is_byvalue auto) const;
-    const Result operator [] (const char*) const;
-    const Result operator [] (const std::string_view& v) const;
-    const Result operator [] (const std::string& v) const;
-    const Result operator [] (const Key& key) const;
-    const Result operator [] (const Object& obj) const;
-    const Result operator [] (Object&& obj) const;
+    const Object operator [] (is_byvalue auto) const;
+    const Object operator [] (const char*) const;
+    const Object operator [] (const std::string_view& v) const;
 
-    Result operator [] (is_byvalue auto);
-    Result operator [] (const char*);
-    Result operator [] (const std::string_view& v);
-    Result operator [] (const std::string& v);
-    Result operator [] (const Key& key);
-    Result operator [] (const Object& obj);
-    Result operator [] (Object&& obj);
+    Object operator [] (is_byvalue auto);
+    Object operator [] (const char*);
+    Object operator [] (const std::string_view& v);
 
     Object get(is_integral auto v) const;
     Object get(const char* v) const;
@@ -357,7 +347,6 @@ class Object
     Object get(const Path& path) const;
 
     void set(const Key& key, const Object& value);
-    void set(const Key& key, const Result& result);
     void set(const Object& key, const Object& value);
     void set(std::pair<const Key&, const Object&> item);
 //    Object set(const Path& path, const Object& value);
@@ -430,162 +419,6 @@ class Object
 constexpr Object::ReprType null = Object::NULL_I;
 
 
-// syntactic sugar
-class Result
-{
-  public:
-    using ReprType = Object::ReprType;
-    using ChildrenRange = Object::ChildrenRange;
-    using AncestorRange = Object::AncestorRange;
-    using SiblingRange = Object::SiblingRange;
-    using DescendantRange = Object::DescendantRange;
-
-  public:
-    Result(const Object& object, const Key& key) : object{object}, latent_key{key} {}
-    Result(const Object& object, Key&& key)      : object{object}, latent_key{std::forward<Key>(key)} {}
-
-    explicit Result(const Result& other) : object{other.object}, latent_key{other.latent_key} {}
-    explicit Result(Result&& other)      : object{other.object}, latent_key{std::forward<Key>(other.latent_key)} {}
-
-    ReprType type() const         { return resolve().type(); }
-    Object root() const           { return object.root(); }
-    Object parent() const         { return object; }
-    ChildrenRange children() const;
-    AncestorRange ancestors() const;
-    SiblingRange siblings() const;
-    DescendantRange descendants() const;
-
-    const Key key() const { return resolve().key(); }
-    Path path() const;
-
-    template <typename T> T value_cast() const          { return resolve().value_cast<T>(); }
-    template <typename T> bool is_type() const          { return resolve().is_type<T>(); }
-    template <typename V> void visit(V&& visitor) const { return resolve().visit(visitor); }
-
-    template <typename T> const T as() const  requires is_byvalue<T>                  { return resolve().as<T>(); }
-    template <typename T> T as()              requires is_byvalue<T>                  { return resolve().as<T>(); }
-    template <typename T> const T& as() const requires std::is_same<T, String>::value { return resolve().as<T>(); }
-
-    bool is_empty() const     { return resolve().is_empty(); }
-    bool is_null() const      { return resolve().is_null(); }
-    bool is_bool() const      { return resolve().is_bool(); }
-    bool is_int() const       { return resolve().is_int(); }
-    bool is_uint() const      { return resolve().is_uint(); }
-    bool is_float() const     { return resolve().is_float(); }
-    bool is_str() const       { return resolve().is_str(); }
-    bool is_num() const       { return resolve().is_num(); }
-    bool is_list() const      { return resolve().is_list(); }
-    bool is_map() const       { return resolve().is_map(); }
-    bool is_container() const { return resolve().is_container(); }
-
-    bool to_bool() const        { return resolve().to_bool(); }
-    Int to_int() const          { return resolve().to_int(); }
-    UInt to_uint() const        { return resolve().to_uint(); }
-    Float to_float() const      { return resolve().to_float(); }
-    std::string to_str() const  { return resolve().to_str(); }
-    Key to_key() const          { return resolve().to_key(); }
-    Key to_tmp_key() const      { return resolve().to_tmp_key(); }
-    Key into_key() const        { return resolve().into_key(); }
-    std::string to_json() const { return resolve().to_json(); }
-
-    const Result operator [] (is_byvalue auto v) const         { return {resolve(), Key{v}}; }
-    const Result operator [] (const char* v) const             { return {resolve(), Key{v}}; }
-    const Result operator [] (const std::string_view& v) const { return {resolve(), Key{v}}; }
-    const Result operator [] (const std::string& v) const      { return {resolve(), Key{v}}; }
-    const Result operator [] (const Key& key) const            { return {resolve(), key}; }
-    const Result operator [] (const Object& obj) const         { return {resolve(), obj.to_key()}; }
-    const Result operator [] (Object&& obj) const              { return {resolve(), obj.into_key()}; }
-
-    Result operator [] (is_byvalue auto v)          { return {resolve(), Key{v}}; }
-    Result operator [] (const char* v)              { return {resolve(), Key{v}}; }
-    Result operator [] (const std::string_view& v)  { return {resolve(), Key{v}}; }
-    Result operator [] (const std::string& v)       { return {resolve(), Key{v}}; }
-    Result operator [] (const Key& key)             { return {resolve(), key}; }
-    Result operator [] (const Object& obj)          { return {resolve(), obj.to_key()}; }
-    Result operator [] (Object&& obj)               { return {resolve(), obj.into_key()}; }
-
-    Object get(is_integral auto v) const        { return resolve().get(v); }
-    Object get(const char* v) const             { return resolve().get(v); }
-    Object get(const std::string_view& v) const { return resolve().get(v); }
-    Object get(const std::string& v) const      { return resolve().get(v); }
-    Object get(bool v) const                    { return resolve().get(v); }
-    Object get(const Key& key) const            { return resolve().get(key); }
-    Object get(const Object& obj) const         { return resolve().get(obj); }
-    Object get(const Path& path) const          { return resolve().get(path); }
-
-    void set(const Key& key, const Object& value)       { resolve().set(key, value); }
-    void set(const Object& key, const Object& value)    { resolve().set(key, value); }
-    void set(std::pair<const Key&, const Object&> item) { resolve().set(item); }
-//    Object set(const Path& path, const Object& value)   { resolve().set(path, value); }
-
-    size_t size() const { return resolve().size(); }
-
-    template <typename Visitor>
-    void iter_visit(Visitor&& visitor) const { resolve().iter_visit(visitor); }
-
-    const KeyList keys() const { return resolve().keys(); }
-
-    bool operator == (const Object& obj) const                   { return resolve() == obj; }
-    std::partial_ordering operator <=> (const Object& obj) const { return resolve() <=> obj; }
-
-    Oid id() const                         { return resolve().id(); }
-    bool is(const Object& other) const     { return resolve().is(other); }
-
-    void release()                   { latent_key = Key{}; object.release(); }
-    void refer_to(const Object& obj) { latent_key = Key{}; object.refer_to(obj); }
-
-    Object operator = (const Object& other) {
-        if (latent_key.is_null())
-            object = other;
-        else
-            object.set(latent_key, other);
-        return object;
-    }
-
-    Object operator = (Object&& other) {
-        if (latent_key.is_null())
-            object = std::forward<Object>(other);
-        else
-            object.set(latent_key, std::forward<Object>(other));
-        return object;
-    }
-
-    Object operator = (const Result& other) {
-        if (latent_key.is_null())
-            object = other.resolve();
-        else
-            object.set(latent_key, other);
-        return object;
-    }
-    // TODO: Need other assignment ops to avoid Object temporaries
-
-    bool has_data_source() const { return resolve().has_data_source(); }
-
-    template <class DataSourceType>
-    DataSourceType& data_source() const { return resolve().data_source<DataSourceType>(); }
-
-    void reset_cache()   { resolve().reset_cache(); }
-    void refresh_cache() { resolve().refresh_cache(); }
-
-    operator Object () const { return resolve(); }
-    operator Object () { return resolve(); }
-
-    bool is_resolved() const { return latent_key.is_null(); }
-
-    Object resolve() const {
-        if (is_resolved()) return object;
-        Result& self = *const_cast<Result*>(this);
-        self.object.refer_to(object.get(latent_key));
-        self.latent_key = Key{};
-        return self.object;
-    }
-
-  private:
-    Object object;
-    Key latent_key;
-};
-
-
 class Path
 {
   public:
@@ -629,15 +462,6 @@ Path Object::path() const {
         obj.refer_to(par);
         par.refer_to(obj.parent());
     }
-    return path;
-}
-
-
-inline
-Path Result::path() const {
-    if (is_resolved()) return object.path();
-    Path path{object.path()};
-    path.append(latent_key);
     return path;
 }
 
@@ -1225,21 +1049,13 @@ Key Object::into_key() {
     }
 }
 
-inline const Result Object::operator [] (is_byvalue auto v) const         { return {*this, Key{v}}; }
-inline const Result Object::operator [] (const char* v) const             { return {*this, Key{v}}; }
-inline const Result Object::operator [] (const std::string_view& v) const { return {*this, Key{v}}; }
-inline const Result Object::operator [] (const std::string& v) const      { return {*this, Key{v}}; }
-inline const Result Object::operator [] (const Key& key) const            { return {*this, key}; }
-inline const Result Object::operator [] (const Object& obj) const         { return {*this, obj.to_key()}; }
-inline const Result Object::operator [] (Object&& obj) const              { return {*this, obj.into_key()}; }
+inline const Object Object::operator [] (is_byvalue auto v) const         { return get(v); }
+inline const Object Object::operator [] (const char* v) const             { return get(v); }
+inline const Object Object::operator [] (const std::string_view& v) const { return get(v); }
 
-inline Result Object::operator [] (is_byvalue auto v)         { return {*this, Key{v}}; }
-inline Result Object::operator [] (const char* v)             { return {*this, Key{v}}; }
-inline Result Object::operator [] (const std::string_view& v) { return {*this, Key{v}}; }
-inline Result Object::operator [] (const std::string& v)      { return {*this, Key{v}}; }
-inline Result Object::operator [] (const Key& key)            { return {*this, key}; }
-inline Result Object::operator [] (const Object& obj)         { return {*this, obj.to_key()}; }
-inline Result Object::operator [] (Object&& obj)              { return {*this, obj.into_key()}; }
+inline Object Object::operator [] (is_byvalue auto v)         { return get(v); }
+inline Object Object::operator [] (const char* v)             { return get(v); }
+inline Object Object::operator [] (const std::string_view& v) { return get(v); }
 
 inline
 Object Object::get(const char* v) const {
@@ -1393,19 +1209,6 @@ void Object::set(const Key& key, const Object& value) {
         }
         case DSOBJ_I: return repr.ods->set(key, value);
         case DSKEY_I: return repr.kds->set(key, value);
-        default:
-            throw wrong_type(fields.repr_ix);
-    }
-}
-
-inline
-void Object::set(const Key& key, const Result& result) {
-    switch (fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
-        case LIST_I:
-        case OMAP_I:  set(key, result.resolve()); break;
-        case DSOBJ_I: return repr.ods->set(key, result.resolve());
-        case DSKEY_I: return repr.kds->set(key, result.resolve());
         default:
             throw wrong_type(fields.repr_ix);
     }
@@ -2214,11 +2017,6 @@ Object::AncestorRange Object::ancestors() const {
     return *this;
 }
 
-inline
-Object::AncestorRange Result::ancestors() const {
-    return resolve();  // TODO: return object.ancestors_or_self()
-}
-
 class ChildrenIterator
 {
   public:
@@ -2357,11 +2155,6 @@ Object::ChildrenRange Object::children() const {
     return *this;
 }
 
-inline
-Object::ChildrenRange Result::children() const {
-    return resolve();
-}
-
 class SiblingIterator
 {
   public:
@@ -2397,11 +2190,6 @@ class Object::SiblingRange
 inline
 Object::SiblingRange Object::siblings() const {
     return *this;
-}
-
-inline
-Object::SiblingRange Result::siblings() const {
-    return resolve();
 }
 
 class DescendantIterator
@@ -2460,11 +2248,6 @@ class Object::DescendantRange
 inline
 Object::DescendantRange Object::descendants() const {
     return *this;
-}
-
-inline
-Object::DescendantRange Result::descendants() const {
-    return resolve();
 }
 
 //

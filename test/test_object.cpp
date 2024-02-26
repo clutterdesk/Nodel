@@ -520,9 +520,6 @@ TEST(Object, SubscriptList) {
   EXPECT_EQ(obj[0].to_int(), 7);
   EXPECT_EQ(obj[1].to_int(), 8);
   EXPECT_EQ(obj[2].to_int(), 9);
-  EXPECT_EQ(obj[Object{0}].to_int(), 7);
-  EXPECT_EQ(obj[Object{1}].to_int(), 8);
-  EXPECT_EQ(obj[Object{2}].to_int(), 9);
 }
 
 TEST(Object, SubscriptMap) {
@@ -532,17 +529,8 @@ TEST(Object, SubscriptMap) {
   EXPECT_EQ(obj[1].to_int(), 8);
   EXPECT_EQ(obj[2].to_int(), 9);
   EXPECT_EQ(obj["name"sv].as<String>(), "Brian");
-  EXPECT_EQ(obj[Key{"name"sv}].as<String>(), "Brian");
   EXPECT_EQ(obj["name"].as<String>(), "Brian");
-  EXPECT_EQ(obj[Key{"name"}].as<String>(), "Brian");
   EXPECT_EQ(obj["name"s].as<String>(), "Brian");
-  EXPECT_EQ(obj[Key{"name"s}].as<String>(), "Brian");
-  EXPECT_EQ(obj[Key{0}].to_int(), 7);
-  EXPECT_EQ(obj[Key{1}].to_int(), 8);
-  EXPECT_EQ(obj[Key{2}].to_int(), 9);
-  EXPECT_EQ(obj[Object{0}].to_int(), 7);
-  EXPECT_EQ(obj[Object{1}].to_int(), 8);
-  EXPECT_EQ(obj[Object{2}].to_int(), 9);
 }
 
 TEST(Object, MultipleSubscriptMap) {
