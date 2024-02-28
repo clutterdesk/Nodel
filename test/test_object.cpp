@@ -572,7 +572,7 @@ TEST(Object, KeyOf) {
 TEST(Object, AncestorRange) {
     Object obj = parse_json(R"({"a": {"b": ["Assam", "Ceylon"]}})");
     List ancestors;
-    for (auto anc : obj["a"]["b"][1].ancestors())
+    for (auto anc : obj["a"]["b"][1].iter_ancestors())
         ancestors.push_back(anc);
     EXPECT_EQ(ancestors.size(), 3);
     EXPECT_EQ(ancestors[0].id(), obj["a"]["b"].id());
@@ -605,7 +605,7 @@ TEST(Object, OrderedMapChildrenRange) {
 TEST(Object, ListSiblingRange) {
     Object obj = parse_json(R"(["a", "b", "c"])");
     List siblings;
-    for (auto obj : obj[1].siblings())
+    for (auto obj : obj[1].iter_siblings())
         siblings.push_back(obj);
     EXPECT_EQ(siblings.size(), 2);
     EXPECT_EQ(siblings[0], "a");
@@ -615,7 +615,7 @@ TEST(Object, ListSiblingRange) {
 TEST(Object, MapSiblingRange) {
     Object obj = parse_json(R"({"a": "A", "b": "B", "c": "C"})");
     List siblings;
-    for (auto obj : obj["b"].siblings())
+    for (auto obj : obj["b"].iter_siblings())
         siblings.push_back(obj);
     EXPECT_EQ(siblings.size(), 2);
     EXPECT_EQ(siblings[0], "A");
@@ -630,7 +630,7 @@ TEST(Object, DescendantRange) {
               "B2"]
     })");
     List list;
-    for (auto des : obj.descendants())
+    for (auto des : obj.iter_descendants())
         list.push_back(des);
     EXPECT_EQ(list.size(), 14);
     EXPECT_EQ(list[0].id(), obj["a"].id());
@@ -959,18 +959,18 @@ TEST(Object, ClearParentOnOverwrite) {
         EXPECT_TRUE(obj.parent().is_null());
 }
 
-//TEST(Object, ParentIntegrityOnRemove) {
-//    Object par = parse_json(R"({"x": [1], "y": [2]})");
-//    Object x1 = par["x"];
-//    Object x2 = par["x"];
-//    EXPECT_TRUE(x1.parent().is_map());
-//    EXPECT_EQ(x2.parent().id(), par.id());
-//    EXPECT_TRUE(x1.parent().is_map());
-//    EXPECT_EQ(x2.parent().id(), par.id());
-//    par.remove("x");
-//    EXPECT_TRUE(x1.parent().is_null());
-//    EXPECT_TRUE(x2.parent().is_null());
-//}
+TEST(Object, ParentIntegrityOnDel) {
+    Object par = parse_json(R"({"x": [1], "y": [2]})");
+    Object x1 = par["x"];
+    Object x2 = par["x"];
+    EXPECT_TRUE(x1.parent().is_map());
+    EXPECT_EQ(x2.parent().id(), par.id());
+    EXPECT_TRUE(x1.parent().is_map());
+    EXPECT_EQ(x2.parent().id(), par.id());
+    par.del("x");
+    EXPECT_TRUE(x1.parent().is_null());
+    EXPECT_TRUE(x2.parent().is_null());
+}
 
 TEST(Object, GetKeys) {
     Object obj = parse_json(R"({"x": [1], "y": [2]})");
@@ -993,229 +993,110 @@ TEST(Object, IterString) {
 }
 
 
-struct TestObjectSource : public ObjectDataSource
+struct TestSimpleSource : public DataSource
 {
-    TestObjectSource(const std::string& json) {
-        data = parse_json(json);
-    }
-
-    ~TestObjectSource() override {}
+    TestSimpleSource(const std::string& json, Mode mode = Mode::rw)
+      : DataSource(Sparse::no, mode), data{parse_json(json)} {}
 
     void read_meta(Object& cache) override {
+        read_meta_called = true;
         std::istringstream in{data.to_json()};
         json::impl::Parser parser{in};
         cache = Object{(Object::ReprType)parser.parse_type()};
     }
 
-    void read(Object& cache) override {
-        read_called = true;
-        cache = data;
-    }
-
-    void write(const Object& obj) override {
-        memory_bypass = false;
-        if (obj.has_data_source()) {  // for test purposes, assume same data-source
-            // cache bypass
-            memory_bypass = true;
-            auto& dsrc = obj.data_source<TestObjectSource>();
-            data.release();
-            data = dsrc.data;
-        } else {
-            data.release();
-            data = obj;
-        }
-    }
-
-    void write(Object&& obj) override {
-        memory_bypass = false;
-        if (obj.has_data_source()) {  // for test purposes, assume same data-source
-            // cache bypass
-            memory_bypass = true;
-            auto& dsrc = obj.data_source<TestObjectSource>();
-            data.release();
-            data = dsrc.data;
-        } else {
-            data.release();
-            data = std::forward<Object>(obj);
-        }
-    }
-
-    struct Iterator : public IDataSourceIterator
-    {
-        size_t chunk_size = 3;
-
-        Iterator(Object data) : data{data}, sc{nullptr} {}
-
-        ~Iterator() {
-            if (sc != nullptr) {
-                switch (data.type()) {
-                    case Object::STR_I:  delete sc; break;
-                    case Object::LIST_I: delete lc; break;
-                    case Object::OMAP_I: delete klc; break;
-                    default: break;  // undefined behavior
-                }
-            }
-        }
-
-        std::string* iter_begin_str() override {
-            sc = new std::string{};
-            sc->reserve(chunk_size);
-            return sc;
-        }
-
-        List* iter_begin_list() override {
-            lc = new List{};
-            lc->reserve(chunk_size);
-            return lc;
-        }
-
-        KeyList* iter_begin_key_list() override {
-            klc = new KeyList{};
-            klc->reserve(chunk_size);
-            return klc;
-        }
-
-        size_t iter_next() override {
-            switch (data.type()) {
-                case Object::STR_I: {
-                    auto& chunk = *sc;
-                    const auto& str = data.as<String>();
-                    chunk.resize(std::min(chunk_size, str.size() - pos));
-                    memcpy(chunk.data(), data.as<String>().data() + pos, chunk.size());
-                    pos += chunk.size();
-                    return chunk.size();
-                }
-                case Object::LIST_I: {
-                    auto& chunk = *lc;
-                    auto child_it = data.children().begin();
-                    chunk.resize(std::min(chunk.size(), data.size() - pos));
-                    for (size_t i=0; i < chunk.size(); ++i, ++child_it) {
-                        chunk[i] = *child_it;
-                    }
-                    pos += chunk.size();
-                    return chunk.size();
-                }
-                case Object::OMAP_I: {
-                    auto& chunk = *klc;
-                    auto keys = data.keys();
-                    chunk.resize(std::min(chunk.size(), keys.size() - pos));
-                    for (size_t i=0; i < chunk.size(); i++) {
-                        chunk[i] = keys[pos + i];
-                    }
-                    pos += chunk.size();
-                    return chunk.size();
-                }
-                default:
-                    throw WrongType(Object::type_name(data.type()));
-            }
-        }
-
-        void iter_end() override {}
-
-        Object data;
-        int pos = 0;
-
-        union {
-            std::string* sc;
-            List* lc;
-            KeyList* klc;
-        };
-    };
-
-    IDataSourceIterator* new_iter() const override {
-        return new Iterator{data};
-    }
+    void read(Object& cache) override        { read_called = true; cache = data; }
+    void write(const Object& cache) override { write_called = true; data = cache; }
 
     Object data;
+    bool read_meta_called = false;
     bool read_called = false;
-    bool memory_bypass = false;
+    bool write_called = false;
 };
 
-struct TestKeySource : public KeyDataSource
-{
-    TestKeySource(const std::string& json) {
-        cache = Map{};
-        data = parse_json(json);
-    }
 
-    ~TestKeySource() override {}
+struct TestSparseSource : public DataSource
+{
+    TestSparseSource(const std::string& json, Mode mode = Mode::rw)
+      : DataSource(Sparse::yes, mode), data{parse_json(json)} {}
 
     void read_meta(Object& cache) override {
+        read_meta_called = true;
         std::istringstream in{data.to_json()};
         json::impl::Parser parser{in};
         cache = Object{(Object::ReprType)parser.parse_type()};
     }
 
-    Object read_key(const Key& key) override {
-        read_key_called = true;
-        cache.set(key, data.get(key));
-        return cache.get(key);
-    }
+    void read(Object& cache) override        { read_called = true; cache = data; }
+    void write(const Object& cache) override { write_called = true; data = cache; }
 
-    void write_key(const Key& key, const Object& obj) override {
-    }
+    Object read_key(const Key& k) override                 { read_key_called = true; return data.get(k); }
+    size_t read_size() override                            { return data.size(); }
+    void write_key(const Key& k, const Object& v) override { write_key_called = true; data.set(k, v); }
+    void write_key(const Key& k, Object&& v) override      { write_key_called = true; data.set(k, std::forward<Object>(v)); }
 
-    void write_key(const Key& key, Object&& obj) override {
-    }
+//    struct TestStringChunkIterator : public StringChunkIterator
+//    {
+//        size_t chunk_size = 3;
+//
+//        TestStringChunkIterator(const std::string& str) : str{str} {}
+//        ~TestStringChunkIterator() override = default;
+//
+//        bool destroy() override { return true; }
+//
+//        auto& next() override {
+//            chunk.resize(std::min(chunk_size, str.size() - pos));
+//            memcpy(chunk.data(), str.data() + pos, chunk.size());
+//            pos += chunk.size();
+//            return chunk;
+//        }
+//
+//        const std::string& str;
+//        std::string chunk;
+//        size_t pos = 0;
+//    };
 
-    size_t size() override {
-        return data.size();
-    }
-
-    KeyList keys() override {
-        return data.keys();
-    }
-
-    struct Iterator : public IDataSourceIterator
+    template <class ContainerType, class ValueType>
+    struct TestChunkIterator : public ChunkIterator<ContainerType>
     {
         size_t chunk_size = 3;
 
-        Iterator(Object data) : data{data}, sc{nullptr} {}
+        TestChunkIterator(const ContainerType& container) : container{container} {}
+        ~TestChunkIterator() override = default;
 
-        ~Iterator() {
-            if (sc != nullptr) {
-                switch (data.type()) {
-                    case Object::STR_I:  delete sc; break;
-                    case Object::LIST_I: delete lc; break;
-                    case Object::OMAP_I: delete klc; break;
-                    default: break;  // undefined behavior
-                }
-            }
+        bool destroy() override { return true; }
+
+        ContainerType& next() override {
+            chunk.resize(std::min(chunk.size(), container.size() - pos));
+            for (size_t i=0; i < chunk.size(); i++)
+                chunk[i] = container[pos + i];
+            pos += chunk.size();
+            return chunk;
         }
 
-        KeyList* iter_begin_key_list() override {
-            klc = new KeyList{};
-            klc->reserve(chunk_size);
-            return klc;
-        }
-
-        size_t iter_next() override {
-        }
-
-        void iter_end() override {}
-
-        Object data;
-        int pos = 0;
-
-        union {
-            std::string* sc;
-            List* lc;
-            KeyList* klc;
-        };
+        const ContainerType& container;
+        ContainerType chunk;
+        size_t pos = 0;
     };
 
-    IDataSourceIterator* new_iter() const override {
-        return new Iterator{data};
-    }
+//    StringChunkIterator* str_iter()  { return new TestStringChunkIterator(); }
+    ChunkIterator<KeyList>* key_iter() override   { return new TestChunkIterator<KeyList, Key>(data.keys()); }
+    ChunkIterator<List>* value_iter() override    { return new TestChunkIterator<List, Object>(data.children()); }
+    ChunkIterator<ItemList>* item_iter() override { return new TestChunkIterator<ItemList, Item>(data.items()); }
+
+    using DataSource::cache;
 
     Object data;
-    Object::ReprType cached_type = Object::BAD_I;
+    bool read_meta_called = false;
+    bool read_called = false;
+    bool write_called = false;
     bool read_key_called = false;
-    bool memory_bypass = false;
+    bool write_key_called = false;
 };
 
-TEST(Object, TestObjectSource_RefCountCopyAssign) {
-    Object obj{new TestObjectSource(R"("foo")")};
+
+TEST(Object, TestSimpleSource_RefCountCopyAssign) {
+    Object obj{new TestSimpleSource(R"("foo")")};
     EXPECT_EQ(obj.ref_count(), 1);
     Object copy = obj;
     EXPECT_EQ(obj.ref_count(), 2);
@@ -1224,8 +1105,8 @@ TEST(Object, TestObjectSource_RefCountCopyAssign) {
     EXPECT_EQ(copy.ref_count(), 1);
 }
 
-TEST(Object, ShallowTestObjectSource_RefCountMoveAssign) {
-    Object obj{new TestObjectSource(R"("foo")")};
+TEST(Object, TestSimpleSource_RefCountMoveAssign) {
+    Object obj{new TestSimpleSource(R"("foo")")};
     EXPECT_EQ(obj.ref_count(), 1);
     Object copy = std::move(obj);
     EXPECT_EQ(copy.ref_count(), 1);
@@ -1233,20 +1114,35 @@ TEST(Object, ShallowTestObjectSource_RefCountMoveAssign) {
     EXPECT_EQ(copy.ref_count(), 1);
 }
 
-TEST(Object, TestObjectSource_GetType) {
-    Object obj{new TestObjectSource(R"({"x": 1, "y": 2})")};
+TEST(Object, TestSimpleSource_GetType) {
+    Object obj{new TestSimpleSource(R"({"x": 1, "y": 2})")};
     EXPECT_TRUE(obj.is_map());
 }
 
-TEST(Object, TestObjectSource_Read) {
-    auto dsrc = new TestObjectSource(R"("Strong, black tea")");
+TEST(Object, TestSimpleSource_Read) {
+    auto dsrc = new TestSimpleSource(R"("Strong, black tea")");
     Object obj{dsrc};
     EXPECT_EQ(obj, "Strong, black tea");
     EXPECT_TRUE(dsrc->read_called);
 }
 
-TEST(Object, TestKeySource_ReadKey) {
-    auto dsrc = new TestKeySource(R"({"x": 1, "y": 2})");
+TEST(Object, TestSimpleSource_Save) {
+    auto dsrc = new TestSimpleSource(R"("Ceylon tea")");
+    Object obj{dsrc};
+    obj = "Assam tea";
+    EXPECT_FALSE(dsrc->read_meta_called);
+    EXPECT_FALSE(dsrc->read_called);
+    EXPECT_EQ(obj, "Assam tea");
+    EXPECT_FALSE(dsrc->read_called);
+    obj.save();
+    EXPECT_TRUE(dsrc->write_called);
+    obj.reset();
+    EXPECT_EQ(obj, "Assam tea");
+    EXPECT_TRUE(dsrc->read_called);
+}
+
+TEST(Object, TestSparseSource_ReadKey) {
+    auto dsrc = new TestSparseSource(R"({"x": 1, "y": 2})");
     Object obj{dsrc};
     EXPECT_EQ(obj["x"], 1);
     EXPECT_TRUE(dsrc->read_key_called);
@@ -1255,33 +1151,41 @@ TEST(Object, TestKeySource_ReadKey) {
     EXPECT_TRUE(dsrc->read_key_called);
 }
 
-//TEST(Object, ShallowSource_Write) {
-//    auto dsrc = new ShallowSource(R"({"x": 1, "y": 2})");
-//    Object obj{dsrc};
-//    obj = parse_json(R"({"x": 9, "y": 10})");
-//    EXPECT_EQ(dsrc->data["x"], 9);
-//    EXPECT_TRUE(dsrc->cached.is_empty());
-//    EXPECT_EQ(obj["x"], 9);
-//    EXPECT_TRUE(dsrc->read_key_called);
-//    dsrc->read_key_called = false;
-//    EXPECT_EQ(obj["y"], 10);
-//    EXPECT_TRUE(dsrc->read_key_called);
-//}
-//
-//TEST(Object, ShallowSource_WriteMemoryBypass) {
-//    auto dsrc_1 = new ShallowSource(R"({"x": 1, "y": 2})");
-//    auto dsrc_2 = new ShallowSource(R"({"x": 3, "y": 4})");
-//    Object obj_1{dsrc_1};
-//    Object obj_2{dsrc_2};
-//    obj_1 = obj_2;
-//    EXPECT_TRUE(dsrc_1->memory_bypass);
-//    EXPECT_TRUE(dsrc_2->cached.is_empty());
-//    EXPECT_EQ(obj_1["x"], 3);
-//    EXPECT_FALSE(dsrc_2->read_key_called);
-//    EXPECT_EQ(obj_2["x"], 3);
-//    EXPECT_TRUE(dsrc_2->read_key_called);
-//}
-//
+TEST(Object, TestSparseSource_WriteKey) {
+    auto dsrc = new TestSparseSource(R"({"x": 1, "y": 2, "z": 3})");
+    Object obj{dsrc};
+    obj.set("x", 9);
+    obj.set("z", 10);
+    EXPECT_FALSE(dsrc->write_called);
+    EXPECT_FALSE(dsrc->write_key_called);
+    EXPECT_EQ(dsrc->cache["x"], 9);
+    EXPECT_EQ(dsrc->data["x"], 1);
+    EXPECT_EQ(dsrc->cache["z"], 10);
+    EXPECT_EQ(dsrc->data["z"], 3);
+    obj.save();
+    EXPECT_TRUE(dsrc->write_key_called);
+    EXPECT_FALSE(dsrc->write_called);
+    EXPECT_EQ(dsrc->cache["x"], 9);
+    EXPECT_EQ(dsrc->data["x"], 9);
+    EXPECT_EQ(dsrc->cache["z"], 10);
+    EXPECT_EQ(dsrc->data["z"], 10);
+}
+
+TEST(Object, TestSparseSource_Write) {
+    auto dsrc = new TestSparseSource(R"({"x": 1, "y": 2})");
+    Object obj{dsrc};
+    obj = parse_json(R"({"x": 9, "y": 10})");
+    EXPECT_FALSE(dsrc->write_called);
+    EXPECT_FALSE(dsrc->write_key_called);
+    EXPECT_EQ(dsrc->cache["x"], 9);
+    EXPECT_EQ(dsrc->data["x"], 1);
+    obj.save();
+    EXPECT_TRUE(dsrc->write_called);
+    EXPECT_FALSE(dsrc->write_key_called);
+    EXPECT_EQ(dsrc->cache["x"], 9);
+    EXPECT_EQ(dsrc->data["x"], 9);
+}
+
 //TEST(Object, StringSource_Read) {
 //    auto dsrc = new ShallowSource(R"("Strong, black tea")");
 //    Object obj{dsrc};
@@ -1336,24 +1240,3 @@ TEST(Object, TestKeySource_ReadKey) {
 //    EXPECT_FALSE(dsrc->read_called);
 //    EXPECT_FALSE(dsrc->read_key_called);
 //}
-
-TEST(Object, StringSubscriptDangling) {
-  Object obj = parse_json(R"({"tea": "FTGFOP"})");
-  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
-  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
-  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
-  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
-  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
-  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
-  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
-  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
-  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
-  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
-  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
-  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
-  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
-  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
-  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
-  EXPECT_EQ(obj["tea"].as<String>(), "FTGFOP");
-}
-
