@@ -1084,7 +1084,7 @@ struct TestSparseSource : public DataSource
     ChunkIterator<List>* value_iter() override    { return new TestChunkIterator<List, Object>(data.children()); }
     ChunkIterator<ItemList>* item_iter() override { return new TestChunkIterator<ItemList, Item>(data.items()); }
 
-    using DataSource::cache;
+    using DataSource::m_cache;
 
     Object data;
     bool read_meta_called = false;
@@ -1158,16 +1158,16 @@ TEST(Object, TestSparseSource_WriteKey) {
     obj.set("z", 10);
     EXPECT_FALSE(dsrc->write_called);
     EXPECT_FALSE(dsrc->write_key_called);
-    EXPECT_EQ(dsrc->cache["x"], 9);
+    EXPECT_EQ(dsrc->m_cache["x"], 9);
     EXPECT_EQ(dsrc->data["x"], 1);
-    EXPECT_EQ(dsrc->cache["z"], 10);
+    EXPECT_EQ(dsrc->m_cache["z"], 10);
     EXPECT_EQ(dsrc->data["z"], 3);
     obj.save();
     EXPECT_TRUE(dsrc->write_key_called);
     EXPECT_FALSE(dsrc->write_called);
-    EXPECT_EQ(dsrc->cache["x"], 9);
+    EXPECT_EQ(dsrc->m_cache["x"], 9);
     EXPECT_EQ(dsrc->data["x"], 9);
-    EXPECT_EQ(dsrc->cache["z"], 10);
+    EXPECT_EQ(dsrc->m_cache["z"], 10);
     EXPECT_EQ(dsrc->data["z"], 10);
 }
 
@@ -1177,12 +1177,12 @@ TEST(Object, TestSparseSource_Write) {
     obj = parse_json(R"({"x": 9, "y": 10})");
     EXPECT_FALSE(dsrc->write_called);
     EXPECT_FALSE(dsrc->write_key_called);
-    EXPECT_EQ(dsrc->cache["x"], 9);
+    EXPECT_EQ(dsrc->m_cache["x"], 9);
     EXPECT_EQ(dsrc->data["x"], 1);
     obj.save();
     EXPECT_TRUE(dsrc->write_called);
     EXPECT_FALSE(dsrc->write_key_called);
-    EXPECT_EQ(dsrc->cache["x"], 9);
+    EXPECT_EQ(dsrc->m_cache["x"], 9);
     EXPECT_EQ(dsrc->data["x"], 9);
 }
 
