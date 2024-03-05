@@ -1,0 +1,67 @@
+// Copyright 2024 Robert A. Dunnagan
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.#include <gtest/gtest.h>
+#include <gtest/gtest.h>
+#include <fmt/format.h>
+#include <nodel/impl/CsvParser.h>
+
+using namespace nodel;
+using namespace nodel::csv;
+using namespace nodel::csv::impl;
+
+TEST(CsvParser, Unquoted) {
+  std::stringstream stream{R"(
+      a, bbb, cc
+      dd, e, f
+      g,hh,iii)"};
+
+  CsvParser parser{stream};
+  Object obj = parser.parse();
+  EXPECT_EQ(obj.to_str(), R"([["a", "bbb", "cc"], ["dd", "e", "f"], ["g", "hh", "iii"]])");
+}
+
+TEST(CsvParser, SingleQuoted) {
+  std::stringstream stream{R"(
+      'a', 'bbb', 'cc'
+      'dd', 'e', 'f'
+      'g','hh','iii'
+  )"};
+
+  CsvParser parser{stream};
+  Object obj = parser.parse();
+  EXPECT_EQ(obj.to_str(), R"([["a", "bbb", "cc"], ["dd", "e", "f"], ["g", "hh", "iii"]])");
+}
+
+TEST(CsvParser, DoubleQuoted) {
+  std::stringstream stream{R"(
+      "a", "bbb", "cc"
+      "dd", "e", "f"
+      "g","hh","iii"
+  )"};
+
+  CsvParser parser{stream};
+  Object obj = parser.parse();
+  EXPECT_EQ(obj.to_str(), R"([["a", "bbb", "cc"], ["dd", "e", "f"], ["g", "hh", "iii"]])");
+}
+
+TEST(CsvParser, MixedQuoted) {
+  std::stringstream stream{R"(
+      a, "bbb", 'cc'
+      'dd', e,f
+      'g',"hh",iii
+  )"};
+
+  CsvParser parser{stream};
+  Object obj = parser.parse();
+  EXPECT_EQ(obj.to_str(), R"([["a", "bbb", "cc"], ["dd", "e", "f"], ["g", "hh", "iii"]])");
+}

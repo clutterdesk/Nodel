@@ -1,5 +1,29 @@
 #pragma once
 
+#ifndef NODEL_ARCH
+#if _WIN32 || _WIN64
+#if _WIN64
+#define NODEL_ARCH 64
+#else
+#define NODEL_ARCH 32
+#endif
+#endif
+
+#if __GNUC__
+#if __x86_64__ || __ppc64__
+#define NODEL_ARCH 64
+#else
+#define NODEL_ARCH 32
+#endif
+#endif
+#endif // NODEL_ARCH
+
+#if NODEL_ARCH == 32
+using refcnt_t = uint32_t;                     // only least-significant 28-bits used
+#else
+using refcnt_t = uint64_t;                     // only least-significant 56-bits used
+#endif
+
 using Int = int64_t;
 using UInt = uint64_t;
 using Float = double;

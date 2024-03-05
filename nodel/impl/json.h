@@ -1,20 +1,16 @@
 #pragma once
 
+#include "Object.h"
+#include "StreamIterator.h"
+
 #include <ctype.h>
 #include <cstdlib>
 #include <cerrno>
 #include <sstream>
 #include <fstream>
 
-#include <fmt/core.h>
-
-#include "Object.h"
-#include "Stopwatch.h"
-
 namespace nodel {
 namespace json {
-
-constexpr bool log_stats = false;
 
 class JsonException : public std::exception
 {
@@ -32,53 +28,8 @@ namespace impl {
 template <typename StreamType>
 struct Parser
 {
-  private:
-    struct StreamIterator  // TODO: replace with std::stream_iterator?
-    {
-        StreamIterator(StreamType& stream) : stream{stream} {
-            if (!stream.eof())
-                fill();
-        }
-
-        StreamIterator(StreamIterator&&) = default;
-        StreamIterator(const StreamIterator&) = delete;
-        auto operator = (StreamIterator&&) = delete;
-        auto operator = (StreamIterator&) = delete;
-
-        char peek() { return buf[buf_pos]; }
-
-        void next() {
-            if (++buf_pos == buf_size) {
-                if (stream.eof()) {
-                    buf_pos--;
-                    return;
-                }
-                fill();
-            }
-        }
-
-        size_t consumed() const { return pos + buf_pos; }
-        bool done() const { return buf_pos == buf_size; }
-        bool error() const { return stream.fail(); }
-
-        void fill() {
-            pos += buf_size;
-            stream.read(buf.data(), buf.size());
-            buf_size = stream.gcount();
-            buf_pos = 0;
-            if (buf_size < buf.size())
-                buf[buf_size++] = 0;
-        }
-
-        StreamType& stream;
-        size_t pos = 0;
-        std::array<char, 4096> buf;
-        size_t buf_pos = 0;
-        size_t buf_size = 0;
-    };
-
   public:
-    Parser(StreamType& stream) : m_it{stream}, m_swatch{"parse-json", false} {}
+    Parser(StreamType& stream) : m_it{stream} {}
 
     Parser(Parser&&) =  default;
     Parser(const Parser&) = delete;
@@ -100,12 +51,11 @@ struct Parser
 
     void create_error(const std::string& message);
 
-    StreamIterator m_it;
+    ::nodel::impl::StreamIterator<StreamType> m_it;
     Object m_curr;
     std::string m_scratch{32};
-    int m_error_offset = 0;
+    size_t m_error_offset = 0;
     std::string m_error_message;
-    debug::Stopwatch m_swatch;
 };
 
 template <typename StreamType>
@@ -145,20 +95,12 @@ Object::ReprType Parser<StreamType>::parse_type() {
 template <typename StreamType>
 bool Parser<StreamType>::parse_object()
 {
-    if constexpr (log_stats) m_swatch.start();
-
     if (!parse_object('\0')) {
         if (m_error_message.size() == 0) {
             m_error_message = "No object in json stream";
         }
         return false;
     }
-
-    if constexpr (log_stats) {
-        m_swatch.stop();
-        fmt::print("{:.3f} MB/s\n", m_it.consumed() / m_swatch.last() / 1000.0);
-    }
-
     return true;
 }
 
@@ -418,7 +360,7 @@ void Parser<StreamType>::create_error(const std::string& message)
 
 struct ParseError
 {
-    int error_offset = 0;
+    size_t error_offset = 0;
     std::string error_message;
 
     std::string to_str() const {
@@ -480,4 +422,5 @@ Object parse_file(const std::string& file_name, std::string& error) {
     }
 }
 
-}} // namespace nodel.json
+} // namespace json
+} // namespace nodel

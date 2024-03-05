@@ -8,6 +8,7 @@ using namespace nodel;
 TEST(Key, Null) {
   Key k;
   EXPECT_TRUE(k.is_null());
+  EXPECT_EQ(k, Key{});
   EXPECT_EQ(k.to_str(), "null");
 }
 
@@ -53,30 +54,12 @@ TEST(Key, StringLiteral) {
     EXPECT_EQ(k.as_str(), "foo");
 }
 
-TEST(Key, StringViewLiteral) {
-    Key k{"foo"sv};
-    EXPECT_TRUE(k.is_str());
-    EXPECT_EQ(k.to_str(), "foo");
-    EXPECT_EQ(k.as_str(), "foo");
-    EXPECT_EQ(k, Key("foo"sv));
-}
-
 TEST(Key, String) {
     std::string s{"foo"};
     Key k{s};
     EXPECT_TRUE(k.is_str());
     EXPECT_EQ(k.to_str(), "foo");
     EXPECT_EQ(k.as_str(), "foo");
-}
-
-TEST(Key, StringView) {
-    std::string s{"ooo"}; s[0] = 'f';
-    std::string_view sv = s;
-    Key k{sv};
-    EXPECT_TRUE(k.is_str());
-    EXPECT_EQ(k.to_str(), "foo");
-    EXPECT_EQ(k.as_str(), "foo");
-    EXPECT_EQ(k, Key("foo"sv));
 }
 
 TEST(Key, AssignNull) {
@@ -128,14 +111,6 @@ TEST(Key, AssignStringLiteral) {
     EXPECT_EQ(k.as_str(), "foo");
 }
 
-TEST(Key, AssignStringViewLiteral) {
-    Key k;
-    EXPECT_TRUE(k.is_null());
-    k = "foo"sv;
-    EXPECT_TRUE(k.is_str());
-    EXPECT_EQ(k.as_str(), "foo");
-}
-
 TEST(Key, CompareBool) {
     Key k{true};
     EXPECT_TRUE(k.is_bool());
@@ -180,19 +155,8 @@ TEST(Key, CompareFloat) {
 TEST(Key, CompareString) {
     Key k{"foo"s};
     EXPECT_TRUE(k.is_str());
-    EXPECT_EQ(k, "foo"sv);
     EXPECT_EQ(k, "foo"s);
     EXPECT_EQ(k, Key{"foo"s});
-    EXPECT_EQ(k, Key{"foo"sv});
-}
-
-TEST(Key, CompareStringView) {
-    Key k{"foo"sv};
-    EXPECT_TRUE(k.is_str());
-    EXPECT_EQ(k, "foo"sv);
-    EXPECT_EQ(k, "foo"s);
-    EXPECT_EQ(k, Key{"foo"s});
-    EXPECT_EQ(k, Key{"foo"sv});
 }
 
 TEST(Key, HashNull) {
@@ -232,12 +196,6 @@ TEST(Key, HashStringLiteral) {
     EXPECT_EQ(std::hash<Key>{}(k), std::hash<std::string_view>{}("foo"));
 }
 
-TEST(Key, HashStringViewLiteral) {
-    Key k{"foo"sv};
-    EXPECT_TRUE(k.is_str());
-    EXPECT_EQ(std::hash<Key>{}(k), std::hash<std::string_view>{}("foo"));
-}
-
 TEST(Key, ExplicitIntKeyMap) {
     tsl::ordered_map<Key, Key> map;
     map[Key(7)] = Key(8);
@@ -268,18 +226,6 @@ TEST(Key, ImplicitStringKeyMap) {
     EXPECT_EQ(map["K7"s], 8);
 }
 
-TEST(Key, ExplicitStringViewKeyMap) {
-    tsl::ordered_map<Key, Key> map;
-    map[Key("K7"sv)] = Key(8);
-    EXPECT_EQ(map[Key("K7"sv)], 8);
-}
-
-TEST(Key, ImplicitStringViewKeyMap) {
-    tsl::ordered_map<Key, Key> map;
-    map["K7"sv] = 8;
-    EXPECT_EQ(map["K7"sv], 8);
-}
-
 TEST(Key, ExplicitKeyList) {
     std::vector<Key> list = {Key(10), Key(11)};
     EXPECT_EQ(list[0], 10);
@@ -296,10 +242,10 @@ TEST(Key, HeterogenousKeyMap) {
     tsl::ordered_map<Key, Key> map;
     map["K7"s] = 8;
     map[7] = "K7"s;
-    map[true] = "TRUE"sv;
+    map[true] = "TRUE"s;
     EXPECT_EQ(map["K7"s], 8);
-    EXPECT_EQ(map[7], "K7"sv);
-    EXPECT_EQ(map[true], "TRUE"sv);
+    EXPECT_EQ(map[7], "K7"s);
+    EXPECT_EQ(map[true], "TRUE"s);
 }
 
 TEST(Key, BoolStep) {

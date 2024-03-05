@@ -280,14 +280,14 @@ class Node
 };
 
 
-//class Path
+//class OPath
 //{
 //  public:
-//    explicit Path(const char *path) : path{path}, delimiter{'.'} {}
-//    explicit Path(std::string&& path) : path{std::forward<std::string>(path)}, delimiter{'.'} {}
+//    explicit OPath(const char *path) : path{path}, delimiter{'.'} {}
+//    explicit OPath(std::string&& path) : path{std::forward<std::string>(path)}, delimiter{'.'} {}
 //
-//    Path(const Path&) = default;
-//    Path(Path&&) = default;
+//    OPath(const OPath&) = default;
+//    OPath(OPath&&) = default;
 //
 //    const Node lookup(const Node& origin) const { return lookup_impl(origin); }
 //    Node lookup(Node& origin) const { return lookup_impl(origin); }
@@ -595,7 +595,7 @@ Node& Node::replace(Node&& other) {
 }
 
 //template <typename T>
-//T Path::lookup_impl(T& origin) const {
+//T OPath::lookup_impl(T& origin) const {
 //    std::remove_cv_t<T> node = origin;
 //
 //    char *a = const_cast<char*>(path.c_str());

@@ -1,8 +1,7 @@
 #include <gtest/gtest.h>
-#include <nodel/nodel.h>
-
 #include <sstream>
 
+#include <nodel/impl/json.h>
 #include <nodel/impl/Stopwatch.h>
 
 using namespace nodel;
@@ -100,7 +99,7 @@ TEST(Json, ParseListOneInt) {
   EXPECT_TRUE(parser1.parse_list());
   Object curr = parser1.m_curr;
   EXPECT_EQ(curr.size(), 1);
-  EXPECT_EQ(curr[0].as<Int>(), 2);
+  EXPECT_EQ(curr.get(0).as<Int>(), 2);
 }
 
 TEST(Json, ParseListThreeInts) {
@@ -109,9 +108,9 @@ TEST(Json, ParseListThreeInts) {
   EXPECT_TRUE(parser1.parse_list());
   Object curr = parser1.m_curr;
   EXPECT_EQ(curr.size(), 3);
-  EXPECT_EQ(curr[0].as<Int>(), 2);
-  EXPECT_EQ(curr[1].as<Int>(), 4);
-  EXPECT_EQ(curr[2].as<Int>(), 6);
+  EXPECT_EQ(curr.get(0).as<Int>(), 2);
+  EXPECT_EQ(curr.get(1).as<Int>(), 4);
+  EXPECT_EQ(curr.get(2).as<Int>(), 6);
 }
 
 TEST(Json, ParseExample1) {
@@ -121,28 +120,28 @@ TEST(Json, ParseExample1) {
     Object curr = parser1.m_curr;
     EXPECT_TRUE(curr.is_map());
     EXPECT_EQ(curr.size(), 2);
-    EXPECT_EQ(curr["x"][0], 1);
-    EXPECT_EQ(curr["y"][0], 2);
+    EXPECT_EQ(curr.get("x").get(0), 1);
+    EXPECT_EQ(curr.get("y").get(0), 2);
 }
 
 TEST(Json, ParseExampleFile) {
     std::string error;
-    Object example = json::parse_file("test/example.json", error);
+    Object example = json::parse_file("test_data/example.json", error);
     EXPECT_EQ(error, "");
     EXPECT_TRUE(example.is_map());
-    EXPECT_EQ(example["favorite"], "Assam");
+    EXPECT_EQ(example.get("favorite"), "Assam");
 }
 
 TEST(Json, ParseLargeExample1File) {
     std::string error;
-    Object example = json::parse_file("test/large_example_1.json", error);
+    Object example = json::parse_file("test_data/large_example_1.json", error);
     EXPECT_EQ(error, "");
     EXPECT_TRUE(example.is_list());
 }
 
 TEST(Json, ParseLargeExample2File) {
     std::string error;
-    Object example = json::parse_file("test/large_example_2.json", error);
+    Object example = json::parse_file("test_data/large_example_2.json", error);
     EXPECT_EQ(error, "");
     EXPECT_TRUE(example.is_map());
 }

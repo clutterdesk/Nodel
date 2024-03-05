@@ -17,7 +17,21 @@ class Stopwatch
     Stopwatch(const std::string& name, bool automatic=false) : m_name{name}, m_automatic(automatic) { if (automatic) start(); }
     ~Stopwatch() { stop(); if (m_automatic) log(); }
 
-    void start() { m_running = true; m_t_start = high_resolution_clock::now(); }
+    template <typename Func>
+    void measure(float seconds, Func&& func) {
+        while (seconds > 0) {
+            start();
+            func();
+            stop();
+            seconds -= m_history.back() / 1e9;
+        }
+    }
+
+    void start() {
+        m_running = true;
+        m_t_start = high_resolution_clock::now();
+    }
+
     void stop()  {
         if (m_running) {
             m_history.push_back(duration_cast<nanoseconds>(high_resolution_clock::now() - m_t_start).count());
@@ -25,13 +39,14 @@ class Stopwatch
         }
     }
 
-    auto last()  { return m_history.back() / 1e6; }
-    auto min()   { return *std::min_element(m_history.begin(), m_history.end()) / 1e6; }
-    auto max()   { return *std::max_element(m_history.begin(), m_history.end()) / 1e6; }
-    auto total() { return std::accumulate(m_history.begin(), m_history.end(), 0) / 1e6; }
-    auto avg()   { return (double)total() / m_history.size() / 1e6; }
+    auto last()  { return m_history.back(); }
+    auto min()   { return *std::min_element(m_history.begin(), m_history.end()); }
+    auto max()   { return *std::max_element(m_history.begin(), m_history.end()); }
+    auto total() { return std::accumulate(m_history.begin(), m_history.end(), 0); }
+    auto avg()   { return (double)total() / m_history.size(); }
 
     void clear()   { m_history.clear(); }
+    void format(int64_t t_ns, std::ostream& os);
     void log();
 
   private:
@@ -43,12 +58,29 @@ class Stopwatch
 };
 
 inline
+void Stopwatch::format(int64_t t_ns, std::ostream& os) {
+    if (t_ns < 1e3) { os << t_ns << " ns"; }
+    else if (t_ns < 1e6) { os << (t_ns / 1e3) << " us"; }
+    else if (t_ns < 1e9) { os << (t_ns / 1e6) << " ms"; }
+    else { os << (t_ns / 1e9) << " s"; }
+}
+
+inline
 void Stopwatch::log() {
     if (m_history.size() == 1) {
-        std::cout << m_name << ": " << last() << " ms" << std::endl;
+        std::cout << m_name << ": ";
+        format(last(), std::cout);
+        std::cout << std::endl;
     } else {
-        std::cout << m_name << ": total=" << total() << " ms, avg=" << avg()
-                  << " ms, min=" << min() << " ms, max=" << max() << std::endl;
+        std::cout << m_name << ": runs=" << (float)m_history.size() << ", total=";
+        format(total(), std::cout);
+        std::cout << ", avg=";
+        format(avg(), std::cout);
+        std::cout << ", min=";
+        format(min(), std::cout);
+        std::cout << ", max=";
+        format(max(), std::cout);
+        std::cout << std::endl;
     }
 }
 

@@ -2,7 +2,7 @@
 
 #include <functional>
 
-class Path
+class OPath
 {
   public:
     enum Axis {
@@ -34,13 +34,13 @@ class Path
     };
 
   public:
-    Path() {}
-    Path(const char* spec, char delimiter='.');
+    OPath() {}
+    OPath(const char* spec, char delimiter='.');
 
-    Path(const Path&) = default;
-    Path(Path&&) = default;
-    Path& operator = (const Path&) = default;
-    Path& operator = (Path&&) = default;
+    OPath(const OPath&) = default;
+    OPath(OPath&&) = default;
+    OPath& operator = (const OPath&) = default;
+    OPath& operator = (OPath&&) = default;
 
     Object lookup(Object obj) const {
         for (const auto& key : key_list) {
@@ -49,13 +49,13 @@ class Path
         return obj;
     }
 
-    Path operator += (const Path& path) {
+    OPath operator += (const OPath& path) {
         for (auto& key : path.key_list) key_list.push_back(key);
         return *this;
     }
 
-    Path operator + (const Path& path) const {
-        Path result;
+    OPath operator + (const OPath& path) const {
+        OPath result;
         KeyList& kl = result.key_list;
         kl.reserve(key_list.size() + path.key_list.size());
         for (auto& key : key_list) kl.push_back(key);
@@ -116,7 +116,7 @@ class PathParser
 
 
 inline
-Object Path::Step::eval(const Object& obj) {
+Object OPath::Step::eval(const Object& obj) {
     switch (axis) {
         case ROOT: {
             assert(key.is_null());  // impossible
@@ -139,7 +139,7 @@ Object Path::Step::eval(const Object& obj) {
 class PathIterator
 {
   public:
-    PathIterator(Object object, const Path& path) : object{object}, path{path} {
+    PathIterator(Object object, const OPath& path) : object{object}, path{path} {
 
     }
     PathIterator& operator ++ () {
@@ -152,16 +152,16 @@ class PathIterator
     }
   private:
     Object object;
-    const Path& path;
+    const OPath& path;
 };
 
 class PathRange
 {
   public:
-    PathRange(Object object, const Path& path) : object{object.parent()}, path{path} {}
+    PathRange(Object object, const OPath& path) : object{object.parent()}, path{path} {}
     PathIterator begin() const { return {object, path}; }
     PathIterator end() const   { return {Object{}, path}; }
   private:
     Object object;
-    const Path& path;
+    const OPath& path;
 };
