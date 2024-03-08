@@ -100,8 +100,7 @@ bool is_fs_head(const Object& obj) {
 
 inline
 Object find_fs_head(const Object& target) {
-    if (is_fs_head(target)) return target;
-    return find_first(target.iter_ancestors(), is_fs_head);
+    return find_first(target.iter_lineage(), is_fs_head);
 }
 
 inline
@@ -133,7 +132,7 @@ void impl::SubDirectory::read(const Object& target, Object& cache) {
         } else {
             auto& head_ds = *(head_anc.data_source<Directory>());
             auto r_reg = head_ds.registry();
-            auto p_ds = r_reg->new_file(entry.path());
+            auto p_ds = r_reg->new_file(target, entry.path());
             if (p_ds != nullptr) {
                 p_ds->set_mode(m_mode);
                 // TODO: support key customization

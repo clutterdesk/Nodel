@@ -26,17 +26,17 @@ namespace fs = std::filesystem;
 class Registry
 {
   public:
-    using Factory = std::function<File*(const fs::path&)>;
+    using Factory = std::function<File*(const Object&, const fs::path&)>;
 
     template <typename Func>
     void set(const std::string_view& extension, Func&& factory) {
         m_ext_registry.emplace(extension, std::forward<Func>(factory));
     }
 
-    File* new_file(const fs::path& path) const {
+    File* new_file(const Object& target, const fs::path& path) const {
         auto ext = path.extension().string();
         if (auto it = m_ext_registry.find(ext); it != m_ext_registry.end()) {
-            return it->second(path);
+            return it->second(target, path);
         }
         return nullptr;
     }

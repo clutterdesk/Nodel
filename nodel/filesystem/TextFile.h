@@ -10,11 +10,10 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.#pragma once
+// limitations under the License.
 #pragma once
 
 #include "File.h"
-#include <nodel/impl/CsvParser.h>
 #include <nodel/impl/Object.h>
 
 #include <fstream>
@@ -22,32 +21,36 @@
 namespace nodel {
 namespace filesystem {
 
-class CsvFile : public File
+class TextFile : public File
 {
   public:
-    CsvFile(const std::string& ext) : File(ext, Object::LIST_I) {}
+    TextFile(const std::string& ext) : File(ext, Object::STR_I) {}
 
-    DataSource* new_instance(const Object& target) const override { return new CsvFile(ext()); }
+    DataSource* new_instance(const Object& target) const override { return new TextFile(ext()); }
 
     void read(const Object& target, Object& cache) override;
     void write(const Object& target, const Object& cache) override;
 };
 
 inline
-void CsvFile::read(const Object& target, Object& cache) {
+void TextFile::read(const Object& target, Object& cache) {
     auto fpath = path(target).string();
-    std::string error;
-    cache.refer_to(csv::parse_file(fpath, error));
-    if (error.size() > 0) set_failed(true);
+    auto size = std::filesystem::file_size(fpath);
+    std::ifstream f_in{fpath, std::ios::in | std::ios::binary};
+    cache = "";
+    auto& str = cache.as<String>();
+    str.resize(size);
+    f_in.read(str.data(), size);
+    if (f_in.fail() || f_in.bad())  set_failed(true);
 }
 
 inline
-void CsvFile::write(const Object& target, const Object& cache) {
+void TextFile::write(const Object& target, const Object& cache) {
     auto fpath = path(target).string();
+    auto& str = cache.as<String>();
     std::ofstream f_out{fpath + ext(), std::ios::out};
-
-    // TODO: unfinished
-
+    f_out.exceptions(std::ifstream::failbit);
+    f_out.write(&str[0], str.size());
     if (f_out.fail() || f_out.bad()) set_failed(true);
 }
 

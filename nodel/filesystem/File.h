@@ -13,9 +13,8 @@
 // limitations under the License.#pragma once
 #pragma once
 
-#include <filesystem>
-
 #include <nodel/impl/Object.h>
+#include <filesystem>
 
 namespace nodel {
 namespace filesystem {
@@ -23,7 +22,8 @@ namespace filesystem {
 class File : public DataSource
 {
   public:
-    File(const std::string& ext) : DataSource(Sparse::COMPLETE, 0), m_ext{ext} {}
+    File(const std::string& ext)                   : DataSource(Sparse::COMPLETE, 0), m_ext{ext} {}
+    File(const std::string& ext, ReprType repr_ix) : DataSource(Sparse::COMPLETE, 0, repr_ix), m_ext{ext} {}
 
     std::string ext() const { return m_ext; }
 

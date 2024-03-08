@@ -4,6 +4,7 @@
 #include <charconv>
 #include <iomanip>
 #include <concepts>
+#include <functional>
 
 #include "types.h"
 
@@ -23,6 +24,16 @@ std::string quoted(const std::string& str) {
   ss << std::quoted(str);
   return ss.str();
 }
+
+class OnBlockExit
+{
+  public:
+    template <typename Func>
+    OnBlockExit(Func&& func) : m_func{std::forward<Func>(func)} {}
+    ~OnBlockExit() { m_func(); }
+  private:
+    std::function<void()> m_func;
+};
 
 inline
 void make_path_step(const std::string_view& str, std::ostream& stream) {

@@ -16,6 +16,7 @@
 #include "Registry.h"
 #include "JsonFile.h"
 #include "CsvFile.h"
+#include "TextFile.h"
 
 namespace nodel {
 namespace filesystem {
@@ -26,8 +27,9 @@ class DefaultRegistry : public Registry
 {
   public:
     DefaultRegistry() {
-        m_ext_registry[".json"] = [] (const fs::path& path) { return new JsonFile(".json"); };
-        m_ext_registry[".csv"]  = [] (const fs::path& path) { return new CsvFile(".csv"); };
+        m_ext_registry[".json"] = [] (const Object&, const fs::path& path) { return new JsonFile(".json"); };
+        m_ext_registry[".csv"]  = [] (const Object&, const fs::path& path) { return new CsvFile(".csv"); };
+        m_ext_registry[".txt"]  = [] (const Object&, const fs::path& path) { return new TextFile(".txt"); };
     }
 
   template <typename> friend class ::nodel::Ref;

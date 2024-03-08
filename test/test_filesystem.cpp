@@ -31,6 +31,12 @@ TEST(Filesystem, DirectoryFiles) {
     EXPECT_TRUE(example_csv.get(7).is_list());
     EXPECT_EQ(example_csv.get(7).get(2), "Peg");
 
+    auto example_txt = obj.get("example.txt");
+    EXPECT_TRUE(example_txt.parent().is(obj));
+    EXPECT_TRUE(!example_txt.data_source<DataSource>()->is_fully_cached());
+    EXPECT_TRUE(example_txt.is_str());
+    EXPECT_TRUE(example_txt.as<String>().contains("boring"));
+
     auto example = obj.get("example.json");
     EXPECT_TRUE(example.parent().is(obj));
     EXPECT_TRUE(!example.data_source<DataSource>()->is_fully_cached());
@@ -55,4 +61,70 @@ TEST(Filesystem, Subdirectory) {
     EXPECT_TRUE(test_data_dir.get("more").get("example.csv").is_list());
     EXPECT_TRUE(test_data_dir.get("more").get("example.csv").get(-1).is_list());
     EXPECT_EQ(test_data_dir.get("more").get("example.csv").get(-1).get(-1), "andrew43514@gmail.comField Tags");
+}
+
+TEST(Filesystem, InvalidTextFile) {
+    auto wd = std::filesystem::current_path() / "test_data";
+    Object test_data_dir = new Directory(new DefaultRegistry(), wd);
+    Object txt_f = test_data_dir.get("example.txt");
+    EXPECT_TRUE(txt_f.is_valid());
+
+    auto txt_f_path = nodel::filesystem::path(txt_f);
+    std::filesystem::permissions(txt_f_path, std::filesystem::perms::none);
+
+    OnBlockExit reset_permissions([&txt_f_path](){
+        std::filesystem::permissions(
+            txt_f_path,
+            std::filesystem::perms::owner_read | std::filesystem::perms::owner_write
+            | std::filesystem::perms::group_read | std::filesystem::perms::group_write
+            | std::filesystem::perms::others_read
+        );
+    });
+
+    txt_f.reset();
+    EXPECT_FALSE(txt_f.is_valid());
+}
+
+TEST(Filesystem, InvalidCsvFile) {
+    auto wd = std::filesystem::current_path() / "test_data";
+    Object test_data_dir = new Directory(new DefaultRegistry(), wd);
+    Object csv_f = test_data_dir.get("example.csv");
+    EXPECT_TRUE(csv_f.is_valid());
+
+    auto csv_f_path = nodel::filesystem::path(csv_f);
+    std::filesystem::permissions(csv_f_path, std::filesystem::perms::none);
+
+    OnBlockExit reset_permissions([&csv_f_path](){
+        std::filesystem::permissions(
+            csv_f_path,
+            std::filesystem::perms::owner_read | std::filesystem::perms::owner_write
+            | std::filesystem::perms::group_read | std::filesystem::perms::group_write
+            | std::filesystem::perms::others_read
+        );
+    });
+
+    csv_f.reset();
+    EXPECT_FALSE(csv_f.is_valid());
+}
+
+TEST(Filesystem, InvalidJsonFile) {
+    auto wd = std::filesystem::current_path() / "test_data";
+    Object test_data_dir = new Directory(new DefaultRegistry(), wd);
+    Object json_f = test_data_dir.get("example.json");
+    EXPECT_TRUE(json_f.is_valid());
+
+    auto json_f_path = nodel::filesystem::path(json_f);
+    std::filesystem::permissions(json_f_path, std::filesystem::perms::none);
+
+    OnBlockExit reset_permissions([&json_f_path](){
+        std::filesystem::permissions(
+            json_f_path,
+            std::filesystem::perms::owner_read | std::filesystem::perms::owner_write
+            | std::filesystem::perms::group_read | std::filesystem::perms::group_write
+            | std::filesystem::perms::others_read
+        );
+    });
+
+    json_f.reset();
+    EXPECT_FALSE(json_f.is_valid());
 }

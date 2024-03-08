@@ -10,7 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.#pragma once
+// limitations under the License.
 #pragma once
 
 #include "File.h"
@@ -36,8 +36,8 @@ class JsonFile : public File
 
 inline
 void JsonFile::read_meta(const Object& target, Object& cache) {
-    auto fpath = path(target).string() + ext();
-    std::ifstream f_in{fpath + ext(), std::ios::in};
+    auto fpath = path(target).string();
+    std::ifstream f_in{fpath, std::ios::in};
     json::impl::Parser parser{f_in};
     cache = Object{(Object::ReprType)parser.parse_type()};
 }
@@ -47,15 +47,14 @@ void JsonFile::read(const Object& target, Object& cache) {
     auto fpath = path(target).string();
     std::string error;
     cache.refer_to(json::parse_file(fpath, error));
-    if (error.size() > 0) throw json::JsonException(error);
+    if (error.size() > 0) set_failed(true);
 }
 
 inline
 void JsonFile::write(const Object& target, const Object& cache) {
     auto fpath = path(target).string();
-    std::ofstream f_out{fpath + ext(), std::ios::out};
-    // TODO: write streaming to_json
-    f_out << cache.to_json() << std::endl;
+    std::ofstream f_out{fpath, std::ios::out};
+    cache.to_json(f_out);
 }
 
 } // namespace filesystem
