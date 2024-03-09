@@ -223,7 +223,7 @@ class Object
 
     Object()                           : m_repr{}, m_fields{EMPTY_I} {}
     Object(const std::string& str)     : m_repr{new IRCString{str, NoParent()}}, m_fields{STR_I} {}
-    Object(std::string&& str)          : m_repr{new IRCString(std::move(str), NoParent())}, m_fields{STR_I} {}
+    Object(std::string&& str)          : m_repr{new IRCString(std::forward<std::string>(str), NoParent())}, m_fields{STR_I} {}
     Object(const std::string_view& sv) : m_repr{new IRCString{{sv.data(), sv.size()}, NoParent()}}, m_fields{STR_I} {}
     Object(const char* v)              : m_repr{new IRCString{v, NoParent()}}, m_fields{STR_I} { assert(v != nullptr); }
     Object(bool v)                     : m_repr{v}, m_fields{BOOL_I} {}
@@ -792,14 +792,14 @@ Object::Object(const Map& map) : m_repr{new IRCMap({}, NoParent{})}, m_fields{OM
 }
 
 inline
-Object::Object(List&& list) : m_repr{new IRCList(std::move(list), NoParent{})}, m_fields{LIST_I} {
+Object::Object(List&& list) : m_repr{new IRCList(std::forward<List>(list), NoParent{})}, m_fields{LIST_I} {
     List& my_list = std::get<0>(*m_repr.pl);
     for (auto& obj : my_list)
         obj.set_parent(*this);
 }
 
 inline
-Object::Object(Map&& map) : m_repr{new IRCMap(std::move(map), NoParent{})}, m_fields{OMAP_I} {
+Object::Object(Map&& map) : m_repr{new IRCMap(std::forward<Map>(map), NoParent{})}, m_fields{OMAP_I} {
     Map& my_map = std::get<0>(*m_repr.pm);
     for (auto& [key, obj]: my_map)
         const_cast<Object&>(obj).set_parent(*this);
@@ -1998,8 +1998,9 @@ void Object::dec_ref_count() const {
     switch (m_fields.repr_ix) {
         case STR_I: {
             auto p_irc = self.m_repr.ps;
-            if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0)
+            if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
                 delete p_irc;
+            }
             break;
         }
         case LIST_I: {
@@ -2022,8 +2023,9 @@ void Object::dec_ref_count() const {
         }
         case DSRC_I: {
             auto* p_ds = self.m_repr.ds;
-            if (p_ds->dec_ref_count() == 0)
+            if (p_ds->dec_ref_count() == 0) {
                 delete p_ds;
+            }
             break;
         }
         default:

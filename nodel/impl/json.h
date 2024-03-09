@@ -188,6 +188,7 @@ bool Parser<StreamType>::parse_number() {
     if (is_float) {
         m_curr.refer_to(Object{strtod(str, &end)});
     } else {
+        errno = 0;
         m_curr.refer_to(Object{strtoll(str, &end, 10)});
         if (errno) {
             errno = 0;
