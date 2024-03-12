@@ -63,68 +63,44 @@ TEST(Filesystem, Subdirectory) {
     EXPECT_EQ(test_data_dir.get("more").get("example.csv").get(-1).get(-1), "andrew43514@gmail.comField Tags");
 }
 
-TEST(Filesystem, InvalidTextFile) {
+TEST(Filesystem, TreeIteration) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object test_data_dir = new Directory(new DefaultRegistry(), wd);
-    Object txt_f = test_data_dir.get("example.txt");
-    EXPECT_TRUE(txt_f.is_valid());
+    for (const auto& fs_obj : test_data_dir.iter_tree()) {
 
-    auto txt_f_path = nodel::filesystem::path(txt_f);
-    std::filesystem::permissions(txt_f_path, std::filesystem::perms::none);
+    }
+}
 
-    OnBlockExit reset_permissions([&txt_f_path](){
+void test_invalid_file(const char* file_name) {
+    auto wd = std::filesystem::current_path() / "test_data";
+    Object test_data_dir = new Directory(new DefaultRegistry(), wd);
+    Object fs_obj = test_data_dir.get(file_name);
+    EXPECT_TRUE(fs_obj.is_valid());
+
+    auto fs_obj_path = nodel::filesystem::path(fs_obj);
+    std::filesystem::permissions(fs_obj_path, std::filesystem::perms::none);
+
+    OnBlockExit reset_permissions([&fs_obj_path](){
         std::filesystem::permissions(
-            txt_f_path,
+            fs_obj_path,
             std::filesystem::perms::owner_read | std::filesystem::perms::owner_write
             | std::filesystem::perms::group_read | std::filesystem::perms::group_write
             | std::filesystem::perms::others_read
         );
     });
 
-    txt_f.reset();
-    EXPECT_FALSE(txt_f.is_valid());
+    fs_obj.reset();
+    EXPECT_FALSE(fs_obj.is_valid());
+}
+
+TEST(Filesystem, InvalidTextFile) {
+    test_invalid_file("example.txt");
 }
 
 TEST(Filesystem, InvalidCsvFile) {
-    auto wd = std::filesystem::current_path() / "test_data";
-    Object test_data_dir = new Directory(new DefaultRegistry(), wd);
-    Object csv_f = test_data_dir.get("example.csv");
-    EXPECT_TRUE(csv_f.is_valid());
-
-    auto csv_f_path = nodel::filesystem::path(csv_f);
-    std::filesystem::permissions(csv_f_path, std::filesystem::perms::none);
-
-    OnBlockExit reset_permissions([&csv_f_path](){
-        std::filesystem::permissions(
-            csv_f_path,
-            std::filesystem::perms::owner_read | std::filesystem::perms::owner_write
-            | std::filesystem::perms::group_read | std::filesystem::perms::group_write
-            | std::filesystem::perms::others_read
-        );
-    });
-
-    csv_f.reset();
-    EXPECT_FALSE(csv_f.is_valid());
+    test_invalid_file("example.csv");
 }
 
 TEST(Filesystem, InvalidJsonFile) {
-    auto wd = std::filesystem::current_path() / "test_data";
-    Object test_data_dir = new Directory(new DefaultRegistry(), wd);
-    Object json_f = test_data_dir.get("example.json");
-    EXPECT_TRUE(json_f.is_valid());
-
-    auto json_f_path = nodel::filesystem::path(json_f);
-    std::filesystem::permissions(json_f_path, std::filesystem::perms::none);
-
-    OnBlockExit reset_permissions([&json_f_path](){
-        std::filesystem::permissions(
-            json_f_path,
-            std::filesystem::perms::owner_read | std::filesystem::perms::owner_write
-            | std::filesystem::perms::group_read | std::filesystem::perms::group_write
-            | std::filesystem::perms::others_read
-        );
-    });
-
-    json_f.reset();
-    EXPECT_FALSE(json_f.is_valid());
+    test_invalid_file("example.json");
 }

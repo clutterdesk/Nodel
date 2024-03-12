@@ -671,13 +671,49 @@ TEST(Object, TreeRange) {
     List list;
     for (auto des : obj.iter_tree())
         list.push_back(des);
-    EXPECT_EQ(list.size(), 16);
+    ASSERT_EQ(list.size(), 16);
     EXPECT_TRUE(list[0].is(obj));
     EXPECT_TRUE(list[1].is(obj.get("a")));
     EXPECT_TRUE(list[7].is(obj.get("b").get(2)));
     EXPECT_TRUE(list[8].is(obj.get("b").get(3)));
     EXPECT_EQ(list[9], "B0A");
     EXPECT_EQ(list[15], "B1CA");
+}
+
+TEST(Object, TreeRange_VisitPred) {
+    Object obj = parse_json(R"({
+        "a": {"aa": "AA", "ab": "AB"}, 
+        "b": [{"b0a": "B0A", "b0b": "B0B"}, 
+              {"b1a": "B1A", "b1b": ["B1B0"], "b1c": {"b1ca": "B1CA"}},
+              [], "B2"]
+    })");
+    List list;
+    auto pred = [](const Object& o) { return o.is_type<String>() && o.as<String>()[0] == 'B'; };
+    for (auto des : obj.iter_tree(pred))
+        list.push_back(des);
+    ASSERT_EQ(list.size(), 6);
+    EXPECT_TRUE(list[0].is(obj.get("b").get(3)));
+    EXPECT_TRUE(list[1].is(obj.get("b").get(0).get("b0a")));
+    EXPECT_TRUE(list[5].is(obj.get("b").get(1).get("b1c").get("b1ca")));
+}
+
+TEST(Object, TreeRange_EnterPred) {
+    Object obj = parse_json(R"({
+        "a": {"aa": "AA", "ab": "AB"}, 
+        "b": [{"b0a": "B0A", "b0b": "B0B"}, 
+              {"b1a": "B1A", "b1b": ["B1B0"], "b1c": {"b1ca": "B1CA"}},
+              [], "B2"]
+    })");
+    List list;
+    auto pred = [](const Object& o) { return o.is_map(); };
+    for (auto des : obj.iter_tree_if(pred))
+        list.push_back(des);
+    ASSERT_EQ(list.size(), 5);
+    EXPECT_TRUE(list[0].is(obj));
+    EXPECT_TRUE(list[1].is(obj.get("a")));
+    EXPECT_TRUE(list[2].is(obj.get("b")));
+    EXPECT_TRUE(list[3].is(obj.get("a").get("aa")));
+    EXPECT_TRUE(list[4].is(obj.get("a").get("ab")));
 }
 
 TEST(Object, ChildrenRangeMultiuser) {

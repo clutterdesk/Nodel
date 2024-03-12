@@ -83,6 +83,9 @@ class KeyRange;
 class ValueRange;
 class ItemRange;
 
+using Predicate = std::function<bool(const Object&)>;
+struct NoPredicate {};
+
 using String = std::string;
 using List = std::vector<Object>;
 using Map = tsl::ordered_map<Key, Object, KeyHash>;
@@ -111,7 +114,7 @@ class Object
   public:
     template <class ValueType> class LineageRange;
     template <class ValueType> class ChildrenRange;
-    template <class ValueType> class TreeRange;
+    template <class ValueType, typename VisitPred, typename EnterPred> class TreeRange;
 
     // TODO: remove _I suffix
     enum ReprType {
@@ -267,7 +270,17 @@ class Object
     ValueRange iter_values() const;
 
     LineageRange<Object> iter_lineage() const;
-    TreeRange<Object> iter_tree() const;
+
+    TreeRange<Object, NoPredicate, NoPredicate> iter_tree() const;
+
+    template <typename VisitPred>
+    TreeRange<Object, Predicate, NoPredicate> iter_tree(VisitPred&&) const;
+
+    template <typename EnterPred>
+    TreeRange<Object, NoPredicate, Predicate> iter_tree_if(EnterPred&&) const;
+
+    template <typename VisitPred, typename EnterPred>
+    TreeRange<Object, Predicate, Predicate> iter_tree_if(VisitPred&&, EnterPred&&) const;
 
     template <typename Visitor>
     void iter_visit(Visitor&&) const;
@@ -286,6 +299,7 @@ class Object
     template <typename T>
     T value_cast() const;
 
+    // TODO: doesn't work for List, Map
     template <typename T>
     bool is_type() const { return resolve_repr_ix() == ix_conv<T>(); }
 
@@ -426,7 +440,7 @@ class Object
   friend class WalkBF;
 
   template <class ValueType> friend class LineageIterator;
-  template <class ValueType> friend class TreeIterator;
+  template <class ValueType, typename VisitPred, typename EnterPred> friend class TreeIterator;
 };
 
 
@@ -2079,35 +2093,45 @@ inline Object::LineageRange<Object> Object::iter_lineage() const {
 }
 
 
-template <class ValueType>
+template <class ValueType, typename VisitPred, typename EnterPred>
 class TreeIterator
 {
   public:
     TreeIterator() = default;
 
-    TreeIterator(const Object& object) {
-        m_fifo.push_back(object);
-        m_it = m_fifo.front().begin();
-        m_end = m_fifo.front().end();
-    }
+//    TreeIterator(const Object& object, Predicate&& predicate) : m_pred{std::forward<Predicate>(pred)} {
+//        m_fifo.push_back(object);
+//        m_it = m_fifo.front().begin();
+//        m_end = m_fifo.front().end();
+//    }
 
-    TreeIterator(List& list) : m_it{list.begin()}, m_end{list.end()} {
+    TreeIterator(List& list, auto&& visit_pred, auto&& enter_pred)
+      : m_it{list.begin()}
+      , m_end{list.end()}
+      , m_visit_pred{visit_pred}
+      , m_enter_pred{enter_pred}
+    {
         m_fifo.push_back(Object{null});  // dummy
         m_fifo.push_back(list[0]);
+        if (!visit(*m_it)) ++(*this);
     }
 
     TreeIterator& operator ++ () {
-        ++m_it;
-        while (m_it == m_end) {
-            m_fifo.pop_front();
-            if (m_fifo.empty()) break;
-            m_it = m_fifo.front().begin();
-            m_end = m_fifo.front().end();
-        }
-        if (m_it != m_end) {
+        while (1) {
+            ++m_it;
+
+            while (m_it == m_end) {
+                m_fifo.pop_front();
+                if (m_fifo.empty()) break;
+                m_it = m_fifo.front().begin();
+                m_end = m_fifo.front().end();
+            }
+
+            if (m_it == m_end) break;
+
             const Object& obj = *m_it;
-            if (obj.is_container() || obj.has_data_source())
-                m_fifo.push_back(*m_it);
+            enter(obj);
+            if (visit(obj)) break;
         }
         return *this;
     }
@@ -2116,24 +2140,74 @@ class TreeIterator
     bool operator == (const TreeIterator& other) const { return m_fifo.empty(); }
 
   private:
+    bool visit(const Object& obj) {
+        if constexpr (std::is_invocable<VisitPred, const Object&>::value) {
+            return !m_visit_pred || m_visit_pred(obj);
+        } else {
+            return true;
+        }
+    }
+
+    void enter(const Object& obj) {
+        if constexpr (std::is_invocable<EnterPred, const Object&>::value) {
+            if ((obj.is_container() || obj.has_data_source()) && (!m_enter_pred || m_enter_pred(obj)))
+                m_fifo.push_back(obj);
+        } else {
+            if (obj.is_container() || obj.has_data_source())
+                m_fifo.push_back(obj);
+        }
+    }
+
+  private:
     std::deque<ValueRange> m_fifo;
     ValueIterator m_it;
     ValueIterator m_end;
+    VisitPred m_visit_pred;
+    EnterPred m_enter_pred;
 };
 
-template <class ValueType>
+template <class ValueType, typename VisitPred, typename EnterPred>
 class Object::TreeRange
 {
   public:
-    TreeRange(const Object& object) { m_list.push_back(object); }
-    TreeIterator<ValueType> begin() const { return const_cast<List&>(m_list); }
-    TreeIterator<ValueType> end() const   { return {}; }
+    TreeRange(const Object& object, VisitPred&& visit_pred, EnterPred&& enter_pred)
+      : m_visit_pred{visit_pred}
+      , m_enter_pred{enter_pred}
+    {
+        m_list.push_back(object);
+    }
+
+    TreeIterator<ValueType, VisitPred, EnterPred> begin() const {
+        return {const_cast<List&>(m_list), m_visit_pred, m_enter_pred};
+    }
+
+    TreeIterator<ValueType, VisitPred, EnterPred> end() const   { return {}; }
 
   private:
     List m_list;
+    VisitPred m_visit_pred;
+    EnterPred m_enter_pred;
 };
 
-inline Object::TreeRange<Object> Object::iter_tree() const { return *this; }
+inline
+Object::TreeRange<Object, NoPredicate, NoPredicate> Object::iter_tree() const {
+    return {*this, NoPredicate{}, NoPredicate{}};
+}
+
+template <typename VisitPred>
+Object::TreeRange<Object, Predicate, NoPredicate> Object::iter_tree(VisitPred&& visit_pred) const {
+    return {*this, std::forward<Predicate>(visit_pred), NoPredicate{}};
+}
+
+template <typename EnterPred>
+Object::TreeRange<Object, NoPredicate, Predicate> Object::iter_tree_if(EnterPred&& enter_pred) const {
+    return {*this, NoPredicate{}, std::forward<Predicate>(enter_pred)};
+}
+
+template <typename VisitPred, typename EnterPred>
+Object::TreeRange<Object, Predicate, Predicate> Object::iter_tree_if(VisitPred&& visit_pred, EnterPred&& enter_pred) const {
+    return {*this, std::forward<Predicate>(visit_pred), std::forward<Predicate>(enter_pred)};
+}
 
 
 inline
