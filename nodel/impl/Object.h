@@ -192,6 +192,8 @@ class Object
     template <> ReprType ix_conv<UInt>() const   { return UINT_I; }
     template <> ReprType ix_conv<Float>() const  { return FLOAT_I; }
     template <> ReprType ix_conv<String>() const { return STR_I; }
+    template <> ReprType ix_conv<List>() const   { return LIST_I; }
+    template <> ReprType ix_conv<Map>() const    { return OMAP_I; }
 
     template <typename T> T val_conv() const requires is_byvalue<T>;
     template <> bool val_conv<bool>() const     { return m_repr.b; }

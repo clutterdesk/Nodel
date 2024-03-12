@@ -705,7 +705,7 @@ TEST(Object, TreeRange_EnterPred) {
               [], "B2"]
     })");
     List list;
-    auto pred = [](const Object& o) { return o.is_map(); };
+    auto pred = [](const Object& o) { return o.is_type<Map>(); };
     for (auto des : obj.iter_tree_if(pred))
         list.push_back(des);
     ASSERT_EQ(list.size(), 5);
@@ -714,6 +714,23 @@ TEST(Object, TreeRange_EnterPred) {
     EXPECT_TRUE(list[2].is(obj.get("b")));
     EXPECT_TRUE(list[3].is(obj.get("a").get("aa")));
     EXPECT_TRUE(list[4].is(obj.get("a").get("ab")));
+}
+
+TEST(Object, TreeRange_VisitAndEnterPred) {
+    Object obj = parse_json(R"({
+        "a": {"aa": "AA", "ab": "AB"}, 
+        "b": [{"b0a": "B0A", "b0b": "B0B"}, 
+              {"b1a": "B1A", "b1b": ["B1B0"], "b1c": {"b1ca": "B1CA"}},
+              [], "B2"]
+    })");
+    List list;
+    auto visit_pred = [](const Object& o) { return o.is_type<String>(); };
+    auto enter_pred = [](const Object& o) { return o.is_type<Map>(); };
+    for (auto des : obj.iter_tree_if(visit_pred, enter_pred))
+        list.push_back(des);
+    ASSERT_EQ(list.size(), 2);
+    EXPECT_EQ(list[0], "AA");
+    EXPECT_EQ(list[1], "AB");
 }
 
 TEST(Object, ChildrenRangeMultiuser) {
