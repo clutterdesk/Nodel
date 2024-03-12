@@ -10,7 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.#pragma once
+// limitations under the License.
 #pragma once
 
 #include "File.h"
@@ -50,8 +50,8 @@ class SubDirectory : public DataSource
     DataSource* new_instance(const Object& target) const override { return new SubDirectory(m_mode); }
 
     void read_meta(const Object&, Object&) override { assert (false); } // TODO: remove, later
-    void read(const Object& target, Object& cache) override;
-    void write(const Object& target, const Object& cache) override;
+    void read(const Object& target, Object&) override;
+    void write(const Object& target, const Object&) override;
 };
 
 } // namespace impl
@@ -94,18 +94,18 @@ bool is_fs(const Object& obj) {
 }
 
 inline
-bool is_fs_head(const Object& obj) {
+bool is_fs_root(const Object& obj) {
     return obj.data_source<Directory>() != nullptr;
 }
 
 inline
-Object find_fs_head(const Object& target) {
-    return find_first(target.iter_lineage(), is_fs_head);
+Object find_fs_root(const Object& target) {
+    return find_first(target.iter_lineage(), is_fs_root);
 }
 
 inline
 std::filesystem::path path(const Object& obj) {
-    auto head_anc = find_fs_head(obj);
+    auto head_anc = find_fs_root(obj);
     if (head_anc.is_empty()) throw DirectoryNotFound();
 
     auto p_dsrc = head_anc.data_source<Directory>();
@@ -119,7 +119,7 @@ std::filesystem::path path(const Object& obj) {
 
 inline
 void impl::SubDirectory::read(const Object& target, Object& cache) {
-    auto head_anc = find_fs_head(target);
+    auto head_anc = find_fs_root(target);
     if (head_anc.is_empty()) throw DirectoryNotFound();
 
     auto opath = target.path(head_anc.parent());

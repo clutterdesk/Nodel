@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <numeric>
 #include <vector>
+#include <iostream>
 
 using namespace std::chrono;
 
@@ -19,12 +20,12 @@ class Stopwatch
 
     template <typename Func>
     void measure(float seconds, Func&& func) {
-        while (seconds > 0) {
+        do {
             start();
             func();
             stop();
             seconds -= m_history.back() / 1e9;
-        }
+        } while (seconds > 0);
     }
 
     void start() {

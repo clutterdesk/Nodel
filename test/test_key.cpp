@@ -16,7 +16,7 @@ TEST(Key, Bool) {
   Key k{true};
   EXPECT_TRUE(k.is_bool());
   EXPECT_EQ(k.to_str(), "true");
-  EXPECT_EQ(k.as_bool(), true);
+  EXPECT_EQ(k.as<bool>(), true);
 }
 
 TEST(Key, Int) {
@@ -24,7 +24,7 @@ TEST(Key, Int) {
   Key k{v};
   EXPECT_TRUE(k.is_int());
   EXPECT_EQ(k.to_str(), int_to_str(v));
-  EXPECT_EQ(k.as_int(), v);
+  EXPECT_EQ(k.as<Int>(), v);
 }
 
 TEST(Key, UInt) {
@@ -32,7 +32,7 @@ TEST(Key, UInt) {
   Key k{v};
   EXPECT_TRUE(k.is_uint());
   EXPECT_EQ(k.to_str(), int_to_str(v));
-  EXPECT_EQ(k.as_uint(), v);
+  EXPECT_EQ(k.as<UInt>(), v);
 }
 
 TEST(Key, Float) {
@@ -40,7 +40,7 @@ TEST(Key, Float) {
   Key k{v};
   EXPECT_TRUE(k.is_float());
   EXPECT_EQ(k.to_str(), "8.8541878128e-12");
-  EXPECT_EQ(k.as_float(), v);
+  EXPECT_EQ(k.as<Float>(), v);
 
   Key k2 = -2.2250738585072020e-308;
   EXPECT_TRUE(k2.is_float());
@@ -51,7 +51,7 @@ TEST(Key, StringLiteral) {
     Key k{"foo"s};
     EXPECT_TRUE(k.is_str());
     EXPECT_EQ(k.to_str(), "foo");
-    EXPECT_EQ(k.as_str(), "foo");
+    EXPECT_EQ(k.as<String>(), "foo");
 }
 
 TEST(Key, String) {
@@ -59,24 +59,24 @@ TEST(Key, String) {
     Key k{s};
     EXPECT_TRUE(k.is_str());
     EXPECT_EQ(k.to_str(), "foo");
-    EXPECT_EQ(k.as_str(), "foo");
+    EXPECT_EQ(k.as<String>(), "foo");
 }
 
 TEST(Key, AssignNull) {
   Key k{1};
   EXPECT_TRUE(k.is_int());
-  EXPECT_EQ(k.as_int(), 1);
-  k = nullptr;
+  EXPECT_EQ(k.as<Int>(), 1);
+  k = null;
   EXPECT_TRUE(k.is_null());
 }
 
 TEST(Key, AssignBool) {
   Key k{7};
   EXPECT_TRUE(k.is_int());
-  EXPECT_EQ(k.as_int(), 7);
+  EXPECT_EQ(k.as<Int>(), 7);
   k = true;
   EXPECT_TRUE(k.is_bool());
-  EXPECT_EQ(k.as_bool(), true);
+  EXPECT_EQ(k.as<bool>(), true);
 }
 
 TEST(Key, AssignInt) {
@@ -84,7 +84,7 @@ TEST(Key, AssignInt) {
   EXPECT_TRUE(k.is_null());
   k = 7;
   EXPECT_TRUE(k.is_int());
-  EXPECT_EQ(k.as_int(), 7);
+  EXPECT_EQ(k.as<Int>(), 7);
 }
 
 TEST(Key, AssignUInt) {
@@ -92,7 +92,7 @@ TEST(Key, AssignUInt) {
     EXPECT_TRUE(k.is_null());
     k = 7UL;
     EXPECT_TRUE(k.is_uint());
-    EXPECT_EQ(k.as_uint(), 7UL);
+    EXPECT_EQ(k.as<UInt>(), 7UL);
 }
 
 TEST(Key, AssignFloat) {
@@ -108,7 +108,7 @@ TEST(Key, AssignStringLiteral) {
     EXPECT_TRUE(k.is_null());
     k = "foo"s;
     EXPECT_TRUE(k.is_str());
-    EXPECT_EQ(k.as_str(), "foo");
+    EXPECT_EQ(k.as<String>(), "foo");
 }
 
 TEST(Key, CompareBool) {

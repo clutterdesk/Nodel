@@ -16,6 +16,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fmt/core.h>
+#include <memory>
 
 #include "support.h"
 #include "Oid.h"
@@ -75,6 +76,12 @@ struct PathSyntax : std::exception
 class Object;
 class OPath;
 class DataSource;
+class KeyIterator;
+class ValueIterator;
+class ItemIterator;
+class KeyRange;
+class ValueRange;
+class ItemRange;
 
 using String = std::string;
 using List = std::vector<Object>;
@@ -102,28 +109,24 @@ constexpr size_t min_key_chunk_size = 128;
 class Object
 {
   public:
-    template <class KeyType> class KeyRange;
-    template <class KeyType> class KeyIterator;
-
     template <class ValueType> class LineageRange;
     template <class ValueType> class ChildrenRange;
-    template <class ValueType> class SiblingRange;
     template <class ValueType> class TreeRange;
 
     // TODO: remove _I suffix
     enum ReprType {
         EMPTY_I,  // uninitialized
-        NULL_I,   // json null
+        NULL_I,   // json null, also used for non-existent parent
         BOOL_I,
         INT_I,
         UINT_I,
         FLOAT_I,
         STR_I,
         LIST_I,
+        SMAP_I,   // TODO small ordered map (also update *Iterator classes)
         OMAP_I,   // ordered map
-        UMAP_I,   // TODO unordered map
-        RBMAP_I,  // TODO red-black tree
-        TABLE_I,  // TODO map-like key access, all rows have same keys (ex: CSV)
+        RBTREE_I, // TODO (also update *Iterator classes)
+        TABLE_I,  // TODO map-like key access, all rows have same keys (ex: CSV) (also update *Iterator classes)
         BIGI_I,   // TODO big integer with
         BIGF_I,   // TODO
         VI4_I,    // TODO
@@ -193,6 +196,12 @@ class Object
     template <> UInt val_conv<UInt>() const     { return m_repr.u; }
     template <> Float val_conv<Float>() const   { return m_repr.f; }
 
+    template <typename T> T& val_conv() requires is_byvalue<T>;
+    template <> bool& val_conv<bool>()     { return m_repr.b; }
+    template <> Int& val_conv<Int>()       { return m_repr.i; }
+    template <> UInt& val_conv<UInt>()     { return m_repr.u; }
+    template <> Float& val_conv<Float>()   { return m_repr.f; }
+
     template <typename T> const T& val_conv() const requires std::is_same<T, String>::value { return std::get<0>(*m_repr.ps); }
     template <typename T> T& val_conv() requires std::is_same<T, String>::value             { return std::get<0>(*m_repr.ps); }
 
@@ -222,6 +231,7 @@ class Object
     static constexpr refcnt_t no_ref_count = std::numeric_limits<refcnt_t>::max();
 
     Object()                           : m_repr{}, m_fields{EMPTY_I} {}
+    Object(null_t)                     : m_repr{}, m_fields{NULL_I} {}
     Object(const std::string& str)     : m_repr{new IRCString{str, NoParent()}}, m_fields{STR_I} {}
     Object(std::string&& str)          : m_repr{new IRCString(std::forward<std::string>(str), NoParent())}, m_fields{STR_I} {}
     Object(const std::string_view& sv) : m_repr{new IRCString{{sv.data(), sv.size()}, NoParent()}}, m_fields{STR_I} {}
@@ -252,20 +262,19 @@ class Object
     Object root() const;
     Object parent() const;
 
+    KeyRange iter_keys() const;
+    ItemRange iter_items() const;
+    ValueRange iter_values() const;
+
     LineageRange<Object> iter_lineage() const;
-    ChildrenRange<Object> iter_children() const;
-    SiblingRange<Object> iter_siblings() const;
     TreeRange<Object> iter_tree() const;
 
     template <typename Visitor>
     void iter_visit(Visitor&&) const;
 
-    KeyRange<const Key> iter_keys() const;
-    KeyRange<Key> iter_keys();
-
     const KeyList keys() const;
     const ItemList items() const;
-    const List children() const;
+    const List values() const;
 
     size_t size() const;
 
@@ -284,14 +293,7 @@ class Object
     void visit(V&& visitor) const;
 
     template <typename T>
-    const T as() const requires is_byvalue<T> {
-        if (m_fields.repr_ix == ix_conv<T>()) return val_conv<T>();
-        else if (m_fields.repr_ix == DSRC_I) return dsrc_read().as<T>();
-        throw wrong_type(m_fields.repr_ix);
-    }
-
-    template <typename T>
-    T& as() requires std::is_same<T, String>::value {
+    T as() const requires is_byvalue<T> {
         if (m_fields.repr_ix == ix_conv<T>()) return val_conv<T>();
         else if (m_fields.repr_ix == DSRC_I) return dsrc_read().as<T>();
         throw wrong_type(m_fields.repr_ix);
@@ -299,6 +301,20 @@ class Object
 
     template <typename T>
     const T& as() const requires std::is_same<T, String>::value {
+        if (m_fields.repr_ix == ix_conv<T>()) return val_conv<T>();
+        else if (m_fields.repr_ix == DSRC_I) return dsrc_read().as<T>();
+        throw wrong_type(m_fields.repr_ix);
+    }
+
+    template <typename T>
+    T& as() requires is_byvalue<T> {
+        if (m_fields.repr_ix == ix_conv<T>()) return val_conv<T>();
+        else if (m_fields.repr_ix == DSRC_I) return dsrc_read().as<T>();
+        throw wrong_type(m_fields.repr_ix);
+    }
+
+    template <typename T>
+    T& as() requires std::is_same<T, String>::value {
         if (m_fields.repr_ix == ix_conv<T>()) return val_conv<T>();
         else if (m_fields.repr_ix == DSRC_I) return dsrc_read().as<T>();
         throw wrong_type(m_fields.repr_ix);
@@ -374,11 +390,17 @@ class Object
     template <class DataSourceType>
     DataSourceType* data_source() const;
 
+    bool has_data_source() const { return m_fields.repr_ix == DSRC_I; }
+
     void save();
     void reset();
     void reset_key(const Key&);
     void refresh();
     void refresh_key(const Key&);
+
+    static WrongType wrong_type(uint8_t actual)                   { return type_name(actual); };
+    static WrongType wrong_type(uint8_t actual, uint8_t expected) { return {type_name(actual), type_name(expected)}; };
+    static EmptyReference empty_reference(const char* func_name)  { return func_name; }
 
   protected:
     int resolve_repr_ix() const;
@@ -388,24 +410,24 @@ class Object
     void clear_parent() const;
     void weak_refer_to(const Object&);
 
-    static WrongType wrong_type(uint8_t actual)                   { return type_name(actual); };
-    static WrongType wrong_type(uint8_t actual, uint8_t expected) { return {type_name(actual), type_name(expected)}; };
-    static EmptyReference empty_reference(const char* func_name)  { return func_name; }
-
   protected:
     Repr m_repr;
     Fields m_fields;
 
   friend class DataSource;
+  friend class KeyIterator;
+  friend class ValueIterator;
+  friend class ItemIterator;
+  friend class KeyRange;
+  friend class ValueRange;
+  friend class ItemRange;
+
   friend class WalkDF;
   friend class WalkBF;
+
   template <class ValueType> friend class LineageIterator;
-  template <class ValueType> friend class ChildrenIterator;
-  template <class ValueType> friend class SiblingIterator;
   template <class ValueType> friend class TreeIterator;
 };
-
-constexpr Object::ReprType null = Object::NULL_I;
 
 
 class OPath
@@ -491,86 +513,53 @@ OPath Object::path(const Object& root) const {
 class DataSource
 {
   public:
-    template <class ChunkType>
-    class ChunkIterator
+    class KeyIterator
     {
       public:
-        virtual ~ChunkIterator() = default;
-        virtual ChunkType& next() = 0;
-        virtual bool destroy() = 0;
+        virtual ~KeyIterator() {}
+        void next() { if (!next_impl()) m_key = null; }
+        Key& key() { return m_key; }
+        bool done() const { return m_key.is_null(); }
+
+        KeyIterator& begin() { return *this; }
+        KeyIterator& end() { return *this; }
+
+      protected:
+        virtual bool next_impl() = 0;
+        Key m_key;
     };
 
-    template <class ChunkType, typename ValueType>
-    class Iterator
-    {
-      using IterType = std::conditional<std::is_const<ValueType>::value,
-                                        typename ChunkType::const_iterator,
-                                        typename ChunkType::iterator>::type;
-
-      public:
-        Iterator() = default;
-        Iterator(ChunkIterator<ChunkType>* p_chit) : mp_chit{p_chit} { next(); }
-        ~Iterator() { if (mp_chit != nullptr && mp_chit->destroy()) delete mp_chit; }
-
-        Iterator(Iterator&& other) : mp_chit{other.mp_chit} { other.mp_chit = nullptr; }
-        auto& operator = (Iterator&& other) { mp_chit = other.mp_chit; other.mp_chit = nullptr; return *this; }
-
-        auto& operator ++ ()                     { if (++m_it == m_end) next(); return *this; }
-        auto operator * () const                 { return *m_it; }
-        bool operator == (const Iterator&) const { return m_it == m_end; }
-        bool operator == (auto&&) const          { return m_it == m_end; }
-        bool done() const                        { return m_it == m_end; }
-
-        bool is_valid() const { return mp_chit != nullptr; }
-
-      private:
-        void next() {
-            auto& chunk = mp_chit->next();
-            m_it = chunk.begin();
-            m_end = chunk.end();
-        }
-
-      private:
-        ChunkIterator<ChunkType>* mp_chit = nullptr;
-        IterType m_it;
-        IterType m_end;
-    };
-
-    template <class ChunkType, typename ValueType>
-    class Range
+    class ValueIterator
     {
       public:
-        using ChunkIterator = DataSource::ChunkIterator<ChunkType>;
-        constexpr static int sentinel = 0;
+        virtual ~ValueIterator() {}
+        void next() { if (!next_impl()) m_value.release(); }
+        Object& value() { return m_value; }
+        bool done() const { return m_value.is_empty(); }
 
-        Range(ChunkIterator* p_chit) : mp_chit{p_chit} {}
-        Iterator<ChunkType, const ValueType> begin() const { return mp_chit; }
-        Iterator<ChunkType, ValueType> begin()             { return mp_chit; }
-        int end() const { return sentinel; }
+        ValueIterator& begin() { return *this; }
+        ValueIterator& end() { return *this; }
 
-      private:
-        ChunkIterator* mp_chit;
+      protected:
+        virtual bool next_impl() = 0;
+        Object m_value;
     };
 
-    using ConstStringIterator = Iterator<String, const char>;
-    using ConstKeyIterator = Iterator<KeyList, const Key>;
-    using ConstValueIterator = Iterator<List, const Object>;
-    using ConstItemIterator = Iterator<ItemList, const Item>;
+    class ItemIterator
+    {
+      public:
+        virtual ~ItemIterator() {}
+        void next() { if (!next_impl()) std::get<0>(m_item) = null; }
+        Item& item() { return m_item; }
+        bool done() const { return m_item.first.is_null(); }
 
-    using StringIterator = Iterator<String, char>;
-    using KeyIterator = Iterator<KeyList, Key>;
-    using ValueIterator = Iterator<List, Object>;
-    using ItemIterator = Iterator<ItemList, Item>;
+        ItemIterator& begin() { return *this; }
+        ItemIterator& end() { return *this; }
 
-    using ConstStringRange = Range<String, const char>;
-    using ConstKeyRange = Range<KeyList, const Key>;
-    using ConstValueRange = Range<List, const Object>;
-    using ConstItemRange = Range<ItemList, ConstItem>;
-
-    using StringRange = Range<String, char>;
-    using KeyRange = Range<KeyList, Key>;
-    using ValueRange = Range<List, Object>;
-    using ItemRange = Range<ItemList, Item>;
+      protected:
+        virtual bool next_impl() = 0;
+        Item m_item;
+    };
 
   public:
     using ReprType = Object::ReprType;
@@ -598,10 +587,9 @@ class DataSource
     virtual void write_key(const Object& target, const Key&, Object&&)      {}  // sparse
 
   public:
-    virtual ChunkIterator<String>* str_iter()    { return nullptr; }  // sparse
-    virtual ChunkIterator<KeyList>* key_iter()   { return nullptr; }  // sparse
-    virtual ChunkIterator<List>* value_iter()    { return nullptr; }  // sparse
-    virtual ChunkIterator<ItemList>* item_iter() { return nullptr; }  // sparse
+    virtual std::unique_ptr<KeyIterator> key_iter()     { return nullptr; }
+    virtual std::unique_ptr<ValueIterator> value_iter() { return nullptr; }
+    virtual std::unique_ptr<ItemIterator> item_iter()   { return nullptr; }
 
     virtual std::string to_str(const Object& target) {
         insure_fully_cached(target);
@@ -655,82 +643,6 @@ class DataSource
     bool m_failed = false;
 
   friend class Object;
-};
-
-
-template <typename KeyType>
-class Object::KeyIterator
-{
-  public:
-    using MapIterator = std::conditional<std::is_const<KeyType>::value,
-                                         Map::const_iterator,
-                                         Map::iterator>::type;
-
-    using ChunkIterator = DataSource::ChunkIterator<KeyList>;
-    using DataSourceIterator = DataSource::Iterator<KeyList, KeyType>;
-
-    KeyIterator(const Map& map) {
-        if constexpr (std::is_const<KeyType>::value) {
-            m_map_it = map.cbegin();
-            m_map_end = map.cend();
-        } else {
-            m_map_it = map.begin();
-            m_map_end = map.end();
-        }
-    }
-
-    KeyIterator(ChunkIterator* p_chit) : m_ds_it{p_chit} {}
-    KeyIterator(KeyIterator&&) = default;
-
-    KeyIterator& operator ++ () {
-        if (m_ds_it.is_valid()) ++m_ds_it; else ++m_map_it;
-        return *this;
-    }
-
-    KeyType operator * () const {
-        return (m_ds_it.is_valid())? *m_ds_it: (*m_map_it).first;
-    }
-
-    bool operator == (auto&&) const {
-        return m_ds_it.is_valid()? m_ds_it.done(): (m_map_it == m_map_end);
-    }
-
-  private:
-    MapIterator m_map_it;
-    MapIterator m_map_end;
-    DataSourceIterator m_ds_it;
-};
-
-template <class KeyType>
-class Object::KeyRange
-{
-  public:
-    constexpr static auto sentinel = 0;
-
-  public:
-    KeyRange(const Object& obj) : m_obj{obj} {
-        if (obj.m_fields.repr_ix == DSRC_I)
-            mp_chit = obj.m_repr.ds->key_iter();
-    }
-
-    ~KeyRange() {
-        if (mp_chit != nullptr && mp_chit->destroy())
-            delete mp_chit;
-    }
-
-    KeyIterator<KeyType> begin() {
-        switch (m_obj.m_fields.repr_ix) {
-            case OMAP_I: return std::get<0>(*m_obj.m_repr.pm);
-            case DSRC_I: return mp_chit;
-            default:     throw wrong_type(m_obj.m_fields.repr_ix);
-        }
-    }
-
-    auto end() { return sentinel; }
-
-  private:
-    const Object& m_obj;
-    DataSource::ChunkIterator<KeyList>* mp_chit = nullptr;
 };
 
 
@@ -1490,10 +1402,19 @@ size_t Object::size() const {
     }
 }
 
+#include "KeyRange.h"
+#include "ValueRange.h"
+#include "ItemRange.h"
+
 // TODO: visit function constraints
 template <typename VisitFunc>
 void Object::iter_visit(VisitFunc&& visit) const {
     switch (m_fields.repr_ix) {
+        case NULL_I:  visit(Object{null}); break;
+        case BOOL_I:  visit(m_repr.b); break;
+        case INT_I:   visit(m_repr.i); break;
+        case UINT_I:  visit(m_repr.u); break;
+        case FLOAT_I: visit(m_repr.f); break;
         case STR_I: {
             for (auto c : std::get<0>(*m_repr.ps)) {
                 if (!visit(c))
@@ -1520,31 +1441,11 @@ void Object::iter_visit(VisitFunc&& visit) const {
             auto& dsrc = *m_repr.ds;
             if (dsrc.is_sparse()) {
                 auto type = dsrc.type(*this);
-                switch (type) {
-                    case STR_I: {
-                        DataSource::StringRange range{dsrc.str_iter()};
-                        for (auto c : range)
-                            if (!visit(c))
-                                break;
-                        return;
-                    }
-                    case LIST_I: {
-                        DataSource::ValueRange range{dsrc.value_iter()};
-                        for (auto val : range)
-                            if (!visit(val))
-                                break;
-                        return;
-                    }
-                    case OMAP_I: {
-                        DataSource::KeyRange range{dsrc.key_iter()};
-                        for (auto val : range)
-                            if (!visit(val))
-                                break;
-                        return;
-                    }
-                    default:
-                        throw wrong_type(type);
-                }
+                assert (type == OMAP_I);
+                KeyRange range{*this};
+                for (auto val : range)
+                    if (!visit(val))
+                        break;
             } else {
                 dsrc.get_cached(*this).iter_visit(visit);
             }
@@ -1555,8 +1456,17 @@ void Object::iter_visit(VisitFunc&& visit) const {
     }
 }
 
-inline Object::KeyRange<const Key> Object::iter_keys() const { return *this; }
-inline Object::KeyRange<Key> Object::iter_keys() { return *this; }
+inline KeyRange Object::iter_keys() const {
+    return *this;
+}
+
+inline ItemRange Object::iter_items() const {
+    return *this;
+}
+
+inline ValueRange Object::iter_values() const {
+    return *this;
+}
 
 inline
 const KeyList Object::keys() const {
@@ -1567,7 +1477,7 @@ const KeyList Object::keys() const {
 }
 
 inline
-const List Object::children() const {
+const List Object::values() const {
     List children;
     switch (m_fields.repr_ix) {
         case LIST_I:  {
@@ -1583,11 +1493,11 @@ const List Object::children() const {
         case DSRC_I: {
             auto& dsrc = *m_repr.ds;
             if (dsrc.is_sparse()) {
-                DataSource::ConstValueRange range{dsrc.value_iter()};
+                ValueRange range{*this};
                 for (const auto& value : range)
                     children.push_back(value);
             } else {
-                return dsrc.get_cached(*this).children();
+                return dsrc.get_cached(*this).values();
             }
             break;
         }
@@ -1609,7 +1519,7 @@ const ItemList Object::items() const {
         case DSRC_I: {
             auto& dsrc = *m_repr.ds;
             if (dsrc.is_sparse()) {
-                DataSource::ConstItemRange range{dsrc.item_iter()};
+                ItemRange range{*this};
                 for (const auto& item : range)
                     items.push_back(item);
             } else {
@@ -2164,179 +2074,9 @@ class Object::LineageRange
     Object m_object;
 };
 
-inline Object::LineageRange<Object> Object::iter_lineage() const { return *this; }
-
-
-template <typename ValueType>
-class ChildrenIterator
-{
-  public:
-    using List_iterator = std::conditional<std::is_const<ValueType>::value,
-                                           List::const_iterator,
-                                           List::iterator>::type;
-
-    using Map_iterator = std::conditional<std::is_const<ValueType>::value,
-                                          Map::const_iterator,
-                                          Map::iterator>::type;
-
-    ChildrenIterator()                                                         : m_repr_ix{Object::NULL_I} {}
-    ChildrenIterator(uint8_t repr_ix, const List_iterator& it)                 : m_repr_ix{repr_ix}, m_list_it{it} {}
-    ChildrenIterator(uint8_t repr_ix, const Map_iterator& it)                  : m_repr_ix{repr_ix}, m_map_it{it} {}
-    ChildrenIterator(uint8_t repr_ix, DataSource::ChunkIterator<List>* p_chit) : m_repr_ix{repr_ix}, m_ds_it{p_chit} {}
-    ChildrenIterator(ChildrenIterator&& other) = default;
-
-    ChildrenIterator& operator = (ChildrenIterator&& other) {
-        m_repr_ix = other.m_repr_ix;
-        switch (other.m_repr_ix) {
-            case Object::LIST_I: m_list_it = std::move(other.m_list_it); break;
-            case Object::OMAP_I: m_map_it = std::move(other.m_map_it); break;
-            case Object::DSRC_I: m_ds_it = std::move(m_ds_it); break;
-        }
-        return *this;
-    }
-
-    ChildrenIterator& operator ++ () {
-        switch (m_repr_ix) {
-            case Object::LIST_I: ++m_list_it; break;
-            case Object::OMAP_I: ++m_map_it; break;
-            case Object::DSRC_I: ++m_ds_it; break;
-            default:             throw Object::wrong_type(m_repr_ix);
-        }
-        return *this;
-    }
-    Object operator * () const {
-        switch (m_repr_ix) {
-            case Object::LIST_I: return *m_list_it;
-            case Object::OMAP_I: return (*m_map_it).second;
-            case Object::DSRC_I: return *m_ds_it;
-            default:             throw Object::wrong_type(m_repr_ix);
-        }
-    }
-    bool operator == (const ChildrenIterator& other) const {
-        switch (m_repr_ix) {
-            case Object::NULL_I: return other.m_repr_ix == Object::NULL_I || other == *this;
-            case Object::LIST_I: return m_list_it == other.m_list_it;
-            case Object::OMAP_I: return m_map_it == other.m_map_it;
-            case Object::DSRC_I: return m_ds_it.done();
-            default:             throw Object::wrong_type(m_repr_ix);
-        }
-    }
-  private:
-    uint8_t m_repr_ix;
-    List_iterator m_list_it;  // TODO: use union
-    Map_iterator m_map_it;
-    DataSource::ValueIterator m_ds_it;
-
-  template <class> friend class TreeIterator;
-};
-
-
-template <class ValueType>
-class Object::ChildrenRange
-{
-  public:
-    ChildrenRange() = default;
-
-    ChildrenRange(const Object& object) : m_parent{object} {
-        if (m_parent.m_fields.repr_ix == DSRC_I) {
-            auto& dsrc = *m_parent.m_repr.ds;
-            if (dsrc.is_sparse()) {
-                mp_chit = dsrc.value_iter();
-            } else {
-                m_parent.refer_to(dsrc.get_cached(m_parent));
-            }
-        }
-    }
-
-    ChildrenRange(const ChildrenRange& other) : m_parent(other.m_parent), mp_chit{other.mp_chit} {}
-    ChildrenRange(ChildrenRange&& other)      : m_parent(other.m_parent), mp_chit{other.mp_chit} { other.mp_chit = nullptr; }
-
-//    ~ChildrenRange() {
-//        if (mp_chit != nullptr && mp_chit->destroy())
-//            delete mp_chit;
-//    }
-
-    auto& operator = (const ChildrenRange& other) {
-        m_parent.refer_to(other.m_parent);
-//        if (mp_chit != nullptr && mp_chit->destroy())
-//            delete mp_chit;
-        mp_chit = other.mp_chit;
-        other.mp_chit = nullptr;
-        return *this;
-    }
-
-    ChildrenIterator<ValueType> begin() const {
-        auto repr_ix = m_parent.m_fields.repr_ix;
-        switch (repr_ix) {
-            case LIST_I: return {repr_ix, std::get<0>(*m_parent.m_repr.pl).begin()};
-            case OMAP_I: return {repr_ix, std::get<0>(*m_parent.m_repr.pm).begin()};
-            case DSRC_I: return {repr_ix, mp_chit};
-            default:     return {};
-        }
-    }
-
-    ChildrenIterator<ValueType> end() const {
-        auto repr_ix = m_parent.m_fields.repr_ix;
-        switch (repr_ix) {
-            case LIST_I: return {repr_ix, std::get<0>(*m_parent.m_repr.pl).end()};
-            case OMAP_I: return {repr_ix, std::get<0>(*m_parent.m_repr.pm).end()};
-            case DSRC_I: return {};
-            default:     return {};
-        }
-    }
-
-  private:
-    Object m_parent;
-    DataSource::ChunkIterator<List>* mp_chit = nullptr;  // TODO: not deleted?
-
-  template <class> friend class Object::TreeRange;
-  template <class> friend class TreeIterator;
-};
-
-
-inline Object::ChildrenRange<Object> Object::iter_children() const { return *this; }
-
-
-template <class ValueType>
-class SiblingIterator
-{
-  public:
-    using ChildrenIterator = ChildrenIterator<ValueType>;
-    using ChildrenRange = Object::ChildrenRange<ValueType>;
-
-    SiblingIterator(const ChildrenIterator& it) : m_it{it}, m_end{it} {}
-    SiblingIterator(ChildrenIterator&& it) : m_it{std::forward<ChildrenIterator>(it)}, m_end{std::forward<ChildrenIterator>(it)} {}
-    SiblingIterator(Object omit, const ChildrenRange& range)
-      : m_omit{omit}, m_it{range.begin()}, m_end{range.end()} {
-        if ((*m_it).is(omit)) ++m_it;
-    }
-    SiblingIterator& operator ++ () {
-        ++m_it;
-        if (m_it != m_end && (*m_it).is(m_omit)) ++m_it;
-        return *this;
-    }
-    Object operator * () const { return *m_it; }
-    bool operator == (const SiblingIterator& other) const { return m_it == other.m_it; }
-  private:
-    Object m_omit;
-    ChildrenIterator m_it;
-    ChildrenIterator m_end;
-};
-
-template <class ValueType>
-class Object::SiblingRange
-{
-  public:
-    SiblingRange(const Object& object) : m_omit{object}, m_range{object.parent()} {}
-    SiblingIterator<ValueType> begin() const { return {m_omit, m_range}; }
-    SiblingIterator<ValueType> end() const   { return m_range.end(); }
-  private:
-    Object m_omit;
-    ChildrenRange<ValueType> m_range;
-};
-
-
-inline Object::SiblingRange<Object> Object::iter_siblings() const { return *this; }
+inline Object::LineageRange<Object> Object::iter_lineage() const {
+    return *this;
+}
 
 
 template <class ValueType>
@@ -2347,14 +2087,13 @@ class TreeIterator
 
     TreeIterator(const Object& object) {
         m_fifo.push_back(object);
-        m_it = std::move(m_fifo.front().begin());
-        m_end = std::move(m_fifo.front().end());
+        m_it = m_fifo.front().begin();
+        m_end = m_fifo.front().end();
     }
 
-    TreeIterator(List& list) : m_it{(uint8_t)Object::LIST_I, list.begin()}, m_end{(uint8_t)Object::LIST_I, list.end()} {
+    TreeIterator(List& list) : m_it{list.begin()}, m_end{list.end()} {
         m_fifo.push_back(Object{null});  // dummy
         m_fifo.push_back(list[0]);
-        pds = list[0].m_repr.ds;
     }
 
     TreeIterator& operator ++ () {
@@ -2362,11 +2101,14 @@ class TreeIterator
         while (m_it == m_end) {
             m_fifo.pop_front();
             if (m_fifo.empty()) break;
-            m_it = std::move(m_fifo.front().begin());
-            m_end = std::move(m_fifo.front().end());
+            m_it = m_fifo.front().begin();
+            m_end = m_fifo.front().end();
         }
-        if (m_it != m_end)
-            m_fifo.push_back(*m_it);
+        if (m_it != m_end) {
+            const Object& obj = *m_it;
+            if (obj.is_container() || obj.has_data_source())
+                m_fifo.push_back(*m_it);
+        }
         return *this;
     }
 
@@ -2374,10 +2116,9 @@ class TreeIterator
     bool operator == (const TreeIterator& other) const { return m_fifo.empty(); }
 
   private:
-    DataSource* pds;
-    ChildrenIterator<ValueType> m_it;
-    ChildrenIterator<ValueType> m_end;
-    std::deque<Object::ChildrenRange<ValueType>> m_fifo;
+    std::deque<ValueRange> m_fifo;
+    ValueIterator m_it;
+    ValueIterator m_end;
 };
 
 template <class ValueType>
@@ -2387,6 +2128,7 @@ class Object::TreeRange
     TreeRange(const Object& object) { m_list.push_back(object); }
     TreeIterator<ValueType> begin() const { return const_cast<List&>(m_list); }
     TreeIterator<ValueType> end() const   { return {}; }
+
   private:
     List m_list;
 };

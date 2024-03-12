@@ -30,14 +30,15 @@ struct WrongType : std::exception
     std::string msg;
 };
 
-using String = std::string;
+
+class KeyIterator;
 
 class Key
 {
   private:
 
     enum {
-        EMPTY_I,  // reserved for congruence with Object enum
+        EMPTY_I,
         NULL_I,   // json null
         BOOL_I,
         INT_I,
@@ -78,12 +79,13 @@ class Key
 
   public:
     Key()                           : m_repr{}, m_repr_ix{NULL_I} {}
+    Key(null_t)                     : m_repr{}, m_repr_ix{NULL_I} {}
     Key(bool v)                     : m_repr{v}, m_repr_ix{BOOL_I} {}
     Key(is_like_Float auto v)       : m_repr{v}, m_repr_ix{FLOAT_I} {}
     Key(is_like_Int auto v)         : m_repr{(Int)v}, m_repr_ix{INT_I} {}
     Key(is_like_UInt auto v)        : m_repr{(UInt)v}, m_repr_ix{UINT_I} {}
-    Key(const String& s)       : m_repr{s}, m_repr_ix{STR_I} {}
-    Key(String&& s)            : m_repr{std::forward<String>(s)}, m_repr_ix{STR_I} {}
+    Key(const String& s)            : m_repr{s}, m_repr_ix{STR_I} {}
+    Key(String&& s)                 : m_repr{std::forward<String>(s)}, m_repr_ix{STR_I} {}
     Key(const char* s)              : m_repr{String(s)}, m_repr_ix{STR_I} {}  // slow, use std::literals::string_view_literals
 
     ~Key() { release(); }
@@ -140,7 +142,7 @@ class Key
         return *this;
     }
 
-    Key& operator = (std::nullptr_t)       { release(); m_repr.z = nullptr; m_repr_ix = NULL_I; return *this; }
+    Key& operator = (null_t)               { release(); m_repr.z = nullptr; m_repr_ix = NULL_I; return *this; }
     Key& operator = (bool v)               { release(); m_repr.b = v; m_repr_ix = BOOL_I; return *this; }
     Key& operator = (is_like_Int auto v)   { release(); m_repr.i = v; m_repr_ix = INT_I; return *this; }
     Key& operator = (is_like_UInt auto v)  { release(); m_repr.u = v; m_repr_ix = UINT_I; return *this; }
@@ -204,11 +206,27 @@ class Key
     bool is_num() const     { return m_repr_ix && m_repr_ix < STR_I; }
 
     // unsafe, but will not segv
-    bool as_bool() const             { return m_repr.b; }
-    Int as_int() const               { return m_repr.i; }
-    UInt as_uint() const             { return m_repr.u; }
-    Float as_float() const           { return m_repr.f; }
-    const String as_str() const { return (m_repr_ix == STR_I)? m_repr.s: String(""); }
+    template <typename T> T as() const requires is_byvalue<T>;
+    template <> bool as<bool>() const     { return m_repr.b; }
+    template <> Int as<Int>() const       { return m_repr.i; }
+    template <> UInt as<UInt>() const     { return m_repr.u; }
+    template <> Float as<Float>() const   { return m_repr.f; }
+
+    template <typename T> T& as() requires is_byvalue<T>;
+    template <> bool& as<bool>()     { return m_repr.b; }
+    template <> Int& as<Int>()       { return m_repr.i; }
+    template <> UInt& as<UInt>()     { return m_repr.u; }
+    template <> Float& as<Float>()   { return m_repr.f; }
+
+    template <typename T> const T& as() const requires std::is_same<T, String>::value {
+        if (m_repr_ix != STR_I) throw wrong_type(m_repr_ix);
+        return m_repr.s;
+    }
+
+    template <typename T> T& as() requires std::is_same<T, String>::value {
+        if (m_repr_ix != STR_I) throw wrong_type(m_repr_ix);
+        return m_repr.s;
+    }
 
     bool to_bool() const {
         switch (m_repr_ix) {
@@ -328,8 +346,9 @@ class Key
     Repr m_repr;
     uint8_t m_repr_ix;
 
-    friend std::ostream& operator<< (std::ostream& ostream, const Key& key);
-    friend class Object;
+  friend std::ostream& operator<< (std::ostream& ostream, const Key& key);
+  friend class Object;
+  friend class KeyIterator;
 };
 
 

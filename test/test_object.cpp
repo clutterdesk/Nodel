@@ -535,7 +535,7 @@ TEST(Object, CompareStrMap) {
 TEST(Object, ToKey) {
   Object obj{"key"};
   EXPECT_TRUE(obj.is_str());
-  EXPECT_EQ(obj.to_key().as_str(), "key");
+  EXPECT_EQ(obj.to_key().as<String>(), "key");
 }
 
 TEST(Object, SubscriptList) {
@@ -642,7 +642,7 @@ TEST(Object, AncestorRange) {
 TEST(Object, ListChildrenRange) {
     Object obj = parse_json(R"([true, 1, "x"])");
     List children;
-    for (auto obj : obj.children())
+    for (auto obj : obj.values())
         children.push_back(obj);
     EXPECT_EQ(children.size(), 3);
     EXPECT_TRUE(children[0].is_bool());
@@ -653,32 +653,12 @@ TEST(Object, ListChildrenRange) {
 TEST(Object, OrderedMapChildrenRange) {
     Object obj = parse_json(R"({"a": true, "b": 1, "c": "x"})");
     List children;
-    for (auto obj : obj.children())
+    for (auto obj : obj.values())
         children.push_back(obj);
     EXPECT_EQ(children.size(), 3);
     EXPECT_TRUE(children[0].is_bool());
     EXPECT_TRUE(children[1].is_int());
     EXPECT_TRUE(children[2].is_str());
-}
-
-TEST(Object, ListSiblingRange) {
-    Object obj = parse_json(R"(["a", "b", "c"])");
-    List siblings;
-    for (auto obj : obj.get(1).iter_siblings())
-        siblings.push_back(obj);
-    EXPECT_EQ(siblings.size(), 2);
-    EXPECT_EQ(siblings[0], "a");
-    EXPECT_EQ(siblings[1], "c");
-}
-
-TEST(Object, MapSiblingRange) {
-    Object obj = parse_json(R"({"a": "A", "b": "B", "c": "C"})");
-    List siblings;
-    for (auto obj : obj.get("b").iter_siblings())
-        siblings.push_back(obj);
-    EXPECT_EQ(siblings.size(), 2);
-    EXPECT_EQ(siblings[0], "A");
-    EXPECT_EQ(siblings[1], "C");
 }
 
 TEST(Object, TreeRange) {
@@ -704,10 +684,10 @@ TEST(Object, ChildrenRangeMultiuser) {
     Object o1 = parse_json(R"({"a": "A", "b": "B", "c": "C"})");
     Object o2 = parse_json(R"({"x": "X", "y": "Y", "z": "Z"})");
     List result;
-    auto r1 = o1.children();
+    auto r1 = o1.values();
     auto it1 = r1.begin();
     auto end1 = r1.end();
-    auto r2 = o2.children();
+    auto r2 = o2.values();
     auto it2 = r2.begin();
     auto end2 = r2.end();
     for (; it1 != end1 && it2 != end2; ++it1, ++it2) {
@@ -1127,54 +1107,66 @@ struct TestSparseSource : public DataSource
     void write_key(const Object&, const Key& k, const Object& v) override { write_key_called = true; data.set(k, v); }
     void write_key(const Object&, const Key& k, Object&& v) override      { write_key_called = true; data.set(k, std::forward<Object>(v)); }
 
-//    struct TestStringChunkIterator : public StringChunkIterator
-//    {
-//        size_t chunk_size = 3;
-//
-//        TestStringChunkIterator(const std::string& str) : str{str} {}
-//        ~TestStringChunkIterator() override = default;
-//
-//        bool destroy() override { return true; }
-//
-//        auto& next() override {
-//            chunk.resize(std::min(chunk_size, str.size() - pos));
-//            memcpy(chunk.data(), str.data() + pos, chunk.size());
-//            pos += chunk.size();
-//            return chunk;
-//        }
-//
-//        const std::string& str;
-//        std::string chunk;
-//        size_t pos = 0;
-//    };
-
-    template <class ContainerType, class ValueType>
-    struct TestChunkIterator : public ChunkIterator<ContainerType>
+    class TestKeyIterator : public KeyIterator
     {
-        size_t chunk_size = 3;
-
-        TestChunkIterator(const ContainerType& container) : container{container} {}
-        ~TestChunkIterator() override = default;
-
-        bool destroy() override { return true; }
-
-        ContainerType& next() override {
-            chunk.resize(std::min(chunk.size(), container.size() - pos));
-            for (size_t i=0; i < chunk.size(); i++)
-                chunk[i] = container[pos + i];
-            pos += chunk.size();
-            return chunk;
+      public:
+        TestKeyIterator(TestSparseSource& ds, const Object& data) : m_ds{ds} {
+            auto range = data.iter_keys();
+            m_it = range.begin();
+            m_end = range.end();
         }
 
-        const ContainerType& container;
-        ContainerType chunk;
-        size_t pos = 0;
+        ~TestKeyIterator() { m_ds.iter_deleted = true; }
+
+        bool next_impl() override { if (m_it == m_end) { return false; } else { m_key = *m_it; ++m_it; return true; } }
+
+      private:
+        TestSparseSource& m_ds;
+        nodel::KeyIterator m_it;
+        nodel::KeyIterator m_end;
     };
 
-//    StringChunkIterator* str_iter()  { return new TestStringChunkIterator(); }
-    ChunkIterator<KeyList>* key_iter() override   { return new TestChunkIterator<KeyList, Key>(data.keys()); }
-    ChunkIterator<List>* value_iter() override    { return new TestChunkIterator<List, Object>(data.children()); }
-    ChunkIterator<ItemList>* item_iter() override { return new TestChunkIterator<ItemList, Item>(data.items()); }
+    class TestValueIterator : public ValueIterator
+    {
+      public:
+        TestValueIterator(TestSparseSource& ds, const Object& data) : m_ds{ds} {
+            auto range = data.iter_values();
+            m_it = range.begin();
+            m_end = range.end();
+        }
+
+        ~TestValueIterator() { m_ds.iter_deleted = true; }
+
+        bool next_impl() override { if (m_it == m_end) { return false; } else { m_value = *m_it; ++m_it; return true; } }
+
+      private:
+        TestSparseSource& m_ds;
+        nodel::ValueIterator m_it;
+        nodel::ValueIterator m_end;
+    };
+
+    class TestItemIterator : public ItemIterator
+    {
+      public:
+        TestItemIterator(TestSparseSource& ds, const Object& data) : m_ds{ds} {
+            auto range = data.iter_items();
+            m_it = range.begin();
+            m_end = range.end();
+        }
+
+        ~TestItemIterator() { m_ds.iter_deleted = true; }
+
+        bool next_impl() override { if (m_it == m_end) { return false; } else { m_item = *m_it; ++m_it; return true; } }
+
+      private:
+        TestSparseSource& m_ds;
+        nodel::ItemIterator m_it;
+        nodel::ItemIterator m_end;
+    };
+
+    std::unique_ptr<KeyIterator> key_iter() override     { return std::make_unique<TestKeyIterator>(*this, data); }
+    std::unique_ptr<ValueIterator> value_iter() override { return std::make_unique<TestValueIterator>(*this, data); }
+    std::unique_ptr<ItemIterator> item_iter() override   { return std::make_unique<TestItemIterator>(*this, data); }
 
     using DataSource::m_cache;
 
@@ -1184,6 +1176,7 @@ struct TestSparseSource : public DataSource
     bool write_called = false;
     bool read_key_called = false;
     bool write_key_called = false;
+    bool iter_deleted = false;
 };
 
 
@@ -1249,6 +1242,48 @@ TEST(Object, TestSimpleSource_Save) {
     obj.reset();
     EXPECT_EQ(obj, "Assam tea");
     EXPECT_TRUE(dsrc->read_called);
+}
+
+TEST(Object, TestSparseSource_KeyIterator) {
+    auto dsrc = new TestSparseSource(R"({"x": 1, "y": 2})");
+    Object obj{dsrc};
+
+    EXPECT_FALSE(dsrc->iter_deleted);
+    KeyList found;
+    for (auto& key : obj.iter_keys())
+        found.push_back(key);
+    EXPECT_TRUE(dsrc->iter_deleted);
+    ASSERT_EQ(found.size(), 2);
+    EXPECT_EQ(found[0], "x");
+    EXPECT_EQ(found[1], "y");
+}
+
+TEST(Object, TestSparseSource_ValueIterator) {
+    auto dsrc = new TestSparseSource(R"({"x": "X", "y": "Y"})");
+    Object obj{dsrc};
+
+    EXPECT_FALSE(dsrc->iter_deleted);
+    List found;
+    for (auto& value : obj.iter_values())
+        found.push_back(value);
+    EXPECT_TRUE(dsrc->iter_deleted);
+    ASSERT_EQ(found.size(), 2);
+    EXPECT_EQ(found[0], "X");
+    EXPECT_EQ(found[1], "Y");
+}
+
+TEST(Object, TestSparseSource_ItemIterator) {
+    auto dsrc = new TestSparseSource(R"({"x": "X", "y": "Y"})");
+    Object obj{dsrc};
+
+    EXPECT_FALSE(dsrc->iter_deleted);
+    ItemList found;
+    for (auto& item : obj.iter_items())
+        found.push_back(item);
+    EXPECT_TRUE(dsrc->iter_deleted);
+    ASSERT_EQ(found.size(), 2);
+    EXPECT_EQ(found[0], std::make_pair(Key{"x"}, Object{"X"}));
+    EXPECT_EQ(found[1], std::make_pair(Key{"y"}, Object{"Y"}));
 }
 
 TEST(Object, TestSparseSource_ReadKey) {

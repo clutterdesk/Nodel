@@ -1,5 +1,7 @@
 #pragma once
 
+// TODO: put in nodel namespace
+
 #ifndef NODEL_ARCH
 #if _WIN32 || _WIN64
 #if _WIN64
@@ -27,6 +29,10 @@ using refcnt_t = uint64_t;                     // only least-significant 56-bits
 using Int = int64_t;
 using UInt = uint64_t;
 using Float = double;
+using String = std::string;
+
+struct null_t {};
+constexpr static null_t null;
 
 template<typename T>
 concept is_like_Int = std::is_signed<T>::value && std::is_integral<T>::value && std::is_convertible_v<T, Int>;
