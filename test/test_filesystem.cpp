@@ -9,6 +9,54 @@
 using namespace nodel;
 using namespace nodel::filesystem;
 
+TEST(Filesystem, IsFsobj) {
+    auto wd = std::filesystem::current_path() / "test_data";
+    Object test_data = new Directory(new DefaultRegistry(), wd);
+    EXPECT_TRUE(is_fs(test_data));
+    EXPECT_TRUE(is_fs(test_data.get("more")));
+    EXPECT_TRUE(is_fs(test_data.get("example.json")));
+    EXPECT_TRUE(is_fs(test_data.get("example.txt")));
+    EXPECT_TRUE(is_fs(test_data.get("more").get("example.csv")));
+}
+
+TEST(Filesystem, IsDir) {
+    auto wd = std::filesystem::current_path() / "test_data";
+    Object test_data = new Directory(new DefaultRegistry(), wd);
+    EXPECT_TRUE(is_dir(test_data));
+    EXPECT_TRUE(is_dir(test_data.get("more")));
+    EXPECT_FALSE(is_dir(test_data.get("example.json")));
+    EXPECT_FALSE(is_dir(test_data.get("example.txt")));
+    EXPECT_FALSE(is_dir(test_data.get("more").get("example.csv")));
+}
+
+TEST(Filesystem, IsFile) {
+    auto wd = std::filesystem::current_path() / "test_data";
+    Object test_data = new Directory(new DefaultRegistry(), wd);
+    EXPECT_FALSE(is_file(test_data));
+    EXPECT_FALSE(is_file(test_data.get("more")));
+    EXPECT_TRUE(is_file(test_data.get("example.json")));
+    EXPECT_TRUE(is_file(test_data.get("example.txt")));
+    EXPECT_TRUE(is_file(test_data.get("more").get("example.csv")));
+}
+
+TEST(Filesystem, VisitOnlyFiles) {
+    auto wd = std::filesystem::current_path() / "test_data";
+    Object test_data = new Directory(new DefaultRegistry(), wd);
+    List found;
+    for (const auto& file : test_data.iter_tree(is_file))
+        EXPECT_TRUE(is_file(file));
+}
+
+TEST(Filesystem, EnterOnlyDirectories) {
+    auto wd = std::filesystem::current_path() / "test_data";
+    Object test_data = new Directory(new DefaultRegistry(), wd);
+    Object more = test_data.get("more");
+    for (const auto& file : test_data.iter_tree_if(is_dir)) {
+        Object parent = file.parent();
+        EXPECT_TRUE(parent.is_null() || parent.is(test_data) || parent.is(more));
+    }
+}
+
 TEST(Filesystem, Directory) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object obj = new Directory(new DefaultRegistry(), wd);
@@ -56,25 +104,24 @@ TEST(Filesystem, DirectoryFiles) {
 
 TEST(Filesystem, Subdirectory) {
     auto wd = std::filesystem::current_path() / "test_data";
-    Object test_data_dir = new Directory(new DefaultRegistry(), wd);
-    EXPECT_TRUE(test_data_dir.get("more").is_map());
-    EXPECT_TRUE(test_data_dir.get("more").get("example.csv").is_list());
-    EXPECT_TRUE(test_data_dir.get("more").get("example.csv").get(-1).is_list());
-    EXPECT_EQ(test_data_dir.get("more").get("example.csv").get(-1).get(-1), "andrew43514@gmail.comField Tags");
+    Object test_data = new Directory(new DefaultRegistry(), wd);
+    EXPECT_TRUE(test_data.get("more").is_map());
+    EXPECT_TRUE(test_data.get("more").get("example.csv").is_list());
+    EXPECT_TRUE(test_data.get("more").get("example.csv").get(-1).is_list());
+    EXPECT_EQ(test_data.get("more").get("example.csv").get(-1).get(-1), "andrew43514@gmail.comField Tags");
 }
 
-TEST(Filesystem, TreeIteration) {
+TEST(Filesystem, NewDirectory) {
     auto wd = std::filesystem::current_path() / "test_data";
-    Object test_data_dir = new Directory(new DefaultRegistry(), wd);
-    for (const auto& fs_obj : test_data_dir.iter_tree()) {
-
-    }
+    Object test_data = new Directory(new DefaultRegistry(), wd);
+    test_data.set("temp", new SubDirectory());
+    test_data.save();
 }
 
 void test_invalid_file(const char* file_name) {
     auto wd = std::filesystem::current_path() / "test_data";
-    Object test_data_dir = new Directory(new DefaultRegistry(), wd);
-    Object fs_obj = test_data_dir.get(file_name);
+    Object test_data = new Directory(new DefaultRegistry(), wd);
+    Object fs_obj = test_data.get(file_name);
     EXPECT_TRUE(fs_obj.is_valid());
 
     auto fs_obj_path = nodel::filesystem::path(fs_obj);

@@ -62,8 +62,8 @@ class KeyRange
   using ReprType = Object::ReprType;
 
   public:
-    KeyRange(const Object& obj) : m_obj(obj) {}
-
+    KeyRange(const Object& obj)
+      : m_obj{(obj.m_fields.repr_ix == Object::DSRC_I && !obj.m_repr.ds->is_sparse())? obj.m_repr.ds->get_cached(obj): obj} {}
     KeyRange(const KeyRange&) = default;
     KeyRange(KeyRange&&) = default;
     KeyRange& operator = (const KeyRange&) = default;

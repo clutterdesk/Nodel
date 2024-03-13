@@ -30,7 +30,7 @@ class CsvFile : public File
     DataSource* new_instance(const Object& target) const override { return new CsvFile(ext()); }
 
     void read(const Object& target, Object& cache) override;
-    void write(const Object& target, const Object& cache) override;
+    void write(const Object& target, const Object& cache, bool quiet) override;
 };
 
 inline
@@ -42,7 +42,7 @@ void CsvFile::read(const Object& target, Object& cache) {
 }
 
 inline
-void CsvFile::write(const Object& target, const Object& cache) {
+void CsvFile::write(const Object& target, const Object& cache, bool quiet) {
     auto fpath = path(target).string();
     std::ofstream f_out{fpath + ext(), std::ios::out};
 

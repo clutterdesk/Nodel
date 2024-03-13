@@ -30,42 +30,46 @@ using namespace std::ranges;
 namespace nodel {
 namespace filesystem {
 
-struct DirectoryNotFound : std::exception
+struct FailedDeletes : std::exception
 {
-    DirectoryNotFound() = default;
-    const char* what() const noexcept override { return "Directory not found"; }
-};
+    FailedDeletes(const std::vector<std::filesystem::path>& paths) {
+        std::stringstream ss;
+        ss << "Error removing path(s): " << std::endl;
+        for (auto& path : paths)
+            ss << path << std::endl;
+        m_msg = ss.str();
+    }
 
-namespace impl {
+    const char* what() const noexcept override { return m_msg.data(); }
+
+    std::string m_msg;
+};
 
 // DataSource for filesystem directories
 //
 class SubDirectory : public DataSource
 {
   public:
-    SubDirectory(int mode=READ|WRITE) : DataSource(Sparse::COMPLETE, mode) {
-        m_cache = Object{Object::OMAP_I};
-    }
+    SubDirectory(int mode=READ|WRITE)         : DataSource(Sparse::COMPLETE, mode, Object::OMAP_I, true) {}
+    SubDirectory(int mode, bool fully_cached) : DataSource(Sparse::COMPLETE, mode, Object::OMAP_I, fully_cached) {}
 
     DataSource* new_instance(const Object& target) const override { return new SubDirectory(m_mode); }
 
     void read_meta(const Object&, Object&) override { assert (false); } // TODO: remove, later
     void read(const Object& target, Object&) override;
-    void write(const Object& target, const Object&) override;
+    void write(const Object& target, const Object&, bool) override;
 };
-
-} // namespace impl
 
 
 // DataSource to use for filesystem directory
 // Example:
 //     Object o = Directory(<path>);
 //
-class Directory : public impl::SubDirectory
+class Directory : public SubDirectory
 {
   public:
     Directory(Ref<Registry> r_registry, const std::filesystem::path& path, int mode=READ|WRITE)
-      : SubDirectory(mode) , mr_registry(r_registry) , m_path(path) {}
+      : SubDirectory(mode, false) , mr_registry(r_registry) , m_path(path) {}
 
     DataSource* new_instance(const Object& target) const override { return new Directory(mr_registry, m_path, m_mode); }
 
@@ -79,18 +83,20 @@ class Directory : public impl::SubDirectory
 
 inline
 bool is_dir(const Object& obj) {
-    return typeid(obj.data_source<DataSource>()) == typeid(Directory);
+    auto p_ds = obj.data_source<DataSource>();
+    return dynamic_cast<SubDirectory*>(p_ds) != nullptr;
 }
 
 inline
 bool is_file(const Object& obj) {
-    return typeid(obj.data_source<DataSource>()) == typeid(File);
+    auto p_ds = obj.data_source<DataSource>();
+    return dynamic_cast<File*>(p_ds) != nullptr;
 }
 
 inline
 bool is_fs(const Object& obj) {
-    auto& obj_typeid = typeid(obj.data_source<DataSource>());
-    return obj_typeid == typeid(Directory) || obj_typeid == typeid(File);
+    auto p_ds = obj.data_source<DataSource>();
+    return dynamic_cast<SubDirectory*>(p_ds) != nullptr || dynamic_cast<File*>(p_ds) != nullptr;
 }
 
 inline
@@ -106,7 +112,7 @@ Object find_fs_root(const Object& target) {
 inline
 std::filesystem::path path(const Object& obj) {
     auto head_anc = find_fs_root(obj);
-    if (head_anc.is_empty()) throw DirectoryNotFound();
+    assert (!head_anc.is_empty());
 
     auto p_dsrc = head_anc.data_source<Directory>();
     std::filesystem::path fpath = p_dsrc->path();
@@ -118,26 +124,21 @@ std::filesystem::path path(const Object& obj) {
 }
 
 inline
-void impl::SubDirectory::read(const Object& target, Object& cache) {
+void SubDirectory::read(const Object& target, Object& cache) {
     auto head_anc = find_fs_root(target);
-    if (head_anc.is_empty()) throw DirectoryNotFound();
-
+    assert (!head_anc.is_empty());
     auto opath = target.path(head_anc.parent());
     auto fpath = path(target);
-
     for (const auto& entry : std::filesystem::directory_iterator(fpath)) {
         auto fname = entry.path().filename().string();
         if (entry.is_directory()) {
-            cache.set(fname, new impl::SubDirectory(m_mode));
+            cache.set(fname, new SubDirectory(m_mode, false));
         } else {
             auto& head_ds = *(head_anc.data_source<Directory>());
             auto r_reg = head_ds.registry();
             auto p_ds = r_reg->new_file(target, entry.path());
             if (p_ds != nullptr) {
                 p_ds->set_mode(m_mode);
-                // TODO: support key customization
-//                auto key = p_ds->make_key(target);
-//                cache[p_ds->make_key(target)] = p_ds;
                 cache.set(fname, p_ds);
             }
         }
@@ -145,9 +146,33 @@ void impl::SubDirectory::read(const Object& target, Object& cache) {
 }
 
 inline
-void impl::SubDirectory::write(const Object& target, const Object& cache) {
+void SubDirectory::write(const Object& target, const Object& cache, bool quiet) {
+    auto head_anc = find_fs_root(target);
+    auto opath = target.path(head_anc.parent());
     auto fpath = path(target);
-    fmt::print("Overwrite not implemented, yet: {}\n", fpath.string());
+
+    // create, if necessary
+    if (!std::filesystem::exists(fpath)) {
+
+    }
+
+    std::vector<std::filesystem::path> deleted;
+    for (const auto& entry : std::filesystem::directory_iterator(fpath)) {
+        auto fname = entry.path().filename().string();
+        if (cache.get(fname).is_empty())
+            deleted.push_back(entry.path());
+    }
+
+    std::vector<std::filesystem::path> failed_deletes;
+    for (auto& deleted : deleted) {
+        std::error_code err;
+        std::filesystem::remove_all(deleted, err);
+        if (!quiet && err)
+            failed_deletes.push_back(err.message());
+    }
+
+    if (!failed_deletes.empty())
+        throw FailedDeletes(failed_deletes);
 }
 
 } // namespace filesystem

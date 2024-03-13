@@ -65,7 +65,8 @@ class ItemRange
   using ReprType = Object::ReprType;
 
   public:
-    ItemRange(const Object& obj) : m_obj(obj) {}
+    ItemRange(const Object& obj)
+      : m_obj{(obj.m_fields.repr_ix == Object::DSRC_I && !obj.m_repr.ds->is_sparse())? obj.m_repr.ds->get_cached(obj): obj} {}
 
     ItemRange(const ItemRange&) = default;
     ItemRange(ItemRange&&) = default;

@@ -627,7 +627,7 @@ TEST(Object, KeyOf) {
     EXPECT_EQ(obj.key_of(obj.get("okay_str")), "okay_str");
 }
 
-TEST(Object, AncestorRange) {
+TEST(Object, LineageRange) {
     Object obj = parse_json(R"({"a": {"b": ["Assam", "Ceylon"]}})");
     List ancestors;
     for (auto anc : obj.get("a").get("b").get(1).iter_lineage())
@@ -733,7 +733,7 @@ TEST(Object, TreeRange_VisitAndEnterPred) {
     EXPECT_EQ(list[1], "AB");
 }
 
-TEST(Object, ChildrenRangeMultiuser) {
+TEST(Object, ValuesRangeMultiuser) {
     Object o1 = parse_json(R"({"a": "A", "b": "B", "c": "C"})");
     Object o2 = parse_json(R"({"x": "X", "y": "Y", "z": "Z"})");
     List result;
@@ -1099,20 +1099,6 @@ TEST(Object, GetKeys) {
     EXPECT_EQ(obj.keys(), expect);
 }
 
-TEST(Object, IterString) {
-    Object obj{"01234567"};
-    std::string got;
-    obj.iter_visit(overloaded {
-        [&got] (const char c) -> bool {
-            got.push_back(c);
-            return c != '4';
-        },
-        [] (const Object&) -> bool { return true; },
-        [] (const Key&) -> bool { return true; }
-    });
-    EXPECT_EQ(got, "01234");
-}
-
 
 struct TestSimpleSource : public DataSource
 {
@@ -1128,8 +1114,8 @@ struct TestSimpleSource : public DataSource
         cache = Object{(Object::ReprType)parser.parse_type()};
     }
 
-    void read(const Object&, Object& cache) override        { read_called = true; cache = data; }
-    void write(const Object&, const Object& cache) override { write_called = true; data = cache; }
+    void read(const Object&, Object& cache) override                    { read_called = true; cache = data; }
+    void write(const Object&, const Object& cache, bool quiet) override { write_called = true; data = cache; }
 
     Object data;
     bool read_meta_called = false;
@@ -1152,13 +1138,13 @@ struct TestSparseSource : public DataSource
         cache = Object{(Object::ReprType)parser.parse_type()};
     }
 
-    void read(const Object&, Object& cache) override        { read_called = true; cache = data; }
-    void write(const Object&, const Object& cache) override { write_called = true; data = cache; }
+    void read(const Object&, Object& cache) override                    { read_called = true; cache = data; }
+    void write(const Object&, const Object& cache, bool quiet) override { write_called = true; data = cache; }
 
-    Object read_key(const Object&, const Key& k) override                 { read_key_called = true; return data.get(k); }
-    size_t read_size(const Object&) override                              { return data.size(); }
-    void write_key(const Object&, const Key& k, const Object& v) override { write_key_called = true; data.set(k, v); }
-    void write_key(const Object&, const Key& k, Object&& v) override      { write_key_called = true; data.set(k, std::forward<Object>(v)); }
+    Object read_key(const Object&, const Key& k) override                             { read_key_called = true; return data.get(k); }
+    size_t read_size(const Object&) override                                          { return data.size(); }
+    void write_key(const Object&, const Key& k, const Object& v, bool quiet) override { write_key_called = true; data.set(k, v); }
+    void write_key(const Object&, const Key& k, Object&& v, bool quiet) override      { write_key_called = true; data.set(k, std::forward<Object>(v)); }
 
     class TestKeyIterator : public KeyIterator
     {
@@ -1290,6 +1276,31 @@ TEST(Object, TestSimpleSource_Save) {
     EXPECT_FALSE(dsrc->read_called);
     EXPECT_EQ(obj, "Assam tea");
     EXPECT_FALSE(dsrc->read_called);
+    obj.save();
+    EXPECT_TRUE(dsrc->write_called);
+    obj.reset();
+    EXPECT_EQ(obj, "Assam tea");
+    EXPECT_TRUE(dsrc->read_called);
+}
+
+TEST(Object, TestSimpleSource_SaveNoChange) {
+    auto dsrc = new TestSimpleSource(R"("Ceylon tea")");
+    Object obj{dsrc};
+    EXPECT_EQ(obj, "Ceylon tea");
+    EXPECT_TRUE(dsrc->read_called);
+    obj.save();
+    EXPECT_FALSE(dsrc->write_called);
+}
+
+TEST(Object, TestSimpleSource_SaveNoChangeSave) {
+    auto dsrc = new TestSimpleSource(R"("Ceylon tea")");
+    Object obj{dsrc};
+    EXPECT_EQ(obj, "Ceylon tea");
+    EXPECT_TRUE(dsrc->read_called);
+    obj.save();
+    EXPECT_FALSE(dsrc->write_called);
+    obj = "Assam tea";
+    EXPECT_FALSE(dsrc->write_called);
     obj.save();
     EXPECT_TRUE(dsrc->write_called);
     obj.reset();

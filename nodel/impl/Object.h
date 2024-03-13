@@ -23,6 +23,7 @@
 #include "Key.h"
 #include "types.h"
 
+
 namespace nodel {
 
 struct EmptyReference : std::exception
@@ -82,9 +83,10 @@ class ItemIterator;
 class KeyRange;
 class ValueRange;
 class ItemRange;
+class LineageRange;
 
-using Predicate = std::function<bool(const Object&)>;
 struct NoPredicate {};
+using Predicate = std::function<bool(const Object&)>;
 
 using String = std::string;
 using List = std::vector<Object>;
@@ -112,8 +114,6 @@ constexpr size_t min_key_chunk_size = 128;
 class Object
 {
   public:
-    template <class ValueType> class LineageRange;
-    template <class ValueType> class ChildrenRange;
     template <class ValueType, typename VisitPred, typename EnterPred> class TreeRange;
 
     // TODO: remove _I suffix
@@ -270,8 +270,7 @@ class Object
     KeyRange iter_keys() const;
     ItemRange iter_items() const;
     ValueRange iter_values() const;
-
-    LineageRange<Object> iter_lineage() const;
+    LineageRange iter_lineage() const;
 
     TreeRange<Object, NoPredicate, NoPredicate> iter_tree() const;
 
@@ -283,9 +282,6 @@ class Object
 
     template <typename VisitPred, typename EnterPred>
     TreeRange<Object, Predicate, Predicate> iter_tree_if(VisitPred&&, EnterPred&&) const;
-
-    template <typename Visitor>
-    void iter_visit(Visitor&&) const;
 
     const KeyList keys() const;
     const ItemList items() const;
@@ -406,9 +402,7 @@ class Object
     template <class DataSourceType>
     DataSourceType* data_source() const;
 
-    bool has_data_source() const { return m_fields.repr_ix == DSRC_I; }
-
-    void save();
+    void save(bool quiet = false);
     void reset();
     void reset_key(const Key&);
     void refresh();
@@ -434,6 +428,7 @@ class Object
   friend class KeyIterator;
   friend class ValueIterator;
   friend class ItemIterator;
+  friend class LineageRange;
   friend class KeyRange;
   friend class ValueRange;
   friend class ItemRange;
@@ -441,8 +436,9 @@ class Object
   friend class WalkDF;
   friend class WalkBF;
 
-  template <class ValueType> friend class LineageIterator;
   template <class ValueType, typename VisitPred, typename EnterPred> friend class TreeIterator;
+
+  friend bool has_data_source(const Object&);
 };
 
 
@@ -484,6 +480,13 @@ class OPath
         for (auto& key : *this)
             key.to_step(ss);
         return ss.str();
+    }
+
+    size_t hash() const {
+        size_t result = 0;
+        for (auto& key : *this)
+            result ^= key.hash();
+        return result;
     }
 
     Iterator begin() { return m_keys.rbegin(); }
@@ -586,21 +589,24 @@ class DataSource
     constexpr static int WRITE =     0x2;
     constexpr static int OVERWRITE = 0x4;
 
-    DataSource(Sparse sparse, int mode)                   : m_mode{mode}, m_parent{Object::NULL_I}, m_sparse{sparse} {}
-    DataSource(Sparse sparse, int mode, ReprType repr_ix) : m_cache{repr_ix}, m_mode{mode}, m_parent{Object::NULL_I}, m_sparse{sparse} {}
+    DataSource(Sparse sparse, int mode)                   : m_parent{Object::NULL_I}, m_mode{mode}, m_sparse{sparse} {}
+    DataSource(Sparse sparse, int mode, ReprType repr_ix) : m_parent{Object::NULL_I}, m_cache{repr_ix}, m_mode{mode}, m_sparse{sparse} {}
+    DataSource(Sparse sparse, int mode, ReprType repr_ix, bool fully_cached)
+      : m_parent{Object::NULL_I}, m_cache{repr_ix}, m_mode{mode}, m_fully_cached{fully_cached}, m_sparse{sparse} {}
+
     virtual ~DataSource() {}
 
     bool is_sparse() const { return m_sparse == Sparse::SPARSE; }
 
   protected:
     virtual DataSource* new_instance(const Object& target) const = 0;
-    virtual void read_meta(const Object& target, Object&)                   {}  // load meta-data including type and id
-    virtual void read(const Object& target, Object&) = 0;
-    virtual Object read_key(const Object& target, const Key&)               { return {}; }  // sparse
-    virtual size_t read_size(const Object& target)                          { return 0; }  // sparse
-    virtual void write(const Object& target, const Object&)                 {}  // both
-    virtual void write_key(const Object& target, const Key&, const Object&) {}  // sparse
-    virtual void write_key(const Object& target, const Key&, Object&&)      {}  // sparse
+    virtual void read_meta(const Object& target, Object&)                         {}  // load meta-data including type and id
+    virtual void read(const Object& target, Object&)                              = 0;
+    virtual Object read_key(const Object& target, const Key&)                     { return {}; }  // sparse
+    virtual size_t read_size(const Object& target)                                { return 0; }  // sparse
+    virtual void write(const Object& target, const Object&, bool)                 {}  // both
+    virtual void write_key(const Object& target, const Key&, const Object&, bool) {}  // sparse
+    virtual void write_key(const Object& target, const Key&, Object&&, bool)      {}  // sparse
 
   public:
     virtual std::unique_ptr<KeyIterator> key_iter()     { return nullptr; }
@@ -617,11 +623,13 @@ class DataSource
 
     size_t size(const Object& target);
     Object get(const Object& target, const Key& key);
+
     void set(const Object& value);
     void set(const Object& target, const Key& key, const Object& value);
     void set(const Object& target, Key&& key, const Object& value);
     void del(const Object& target, const Key& key);
-    void save(const Object& target);
+
+    void save(const Object& target, bool quiet);
 
     const Key key_of(const Object& obj) { return m_cache.key_of(obj); }
     ReprType type(const Object& target) { if (m_cache.is_empty()) read_meta(target, m_cache); return m_cache.type(); }
@@ -643,24 +651,31 @@ class DataSource
   protected:
     void insure_fully_cached(const Object& target);
 
+  private:
+    Object m_parent;
+
   protected:
     Object m_cache;
     int m_mode;
+    bool m_fully_cached = false;
+
+  private:
+    bool m_failed = false;
+    Sparse m_sparse;
 
   private:
     refcnt_t ref_count() const { return m_parent.m_fields.ref_count; }
     void inc_ref_count()       { m_parent.m_fields.ref_count++; }
     refcnt_t dec_ref_count()   { return --(m_parent.m_fields.ref_count); }
 
-  private:
-    Object m_parent;
-    Sparse m_sparse;
-    bool m_fully_cached = false;
-    bool m_failed = false;
-
   friend class Object;
 };
 
+
+inline
+bool has_data_source(const Object& obj) {
+    return obj.m_fields.repr_ix == Object::DSRC_I;
+}
 
 inline
 Object::Object(const Object& other) : m_fields{other.m_fields} {
@@ -1422,56 +1437,6 @@ size_t Object::size() const {
 #include "ValueRange.h"
 #include "ItemRange.h"
 
-// TODO: visit function constraints
-template <typename VisitFunc>
-void Object::iter_visit(VisitFunc&& visit) const {
-    switch (m_fields.repr_ix) {
-        case NULL_I:  visit(Object{null}); break;
-        case BOOL_I:  visit(m_repr.b); break;
-        case INT_I:   visit(m_repr.i); break;
-        case UINT_I:  visit(m_repr.u); break;
-        case FLOAT_I: visit(m_repr.f); break;
-        case STR_I: {
-            for (auto c : std::get<0>(*m_repr.ps)) {
-                if (!visit(c))
-                    break;
-            }
-            return;
-        }
-        case LIST_I: {
-            for (const auto& obj : std::get<0>(*m_repr.pl)) {
-                if (!visit(obj))
-                    break;
-            }
-            return;
-        }
-        case OMAP_I: {
-            auto& map = std::get<0>(*m_repr.pm);
-            for (const auto& item : map) {
-                if (!visit(std::get<0>(item)))
-                    break;
-            }
-            return;
-        }
-        case DSRC_I: {
-            auto& dsrc = *m_repr.ds;
-            if (dsrc.is_sparse()) {
-                auto type = dsrc.type(*this);
-                assert (type == OMAP_I);
-                KeyRange range{*this};
-                for (auto val : range)
-                    if (!visit(val))
-                        break;
-            } else {
-                dsrc.get_cached(*this).iter_visit(visit);
-            }
-            return;
-        }
-        default:
-            throw wrong_type(m_fields.repr_ix);
-    }
-}
-
 inline KeyRange Object::iter_keys() const {
     return *this;
 }
@@ -1685,10 +1650,10 @@ public:
 
     using Item = std::tuple<Object, Key, Object, uint8_t>;
     using Stack = std::stack<Item>;
-    using Visitor = std::function<void(const Object&, const Key&, const Object&, uint8_t)>;
+    using VisitFunc = std::function<void(const Object&, const Key&, const Object&, uint8_t)>;
 
 public:
-    WalkDF(Object root, Visitor visitor)
+    WalkDF(Object root, VisitFunc visitor)
     : m_visitor{visitor}
     {
         if (root.is_empty()) throw root.empty_reference(__FUNCTION__);
@@ -1741,7 +1706,7 @@ public:
     }
 
 private:
-    Visitor m_visitor;
+    VisitFunc m_visitor;
     Stack m_stack;
 };
 
@@ -1751,10 +1716,10 @@ class WalkBF
 public:
     using Item = std::tuple<Object, Key, Object>;
     using Deque = std::deque<Item>;
-    using Visitor = std::function<void(const Object&, const Key&, const Object&)>;
+    using VisitFunc = std::function<void(const Object&, const Key&, const Object&)>;
 
 public:
-    WalkBF(Object root, Visitor visitor)
+    WalkBF(Object root, VisitFunc visitor)
     : m_visitor{visitor}
     {
         if (root.is_empty()) throw root.empty_reference(__FUNCTION__);
@@ -1799,7 +1764,7 @@ public:
     }
 
 private:
-    Visitor m_visitor;
+    VisitFunc m_visitor;
     Deque m_deque;
 };
 
@@ -2052,7 +2017,6 @@ DataSourceType* Object::data_source() const {
 }
 
 
-template <typename ValueType>
 class LineageIterator
 {
   public:
@@ -2062,7 +2026,7 @@ class LineageIterator
     LineageIterator(const LineageIterator&) = default;
     LineageIterator(LineageIterator&&) = default;
 
-    LineageIterator<ValueType>& operator ++ () {
+    LineageIterator& operator ++ () {
         m_object.refer_to(m_object.parent());
         if (m_object.is_null()) m_object.release();
         return *this;
@@ -2077,12 +2041,9 @@ class LineageIterator
     Object m_object;
 };
 
-template <typename ValueType>
-class Object::LineageRange
+class LineageRange
 {
   public:
-    using LineageIterator = LineageIterator<ValueType>;
-
     LineageRange(const Object& object) : m_object{object} {}
     LineageIterator begin() const { return m_object; }
     LineageIterator end() const   { return Object{}; }
@@ -2090,7 +2051,8 @@ class Object::LineageRange
     Object m_object;
 };
 
-inline Object::LineageRange<Object> Object::iter_lineage() const {
+inline
+LineageRange Object::iter_lineage() const {
     return *this;
 }
 
@@ -2114,7 +2076,7 @@ class TreeIterator
       , m_enter_pred{enter_pred}
     {
         m_fifo.push_back(Object{null});  // dummy
-        m_fifo.push_back(list[0]);
+        enter(list[0]);
         if (!visit(*m_it)) ++(*this);
     }
 
@@ -2152,10 +2114,10 @@ class TreeIterator
 
     void enter(const Object& obj) {
         if constexpr (std::is_invocable<EnterPred, const Object&>::value) {
-            if ((obj.is_container() || obj.has_data_source()) && (!m_enter_pred || m_enter_pred(obj)))
+            if (obj.is_container() && (!m_enter_pred || m_enter_pred(obj)))
                 m_fifo.push_back(obj);
         } else {
-            if (obj.is_container() || obj.has_data_source())
+            if (obj.is_container())
                 m_fifo.push_back(obj);
         }
     }
@@ -2211,14 +2173,11 @@ Object::TreeRange<Object, Predicate, Predicate> Object::iter_tree_if(VisitPred&&
     return {*this, std::forward<Predicate>(visit_pred), std::forward<Predicate>(enter_pred)};
 }
 
-
 inline
-void Object::save() {
-    auto tree_range = iter_tree();
-    for (auto obj : tree_range) {
-        if (obj.m_fields.repr_ix == DSRC_I) {
-            obj.m_repr.ds->save(*this);
-        }
+void Object::save(bool quiet) {
+    auto tree_range = iter_tree(has_data_source);
+    for (const auto& obj : tree_range) {
+        obj.m_repr.ds->save(*this, quiet);
     }
 }
 
@@ -2403,12 +2362,12 @@ void DataSource::del(const Object& target, const Key& key) {
 }
 
 inline
-void DataSource::save(const Object& target) {
+void DataSource::save(const Object& target, bool quiet) {
     if (m_cache.is_empty()) return;
 
     if (m_fully_cached && m_cache.m_fields.unsaved) {
         m_cache.m_fields.unsaved = 0;
-        write(target, m_cache);
+        write(target, m_cache, quiet);
     }
     else if (is_sparse()) {
         KeyList del_keys;
@@ -2416,9 +2375,9 @@ void DataSource::save(const Object& target) {
         for (auto& [key, value] : m_cache.items()) {
             if (value.m_fields.unsaved) {
                 const_cast<Object&>(value).m_fields.unsaved = 0;
-                write_key(target, key, value);
+                write_key(target, key, value, quiet);
             } else if (value.is_null()) {
-                write_key(target, key, value);
+                write_key(target, key, value, quiet);
                 del_keys.push_back(key);
             }
         }
@@ -2480,6 +2439,25 @@ void DataSource::insure_fully_cached(const Object& target) {
 
 } // nodel namespace
 
+namespace std {
+
+//----------------------------------------------------------------------------------
+// std::hash
+//----------------------------------------------------------------------------------
+template<>
+struct hash<nodel::OPath>
+{
+    std::size_t operator () (const nodel::OPath& path) const noexcept {
+      return path.hash();
+    }
+};
+
+} // namespace std
+
+
+//----------------------------------------------------------------------------------
+// fmtlib support
+//----------------------------------------------------------------------------------
 #ifdef FMT_FORMAT_H_
 
 namespace fmt {

@@ -61,7 +61,8 @@ class ValueRange
   using ReprType = Object::ReprType;
 
   public:
-    ValueRange(const Object& obj) : m_obj(obj) {}
+    ValueRange(const Object& obj)
+      : m_obj{(obj.m_fields.repr_ix == Object::DSRC_I && !obj.m_repr.ds->is_sparse())? obj.m_repr.ds->get_cached(obj): obj} {}
 
     ValueRange(const ValueRange&) = default;
     ValueRange(ValueRange&&) = default;

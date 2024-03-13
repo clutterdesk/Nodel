@@ -29,7 +29,7 @@ class TextFile : public File
     DataSource* new_instance(const Object& target) const override { return new TextFile(ext()); }
 
     void read(const Object& target, Object& cache) override;
-    void write(const Object& target, const Object& cache) override;
+    void write(const Object& target, const Object& cache, bool quiet) override;
 };
 
 inline
@@ -45,13 +45,14 @@ void TextFile::read(const Object& target, Object& cache) {
 }
 
 inline
-void TextFile::write(const Object& target, const Object& cache) {
+void TextFile::write(const Object& target, const Object& cache, bool quiet) {
     auto fpath = path(target).string();
     auto& str = cache.as<String>();
     std::ofstream f_out{fpath + ext(), std::ios::out};
     f_out.exceptions(std::ifstream::failbit);
     f_out.write(&str[0], str.size());
     if (f_out.fail() || f_out.bad()) set_failed(true);
+    // TODO: quiet
 }
 
 } // namespace filesystem

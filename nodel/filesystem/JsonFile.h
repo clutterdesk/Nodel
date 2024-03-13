@@ -31,7 +31,7 @@ class JsonFile : public File
 
     void read_meta(const Object& target, Object& cache) override;
     void read(const Object& target, Object& cache) override;
-    void write(const Object& target, const Object& cache) override;
+    void write(const Object& target, const Object& cache, bool quiet) override;
 };
 
 inline
@@ -51,10 +51,11 @@ void JsonFile::read(const Object& target, Object& cache) {
 }
 
 inline
-void JsonFile::write(const Object& target, const Object& cache) {
+void JsonFile::write(const Object& target, const Object& cache, bool quiet) {
     auto fpath = path(target).string();
     std::ofstream f_out{fpath, std::ios::out};
     cache.to_json(f_out);
+    // TODO: quiet
 }
 
 } // namespace filesystem
