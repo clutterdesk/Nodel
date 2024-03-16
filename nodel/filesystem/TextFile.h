@@ -24,9 +24,9 @@ namespace filesystem {
 class TextFile : public File
 {
   public:
-    TextFile(const std::string& ext) : File(ext, Object::STR_I) {}
+    TextFile(const std::string& ext, Origin origin) : File(ext, Object::STR_I, origin) {}
 
-    DataSource* new_instance(const Object& target) const override { return new TextFile(ext()); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new TextFile(ext(), origin); }
 
     void read(const Object& target, Object& cache) override;
     void write(const Object& target, const Object& cache, bool quiet) override;

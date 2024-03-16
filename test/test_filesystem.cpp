@@ -102,6 +102,12 @@ TEST(Filesystem, DirectoryFiles) {
     EXPECT_TRUE(large_example_2.data_source<DataSource>()->is_fully_cached());
 }
 
+//TEST(Filesystem, JsonFileWithListBug) {
+//    auto wd = std::filesystem::current_path() / "test_data";
+//    Object test_data = new Directory(new DefaultRegistry(), wd);
+//    EXPECT_EQ(test_data.get("table.json").path()
+//}
+
 TEST(Filesystem, Subdirectory) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new DefaultRegistry(), wd);
@@ -111,11 +117,43 @@ TEST(Filesystem, Subdirectory) {
     EXPECT_EQ(test_data.get("more").get("example.csv").get(-1).get(-1), "andrew43514@gmail.comField Tags");
 }
 
-TEST(Filesystem, NewDirectory) {
+TEST(Filesystem, CreateDirectory) {
+    std::string temp_dir_name = "temp_test_create";
     auto wd = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new DefaultRegistry(), wd);
-    test_data.set("temp", new SubDirectory());
+    test_data.set(temp_dir_name, new SubDirectory());
     test_data.save();
+
+    Object test_data_2 = new Directory(new DefaultRegistry(), wd);
+    EXPECT_FALSE(test_data_2.get(temp_dir_name).is_empty());
+
+    test_data.reset();
+    EXPECT_FALSE(test_data.get(temp_dir_name).is_empty());
+
+    std::filesystem::remove(wd / temp_dir_name);
+}
+
+TEST(Filesystem, DeleteDirectory) {
+    std::string temp_dir_name = "temp_test_delete";
+    using Mode = DataSource::Mode;
+    auto wd = std::filesystem::current_path() / "test_data";
+
+    OnBlockExit cleanup{ [&wd, &temp_dir_name] () { std::filesystem::remove(wd / temp_dir_name); } };
+
+    Object test_data = new Directory(new DefaultRegistry(), wd, Mode::ALL);
+    test_data.set(temp_dir_name, new SubDirectory());
+    test_data.save();
+    EXPECT_TRUE(std::filesystem::exists(wd / temp_dir_name));
+
+    Object test_data_2 = new Directory(new DefaultRegistry(), wd, Mode::ALL);
+    EXPECT_FALSE(test_data_2.get(temp_dir_name).is_empty());
+    test_data_2.del(temp_dir_name);
+
+    test_data_2.save();
+    EXPECT_FALSE(std::filesystem::exists(wd / temp_dir_name));
+
+    test_data.reset();
+    EXPECT_TRUE(test_data.get(temp_dir_name).is_null());
 }
 
 void test_invalid_file(const char* file_name) {

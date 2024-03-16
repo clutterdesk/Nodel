@@ -37,7 +37,8 @@ class OnBlockExit
 
 inline
 void make_path_step(const std::string_view& str, std::ostream& stream) {
-    if (str.contains('"')) {
+    auto pos = str.find_first_of(R"(".)");
+    if (pos != std::string_view::npos) {
         stream << '[' << quoted(str) << ']';
     } else {
         stream << '.' << str;

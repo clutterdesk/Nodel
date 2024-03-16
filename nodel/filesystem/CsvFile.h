@@ -25,9 +25,9 @@ namespace filesystem {
 class CsvFile : public File
 {
   public:
-    CsvFile(const std::string& ext) : File(ext, Object::LIST_I) {}
+    CsvFile(const std::string& ext, Origin origin) : File(ext, Object::LIST_I, origin) {}
 
-    DataSource* new_instance(const Object& target) const override { return new CsvFile(ext()); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new CsvFile(ext(), origin); }
 
     void read(const Object& target, Object& cache) override;
     void write(const Object& target, const Object& cache, bool quiet) override;
@@ -43,12 +43,12 @@ void CsvFile::read(const Object& target, Object& cache) {
 
 inline
 void CsvFile::write(const Object& target, const Object& cache, bool quiet) {
-    auto fpath = path(target).string();
-    std::ofstream f_out{fpath + ext(), std::ios::out};
-
-    // TODO: unfinished
-
-    if (f_out.fail() || f_out.bad()) set_failed(true);
+//    auto fpath = path(target).string();
+//    std::ofstream f_out{fpath, std::ios::out};
+//
+//    // TODO: unfinished
+//
+//    if (f_out.fail() || f_out.bad()) set_failed(true);
 }
 
 } // namespace filesystem

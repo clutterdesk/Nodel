@@ -89,7 +89,7 @@ Object::ReprType Parser<StreamType>::parse_type() {
         default:
             break;
     }
-    return Object::BAD_I;
+    return Object::BAD_I;  // TODO: BAD is not supported
 }
 
 template <typename StreamType>

@@ -26,10 +26,12 @@ namespace fs = std::filesystem;
 class DefaultRegistry : public Registry
 {
   public:
+    using Origin = DataSource::Origin;
+
     DefaultRegistry() {
-        m_ext_registry[".json"] = [] (const Object&, const fs::path& path) { return new JsonFile(".json"); };
-        m_ext_registry[".csv"]  = [] (const Object&, const fs::path& path) { return new CsvFile(".csv"); };
-        m_ext_registry[".txt"]  = [] (const Object&, const fs::path& path) { return new TextFile(".txt"); };
+        m_ext_registry[".json"] = [] (const Object&, const fs::path& path) { return new JsonFile(".json", Origin::SOURCE); };
+        m_ext_registry[".csv"]  = [] (const Object&, const fs::path& path) { return new CsvFile(".csv", Origin::SOURCE); };
+        m_ext_registry[".txt"]  = [] (const Object&, const fs::path& path) { return new TextFile(".txt", Origin::SOURCE); };
     }
 
   template <typename> friend class ::nodel::Ref;

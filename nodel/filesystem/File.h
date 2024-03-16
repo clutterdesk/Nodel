@@ -22,8 +22,8 @@ namespace filesystem {
 class File : public DataSource
 {
   public:
-    File(const std::string& ext)                   : DataSource(Sparse::COMPLETE, 0), m_ext{ext} {}
-    File(const std::string& ext, ReprType repr_ix) : DataSource(Sparse::COMPLETE, 0, repr_ix), m_ext{ext} {}
+    File(const std::string& ext, Origin origin)                   : DataSource(Kind::COMPLETE, Mode::READ, origin), m_ext{ext} {}
+    File(const std::string& ext, ReprType repr_ix, Origin origin) : DataSource(Kind::COMPLETE, Mode::READ, repr_ix, origin), m_ext{ext} {}
 
     std::string ext() const { return m_ext; }
 

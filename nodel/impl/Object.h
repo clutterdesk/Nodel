@@ -17,11 +17,14 @@
 #include <errno.h>
 #include <fmt/core.h>
 #include <memory>
+#include <type_traits>
 
 #include "support.h"
 #include "Oid.h"
 #include "Key.h"
 #include "types.h"
+#include "Flags.h"
+#include "logging.h"
 
 
 namespace nodel {
@@ -83,7 +86,7 @@ class ItemIterator;
 class KeyRange;
 class ValueRange;
 class ItemRange;
-class LineageRange;
+class LineRange;
 
 struct NoPredicate {};
 using Predicate = std::function<bool(const Object&)>;
@@ -168,8 +171,9 @@ class Object
 
       struct Fields
       {
-          Fields(uint8_t repr_ix)      : repr_ix{repr_ix}, unsaved{0}, ref_count{1} {}
-          Fields(const Fields& fields) : repr_ix{fields.repr_ix}, unsaved{fields.unsaved}, ref_count{1} {}
+          Fields(uint8_t repr_ix)               : Fields{repr_ix, true} {}
+          Fields(uint8_t repr_ix, bool unsaved) : repr_ix{repr_ix}, unsaved{unsaved}, ref_count{1} {}
+          Fields(const Fields& fields)          : repr_ix{fields.repr_ix}, unsaved{fields.unsaved}, ref_count{1} {}
           Fields(Fields&&) = delete;
           auto operator = (const Fields&) = delete;
           auto operator = (Fields&&) = delete;
@@ -245,8 +249,9 @@ class Object
     Object(is_like_Float auto v)       : m_repr{(Float)v}, m_fields{FLOAT_I} {}
     Object(is_like_Int auto v)         : m_repr{(Int)v}, m_fields{INT_I} {}
     Object(is_like_UInt auto v)        : m_repr{(UInt)v}, m_fields{UINT_I} {}
-    Object(DataSourcePtr ptr)          : m_repr{ptr}, m_fields{DSRC_I} {}  // ownership transferred
+    Object(DataSourcePtr ptr)          : m_repr{ptr}, m_fields{DSRC_I} {}  // DataSource ownership transferred
 
+  public:
     Object(const List&);
     Object(const Map&);
     Object(List&&);
@@ -255,7 +260,7 @@ class Object
     Object(const Key&);
     Object(Key&&);
 
-    Object(ReprType type);
+    Object(ReprType type, bool unsaved=false);
 
     Object(const Object& other);
     Object(Object&& other);
@@ -270,7 +275,7 @@ class Object
     KeyRange iter_keys() const;
     ItemRange iter_items() const;
     ValueRange iter_values() const;
-    LineageRange iter_lineage() const;
+    LineRange iter_line() const;
 
     TreeRange<Object, NoPredicate, NoPredicate> iter_tree() const;
 
@@ -333,7 +338,8 @@ class Object
     }
 
     bool is_empty() const     { return m_fields.repr_ix == EMPTY_I; }
-    bool is_null() const      { return resolve_repr_ix() == NULL_I; }
+    bool is_null() const      { return m_fields.repr_ix == NULL_I; }
+
     bool is_bool() const      { return resolve_repr_ix() == BOOL_I; }
     bool is_int() const       { return resolve_repr_ix() == INT_I; }
     bool is_uint() const      { return resolve_repr_ix() == UINT_I; }
@@ -343,6 +349,7 @@ class Object
     bool is_list() const      { return resolve_repr_ix() == LIST_I; }
     bool is_map() const       { return resolve_repr_ix() == OMAP_I; }
     bool is_container() const { auto type = resolve_repr_ix(); return type == LIST_I || type == OMAP_I; }
+
     bool is_valid() const;
 
     bool to_bool() const;
@@ -367,6 +374,7 @@ class Object
     Object get(const Key& key) const;
     Object get(const OPath& path) const;
 
+    void set(const Object&);
     void set(is_integral auto, const Object&);
     void set(const char*, const Object&);
     void set(const std::string&, const Object&);
@@ -428,7 +436,7 @@ class Object
   friend class KeyIterator;
   friend class ValueIterator;
   friend class ItemIterator;
-  friend class LineageRange;
+  friend class LineRange;
   friend class KeyRange;
   friend class ValueRange;
   friend class ItemRange;
@@ -476,6 +484,7 @@ class OPath
     }
 
     std::string to_str() const {
+        if (m_keys.size() == 0) return ".";
         std::stringstream ss;
         for (auto& key : *this)
             key.to_step(ss);
@@ -583,23 +592,41 @@ class DataSource
   public:
     using ReprType = Object::ReprType;
 
-    enum class Sparse { SPARSE, COMPLETE };
+    enum class Kind { SPARSE, COMPLETE };  // SPARSE -> big key/value source, COMPLETE -> all keys present once cached
+    enum class Origin { SOURCE, MEMORY };  // SOURCE -> created while reading source, MEMORY -> created by program
 
-    constexpr static int READ =      0x1;
-    constexpr static int WRITE =     0x2;
-    constexpr static int OVERWRITE = 0x4;
+    struct Mode : public Flags<uint8_t> {
+        FLAG8 READ = 1;
+        FLAG8 WRITE = 2;
+        FLAG8 OVERWRITE = 4;
+        FLAG8 ALL = 7;
+        Mode(Flags<uint8_t> flags) : Flags<uint8_t>(flags) {}
+    };
 
-    DataSource(Sparse sparse, int mode)                   : m_parent{Object::NULL_I}, m_mode{mode}, m_sparse{sparse} {}
-    DataSource(Sparse sparse, int mode, ReprType repr_ix) : m_parent{Object::NULL_I}, m_cache{repr_ix}, m_mode{mode}, m_sparse{sparse} {}
-    DataSource(Sparse sparse, int mode, ReprType repr_ix, bool fully_cached)
-      : m_parent{Object::NULL_I}, m_cache{repr_ix}, m_mode{mode}, m_fully_cached{fully_cached}, m_sparse{sparse} {}
+    DataSource(Kind kind, Mode mode, Origin origin)
+      : m_parent{Object::NULL_I}
+      , m_cache{Object::EMPTY_I, origin == Origin::MEMORY}
+      , m_mode{mode}
+      , m_fully_cached{(kind == Kind::COMPLETE) && origin == Origin::MEMORY}
+      , m_kind{kind}
+      , m_default_repr_ix{Object::EMPTY_I}
+    {}
+
+    DataSource(Kind kind, Mode mode, ReprType repr_ix, Origin origin)
+      : m_parent{Object::NULL_I}
+      , m_cache{repr_ix, origin == Origin::MEMORY}
+      , m_mode{mode}
+      , m_fully_cached{(kind == Kind::COMPLETE) && origin == Origin::MEMORY}
+      , m_kind{kind}
+      , m_default_repr_ix{repr_ix}
+    {}
 
     virtual ~DataSource() {}
 
-    bool is_sparse() const { return m_sparse == Sparse::SPARSE; }
+    bool is_sparse() const { return m_kind == Kind::SPARSE; }
 
   protected:
-    virtual DataSource* new_instance(const Object& target) const = 0;
+    virtual DataSource* new_instance(const Object& target, Origin origin) const = 0;
     virtual void read_meta(const Object& target, Object&)                         {}  // load meta-data including type and id
     virtual void read(const Object& target, Object&)                              = 0;
     virtual Object read_key(const Object& target, const Key&)                     { return {}; }  // sparse
@@ -635,8 +662,8 @@ class DataSource
     ReprType type(const Object& target) { if (m_cache.is_empty()) read_meta(target, m_cache); return m_cache.type(); }
     Oid id(const Object& target)        { if (m_cache.is_empty()) read_meta(target, m_cache); return m_cache.id(); }
 
-    int mode() const        { return m_mode; }
-    void set_mode(int mode) { m_mode = mode; }
+    Mode mode() const        { return m_mode; }
+    void set_mode(Mode mode) { m_mode = mode; }
 
     void set_failed(bool failed) { m_failed = failed; }
     bool is_valid(const Object& target);
@@ -650,18 +677,20 @@ class DataSource
 
   protected:
     void insure_fully_cached(const Object& target);
+    void set_unsaved(const Object&, bool unsaved);
 
   private:
     Object m_parent;
 
   protected:
     Object m_cache;
-    int m_mode;
+    Mode m_mode;
     bool m_fully_cached = false;
 
   private:
     bool m_failed = false;
-    Sparse m_sparse;
+    Kind m_kind;
+    ReprType m_default_repr_ix;
 
   private:
     refcnt_t ref_count() const { return m_parent.m_fields.ref_count; }
@@ -675,6 +704,12 @@ class DataSource
 inline
 bool has_data_source(const Object& obj) {
     return obj.m_fields.repr_ix == Object::DSRC_I;
+}
+
+inline
+bool is_fully_cached(const Object& obj) {
+    auto p_ds = obj.data_source<DataSource>();
+    return p_ds == nullptr || p_ds->is_fully_cached();
 }
 
 inline
@@ -783,7 +818,7 @@ Object::Object(Key&& key) : m_fields{EMPTY_I} {
 }
 
 inline
-Object::Object(ReprType type) : m_fields{(uint8_t)type} {
+Object::Object(ReprType type, bool unsaved) : m_fields{(uint8_t)type, unsaved} {
     switch (type) {
         case EMPTY_I: m_repr.z = nullptr; break;
         case NULL_I:  m_repr.z = nullptr; break;
@@ -1238,15 +1273,23 @@ Object Object::get(const Key& key) const {
             if (it == map.end()) return null;
             return it->second;
         }
-        case DSRC_I:  return m_repr.ds->get(*this, key);
-        default:
-            throw wrong_type(m_fields.repr_ix);
+        case DSRC_I: return m_repr.ds->get(*this, key); break;
+        default:     throw wrong_type(m_fields.repr_ix);
     }
 }
 
 inline
 Object Object::get(const OPath& path) const {
     return path.lookup(*this);
+}
+
+inline
+void Object::set(const Object& value) {
+    if (m_fields.repr_ix == DSRC_I) {
+        m_repr.ds->set(value);
+    } else {
+        this->operator = (value);
+    }
 }
 
 inline
@@ -1385,7 +1428,10 @@ void Object::del(const Key& key) {
             if (index < 0) index += size;
             if (index >= 0) {
                 if (index > size) index = size;
-                list.erase(list.begin() + index);
+                auto it = list.begin() + index;
+                Object value = *it;
+                list.erase(it);
+                value.clear_parent();
             }
             break;
         }
@@ -1393,13 +1439,13 @@ void Object::del(const Key& key) {
             auto& map = std::get<0>(*m_repr.pm);
             auto it = map.find(key);
             if (it != map.end()) {
-                auto value = it->second;
-                value.set_parent(null);
+                Object value = it->second;
+                value.clear_parent();
                 map.erase(it);
             }
             break;
         }
-        case DSRC_I: m_repr.ds->del(*this, key);
+        case DSRC_I: m_repr.ds->del(*this, key); break;
         default:     throw wrong_type(m_fields.repr_ix);
     }
 }
@@ -1853,7 +1899,7 @@ Object Object::copy() const {
         case STR_I:   return std::get<0>(*m_repr.ps);
         case LIST_I:  return std::get<0>(*m_repr.pl);  // TODO: long-hand deep-copy, instead of using stack
         case OMAP_I:  return std::get<0>(*m_repr.pm);  // TODO: long-hand deep-copy, instead of using stack
-        case DSRC_I:  return m_repr.ds->new_instance(*this);
+        case DSRC_I:  return m_repr.ds->new_instance(*this, DataSource::Origin::MEMORY);
         default:      throw wrong_type(m_fields.repr_ix);
     }
 }
@@ -1934,40 +1980,36 @@ void Object::release() {
 inline
 Object& Object::operator = (const Object& other) {
 //    fmt::print("Object::operator = (const Object&)\n");
-    if (m_fields.repr_ix == DSRC_I) {
-        m_repr.ds->set(other);
-    } else {
-        dec_ref_count();
+    dec_ref_count();
 
-        m_fields.unsaved = other.m_fields.unsaved;
-        m_fields.repr_ix = other.m_fields.repr_ix;
-        switch (m_fields.repr_ix) {
-            case EMPTY_I: throw empty_reference(__FUNCTION__);
-            case NULL_I:  m_repr.z = nullptr; break;
-            case BOOL_I:  m_repr.b = other.m_repr.b; break;
-            case INT_I:   m_repr.i = other.m_repr.i; break;
-            case UINT_I:  m_repr.u = other.m_repr.u; break;
-            case FLOAT_I: m_repr.f = other.m_repr.f; break;
-            case STR_I: {
-                m_repr.ps = other.m_repr.ps;
-                inc_ref_count();
-                break;
-            }
-            case LIST_I: {
-                m_repr.pl = other.m_repr.pl;
-                inc_ref_count();
-                break;
-            }
-            case OMAP_I: {
-                m_repr.pm = other.m_repr.pm;
-                inc_ref_count();
-                break;
-            }
-            case DSRC_I: {
-                m_repr.ds = other.m_repr.ds;
-                inc_ref_count();
-                break;
-            }
+    m_fields.unsaved = other.m_fields.unsaved;
+    m_fields.repr_ix = other.m_fields.repr_ix;
+    switch (m_fields.repr_ix) {
+        case EMPTY_I: m_repr.z = nullptr; break;
+        case NULL_I:  m_repr.z = nullptr; break;
+        case BOOL_I:  m_repr.b = other.m_repr.b; break;
+        case INT_I:   m_repr.i = other.m_repr.i; break;
+        case UINT_I:  m_repr.u = other.m_repr.u; break;
+        case FLOAT_I: m_repr.f = other.m_repr.f; break;
+        case STR_I: {
+            m_repr.ps = other.m_repr.ps;
+            inc_ref_count();
+            break;
+        }
+        case LIST_I: {
+            m_repr.pl = other.m_repr.pl;
+            inc_ref_count();
+            break;
+        }
+        case OMAP_I: {
+            m_repr.pm = other.m_repr.pm;
+            inc_ref_count();
+            break;
+        }
+        case DSRC_I: {
+            m_repr.ds = other.m_repr.ds;
+            inc_ref_count();
+            break;
         }
     }
     return *this;
@@ -1976,25 +2018,21 @@ Object& Object::operator = (const Object& other) {
 inline
 Object& Object::operator = (Object&& other) {
 //    fmt::print("Object::operator = (Object&&)\n");
-    if (m_fields.repr_ix == DSRC_I) {
-        m_repr.ds->set(other);
-    } else {
-        dec_ref_count();
+    dec_ref_count();
 
-        m_fields.unsaved = other.m_fields.unsaved;
-        m_fields.repr_ix = other.m_fields.repr_ix;
-        switch (m_fields.repr_ix) {
-            case EMPTY_I: throw empty_reference(__FUNCTION__);
-            case NULL_I:  m_repr.z = nullptr; break;
-            case BOOL_I:  m_repr.b = other.m_repr.b; break;
-            case INT_I:   m_repr.i = other.m_repr.i; break;
-            case UINT_I:  m_repr.u = other.m_repr.u; break;
-            case FLOAT_I: m_repr.f = other.m_repr.f; break;
-            case STR_I:   m_repr.ps = other.m_repr.ps; break;
-            case LIST_I:  m_repr.pl = other.m_repr.pl; break;
-            case OMAP_I:  m_repr.pm = other.m_repr.pm; break;
-            case DSRC_I:  m_repr.ds = other.m_repr.ds; break;
-        }
+    m_fields.unsaved = other.m_fields.unsaved;
+    m_fields.repr_ix = other.m_fields.repr_ix;
+    switch (m_fields.repr_ix) {
+        case EMPTY_I: m_repr.z = nullptr; break;
+        case NULL_I:  m_repr.z = nullptr; break;
+        case BOOL_I:  m_repr.b = other.m_repr.b; break;
+        case INT_I:   m_repr.i = other.m_repr.i; break;
+        case UINT_I:  m_repr.u = other.m_repr.u; break;
+        case FLOAT_I: m_repr.f = other.m_repr.f; break;
+        case STR_I:   m_repr.ps = other.m_repr.ps; break;
+        case LIST_I:  m_repr.pl = other.m_repr.pl; break;
+        case OMAP_I:  m_repr.pm = other.m_repr.pm; break;
+        case DSRC_I:  m_repr.ds = other.m_repr.ds; break;
     }
 
     other.m_fields.repr_ix = EMPTY_I;
@@ -2017,23 +2055,23 @@ DataSourceType* Object::data_source() const {
 }
 
 
-class LineageIterator
+class LineIterator
 {
   public:
-    LineageIterator(const Object& object) : m_object{object} {}
-    LineageIterator(Object&& object) : m_object{std::forward<Object>(object)} {}
+    LineIterator(const Object& object) : m_object{object} {}
+    LineIterator(Object&& object) : m_object{std::forward<Object>(object)} {}
 
-    LineageIterator(const LineageIterator&) = default;
-    LineageIterator(LineageIterator&&) = default;
+    LineIterator(const LineIterator&) = default;
+    LineIterator(LineIterator&&) = default;
 
-    LineageIterator& operator ++ () {
+    LineIterator& operator ++ () {
         m_object.refer_to(m_object.parent());
         if (m_object.is_null()) m_object.release();
         return *this;
     }
     Object operator * () const { return m_object; }
-    bool operator == (const LineageIterator& other) const {
-        // m_object may be empty - see LineageRange::end
+    bool operator == (const LineIterator& other) const {
+        // m_object may be empty - see LineRange::end
         if (m_object.is_empty()) return other.m_object.is_empty();
         return !other.m_object.is_empty() && m_object.is(other.m_object);
     }
@@ -2041,18 +2079,18 @@ class LineageIterator
     Object m_object;
 };
 
-class LineageRange
+class LineRange
 {
   public:
-    LineageRange(const Object& object) : m_object{object} {}
-    LineageIterator begin() const { return m_object; }
-    LineageIterator end() const   { return Object{}; }
+    LineRange(const Object& object) : m_object{object} {}
+    LineIterator begin() const { return m_object; }
+    LineIterator end() const   { return Object{}; }
   private:
     Object m_object;
 };
 
 inline
-LineageRange Object::iter_lineage() const {
+LineRange Object::iter_line() const {
     return *this;
 }
 
@@ -2062,12 +2100,6 @@ class TreeIterator
 {
   public:
     TreeIterator() = default;
-
-//    TreeIterator(const Object& object, Predicate&& predicate) : m_pred{std::forward<Predicate>(pred)} {
-//        m_fifo.push_back(object);
-//        m_it = m_fifo.front().begin();
-//        m_end = m_fifo.front().end();
-//    }
 
     TreeIterator(List& list, auto&& visit_pred, auto&& enter_pred)
       : m_it{list.begin()}
@@ -2114,7 +2146,7 @@ class TreeIterator
 
     void enter(const Object& obj) {
         if constexpr (std::is_invocable<EnterPred, const Object&>::value) {
-            if (obj.is_container() && (!m_enter_pred || m_enter_pred(obj)))
+            if ((!m_enter_pred || m_enter_pred(obj)) && obj.is_container())
                 m_fifo.push_back(obj);
         } else {
             if (obj.is_container())
@@ -2175,10 +2207,9 @@ Object::TreeRange<Object, Predicate, Predicate> Object::iter_tree_if(VisitPred&&
 
 inline
 void Object::save(bool quiet) {
-    auto tree_range = iter_tree(has_data_source);
-    for (const auto& obj : tree_range) {
-        obj.m_repr.ds->save(*this, quiet);
-    }
+    auto tree_range = iter_tree_if(has_data_source, is_fully_cached);
+    for (const auto& obj : tree_range)
+        obj.m_repr.ds->save(obj, quiet);
 }
 
 inline
@@ -2314,18 +2345,19 @@ Object DataSource::get(const Object& target, const Key& key) {
 
 inline
 void DataSource::set(const Object& value) {
-    if (!(m_mode & WRITE)) throw WriteProtected();
-    if (!(m_mode & OVERWRITE)) throw OverwriteProtected();
-    const_cast<Object&>(value).m_fields.unsaved = 1;
+    if (!(m_mode & Mode::WRITE)) throw WriteProtected();
+    if (!(m_mode & Mode::OVERWRITE)) throw OverwriteProtected();
+    set_unsaved(m_cache, true);
     m_cache = value;
     m_fully_cached = true;
 }
 
 inline
 void DataSource::set(const Object& target, const Key& key, const Object& value) {
-    if (!(m_mode & WRITE)) throw WriteProtected();
-    const_cast<Object&>(value).m_fields.unsaved = 1;
+    if (!(m_mode & Mode::WRITE)) throw WriteProtected();
+    set_unsaved(m_cache, true);
     if (is_sparse()) {
+        set_unsaved(target, true);
         if (m_cache.is_empty()) read_meta(target, m_cache);
         m_cache.set(key, value);
     } else {
@@ -2337,9 +2369,10 @@ void DataSource::set(const Object& target, const Key& key, const Object& value) 
 
 inline
 void DataSource::set(const Object& target, Key&& key, const Object& value) {
-    if (!(m_mode & WRITE)) throw WriteProtected();
-    const_cast<Object&>(value).m_fields.unsaved = 1;
+    if (!(m_mode & Mode::WRITE)) throw WriteProtected();
+    set_unsaved(m_cache, true);
     if (is_sparse()) {
+        set_unsaved(target, true);
         if (m_cache.is_empty()) read_meta(target, m_cache);
         m_cache.set(std::forward<Key>(key), value);
     } else {
@@ -2351,7 +2384,8 @@ void DataSource::set(const Object& target, Key&& key, const Object& value) {
 
 inline
 void DataSource::del(const Object& target, const Key& key) {
-    if (!(m_mode & WRITE)) throw WriteProtected();
+    if (!(m_mode & Mode::WRITE)) throw WriteProtected();
+    set_unsaved(m_cache, true);
     if (is_sparse()) {
         if (m_cache.is_empty()) read_meta(target, m_cache);
         m_cache.set(key, null);
@@ -2363,28 +2397,31 @@ void DataSource::del(const Object& target, const Key& key) {
 
 inline
 void DataSource::save(const Object& target, bool quiet) {
-    if (m_cache.is_empty()) return;
+    if (m_cache.m_fields.repr_ix == Object::EMPTY_I) return;
+    if (m_cache.m_fields.unsaved) {
+        set_unsaved(m_cache, false);
 
-    if (m_fully_cached && m_cache.m_fields.unsaved) {
-        m_cache.m_fields.unsaved = 0;
-        write(target, m_cache, quiet);
-    }
-    else if (is_sparse()) {
-        KeyList del_keys;
-
-        for (auto& [key, value] : m_cache.items()) {
-            if (value.m_fields.unsaved) {
-                const_cast<Object&>(value).m_fields.unsaved = 0;
-                write_key(target, key, value, quiet);
-            } else if (value.is_null()) {
-                write_key(target, key, value, quiet);
-                del_keys.push_back(key);
-            }
+        if (m_fully_cached) {
+            write(target, m_cache, quiet);
         }
+        else if (is_sparse()) {
+            // TODO: Review this code!
+            KeyList del_keys;
 
-        // clear delete records
-        for (auto& del_key : del_keys)
-            m_cache.del(del_key);
+            for (auto& [key, value] : m_cache.items()) {
+                if (value.m_fields.unsaved) {
+                    set_unsaved(value, false);
+                    write_key(target, key, value, quiet);
+                } else if (value.is_null()) {
+                    write_key(target, key, value, quiet);
+                    del_keys.push_back(key);
+                }
+            }
+
+            // clear delete records
+            for (auto& del_key : del_keys)
+                m_cache.del(del_key);
+        }
     }
 }
 
@@ -2392,7 +2429,7 @@ inline
 void DataSource::reset() {
     m_fully_cached = false;
     m_failed = false;
-    m_cache.release();
+    m_cache = Object{m_default_repr_ix};
 }
 
 inline
@@ -2418,8 +2455,13 @@ void DataSource::refresh_key(const Key& key) {
 inline
 void DataSource::insure_fully_cached(const Object& target) {
     if (!m_fully_cached) {
+        DEBUG("Loading: {}", target.path().to_str());
+
         read(target, m_cache);
+
+        m_cache.m_fields.unsaved = 0;
         m_fully_cached = true;
+
         switch (m_cache.m_fields.repr_ix) {
             case Object::LIST_I: {
                 for (auto& value : std::get<0>(*m_cache.m_repr.pl))
@@ -2435,6 +2477,11 @@ void DataSource::insure_fully_cached(const Object& target) {
                 break;
         }
     }
+}
+
+inline
+void DataSource::set_unsaved(const Object& obj, bool unsaved) {
+    const_cast<Object&>(obj).m_fields.unsaved = unsaved;
 }
 
 } // nodel namespace

@@ -50,10 +50,10 @@ struct FailedDeletes : std::exception
 class SubDirectory : public DataSource
 {
   public:
-    SubDirectory(int mode=READ|WRITE)         : DataSource(Sparse::COMPLETE, mode, Object::OMAP_I, true) {}
-    SubDirectory(int mode, bool fully_cached) : DataSource(Sparse::COMPLETE, mode, Object::OMAP_I, fully_cached) {}
+    SubDirectory(Mode mode = Mode::READ | Mode::WRITE) : DataSource(Kind::COMPLETE, mode, Object::OMAP_I, Origin::MEMORY) {}
+    SubDirectory(Mode mode, Origin origin) : DataSource(Kind::COMPLETE, mode, Object::OMAP_I, origin) {}
 
-    DataSource* new_instance(const Object& target) const override { return new SubDirectory(m_mode); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new SubDirectory(m_mode, origin); }
 
     void read_meta(const Object&, Object&) override { assert (false); } // TODO: remove, later
     void read(const Object& target, Object&) override;
@@ -68,10 +68,13 @@ class SubDirectory : public DataSource
 class Directory : public SubDirectory
 {
   public:
-    Directory(Ref<Registry> r_registry, const std::filesystem::path& path, int mode=READ|WRITE)
-      : SubDirectory(mode, false) , mr_registry(r_registry) , m_path(path) {}
+    Directory(Ref<Registry> r_registry, const std::filesystem::path& path, Mode mode = Mode::READ | Mode::WRITE)
+      : SubDirectory(mode, Origin::SOURCE) , mr_registry(r_registry) , m_path(path) {}
 
-    DataSource* new_instance(const Object& target) const override { return new Directory(mr_registry, m_path, m_mode); }
+    DataSource* new_instance(const Object& target, Origin origin) const override {
+        assert (origin == Origin::SOURCE);
+        return new Directory(mr_registry, m_path);
+    }
 
     Ref<Registry> registry() const { return mr_registry; }
     std::filesystem::path path() const { return m_path; }
@@ -106,7 +109,7 @@ bool is_fs_root(const Object& obj) {
 
 inline
 Object find_fs_root(const Object& target) {
-    return find_first(target.iter_lineage(), is_fs_root);
+    return find_first(target.iter_line(), is_fs_root);
 }
 
 inline
@@ -132,7 +135,7 @@ void SubDirectory::read(const Object& target, Object& cache) {
     for (const auto& entry : std::filesystem::directory_iterator(fpath)) {
         auto fname = entry.path().filename().string();
         if (entry.is_directory()) {
-            cache.set(fname, new SubDirectory(m_mode, false));
+            cache.set(fname, new SubDirectory(m_mode, Origin::SOURCE));
         } else {
             auto& head_ds = *(head_anc.data_source<Directory>());
             auto r_reg = head_ds.registry();
@@ -153,18 +156,22 @@ void SubDirectory::write(const Object& target, const Object& cache, bool quiet) 
 
     // create, if necessary
     if (!std::filesystem::exists(fpath)) {
-
+        DEBUG("Creating directory: {}", fpath.string());
+        std::filesystem::create_directory(fpath);
     }
 
+    // find deleted files and directories
     std::vector<std::filesystem::path> deleted;
     for (const auto& entry : std::filesystem::directory_iterator(fpath)) {
         auto fname = entry.path().filename().string();
-        if (cache.get(fname).is_empty())
+        if (cache.get(fname).is_null())
             deleted.push_back(entry.path());
     }
 
+    // perform deletes
     std::vector<std::filesystem::path> failed_deletes;
     for (auto& deleted : deleted) {
+        DEBUG("Removing directory: {}", deleted.string());
         std::error_code err;
         std::filesystem::remove_all(deleted, err);
         if (!quiet && err)

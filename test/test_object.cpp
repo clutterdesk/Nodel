@@ -538,7 +538,7 @@ TEST(Object, ToKey) {
   EXPECT_EQ(obj.to_key().as<String>(), "key");
 }
 
-TEST(Object, SubscriptList) {
+TEST(Object, ListGet) {
   Object obj = parse_json("[7, 8, 9]");
   EXPECT_TRUE(obj.is_list());
   EXPECT_EQ(obj.get(0).to_int(), 7);
@@ -553,7 +553,13 @@ TEST(Object, SubscriptList) {
   EXPECT_TRUE(obj.get(4).is_null());
 }
 
-TEST(Object, SubscriptMap) {
+TEST(Object, ListGetOutOfRange) {
+    Object obj = parse_json(R"([])");
+    EXPECT_TRUE(obj.is_list());
+    EXPECT_TRUE(obj.get(1).is_null());
+}
+
+TEST(Object, MapGet) {
   Object obj = parse_json(R"({0: 7, 1: 8, 2: 9, "name": "Brian"})");
   EXPECT_TRUE(obj.is_map());
   EXPECT_EQ(obj.get(0).to_int(), 7);
@@ -564,32 +570,44 @@ TEST(Object, SubscriptMap) {
   EXPECT_TRUE(obj.get("blah"s).is_null());
 }
 
+TEST(Object, MapGetNotFound) {
+    Object obj = parse_json(R"({})");
+    EXPECT_TRUE(obj.is_map());
+    EXPECT_TRUE(obj.get("x").is_null());
+
+    obj.set("x", "X");
+    EXPECT_FALSE(obj.get("x").is_null());
+
+    obj.del("x");
+    EXPECT_TRUE(obj.get("x").is_null());
+}
+
 TEST(Object, MultipleSubscriptMap) {
   Object obj = parse_json(R"({"a": {"b": {"c": 7}}})");
   EXPECT_TRUE(obj.is_map());
   EXPECT_EQ(obj.get("a").get("b").get("c"), 7);
 }
 
-TEST(Object, SubscriptAssignNumber) {
+TEST(Object, MapSetNumber) {
     Object obj = parse_json("{'x': 100}");
     obj.set("x", 101);
     EXPECT_EQ(obj.get("x"s), 101);
 }
 
-TEST(Object, SubscriptAssignString) {
+TEST(Object, MapSetString) {
     Object obj = parse_json("{'x': ''}");
     obj.set("x", "salmon");
     EXPECT_EQ(obj.get("x"s), "salmon");
 }
 
-TEST(Object, SubscriptAssignList) {
+TEST(Object, MapSetList) {
     Object obj = parse_json("{'x': [100]}");
     Object rhs = parse_json("[101]");
     obj.set("x", rhs);
     EXPECT_EQ(obj.get("x"s).get(0), 101);
 }
 
-TEST(Object, SubscriptAssignMap) {
+TEST(Object, MapSetMap) {
     Object obj = parse_json("{'x': [100]}");
     Object rhs = parse_json("{'y': 101}");
     obj.set("x"s, rhs);
@@ -630,7 +648,7 @@ TEST(Object, KeyOf) {
 TEST(Object, LineageRange) {
     Object obj = parse_json(R"({"a": {"b": ["Assam", "Ceylon"]}})");
     List ancestors;
-    for (auto anc : obj.get("a").get("b").get(1).iter_lineage())
+    for (auto anc : obj.get("a").get("b").get(1).iter_line())
         ancestors.push_back(anc);
     EXPECT_EQ(ancestors.size(), 4);
     EXPECT_TRUE(ancestors[0].is(obj.get("a").get("b").get(1)));
@@ -1102,10 +1120,10 @@ TEST(Object, GetKeys) {
 
 struct TestSimpleSource : public DataSource
 {
-    TestSimpleSource(const std::string& json, int mode = READ | WRITE | OVERWRITE)
-      : DataSource(Sparse::COMPLETE, mode), data{parse_json(json)} {}
+    TestSimpleSource(const std::string& json, Mode mode = Mode::READ | Mode::WRITE | Mode::OVERWRITE)
+      : DataSource(Kind::COMPLETE, mode, Origin::SOURCE), data{parse_json(json)} {}
 
-    DataSource* new_instance(const Object& target) const override { return new TestSimpleSource(data.to_json()); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSimpleSource(data.to_json()); }
 
     void read_meta(const Object&, Object& cache) override {
         read_meta_called = true;
@@ -1126,10 +1144,10 @@ struct TestSimpleSource : public DataSource
 
 struct TestSparseSource : public DataSource
 {
-    TestSparseSource(const std::string& json, int mode = READ | WRITE | OVERWRITE)
-      : DataSource(Sparse::SPARSE, mode), data{parse_json(json)} {}
+    TestSparseSource(const std::string& json, Mode mode = Mode::READ | Mode::WRITE | Mode::OVERWRITE)
+      : DataSource(Kind::SPARSE, mode, Origin::SOURCE), data{parse_json(json)} {}
 
-    DataSource* new_instance(const Object& target) const override { return new TestSparseSource(data.to_json()); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSparseSource(data.to_json()); }
 
     void read_meta(const Object&, Object& cache) override {
         read_meta_called = true;
@@ -1271,7 +1289,7 @@ TEST(Object, TestSimpleSource_Reset) {
 TEST(Object, TestSimpleSource_Save) {
     auto dsrc = new TestSimpleSource(R"("Ceylon tea")");
     Object obj{dsrc};
-    obj = "Assam tea";
+    obj.set("Assam tea");
     EXPECT_FALSE(dsrc->read_meta_called);
     EXPECT_FALSE(dsrc->read_called);
     EXPECT_EQ(obj, "Assam tea");
@@ -1299,13 +1317,24 @@ TEST(Object, TestSimpleSource_SaveNoChangeSave) {
     EXPECT_TRUE(dsrc->read_called);
     obj.save();
     EXPECT_FALSE(dsrc->write_called);
-    obj = "Assam tea";
+    obj.set("Assam tea");
     EXPECT_FALSE(dsrc->write_called);
     obj.save();
     EXPECT_TRUE(dsrc->write_called);
     obj.reset();
     EXPECT_EQ(obj, "Assam tea");
     EXPECT_TRUE(dsrc->read_called);
+}
+
+TEST(Object, TestSimpleSource_DeleteAndSave) {
+    auto dsrc = new TestSimpleSource("{'tea': 'Ceylon tea'}");
+    Object obj{dsrc};
+    EXPECT_EQ(obj.get("tea"), "Ceylon tea");
+    EXPECT_TRUE(dsrc->read_called);
+    obj.del("tea");
+    obj.save();
+    EXPECT_TRUE(obj.get("tea").is_null());
+    EXPECT_TRUE(dsrc->write_called);
 }
 
 TEST(Object, TestSparseSource_KeyIterator) {
@@ -1383,7 +1412,7 @@ TEST(Object, TestSparseSource_WriteKey) {
 TEST(Object, TestSparseSource_Write) {
     auto dsrc = new TestSparseSource(R"({"x": 1, "y": 2})");
     Object obj{dsrc};
-    obj = parse_json(R"({"x": 9, "y": 10})");
+    obj.set(parse_json(R"({"x": 9, "y": 10})"));
     EXPECT_FALSE(dsrc->write_called);
     EXPECT_FALSE(dsrc->write_key_called);
     EXPECT_EQ(dsrc->m_cache.get("x"), 9);
