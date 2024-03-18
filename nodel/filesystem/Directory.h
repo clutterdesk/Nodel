@@ -53,7 +53,7 @@ class SubDirectory : public DataSource
     SubDirectory(Mode mode = Mode::READ | Mode::WRITE) : DataSource(Kind::COMPLETE, mode, Object::OMAP_I, Origin::MEMORY) {}
     SubDirectory(Mode mode, Origin origin) : DataSource(Kind::COMPLETE, mode, Object::OMAP_I, origin) {}
 
-    DataSource* new_instance(const Object& target, Origin origin) const override { return new SubDirectory(m_mode, origin); }
+    DataSource* copy(const Object& target, Origin origin) const override { return new SubDirectory(m_mode, origin); }
 
     void read_meta(const Object&, Object&) override { assert (false); } // TODO: remove, later
     void read(const Object& target, Object&) override;
@@ -71,7 +71,7 @@ class Directory : public SubDirectory
     Directory(Ref<Registry> r_registry, const std::filesystem::path& path, Mode mode = Mode::READ | Mode::WRITE)
       : SubDirectory(mode, Origin::SOURCE) , mr_registry(r_registry) , m_path(path) {}
 
-    DataSource* new_instance(const Object& target, Origin origin) const override {
+    DataSource* copy(const Object& target, Origin origin) const override {
         assert (origin == Origin::SOURCE);
         return new Directory(mr_registry, m_path);
     }
@@ -141,7 +141,7 @@ void SubDirectory::read(const Object& target, Object& cache) {
             auto r_reg = head_ds.registry();
             auto p_ds = r_reg->new_file(target, entry.path());
             if (p_ds != nullptr) {
-                p_ds->set_mode(m_mode);
+                p_ds->set_mode((m_mode & Mode::WRITE)? m_mode | Mode::OVERWRITE: m_mode);
                 cache.set(fname, p_ds);
             }
         }

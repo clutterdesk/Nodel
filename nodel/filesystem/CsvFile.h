@@ -25,9 +25,11 @@ namespace filesystem {
 class CsvFile : public File
 {
   public:
-    CsvFile(const std::string& ext, Origin origin) : File(ext, Object::LIST_I, origin) {}
+    CsvFile(const std::string& ext, Origin origin) : File(ext, Mode::INHERIT, Object::LIST_I, origin) {}
+    CsvFile(const std::string& ext)                : CsvFile(ext, Origin::MEMORY) {}
+    CsvFile()                                      : CsvFile(".csv") {}
 
-    DataSource* new_instance(const Object& target, Origin origin) const override { return new CsvFile(ext(), origin); }
+    DataSource* copy(const Object& target, Origin origin) const override { return new CsvFile(ext(), origin); }
 
     void read(const Object& target, Object& cache) override;
     void write(const Object& target, const Object& cache, bool quiet) override;

@@ -100,10 +100,10 @@ using ConstItem = std::pair<const Key, const Object>;
 using KeyList = std::vector<Key>;
 using ItemList = std::vector<Item>;
 
-// inplace reference count types
-using IRCString = std::tuple<String, Object>;  // ref-count moved to parent bit-field
-using IRCList = std::tuple<List, Object>;      // ref-count moved to parent bit-field
-using IRCMap = std::tuple<Map, Object>;        // ref-count moved to parent bit-field
+// inplace reference count types (ref-count stored in parent bit-field)
+using IRCString = std::tuple<String, Object>;
+using IRCList = std::tuple<List, Object>;
+using IRCMap = std::tuple<Map, Object>;
 
 using IRCStringPtr = IRCString*;
 using IRCListPtr = IRCList*;
@@ -171,21 +171,18 @@ class Object
 
       struct Fields
       {
-          Fields(uint8_t repr_ix)               : Fields{repr_ix, true} {}
-          Fields(uint8_t repr_ix, bool unsaved) : repr_ix{repr_ix}, unsaved{unsaved}, ref_count{1} {}
-          Fields(const Fields& fields)          : repr_ix{fields.repr_ix}, unsaved{fields.unsaved}, ref_count{1} {}
+          Fields(uint8_t repr_ix)      : repr_ix{repr_ix}, ref_count{1} {}
+          Fields(const Fields& fields) : repr_ix{fields.repr_ix}, ref_count{1} {}
           Fields(Fields&&) = delete;
           auto operator = (const Fields&) = delete;
           auto operator = (Fields&&) = delete;
 
 #if NODEL_ARCH == 32
           uint8_t repr_ix:5;
-          uint8_t unsaved: 1;  // data-source update tracking
-          uint32_t ref_count:26;
+          uint32_t ref_count:27;
 #else
           uint8_t repr_ix:8;
-          uint8_t unsaved: 1;  // data-source update tracking
-          uint64_t ref_count: 55;
+          uint64_t ref_count: 56;
 #endif
       };
 
@@ -249,9 +246,8 @@ class Object
     Object(is_like_Float auto v)       : m_repr{(Float)v}, m_fields{FLOAT_I} {}
     Object(is_like_Int auto v)         : m_repr{(Int)v}, m_fields{INT_I} {}
     Object(is_like_UInt auto v)        : m_repr{(UInt)v}, m_fields{UINT_I} {}
-    Object(DataSourcePtr ptr)          : m_repr{ptr}, m_fields{DSRC_I} {}  // DataSource ownership transferred
+    Object(DataSourcePtr ptr);
 
-  public:
     Object(const List&);
     Object(const Map&);
     Object(List&&);
@@ -260,7 +256,7 @@ class Object
     Object(const Key&);
     Object(Key&&);
 
-    Object(ReprType type, bool unsaved=false);
+    Object(ReprType type);
 
     Object(const Object& other);
     Object(Object&& other);
@@ -268,6 +264,7 @@ class Object
     ~Object() { dec_ref_count(); }
 
     ReprType type() const;
+    std::string_view type_name() const { return type_name(type()); }
 
     Object root() const;
     Object parent() const;
@@ -362,10 +359,6 @@ class Object
     Key into_key();
     std::string to_json() const;
     void to_json(std::ostream&) const;
-
-//    Object operator [] (is_byvalue auto) const;
-//    Object operator [] (const char*) const;
-//    Object operator [] (const std::string&) const;
 
     Object get(is_integral auto v) const;
     Object get(const char* v) const;
@@ -479,6 +472,26 @@ class OPath
             assert(!child.is_empty());
             if (child.is_null()) return {};
             obj.refer_to(child);
+        }
+        return obj;
+    }
+
+    Object create(const Object& origin, const Object& last_value) const {
+        Object obj = origin;
+        auto it = begin();
+        auto it_end = end();
+        if (it != it_end) {
+            auto prev_it = it;
+            while (++it != it_end) {
+                auto child = obj.get(*prev_it);
+                if (child.is_null()) {
+                    child = Object{(*it).is_any_int()? Object::LIST_I: Object::OMAP_I};
+                    obj.set(*prev_it, child);
+                }
+                obj.refer_to(child);
+                prev_it = it;
+            }
+            obj.set(*prev_it, last_value);
         }
         return obj;
     }
@@ -600,23 +613,27 @@ class DataSource
         FLAG8 WRITE = 2;
         FLAG8 OVERWRITE = 4;
         FLAG8 ALL = 7;
+        FLAG8 INHERIT = 8;
         Mode(Flags<uint8_t> flags) : Flags<uint8_t>(flags) {}
+        operator int () const { return m_value; }
     };
 
     DataSource(Kind kind, Mode mode, Origin origin)
       : m_parent{Object::NULL_I}
-      , m_cache{Object::EMPTY_I, origin == Origin::MEMORY}
+      , m_cache{Object::EMPTY_I}
       , m_mode{mode}
       , m_fully_cached{(kind == Kind::COMPLETE) && origin == Origin::MEMORY}
+      , m_unsaved{origin == Origin::MEMORY}
       , m_kind{kind}
       , m_default_repr_ix{Object::EMPTY_I}
     {}
 
     DataSource(Kind kind, Mode mode, ReprType repr_ix, Origin origin)
       : m_parent{Object::NULL_I}
-      , m_cache{repr_ix, origin == Origin::MEMORY}
+      , m_cache{repr_ix}
       , m_mode{mode}
       , m_fully_cached{(kind == Kind::COMPLETE) && origin == Origin::MEMORY}
+      , m_unsaved{origin == Origin::MEMORY}
       , m_kind{kind}
       , m_default_repr_ix{repr_ix}
     {}
@@ -626,7 +643,7 @@ class DataSource
     bool is_sparse() const { return m_kind == Kind::SPARSE; }
 
   protected:
-    virtual DataSource* new_instance(const Object& target, Origin origin) const = 0;
+    virtual DataSource* copy(const Object& target, Origin origin) const = 0;
     virtual void read_meta(const Object& target, Object&)                         {}  // load meta-data including type and id
     virtual void read(const Object& target, Object&)                              = 0;
     virtual Object read_key(const Object& target, const Key&)                     { return {}; }  // sparse
@@ -651,7 +668,7 @@ class DataSource
     size_t size(const Object& target);
     Object get(const Object& target, const Key& key);
 
-    void set(const Object& value);
+    void set(const Object& target, const Object& value);
     void set(const Object& target, const Key& key, const Object& value);
     void set(const Object& target, Key&& key, const Object& value);
     void del(const Object& target, const Key& key);
@@ -664,6 +681,7 @@ class DataSource
 
     Mode mode() const        { return m_mode; }
     void set_mode(Mode mode) { m_mode = mode; }
+    Mode get_mode() const;
 
     void set_failed(bool failed) { m_failed = failed; }
     bool is_valid(const Object& target);
@@ -677,7 +695,7 @@ class DataSource
 
   protected:
     void insure_fully_cached(const Object& target);
-    void set_unsaved(const Object&, bool unsaved);
+    void set_unsaved(bool unsaved) { m_unsaved = unsaved; }
 
   private:
     Object m_parent;
@@ -686,6 +704,7 @@ class DataSource
     Object m_cache;
     Mode m_mode;
     bool m_fully_cached = false;
+    bool m_unsaved = false;
 
   private:
     bool m_failed = false;
@@ -722,9 +741,9 @@ Object::Object(const Object& other) : m_fields{other.m_fields} {
         case INT_I:   m_repr.i = other.m_repr.i; break;
         case UINT_I:  m_repr.u = other.m_repr.u; break;
         case FLOAT_I: m_repr.f = other.m_repr.f; break;
-        case STR_I:   other.inc_ref_count(); m_repr.ps = other.m_repr.ps; break;
-        case LIST_I:  other.inc_ref_count(); m_repr.pl = other.m_repr.pl; break;
-        case OMAP_I:  other.inc_ref_count(); m_repr.pm = other.m_repr.pm; break;
+        case STR_I:   m_repr.ps = other.m_repr.ps; inc_ref_count(); break;
+        case LIST_I:  m_repr.pl = other.m_repr.pl; inc_ref_count(); break;
+        case OMAP_I:  m_repr.pm = other.m_repr.pm; inc_ref_count(); break;
         case DSRC_I:  m_repr.ds = other.m_repr.ds; m_repr.ds->inc_ref_count(); break;
     }
 }
@@ -748,6 +767,9 @@ Object::Object(Object&& other) : m_fields{other.m_fields} {
     other.m_fields.repr_ix = EMPTY_I;
     other.m_repr.z = nullptr;
 }
+
+inline
+Object::Object(DataSourcePtr ptr) : m_repr{ptr}, m_fields{DSRC_I} {}  // DataSource ownership transferred
 
 inline
 Object::Object(const List& list) : m_repr{new IRCList({}, NoParent{})}, m_fields{LIST_I} {
@@ -818,7 +840,7 @@ Object::Object(Key&& key) : m_fields{EMPTY_I} {
 }
 
 inline
-Object::Object(ReprType type, bool unsaved) : m_fields{(uint8_t)type, unsaved} {
+Object::Object(ReprType type) : m_fields{(uint8_t)type} {
     switch (type) {
         case EMPTY_I: m_repr.z = nullptr; break;
         case NULL_I:  m_repr.z = nullptr; break;
@@ -826,9 +848,9 @@ Object::Object(ReprType type, bool unsaved) : m_fields{(uint8_t)type, unsaved} {
         case INT_I:   m_repr.i = 0; break;
         case UINT_I:  m_repr.u = 0; break;
         case FLOAT_I: m_repr.f = 0.0; break;
-        case STR_I:   m_repr.ps = new IRCString{"", {}}; break;
-        case LIST_I:  m_repr.pl = new IRCList{{}, {}}; break;
-        case OMAP_I:  m_repr.pm = new IRCMap{{}, {}}; break;
+        case STR_I:   m_repr.ps = new IRCString{"", NoParent{}}; break;
+        case LIST_I:  m_repr.pl = new IRCList{{}, NoParent{}}; break;
+        case OMAP_I:  m_repr.pm = new IRCMap{{}, NoParent{}}; break;
         default:      throw wrong_type(type);
     }
 }
@@ -874,7 +896,7 @@ void Object::visit(V&& visitor) const {
         case UINT_I:  visitor(m_repr.u); break;
         case FLOAT_I: visitor(m_repr.f); break;
         case STR_I:   visitor(std::get<0>(*m_repr.ps)); break;
-        case DSRC_I:  visitor(*this); break;
+        case DSRC_I:  visitor(*this); break;  // TODO: How to visit Object with DataSource?
         default:      throw wrong_type(m_fields.repr_ix);
     }
 }
@@ -894,37 +916,7 @@ Object Object::dsrc_read() const {
 
 inline
 void Object::refer_to(const Object& other) {
-    dec_ref_count();
-
-    m_fields.repr_ix = other.m_fields.repr_ix;
-    switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
-        case NULL_I:  m_repr.z = nullptr; break;
-        case BOOL_I:  m_repr.b = other.m_repr.b; break;
-        case INT_I:   m_repr.i = other.m_repr.i; break;
-        case UINT_I:  m_repr.u = other.m_repr.u; break;
-        case FLOAT_I: m_repr.f = other.m_repr.f; break;
-        case STR_I: {
-            m_repr.ps = other.m_repr.ps;
-            inc_ref_count();
-            break;
-        }
-        case LIST_I: {
-            m_repr.pl = other.m_repr.pl;
-            inc_ref_count();
-            break;
-        }
-        case OMAP_I: {
-            m_repr.pm = other.m_repr.pm;
-            inc_ref_count();
-            break;
-        }
-        case DSRC_I: {
-            m_repr.ds = other.m_repr.ds;
-            inc_ref_count();
-            break;
-        }
-    }
+    operator = (other);
 }
 
 inline
@@ -1188,18 +1180,6 @@ Key Object::into_key() {
     }
 }
 
-//inline Object Object::operator [] (is_byvalue auto v) const {
-//    return get(v);
-//}
-//
-//inline Object Object::operator [] (const char* k) const {
-//    return get(k);
-//}
-//
-//inline Object Object::operator [] (const std::string& k) const {
-//    return get(k);
-//}
-
 inline
 Object Object::get(const char* v) const {
     switch (m_fields.repr_ix) {
@@ -1286,7 +1266,7 @@ Object Object::get(const OPath& path) const {
 inline
 void Object::set(const Object& value) {
     if (m_fields.repr_ix == DSRC_I) {
-        m_repr.ds->set(value);
+        m_repr.ds->set(*this, value);
     } else {
         this->operator = (value);
     }
@@ -1396,11 +1376,6 @@ inline
 void Object::set(std::pair<const Key&, const Object&> item) {
     set(item.first, item.second);
 }
-
-//inline
-//void Object::set(const OPath& path, const Object& value) {
-//     create intermediates
-//}
 
 inline
 void Object::del(is_integral auto v) {
@@ -1899,7 +1874,7 @@ Object Object::copy() const {
         case STR_I:   return std::get<0>(*m_repr.ps);
         case LIST_I:  return std::get<0>(*m_repr.pl);  // TODO: long-hand deep-copy, instead of using stack
         case OMAP_I:  return std::get<0>(*m_repr.pm);  // TODO: long-hand deep-copy, instead of using stack
-        case DSRC_I:  return m_repr.ds->new_instance(*this, DataSource::Origin::MEMORY);
+        case DSRC_I:  return m_repr.ds->copy(*this, DataSource::Origin::MEMORY);
         default:      throw wrong_type(m_fields.repr_ix);
     }
 }
@@ -1982,7 +1957,6 @@ Object& Object::operator = (const Object& other) {
 //    fmt::print("Object::operator = (const Object&)\n");
     dec_ref_count();
 
-    m_fields.unsaved = other.m_fields.unsaved;
     m_fields.repr_ix = other.m_fields.repr_ix;
     switch (m_fields.repr_ix) {
         case EMPTY_I: m_repr.z = nullptr; break;
@@ -2020,7 +1994,6 @@ Object& Object::operator = (Object&& other) {
 //    fmt::print("Object::operator = (Object&&)\n");
     dec_ref_count();
 
-    m_fields.unsaved = other.m_fields.unsaved;
     m_fields.repr_ix = other.m_fields.repr_ix;
     switch (m_fields.repr_ix) {
         case EMPTY_I: m_repr.z = nullptr; break;
@@ -2344,20 +2317,29 @@ Object DataSource::get(const Object& target, const Key& key) {
 }
 
 inline
-void DataSource::set(const Object& value) {
-    if (!(m_mode & Mode::WRITE)) throw WriteProtected();
-    if (!(m_mode & Mode::OVERWRITE)) throw OverwriteProtected();
-    set_unsaved(m_cache, true);
+DataSource::Mode DataSource::get_mode() const {
+    Mode mode = m_mode;
+    if (mode & Mode::INHERIT && m_parent.m_fields.repr_ix == Object::DSRC_I) {
+        mode = m_parent.m_repr.ds->get_mode();
+    }
+    return mode;
+}
+
+inline
+void DataSource::set(const Object& target, const Object& value) {
+    Mode mode = get_mode();
+    if (!(mode & Mode::WRITE)) throw WriteProtected();
+    if (!(mode & Mode::OVERWRITE)) throw OverwriteProtected();
+
+    set_unsaved(true);
     m_cache = value;
     m_fully_cached = true;
 }
 
 inline
 void DataSource::set(const Object& target, const Key& key, const Object& value) {
-    if (!(m_mode & Mode::WRITE)) throw WriteProtected();
-    set_unsaved(m_cache, true);
+    set_unsaved(true);
     if (is_sparse()) {
-        set_unsaved(target, true);
         if (m_cache.is_empty()) read_meta(target, m_cache);
         m_cache.set(key, value);
     } else {
@@ -2369,10 +2351,8 @@ void DataSource::set(const Object& target, const Key& key, const Object& value) 
 
 inline
 void DataSource::set(const Object& target, Key&& key, const Object& value) {
-    if (!(m_mode & Mode::WRITE)) throw WriteProtected();
-    set_unsaved(m_cache, true);
+    set_unsaved(true);
     if (is_sparse()) {
-        set_unsaved(target, true);
         if (m_cache.is_empty()) read_meta(target, m_cache);
         m_cache.set(std::forward<Key>(key), value);
     } else {
@@ -2384,8 +2364,7 @@ void DataSource::set(const Object& target, Key&& key, const Object& value) {
 
 inline
 void DataSource::del(const Object& target, const Key& key) {
-    if (!(m_mode & Mode::WRITE)) throw WriteProtected();
-    set_unsaved(m_cache, true);
+    set_unsaved(true);
     if (is_sparse()) {
         if (m_cache.is_empty()) read_meta(target, m_cache);
         m_cache.set(key, null);
@@ -2397,9 +2376,11 @@ void DataSource::del(const Object& target, const Key& key) {
 
 inline
 void DataSource::save(const Object& target, bool quiet) {
+    if (!(get_mode() & Mode::WRITE)) throw WriteProtected();
     if (m_cache.m_fields.repr_ix == Object::EMPTY_I) return;
-    if (m_cache.m_fields.unsaved) {
-        set_unsaved(m_cache, false);
+
+    if (m_unsaved) {
+        m_unsaved = false;
 
         if (m_fully_cached) {
             write(target, m_cache, quiet);
@@ -2409,12 +2390,11 @@ void DataSource::save(const Object& target, bool quiet) {
             KeyList del_keys;
 
             for (auto& [key, value] : m_cache.items()) {
-                if (value.m_fields.unsaved) {
-                    set_unsaved(value, false);
-                    write_key(target, key, value, quiet);
-                } else if (value.is_null()) {
+                if (value.is_null()) {
                     write_key(target, key, value, quiet);
                     del_keys.push_back(key);
+                } else {
+                    write_key(target, key, value, quiet);
                 }
             }
 
@@ -2459,7 +2439,6 @@ void DataSource::insure_fully_cached(const Object& target) {
 
         read(target, m_cache);
 
-        m_cache.m_fields.unsaved = 0;
         m_fully_cached = true;
 
         switch (m_cache.m_fields.repr_ix) {
@@ -2477,11 +2456,6 @@ void DataSource::insure_fully_cached(const Object& target) {
                 break;
         }
     }
-}
-
-inline
-void DataSource::set_unsaved(const Object& obj, bool unsaved) {
-    const_cast<Object&>(obj).m_fields.unsaved = unsaved;
 }
 
 } // nodel namespace

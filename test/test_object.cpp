@@ -783,6 +783,36 @@ TEST(Object, GetPath) {
     EXPECT_EQ(obj.get(path).id(), obj.get("a").get("b").get(1).id());
 }
 
+TEST(Object, CreatePath) {
+    Object obj = parse_json("{}");
+
+    OPath path;
+    path.append("a");
+    path.append(0);
+    path.append("b");
+    path.create(obj, 100);
+
+    EXPECT_EQ(path.to_str(), ".a[0].b");
+    EXPECT_TRUE(obj.get("a").is_list());
+    EXPECT_EQ(obj.get("a").get(0).type(), Object::OMAP_I);
+    EXPECT_EQ(obj.get("a").get(0).get("b"), 100);
+}
+
+TEST(Object, CreatePartialPath) {
+    Object obj = parse_json("{'a': {}}");
+
+    OPath path;
+    path.append("a");
+    path.append("b");
+    path.append(0);
+    path.create(obj, 100);
+
+    EXPECT_EQ(path.to_str(), ".a.b[0]");
+    EXPECT_TRUE(obj.get("a").is_map());
+    EXPECT_TRUE(obj.get("a").get("b").is_list());
+    EXPECT_EQ(obj.get("a").get("b").get(0), 100);
+}
+
 //TEST(Object, ParsePath) {
 //    Path path{"a.b[1].c[2][3].d"};
 //    KeyList keys = {"a", "b", 1, "c", 2, 3, "d"};
@@ -1123,7 +1153,7 @@ struct TestSimpleSource : public DataSource
     TestSimpleSource(const std::string& json, Mode mode = Mode::READ | Mode::WRITE | Mode::OVERWRITE)
       : DataSource(Kind::COMPLETE, mode, Origin::SOURCE), data{parse_json(json)} {}
 
-    DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSimpleSource(data.to_json()); }
+    DataSource* copy(const Object& target, Origin origin) const override { return new TestSimpleSource(data.to_json()); }
 
     void read_meta(const Object&, Object& cache) override {
         read_meta_called = true;
@@ -1147,7 +1177,7 @@ struct TestSparseSource : public DataSource
     TestSparseSource(const std::string& json, Mode mode = Mode::READ | Mode::WRITE | Mode::OVERWRITE)
       : DataSource(Kind::SPARSE, mode, Origin::SOURCE), data{parse_json(json)} {}
 
-    DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSparseSource(data.to_json()); }
+    DataSource* copy(const Object& target, Origin origin) const override { return new TestSparseSource(data.to_json()); }
 
     void read_meta(const Object&, Object& cache) override {
         read_meta_called = true;

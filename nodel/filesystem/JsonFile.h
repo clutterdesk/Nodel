@@ -25,9 +25,11 @@ namespace filesystem {
 class JsonFile : public File
 {
   public:
-    JsonFile(const std::string& ext, Origin origin) : File(ext, origin) {}
+    JsonFile(const std::string& ext, Origin origin) : File(ext, Mode::ALL | Mode::INHERIT, origin) {}
+    JsonFile(const std::string& ext)                : File(ext, Mode::ALL | Mode::INHERIT, Origin::MEMORY) {}
+    JsonFile()                                      : JsonFile(".json") {}
 
-    DataSource* new_instance(const Object& target, Origin origin) const override { return new JsonFile(ext(), origin); }
+    DataSource* copy(const Object& target, Origin origin) const override { return new JsonFile(ext(), origin); }
 
     void read_meta(const Object& target, Object& cache) override;
     void read(const Object& target, Object& cache) override;

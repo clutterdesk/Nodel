@@ -24,9 +24,11 @@ namespace filesystem {
 class TextFile : public File
 {
   public:
-    TextFile(const std::string& ext, Origin origin) : File(ext, Object::STR_I, origin) {}
+    TextFile(const std::string& ext, Origin origin) : File(ext, Mode::INHERIT, Object::STR_I, origin) {}
+    TextFile(const std::string& ext)                : TextFile(ext, Origin::MEMORY) {}
+    TextFile()                                      : TextFile(".txt") {}
 
-    DataSource* new_instance(const Object& target, Origin origin) const override { return new TextFile(ext(), origin); }
+    DataSource* copy(const Object& target, Origin origin) const override { return new TextFile(ext(), origin); }
 
     void read(const Object& target, Object& cache) override;
     void write(const Object& target, const Object& cache, bool quiet) override;

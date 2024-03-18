@@ -4,6 +4,7 @@
 
 #include <nodel/filesystem/Directory.h>
 #include <nodel/filesystem/DefaultRegistry.h>
+#include <nodel/filesystem/JsonFile.h>
 #include <nodel/nodel.h>
 
 using namespace nodel;
@@ -43,8 +44,9 @@ TEST(Filesystem, VisitOnlyFiles) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new DefaultRegistry(), wd);
     List found;
-    for (const auto& file : test_data.iter_tree(is_file))
+    for (const auto& file : test_data.iter_tree(is_file)) {
         EXPECT_TRUE(is_file(file));
+    }
 }
 
 TEST(Filesystem, EnterOnlyDirectories) {
@@ -120,17 +122,18 @@ TEST(Filesystem, Subdirectory) {
 TEST(Filesystem, CreateDirectory) {
     std::string temp_dir_name = "temp_test_create";
     auto wd = std::filesystem::current_path() / "test_data";
+
+    OnBlockExit cleanup{ [&wd, &temp_dir_name] () { std::filesystem::remove(wd / temp_dir_name); } };
+
     Object test_data = new Directory(new DefaultRegistry(), wd);
     test_data.set(temp_dir_name, new SubDirectory());
     test_data.save();
 
     Object test_data_2 = new Directory(new DefaultRegistry(), wd);
-    EXPECT_FALSE(test_data_2.get(temp_dir_name).is_empty());
+    EXPECT_FALSE(test_data_2.get(temp_dir_name).is_null());
 
     test_data.reset();
-    EXPECT_FALSE(test_data.get(temp_dir_name).is_empty());
-
-    std::filesystem::remove(wd / temp_dir_name);
+    EXPECT_FALSE(test_data.get(temp_dir_name).is_null());
 }
 
 TEST(Filesystem, DeleteDirectory) {
@@ -146,7 +149,7 @@ TEST(Filesystem, DeleteDirectory) {
     EXPECT_TRUE(std::filesystem::exists(wd / temp_dir_name));
 
     Object test_data_2 = new Directory(new DefaultRegistry(), wd, Mode::ALL);
-    EXPECT_FALSE(test_data_2.get(temp_dir_name).is_empty());
+    EXPECT_FALSE(test_data_2.get(temp_dir_name).is_null());
     test_data_2.del(temp_dir_name);
 
     test_data_2.save();
@@ -154,6 +157,46 @@ TEST(Filesystem, DeleteDirectory) {
 
     test_data.reset();
     EXPECT_TRUE(test_data.get(temp_dir_name).is_null());
+}
+
+TEST(Filesystem, CreateJsonFile) {
+    std::string new_file_name = "new_file.json";
+    auto wd = std::filesystem::current_path() / "test_data";
+
+    OnBlockExit cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
+
+    Object test_data = new Directory(new DefaultRegistry(), wd, DataSource::Mode::ALL);
+    Object new_file = new JsonFile();
+    new_file.set(parse_json("{'tea': 'Assam, please'}"));
+    test_data.set(new_file_name, new_file);
+    test_data.save();
+
+    Object test_data_2 = new Directory(new DefaultRegistry(), wd);
+    EXPECT_EQ(test_data_2.get(new_file_name).get("tea"), "Assam, please");
+
+    test_data.reset();
+    EXPECT_EQ(test_data.get(new_file_name).get("tea"), "Assam, please");
+}
+
+TEST(Filesystem, UpdateJsonFile) {
+    std::string new_file_name = "new_file.json";
+    auto wd = std::filesystem::current_path() / "test_data";
+
+    OnBlockExit cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
+
+    Object test_data = new Directory(new DefaultRegistry(), wd, DataSource::Mode::ALL);
+    Object new_file = new JsonFile();
+    new_file.set(parse_json("{'tea': 'Assam, please'}"));
+    test_data.set(new_file_name, new_file);
+    test_data.save();
+
+    test_data.reset();
+    new_file = test_data.get(new_file_name);
+    new_file.set("tea", "Assam, thanks!");
+    test_data.save();
+
+    test_data.reset();
+    EXPECT_EQ(test_data.get(new_file_name).get("tea"), "Assam, thanks!");
 }
 
 void test_invalid_file(const char* file_name) {
