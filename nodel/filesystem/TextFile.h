@@ -28,22 +28,22 @@ class TextFile : public File
     TextFile(const std::string& ext)                : TextFile(ext, Origin::MEMORY) {}
     TextFile()                                      : TextFile(".txt") {}
 
-    DataSource* copy(const Object& target, Origin origin) const override { return new TextFile(ext(), origin); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new TextFile(ext(), origin); }
 
-    void read(const Object& target, Object& cache) override;
+    void read(const Object& target) override;
     void write(const Object& target, const Object& cache, bool quiet) override;
 };
 
 inline
-void TextFile::read(const Object& target, Object& cache) {
+void TextFile::read(const Object& target) {
     auto fpath = path(target).string();
     auto size = std::filesystem::file_size(fpath);
     std::ifstream f_in{fpath, std::ios::in | std::ios::binary};
-    cache = "";
-    auto& str = cache.as<String>();
+    std::string str;
     str.resize(size);
     f_in.read(str.data(), size);
-    if (f_in.fail() || f_in.bad())  set_failed(true);
+    read_set(target, std::move(str));
+    if (f_in.fail() || f_in.bad()) set_failed(true);
 }
 
 inline

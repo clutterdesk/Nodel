@@ -53,10 +53,10 @@ class SubDirectory : public DataSource
     SubDirectory(Mode mode = Mode::READ | Mode::WRITE) : DataSource(Kind::COMPLETE, mode, Object::OMAP_I, Origin::MEMORY) {}
     SubDirectory(Mode mode, Origin origin) : DataSource(Kind::COMPLETE, mode, Object::OMAP_I, origin) {}
 
-    DataSource* copy(const Object& target, Origin origin) const override { return new SubDirectory(m_mode, origin); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new SubDirectory(mode(), origin); }
 
-    void read_meta(const Object&, Object&) override { assert (false); } // TODO: remove, later
-    void read(const Object& target, Object&) override;
+    void read_type(const Object&) override { assert (false); } // TODO: remove, later
+    void read(const Object& target) override;
     void write(const Object& target, const Object&, bool) override;
 };
 
@@ -71,7 +71,7 @@ class Directory : public SubDirectory
     Directory(Ref<Registry> r_registry, const std::filesystem::path& path, Mode mode = Mode::READ | Mode::WRITE)
       : SubDirectory(mode, Origin::SOURCE) , mr_registry(r_registry) , m_path(path) {}
 
-    DataSource* copy(const Object& target, Origin origin) const override {
+    DataSource* new_instance(const Object& target, Origin origin) const override {
         assert (origin == Origin::SOURCE);
         return new Directory(mr_registry, m_path);
     }
@@ -127,7 +127,7 @@ std::filesystem::path path(const Object& obj) {
 }
 
 inline
-void SubDirectory::read(const Object& target, Object& cache) {
+void SubDirectory::read(const Object& target) {
     auto head_anc = find_fs_root(target);
     assert (!head_anc.is_empty());
     auto opath = target.path(head_anc.parent());
@@ -135,14 +135,14 @@ void SubDirectory::read(const Object& target, Object& cache) {
     for (const auto& entry : std::filesystem::directory_iterator(fpath)) {
         auto fname = entry.path().filename().string();
         if (entry.is_directory()) {
-            cache.set(fname, new SubDirectory(m_mode, Origin::SOURCE));
+            read_set(target, fname, new SubDirectory(mode(), Origin::SOURCE));
         } else {
             auto& head_ds = *(head_anc.data_source<Directory>());
             auto r_reg = head_ds.registry();
             auto p_ds = r_reg->new_file(target, entry.path());
             if (p_ds != nullptr) {
-                p_ds->set_mode((m_mode & Mode::WRITE)? m_mode | Mode::OVERWRITE: m_mode);
-                cache.set(fname, p_ds);
+                p_ds->set_mode((mode() & Mode::WRITE)? mode() | Mode::OVERWRITE: mode());
+                read_set(target, fname, p_ds);
             }
         }
     }

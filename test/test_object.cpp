@@ -19,6 +19,17 @@ struct TestObject : public Object
     using Object::m_repr;
 };
 
+TEST(Object, TypeName) {
+    EXPECT_EQ(Object{}.type_name(), "empty");
+    EXPECT_EQ(Object{null}.type_name(), "null");
+    EXPECT_EQ(Object{true}.type_name(), "bool");
+    EXPECT_EQ(Object{-1}.type_name(), "int");
+    EXPECT_EQ(Object{1UL}.type_name(), "uint");
+    EXPECT_EQ(Object{"foo"}.type_name(), "string");
+    EXPECT_EQ(Object{Object::LIST_I}.type_name(), "list");
+    EXPECT_EQ(Object{Object::OMAP_I}.type_name(), "map");
+}
+
 TEST(Object, Empty) {
   Object v;
   EXPECT_TRUE(v.is_empty());
@@ -34,9 +45,14 @@ TEST(Object, Null) {
 TEST(Object, Bool) {
   Object v{true};
   EXPECT_TRUE(v.is_bool());
+  EXPECT_FALSE(v.is_num());
   EXPECT_EQ(v.to_json(), "true");
 
   v = false;
+  EXPECT_TRUE(v.is_bool());
+  EXPECT_EQ(v.to_json(), "false");
+
+  v = Object::BOOL_I;
   EXPECT_TRUE(v.is_bool());
   EXPECT_EQ(v.to_json(), "false");
 }
@@ -44,19 +60,34 @@ TEST(Object, Bool) {
 TEST(Object, Int64) {
   Object v{-0x7FFFFFFFFFFFFFFFLL};
   EXPECT_TRUE(v.is_int());
+  EXPECT_TRUE(v.is_num());
   EXPECT_EQ(v.to_json(), "-9223372036854775807");
+
+  v = Object::INT_I;
+  EXPECT_TRUE(v.is_int());
+  EXPECT_EQ(v.to_json(), "0");
 }
 
 TEST(Object, UInt64) {
   Object v{0xFFFFFFFFFFFFFFFFULL};
   EXPECT_TRUE(v.is_uint());
+  EXPECT_TRUE(v.is_num());
   EXPECT_EQ(v.to_json(), "18446744073709551615");
+
+  v = Object::UINT_I;
+  EXPECT_TRUE(v.is_uint());
+  EXPECT_EQ(v.to_json(), "0");
 }
 
 TEST(Object, Double) {
   Object v{3.141593};
   EXPECT_TRUE(v.is_float());
+  EXPECT_TRUE(v.is_num());
   EXPECT_EQ(v.to_json(), "3.141593");
+
+  v = Object::FLOAT_I;
+  EXPECT_TRUE(v.is_float());
+  EXPECT_EQ(v.to_json(), "0");
 }
 
 TEST(Object, String) {
@@ -68,6 +99,14 @@ TEST(Object, String) {
   Object quoted{"a\"b"};
   EXPECT_TRUE(quoted.is_str());
   EXPECT_EQ(quoted.to_json(), "\"a\\\"b\"");
+}
+
+TEST(Object, ConstructWithInvalidRepr) {
+    try {
+        Object v{Object::DSRC_I};
+        FAIL();
+    } catch(...) {
+    }
 }
 
 TEST(Object, List) {
@@ -98,6 +137,109 @@ TEST(Object, Size) {
     EXPECT_EQ(parse_json("{'x': 1, 'y': 2}").size(), 2);
 }
 
+TEST(Object, ToBool) {
+    EXPECT_EQ(Object{true}.to_bool(), true);
+    EXPECT_EQ(Object{0}.to_bool(), false);
+    EXPECT_EQ(Object{1}.to_bool(), true);
+    EXPECT_EQ(Object{0UL}.to_bool(), false);
+    EXPECT_EQ(Object{1UL}.to_bool(), true);
+    EXPECT_EQ(Object{0.0}.to_bool(), false);
+    EXPECT_EQ(Object{1.0}.to_bool(), true);
+    EXPECT_EQ(Object{"false"}.to_bool(), false);
+    EXPECT_EQ(Object{"true"}.to_bool(), true);
+
+    try {
+        Object obj;
+        obj.to_bool();
+        FAIL();
+    } catch (...) {
+    }
+
+    try {
+        Object obj{null};
+        obj.to_bool();
+        FAIL();
+    } catch (...) {
+    }
+}
+
+TEST(Object, ToInt) {
+    EXPECT_EQ(Object{false}.to_int(), 0);
+    EXPECT_EQ(Object{true}.to_int(), 1);
+    EXPECT_EQ(Object{-1}.to_int(), -1);
+    EXPECT_EQ(Object{1UL}.to_int(), 1);
+    EXPECT_EQ(Object{3.0}.to_int(), 3);
+    EXPECT_EQ(Object{"-1"}.to_int(), -1);
+
+    try {
+        Object obj;
+        obj.to_int();
+        FAIL();
+    } catch (...) {
+    }
+
+    try {
+        Object obj{null};
+        obj.to_int();
+        FAIL();
+    } catch (...) {
+    }
+}
+
+TEST(Object, ToUInt) {
+    EXPECT_EQ(Object{false}.to_uint(), 0);
+    EXPECT_EQ(Object{true}.to_uint(), 1);
+    EXPECT_EQ(Object{-1}.to_uint(), (UInt)(-1));
+    EXPECT_EQ(Object{(UInt)(-1)}.to_uint(), (UInt)(-1));
+    Float minus_one = -1.0;
+    EXPECT_EQ(Object{-1.0}.to_uint(), (UInt)minus_one);
+    EXPECT_EQ(Object{"3"}.to_uint(), 3);
+
+    try {
+        Object obj;
+        obj.to_uint();
+        FAIL();
+    } catch (...) {
+    }
+
+    try {
+        Object obj{null};
+        obj.to_uint();
+        FAIL();
+    } catch (...) {
+    }
+}
+
+TEST(Object, ToFloat) {
+    EXPECT_EQ(Object{false}.to_float(), (Float)(false));
+    EXPECT_EQ(Object{true}.to_float(), (Float)(true));
+    EXPECT_EQ(Object{-1}.to_float(), (Float)(-1));
+    EXPECT_EQ(Object{(UInt)(-1)}.to_float(), (Float)((UInt)(-1)));
+    EXPECT_EQ(Object{0.33333333}.to_float(), 0.33333333);
+    EXPECT_EQ(Object{"3.14159"}.to_float(), 3.14159);
+
+    try {
+        Object obj;
+        obj.to_float();
+        FAIL();
+    } catch (...) {
+    }
+
+    try {
+        Object obj{null};
+        obj.to_float();
+        FAIL();
+    } catch (...) {
+    }
+}
+
+TEST(Object, StdStreamOperator) {
+    Object obj{2.718};
+    std::stringstream ss;
+    ss << obj;
+    EXPECT_EQ(ss.str(), "2.718");
+}
+
 TEST(Object, ToStr) {
   EXPECT_EQ(Object{null}.to_str(), "null");
   EXPECT_EQ(Object{false}.to_str(), "false");
@@ -111,6 +253,76 @@ TEST(Object, ToStr) {
 
   const char* json = R"({"a": [], "b": [1], "c": [2, 3], "d": [4, [5, 6]]})";
   EXPECT_EQ(parse_json(json).to_str(), json);
+
+  try {
+      Object obj;
+      obj.to_str();
+      FAIL();
+  } catch (...) {
+  }
+
+  try {
+      Object obj{Object::BAD_I};
+      obj.to_str();
+      FAIL();
+  } catch (...) {
+  }
+}
+
+TEST(Object, ToKey) {
+    Object obj{"key"};
+    EXPECT_TRUE(obj.is_str());
+    EXPECT_EQ(obj.to_key().as<String>(), "key");
+
+    EXPECT_EQ(Object{null}.to_key(), Key{null});
+    EXPECT_EQ(Object{false}.to_key(), Key{false});
+    EXPECT_EQ(Object{true}.to_key(), Key{true});
+    EXPECT_EQ(Object{-1}.to_key(), Key{-1});
+    EXPECT_EQ(Object{1UL}.to_key(), Key{1UL});
+    EXPECT_EQ(Object{"tea"}.to_key(), Key{"tea"});
+
+    try {
+        Object obj;
+        obj.to_key();
+        FAIL();
+    } catch (...) {
+    }
+}
+
+TEST(Object, IntoKey) {
+    Object obj = null;
+    EXPECT_EQ(obj.into_key(), Key{null});
+    obj = false;
+    EXPECT_EQ(obj.into_key(), Key{false});
+    obj = -1;
+    EXPECT_EQ(obj.into_key(), Key{-1});
+    obj = 1UL;
+    EXPECT_EQ(obj.into_key(), Key{1UL});
+    obj = "tea";
+    EXPECT_EQ(obj.into_key(), Key{"tea"});
+
+    try {
+        Object obj;
+        obj.into_key();
+        FAIL();
+    } catch (...) {
+    }
+}
+
+TEST(Object, NonDataSourceIsValid) {
+    EXPECT_TRUE(Object{null}.is_valid());
+    EXPECT_TRUE(Object{0}.is_valid());
+}
+
+TEST(Object, GetId) {
+    EXPECT_NE(Object(null).id().to_str(), "");
+    EXPECT_NE(Object(true).id().to_str(), "");
+    EXPECT_NE(Object(-1).id().to_str(), "");
+    EXPECT_NE(Object(1UL).id().to_str(), "");
+    EXPECT_NE(Object(2.718).id().to_str(), "");
+    EXPECT_NE(Object("tea").id().to_str(), "");
+    EXPECT_NE(Object(Object::LIST_I).id().to_str(), "");
+    EXPECT_NE(Object(Object::OMAP_I).id().to_str(), "");
 }
 
 TEST(Object, IdentityComparison) {
@@ -122,6 +334,25 @@ TEST(Object, IdentityComparison) {
     EXPECT_TRUE(obj.is(copy2));
     EXPECT_TRUE(copy.is(copy2));
     EXPECT_TRUE(copy2.is(obj));
+}
+
+TEST(Object, CompareNull) {
+    EXPECT_TRUE(Object{null} == Object{null});
+    EXPECT_EQ(Object{null}.operator <=> (null), std::partial_ordering::equivalent);
+
+    try {
+        Object a{null};
+        EXPECT_FALSE(a == Object{1});
+        FAIL();
+    } catch (...) {
+    }
+
+    try {
+        Object a{null};
+        a <=> Object{1};
+        FAIL();
+    } catch (...) {
+    }
 }
 
 TEST(Object, CompareBoolNull) {
@@ -138,15 +369,34 @@ TEST(Object, CompareBoolNull) {
 TEST(Object, CompareBoolBool) {
   Object a{true};
   Object b{true};
-  EXPECT_FALSE(a != b);  // just verifying that != invokes ==
+  EXPECT_FALSE(a != b);
   EXPECT_TRUE(a == b);
-  EXPECT_FALSE(a < b);
-  EXPECT_FALSE(a > b);
+  a = false;
+  EXPECT_TRUE(a < b);
+  EXPECT_TRUE(b > a);
 }
 
 TEST(Object, CompareBoolInt) {
     Object a{true};
     Object b{1};
+    EXPECT_TRUE(a == b);
+    try {
+        EXPECT_FALSE(a < b);
+        FAIL();
+    } catch (...) {
+    }
+
+    EXPECT_TRUE(b == a);
+    try {
+        EXPECT_FALSE(b > a);
+        FAIL();
+    } catch (...) {
+    }
+}
+
+TEST(Object, CompareBoolUInt) {
+    Object a{true};
+    Object b{1UL};
     EXPECT_TRUE(a == b);
     try {
         EXPECT_FALSE(a < b);
@@ -267,6 +517,19 @@ TEST(Object, CompareIntInt) {
 }
 
 TEST(Object, CompareIntUInt) {
+  Object a{1};
+  Object b{1UL};
+  EXPECT_TRUE(a == b);
+  EXPECT_EQ(a.operator <=> (b), std::partial_ordering::equivalent);
+
+  a = -1;
+  EXPECT_TRUE(a < b);
+  EXPECT_TRUE(b > a);
+  EXPECT_TRUE(a != b);
+  EXPECT_TRUE(b != a);
+}
+
+TEST(Object, CompareIntUIntMax) {
   Object a{1};
   Object b{0xFFFFFFFFFFFFFFFFULL};
   EXPECT_TRUE(a != b);
@@ -471,6 +734,17 @@ TEST(Object, CompareUIntMap) {
     }
 }
 
+TEST(Object, CompareFloat) {
+    Object a{3.14};
+    Object b{3.14};
+    EXPECT_TRUE(a == b);
+    EXPECT_TRUE(b == a);
+
+    b = 3.141;
+    EXPECT_TRUE(a < b);
+    EXPECT_TRUE(b > a);
+}
+
 TEST(Object, CompareStrStr) {
     Object a{"aaa"};
     Object b{"aba"};
@@ -532,10 +806,25 @@ TEST(Object, CompareStrMap) {
     }
 }
 
-TEST(Object, ToKey) {
-  Object obj{"key"};
-  EXPECT_TRUE(obj.is_str());
-  EXPECT_EQ(obj.to_key().as<String>(), "key");
+TEST(Object, CopyBasic) {
+    EXPECT_TRUE(Object{null}.copy().is_null());
+    EXPECT_TRUE(Object{-1}.copy().is_int());
+    EXPECT_TRUE(Object{1UL}.copy().is_uint());
+    EXPECT_TRUE(Object{2.718}.copy().is_float());
+    EXPECT_TRUE(Object{"tea"}.copy().is_str());
+
+    EXPECT_EQ(Object{null}.copy(), null);
+    EXPECT_EQ(Object{-1}.copy(), -1);
+    EXPECT_EQ(Object{1UL}.copy(), 1UL);
+    EXPECT_EQ(Object{2.718}.copy(), 2.718);
+    EXPECT_EQ(Object{"tea"}.copy(), "tea");
+
+    try {
+        Object obj;
+        obj.copy();
+        FAIL();
+    } catch (...) {
+    }
 }
 
 TEST(Object, ListGet) {
@@ -557,6 +846,34 @@ TEST(Object, ListGetOutOfRange) {
     Object obj = parse_json(R"([])");
     EXPECT_TRUE(obj.is_list());
     EXPECT_TRUE(obj.get(1).is_null());
+}
+
+TEST(Object, ListSet) {
+    Object obj = parse_json("[1, 2, 3]");
+    obj.set(1, 12);
+    obj.set(-1, 13);
+    EXPECT_EQ(obj.get(0), 1);
+    EXPECT_EQ(obj.get(1), 12);
+    EXPECT_EQ(obj.get(2), 13);
+
+    Key one = 1;
+    obj.set(one, 102);
+    Key minus_one = -1;
+    obj.set(minus_one, 103);
+    EXPECT_EQ(obj.get(0), 1);
+    EXPECT_EQ(obj.get(1), 102);
+    EXPECT_EQ(obj.get(2), 103);
+}
+
+TEST(Object, ListDelete) {
+    Object obj = parse_json("[1, 2, 3]");
+    obj.del(0);
+    EXPECT_EQ(obj.size(), 2);
+    EXPECT_EQ(obj.get(0), 2);
+    EXPECT_EQ(obj.get(1), 3);
+    obj.del(-1);
+    EXPECT_EQ(obj.size(), 1);
+    EXPECT_EQ(obj.get(0), 2);
 }
 
 TEST(Object, MapGet) {
@@ -615,6 +932,33 @@ TEST(Object, MapSetMap) {
     EXPECT_EQ(obj.get("x"s).get("y"s), 101);
 }
 
+TEST(Object, GetParentOfEmpty) {
+    Object obj;
+    try {
+        obj.parent();
+        FAIL();
+    } catch (...) {
+    }
+}
+
+TEST(Object, SetReplaceInParent) {
+    Object obj = parse_json("{'x': 'X'}");
+    EXPECT_EQ(obj.get("x"), "X");
+
+    Object rhs{"Y"};
+    obj.get("x").set(rhs);
+    EXPECT_EQ(obj.get("x"), "Y");
+}
+
+TEST(Object, GetKey) {
+    Object obj = parse_json("{'x': 'X', 'y': 'Y', 'z': ['Z0', 'Z1']}");
+    EXPECT_EQ(obj.get("x").key(), "x");
+    EXPECT_EQ(obj.get("y").key(), "y");
+    EXPECT_EQ(obj.get("z").key(), "z");
+    EXPECT_EQ(obj.get("z").get(0).key(), 0);
+    EXPECT_EQ(obj.get("z").get(1).key(), 1);
+}
+
 TEST(Object, KeyOf) {
     Object obj = parse_json(
         R"({"bool": true, 
@@ -643,6 +987,16 @@ TEST(Object, KeyOf) {
     EXPECT_EQ(obj.key_of(obj.get("redun_uint")), "uint");
     EXPECT_EQ(obj.key_of(obj.get("redun_float")), "float");
     EXPECT_EQ(obj.key_of(obj.get("okay_str")), "okay_str");
+}
+
+TEST(Object, KeyOfWrongType) {
+    Object parent = 7;
+    Object child = 0;
+    try {
+        parent.key_of(child);
+        FAIL();
+    } catch (...) {
+    }
 }
 
 TEST(Object, LineageRange) {
@@ -783,6 +1137,30 @@ TEST(Object, GetPath) {
     EXPECT_EQ(obj.get(path).id(), obj.get("a").get("b").get(1).id());
 }
 
+TEST(Object, GetPartialPath) {
+    Object obj = parse_json(R"({"a": {"b": {"c": ["Assam", "Ceylon"]}}})");
+    auto c = obj.get("a").get("b").get("c");
+    auto path = c.path(obj.get("a"));
+    EXPECT_EQ(path.to_str(), ".b.c");
+    EXPECT_TRUE(obj.get("a").get(path).is(c));
+}
+
+TEST(Object, ConstructedPath) {
+    Object obj = parse_json(R"({"a": {"b": ["Assam", "Ceylon"]}})");
+    OPath path;
+    path.prepend("b");
+    path.prepend("a");
+    path.append(0);
+    EXPECT_EQ(obj.get(path), "Assam");
+}
+
+TEST(Object, PathParent) {
+    Object obj = parse_json(R"({"a": {"b": ["Assam", "Ceylon"]}})");
+    auto path = obj.get("a").get("b").path().parent();
+    EXPECT_EQ(path.to_str(), ".a");
+    EXPECT_TRUE(obj.get(path).is(obj.get("a")));
+}
+
 TEST(Object, CreatePath) {
     Object obj = parse_json("{}");
 
@@ -811,6 +1189,65 @@ TEST(Object, CreatePartialPath) {
     EXPECT_TRUE(obj.get("a").is_map());
     EXPECT_TRUE(obj.get("a").get("b").is_list());
     EXPECT_EQ(obj.get("a").get("b").get(0), 100);
+}
+
+TEST(Object, CreatePathCopy) {
+    Object to_obj = parse_json("{}");
+    Object from_obj = parse_json("{'tea': ['Assam', 'Ceylon']}");
+
+    OPath path;
+    path.append("tea");
+    Object copy = path.create(to_obj, from_obj.get("tea"));
+
+    EXPECT_TRUE(from_obj.get("tea").parent().is(from_obj));
+    EXPECT_TRUE(copy.parent().is(to_obj));
+    EXPECT_EQ(copy.key(), "tea");
+    EXPECT_EQ(to_obj.get("tea").get(0), "Assam");
+}
+
+TEST(Object, DelPath) {
+    Object obj = parse_json(R"({"a": {"b": ["Assam", "Ceylon"]}})");
+
+    OPath path;
+    path.append("a");
+    path.append("b");
+    path.append(0);
+
+    obj.del(path);
+    EXPECT_EQ(obj.get("a").get("b").size(), 1);
+    EXPECT_EQ(obj.get("a").get("b").get(0), "Ceylon");
+}
+
+TEST(Object, HashPath) {
+    std::hash<OPath> hash;
+
+    OPath path1;
+    path1.append("a");
+    path1.append("b");
+
+    OPath path2;
+    path2.append("a");
+    path2.append("b");
+
+    OPath path3;
+    path3.append("a");
+    path3.append("c");
+
+    EXPECT_EQ(hash(path1), hash(path1));
+    EXPECT_EQ(hash(path2), hash(path2));
+    EXPECT_EQ(hash(path3), hash(path3));
+
+    EXPECT_EQ(hash(path1), hash(path2));
+    EXPECT_NE(hash(path1), hash(path3));
+    EXPECT_NE(hash(path2), hash(path3));
+}
+
+TEST(Object, DelFromParent) {
+    Object obj = parse_json("{'x': 'X', 'y': 'Y', 'z': 'Z'}");
+    obj.get("y").del_from_parent();
+    EXPECT_EQ(obj.size(), 2);
+    EXPECT_EQ(obj.get("x"), "X");
+    EXPECT_EQ(obj.get("z"), "Z");
 }
 
 //TEST(Object, ParsePath) {
@@ -845,7 +1282,7 @@ TEST(Object, MoveCtorRefCountIntegrity) {
 }
 
 TEST(Object, WalkDF) {
-  Object obj = parse_json("[1, [2, [3, [4, 5], 6], 7], 8]");
+  Object obj = parse_json("[1, [2, [{'x': 3}, [4, 5], {'x': 6}], 7], 8]");
   std::vector<Int> expect_order{1, 2, 3, 4, 5, 6, 7, 8};
   std::vector<Int> actual_order;
 
@@ -862,7 +1299,7 @@ TEST(Object, WalkDF) {
 }
 
 TEST(Object, WalkBF) {
-  Object obj = parse_json("[1, [2, [3, [4, 5], 6], 7], 8]");
+  Object obj = parse_json("[1, [2, [3, [{'x': 4}, {'x': 5}], 6], 7], 8]");
   std::vector<Int> expect_order{1, 8, 2, 7, 3, 6, 4, 5};
   std::vector<Int> actual_order;
 
@@ -876,13 +1313,6 @@ TEST(Object, WalkBF) {
 
   EXPECT_EQ(actual_order.size(), expect_order.size());
   EXPECT_EQ(actual_order, expect_order);
-}
-
-static void dump(const char* data) {
-    for (auto* p = data; *p != 0 ; p++) {
-        fmt::print("{:x}", *p);
-    }
-    std::cout << std::endl;
 }
 
 TEST(Object, RefCountPrimitive) {
@@ -1153,17 +1583,28 @@ struct TestSimpleSource : public DataSource
     TestSimpleSource(const std::string& json, Mode mode = Mode::READ | Mode::WRITE | Mode::OVERWRITE)
       : DataSource(Kind::COMPLETE, mode, Origin::SOURCE), data{parse_json(json)} {}
 
-    DataSource* copy(const Object& target, Origin origin) const override { return new TestSimpleSource(data.to_json()); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSimpleSource(data.to_json()); }
 
-    void read_meta(const Object&, Object& cache) override {
+    void read_type(const Object& target) override {
         read_meta_called = true;
         std::istringstream in{data.to_json()};
         json::impl::Parser parser{in};
-        cache = Object{(Object::ReprType)parser.parse_type()};
+        read_set(target, (Object::ReprType)parser.parse_type());
     }
 
-    void read(const Object&, Object& cache) override                    { read_called = true; cache = data; }
-    void write(const Object&, const Object& cache, bool quiet) override { write_called = true; data = cache; }
+    void read(const Object& target) override {
+        read_called = true;
+        if (data.is_int() && data == 0xbad) {
+            set_failed(true);
+        } else {
+            read_set(target, data);
+        }
+    }
+
+    void write(const Object&, const Object& cache, bool quiet) override {
+        write_called = true;
+        data = cache;
+    }
 
     Object data;
     bool read_meta_called = false;
@@ -1175,24 +1616,39 @@ struct TestSimpleSource : public DataSource
 struct TestSparseSource : public DataSource
 {
     TestSparseSource(const std::string& json, Mode mode = Mode::READ | Mode::WRITE | Mode::OVERWRITE)
-      : DataSource(Kind::SPARSE, mode, Origin::SOURCE), data{parse_json(json)} {}
+      : DataSource(Kind::SPARSE, mode, Object::OMAP_I, Origin::SOURCE), data{parse_json(json)} {}
 
-    DataSource* copy(const Object& target, Origin origin) const override { return new TestSparseSource(data.to_json()); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSparseSource(data.to_json()); }
 
-    void read_meta(const Object&, Object& cache) override {
+    void read_type(const Object& target) override {
         read_meta_called = true;
         std::istringstream in{data.to_json()};
         json::impl::Parser parser{in};
-        cache = Object{(Object::ReprType)parser.parse_type()};
+        read_set(target, (Object::ReprType)parser.parse_type());
     }
 
-    void read(const Object&, Object& cache) override                    { read_called = true; cache = data; }
+    void read(const Object& target) override                            { read_called = true; read_set(target, data); }
     void write(const Object&, const Object& cache, bool quiet) override { write_called = true; data = cache; }
 
-    Object read_key(const Object&, const Key& k) override                             { read_key_called = true; return data.get(k); }
-    size_t read_size(const Object&) override                                          { return data.size(); }
-    void write_key(const Object&, const Key& k, const Object& v, bool quiet) override { write_key_called = true; data.set(k, v); }
-    void write_key(const Object&, const Key& k, Object&& v, bool quiet) override      { write_key_called = true; data.set(k, std::forward<Object>(v)); }
+    Object read_key(const Object&, const Key& k) override               { read_key_called = true; return data.get(k); }
+
+    void write_key(const Object&, const Key& k, const Object& v, bool quiet) override {
+        write_key_called = true;
+        if (v.is_deleted()) {
+            data.del(k);
+        } else {
+            data.set(k, v);
+        }
+    }
+
+    void write_key(const Object&, const Key& k, Object&& v, bool quiet) override {
+        write_key_called = true;
+        if (v.is_deleted()) {
+            data.del(k);
+        } else {
+            data.set(k, std::forward<Object>(v));
+        }
+    }
 
     class TestKeyIterator : public KeyIterator
     {
@@ -1255,8 +1711,6 @@ struct TestSparseSource : public DataSource
     std::unique_ptr<ValueIterator> value_iter() override { return std::make_unique<TestValueIterator>(*this, data); }
     std::unique_ptr<ItemIterator> item_iter() override   { return std::make_unique<TestItemIterator>(*this, data); }
 
-    using DataSource::m_cache;
-
     Object data;
     bool read_meta_called = false;
     bool read_called = false;
@@ -1266,6 +1720,56 @@ struct TestSparseSource : public DataSource
     bool iter_deleted = false;
 };
 
+
+TEST(Object, TestSimpleSource_Invalid) {
+    Object obj{new TestSimpleSource(std::to_string(0xbad))};
+    EXPECT_FALSE(obj.is_valid());
+}
+
+TEST(Object, TestSimpleSource_ToBlah) {
+    auto max_uint = std::numeric_limits<UInt>::max();
+    auto max_uint_str = std::to_string(max_uint);
+    auto make = [] (auto&& json) { return Object{new TestSimpleSource(json)}; };
+    EXPECT_EQ(make("true").to_bool(), true);
+    EXPECT_EQ(make("-1").to_int(), -1);
+    EXPECT_EQ(make(max_uint_str).to_uint(), max_uint);
+    EXPECT_EQ(make("3.14159").to_float(), 3.14159);
+    EXPECT_EQ(make("'tea'").to_str(), "tea");
+}
+
+TEST(Object, TestSimpleSource_GetWithKey) {
+    Object obj{new TestSimpleSource("{'x': 100}")};
+    EXPECT_EQ(obj.get(Key{"x"}), 100);
+    Key key = "x";
+    EXPECT_EQ(obj.get(key), 100);
+}
+
+TEST(Object, TestSimpleSource_SetWithKey) {
+    Object obj{new TestSimpleSource("{'x': 100}")};
+    obj.set("x", 11);
+    EXPECT_EQ(obj.get("x"), 11);
+    Key key = "x";
+    obj.set(key, 101);
+    EXPECT_EQ(obj.get("x"), 101);
+}
+
+TEST(Object, TestSimpleSource_GetValues) {
+    Object obj{new TestSimpleSource("{'x': 100, 'y': 101}")};
+    Object values = obj.values();
+    EXPECT_EQ(values.size(), 2);
+    EXPECT_EQ(values.get(0), 100);
+    EXPECT_EQ(values.get(1), 101);
+}
+
+TEST(Object, TestSimpleSource_GetItems) {
+    Object obj{new TestSimpleSource("{'x': 100, 'y': 101}")};
+    ItemList items = obj.items();
+    EXPECT_EQ(items.size(), 2);
+    EXPECT_EQ(std::get<0>(items[0]), "x");
+    EXPECT_EQ(std::get<1>(items[0]), 100);
+    EXPECT_EQ(std::get<0>(items[1]), "y");
+    EXPECT_EQ(std::get<1>(items[1]), 101);
+}
 
 TEST(Object, TestSimpleSource_RefCountCopyAssign) {
     Object obj{new TestSimpleSource(R"("foo")")};
@@ -1289,6 +1793,50 @@ TEST(Object, TestSimpleSource_RefCountMoveAssign) {
 TEST(Object, TestSimpleSource_GetType) {
     Object obj{new TestSimpleSource(R"({"x": 1, "y": 2})")};
     EXPECT_TRUE(obj.is_map());
+    EXPECT_EQ(obj.type(), Object::OMAP_I);
+}
+
+TEST(Object, TestSimpleSource_Compare) {
+    Object a{new TestSimpleSource("1")};
+    Object b{new TestSimpleSource("2")};
+    EXPECT_TRUE(a < b);
+    EXPECT_TRUE(b > a);
+}
+
+TEST(Object, TestSimpleSource_WalkDF) {
+  Object obj = parse_json("{}");
+  obj.set("x", new TestSimpleSource("[1, [2, [{'x': 3}, [4, 5], {'x': 6}], 7], 8]"));
+  std::vector<Int> expect_order{1, 2, 3, 4, 5, 6, 7, 8};
+  std::vector<Int> actual_order;
+
+  auto visitor = [&actual_order] (const Object& parent, const Key& key, const Object& object, int) -> void {
+    if (!object.is_container())
+      actual_order.push_back(object.to_int());
+  };
+
+  WalkDF walk{obj, visitor};
+  while (walk.next()) {}
+
+  EXPECT_EQ(actual_order.size(), expect_order.size());
+  EXPECT_EQ(actual_order, expect_order);
+}
+
+TEST(Object, TestSimpleSource_WalkBF) {
+  Object obj = parse_json("{}");
+  obj.set("x", parse_json("[1, [2, [3, [{'x': 4}, {'x': 5}], 6], 7], 8]"));
+  std::vector<Int> expect_order{1, 8, 2, 7, 3, 6, 4, 5};
+  std::vector<Int> actual_order;
+
+  auto visitor = [&actual_order] (const Object& parent, const Key& key, const Object& object) -> void {
+    if (!object.is_container())
+      actual_order.push_back(object.to_int());
+  };
+
+  WalkBF walk{obj, visitor};
+  while (walk.next()) {}
+
+  EXPECT_EQ(actual_order.size(), expect_order.size());
+  EXPECT_EQ(actual_order, expect_order);
 }
 
 TEST(Object, TestSimpleSource_ChildParent) {
@@ -1301,6 +1849,27 @@ TEST(Object, TestSimpleSource_Read) {
     Object obj{dsrc};
     EXPECT_EQ(obj, "Strong, black tea");
     EXPECT_TRUE(dsrc->read_called);
+}
+
+TEST(Object, TestSimpleSource_ToStr) {
+    auto dsrc = new TestSimpleSource(R"("Strong, black tea")");
+    Object obj{dsrc};
+    EXPECT_EQ(obj.to_str(), "Strong, black tea");
+}
+
+TEST(Object, TestSimpleSource_IsValid) {
+    auto dsrc = new TestSimpleSource(R"("Strong, black tea")");
+    Object obj{dsrc};
+    EXPECT_TRUE(obj.is_valid());
+}
+
+TEST(Object, TestSimpleSource_Id) {
+    auto dsrc = new TestSimpleSource(R"("Tea!")");
+    Object obj{dsrc};
+    auto id_before = obj.id();
+    EXPECT_EQ(obj.to_str(), "Tea!");
+    auto id_after = obj.id();
+    EXPECT_EQ(id_before, id_after);
 }
 
 TEST(Object, TestSimpleSource_Reset) {
@@ -1409,6 +1978,24 @@ TEST(Object, TestSparseSource_ItemIterator) {
     EXPECT_EQ(found[1], std::make_pair(Key{"y"}, Object{"Y"}));
 }
 
+TEST(Object, TestSparseSource_GetValues) {
+    Object obj{new TestSparseSource("{'x': 100, 'y': 101}")};
+    List values = obj.values();
+    EXPECT_EQ(values.size(), 2);
+    EXPECT_EQ(values[0], 100);
+    EXPECT_EQ(values[1], 101);
+}
+
+TEST(Object, TestSparseSource_GetItems) {
+    Object obj{new TestSparseSource("{'x': 100, 'y': 101}")};
+    ItemList items = obj.items();
+    EXPECT_EQ(items.size(), 2);
+    EXPECT_EQ(std::get<0>(items[0]), "x");
+    EXPECT_EQ(std::get<1>(items[0]), 100);
+    EXPECT_EQ(std::get<0>(items[1]), "y");
+    EXPECT_EQ(std::get<1>(items[1]), 101);
+}
+
 TEST(Object, TestSparseSource_ReadKey) {
     auto dsrc = new TestSparseSource(R"({"x": 1, "y": 2})");
     Object obj{dsrc};
@@ -1421,90 +2008,69 @@ TEST(Object, TestSparseSource_ReadKey) {
 
 TEST(Object, TestSparseSource_WriteKey) {
     auto dsrc = new TestSparseSource(R"({"x": 1, "y": 2, "z": 3})");
+    test::DataSourceTestInterface test_iface{*dsrc};
     Object obj{dsrc};
-    obj.set("x", 9);
+    Key x = "x";
+    obj.set(x, 9);
     obj.set("z", 10);
     EXPECT_FALSE(dsrc->write_called);
     EXPECT_FALSE(dsrc->write_key_called);
-    EXPECT_EQ(dsrc->m_cache.get("x"), 9);
+    EXPECT_EQ(test_iface.cache().get("x"), 9);
     EXPECT_EQ(dsrc->data.get("x"), 1);
-    EXPECT_EQ(dsrc->m_cache.get("z"), 10);
+    EXPECT_EQ(test_iface.cache().get("z"), 10);
     EXPECT_EQ(dsrc->data.get("z"), 3);
     obj.save();
     EXPECT_TRUE(dsrc->write_key_called);
     EXPECT_FALSE(dsrc->write_called);
-    EXPECT_EQ(dsrc->m_cache.get("x"), 9);
+    EXPECT_EQ(test_iface.cache().get("x"), 9);
     EXPECT_EQ(dsrc->data.get("x"), 9);
-    EXPECT_EQ(dsrc->m_cache.get("z"), 10);
+    EXPECT_EQ(test_iface.cache().get("z"), 10);
     EXPECT_EQ(dsrc->data.get("z"), 10);
 }
 
 TEST(Object, TestSparseSource_Write) {
     auto dsrc = new TestSparseSource(R"({"x": 1, "y": 2})");
+    test::DataSourceTestInterface test_iface{*dsrc};
     Object obj{dsrc};
     obj.set(parse_json(R"({"x": 9, "y": 10})"));
     EXPECT_FALSE(dsrc->write_called);
     EXPECT_FALSE(dsrc->write_key_called);
-    EXPECT_EQ(dsrc->m_cache.get("x"), 9);
+    EXPECT_EQ(test_iface.cache().get("x"), 9);
     EXPECT_EQ(dsrc->data.get("x"), 1);
     obj.save();
     EXPECT_TRUE(dsrc->write_called);
     EXPECT_FALSE(dsrc->write_key_called);
-    EXPECT_EQ(dsrc->m_cache.get("x"), 9);
+    EXPECT_EQ(test_iface.cache().get("x"), 9);
     EXPECT_EQ(dsrc->data.get("x"), 9);
 }
 
-//TEST(Object, StringSource_Read) {
-//    auto dsrc = new ShallowSource(R"("Strong, black tea")");
-//    Object obj{dsrc};
-//    EXPECT_EQ(obj, "Strong, black tea");
-//    EXPECT_FALSE(dsrc->read_called);
-//}
-//
-//TEST(Object, StringSource_ReadKeyThrows) {
-//    try {
-//        auto dsrc = new ShallowSource(R"("Oops!")");
-//        Object obj{dsrc};
-//        obj["x"];
-//        FAIL();
-//    } catch (...) {
-//    }
-//}
-//
-//TEST(Object, StringSource_Write) {
-//    auto dsrc = new ShallowSource(R"("Ceylon Tea")");
-//    Object obj{dsrc};
-//    obj = "Assam Tea";
-//    EXPECT_EQ(dsrc->data, "Assam Tea");
-//    EXPECT_TRUE(dsrc->cached.is_empty());
-//    EXPECT_EQ(obj, "Assam Tea");
-//}
-//
-//TEST(Object, StringSource_WriteMemoryBypass) {
-//    auto dsrc_1 = new ShallowSource(R"("Ceylon Tea")");
-//    auto dsrc_2 = new ShallowSource(R"("Assam Tea")");
-//    Object obj_1{dsrc_1};
-//    Object obj_2{dsrc_2};
-//    obj_1 = obj_2;
-//    EXPECT_TRUE(dsrc_1->memory_bypass);
-//    EXPECT_TRUE(dsrc_2->cached.is_empty());
-//    EXPECT_EQ(obj_1, "Assam Tea");
-//    EXPECT_EQ(obj_2, "Assam Tea");
-//}
-//
-//TEST(Object, StringSource_IterateString) {
-//    auto dsrc = new ShallowSource(R"("0123456,789AB")");
-//    Object obj{dsrc};
-//    std::string got;
-//    obj.iter_visit(overloaded {
-//        [&got] (const char c) -> bool {
-//            if (c != ',') { got.push_back(c); return true; }
-//            return false;
-//        },
-//        [] (const Object&) -> bool { return true; },
-//        [] (const Key&) -> bool { return true; }
-//    });
-//    EXPECT_EQ(got, "0123456");
-//    EXPECT_FALSE(dsrc->read_called);
-//    EXPECT_FALSE(dsrc->read_key_called);
-//}
+TEST(Object, TestSparseSource_DelKey) {
+    auto dsrc = new TestSparseSource(R"({"x": 1, "y": 2, "z": 3})");
+    test::DataSourceTestInterface test_iface{*dsrc};
+    Object obj{dsrc};
+    Key x = "x";
+    obj.del(x);
+    obj.del("z");
+    EXPECT_EQ(obj.size(), 1);
+    EXPECT_EQ(obj.get("y"), 2);
+
+    obj.save();
+    obj.reset();
+    EXPECT_EQ(obj.size(), 1);
+    EXPECT_EQ(obj.get("y"), 2);
+}
+
+TEST(Object, TestSparseSource_ResetKey) {
+    auto dsrc = new TestSparseSource(R"({"x": 1, "y": 2, "z": 3})");
+    Object obj{dsrc};
+    obj.set("z", 10);
+    EXPECT_EQ(obj.get("z"), 10);
+    obj.reset_key("z");
+    EXPECT_EQ(obj.get("z"), 3);
+}
+
+TEST(Object, TestSparseSource_GetSize) {
+    auto dsrc = new TestSparseSource(R"({"x": 1, "y": 2, "z": 3})");
+    Object obj{dsrc};
+    EXPECT_EQ(obj.size(), 3);
+}

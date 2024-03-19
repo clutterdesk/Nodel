@@ -29,26 +29,26 @@ class JsonFile : public File
     JsonFile(const std::string& ext)                : File(ext, Mode::ALL | Mode::INHERIT, Origin::MEMORY) {}
     JsonFile()                                      : JsonFile(".json") {}
 
-    DataSource* copy(const Object& target, Origin origin) const override { return new JsonFile(ext(), origin); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new JsonFile(ext(), origin); }
 
-    void read_meta(const Object& target, Object& cache) override;
-    void read(const Object& target, Object& cache) override;
+    void read_type(const Object& target) override;
+    void read(const Object& target) override;
     void write(const Object& target, const Object& cache, bool quiet) override;
 };
 
 inline
-void JsonFile::read_meta(const Object& target, Object& cache) {
+void JsonFile::read_type(const Object& target) {
     auto fpath = path(target).string();
     std::ifstream f_in{fpath, std::ios::in};
     json::impl::Parser parser{f_in};
-    cache = Object{(Object::ReprType)parser.parse_type()};
+    read_set(target, (Object::ReprType)parser.parse_type());
 }
 
 inline
-void JsonFile::read(const Object& target, Object& cache) {
+void JsonFile::read(const Object& target) {
     auto fpath = path(target).string();
     std::string error;
-    cache.refer_to(json::parse_file(fpath, error));
+    read_set(target, json::parse_file(fpath, error));
     if (error.size() > 0) set_failed(true);
 }
 

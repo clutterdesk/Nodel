@@ -29,17 +29,17 @@ class CsvFile : public File
     CsvFile(const std::string& ext)                : CsvFile(ext, Origin::MEMORY) {}
     CsvFile()                                      : CsvFile(".csv") {}
 
-    DataSource* copy(const Object& target, Origin origin) const override { return new CsvFile(ext(), origin); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new CsvFile(ext(), origin); }
 
-    void read(const Object& target, Object& cache) override;
+    void read(const Object& target) override;
     void write(const Object& target, const Object& cache, bool quiet) override;
 };
 
 inline
-void CsvFile::read(const Object& target, Object& cache) {
+void CsvFile::read(const Object& target) {
     auto fpath = path(target).string();
     std::string error;
-    cache.refer_to(csv::parse_file(fpath, error));
+    read_set(target, csv::parse_file(fpath, error));
     if (error.size() > 0) set_failed(true);
 }
 

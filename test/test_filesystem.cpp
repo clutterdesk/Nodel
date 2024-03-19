@@ -199,6 +199,31 @@ TEST(Filesystem, UpdateJsonFile) {
     EXPECT_EQ(test_data.get(new_file_name).get("tea"), "Assam, thanks!");
 }
 
+TEST(Filesystem, CopyFileToAnotherDirectory) {
+    auto wd = std::filesystem::current_path() / "test_data";
+
+    OnBlockExit cleanup{ [&wd] () {
+        std::filesystem::remove(wd / "temp" / "example.json");
+        std::filesystem::remove(wd / "temp");
+    }};
+
+    Object test_data = new Directory(new DefaultRegistry(), wd, DataSource::Mode::ALL);
+    test_data.set("temp", new SubDirectory());
+    test_data.save();
+
+    Object test_data_2 = new Directory(new DefaultRegistry(), wd, DataSource::Mode::ALL);
+    auto temp = test_data_2.get("temp");
+    temp.set("example.json", test_data.get("example.json"));
+    EXPECT_TRUE(temp.get("example.json").parent().is(temp));
+    test_data_2.save();
+
+    test_data.reset();
+    temp = test_data.get("temp");
+    EXPECT_FALSE(temp.is_null());
+    EXPECT_FALSE(temp.get("example.json").is_null());
+    EXPECT_EQ(temp.get("example.json").get("favorite"), "Assam");
+}
+
 void test_invalid_file(const char* file_name) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new DefaultRegistry(), wd);

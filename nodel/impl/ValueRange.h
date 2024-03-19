@@ -17,6 +17,13 @@
 
 class ValueIterator
 {
+  public:
+    using iterator_category = std::forward_iterator_tag;
+    using difference_type   = std::ptrdiff_t;
+    using value_type        = const Object;
+    using pointer           = const Object*;
+    using reference         = const Object&;
+
   private:
     using DsIterPtr = std::unique_ptr<DataSource::ValueIterator>;
     using ReprType = Object::ReprType;
