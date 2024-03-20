@@ -7,6 +7,39 @@
 using namespace nodel;
 using namespace nodel::json::impl;
 
+TEST(Json, ParseNull) {
+    std::stringstream stream{"null"};
+    Parser parser{stream};
+    ASSERT_TRUE(parser.parse_object());
+    EXPECT_TRUE(parser.m_curr.is_null());
+}
+
+TEST(Json, ParseTypeNull) {
+    std::stringstream stream{"null"};
+    Parser parser{stream};
+    EXPECT_EQ(parser.parse_type(), Object::NULL_I);
+}
+
+TEST(Json, ParseTypeBoolFalse) {
+    std::stringstream stream{"false"};
+    Parser parser{stream};
+    EXPECT_EQ(parser.parse_type(), Object::BOOL_I);
+}
+
+TEST(Json, ParseBoolTrue) {
+    std::stringstream stream{"true"};
+    Parser parser{stream};
+    ASSERT_TRUE(parser.parse_object());
+    EXPECT_TRUE(parser.m_curr.is_bool());
+    EXPECT_EQ(parser.m_curr, true);
+}
+
+TEST(Json, ParseTypeBoolTrue) {
+    std::stringstream stream{"true"};
+    Parser parser{stream};
+    EXPECT_EQ(parser.parse_type(), Object::BOOL_I);
+}
+
 TEST(Json, ParseNumberSignedInt) {
   std::stringstream stream{"-37"};
   Parser parser{stream};
@@ -36,7 +69,20 @@ TEST(Json, ParseNumberFloat) {
   EXPECT_EQ(parser.m_curr.as<Float>(), 3.14159);
 }
 
-TEST(Json, ParseNumberDanglingPeriod) {
+TEST(Json, ParseNumberFloatLeadingDecimal) {
+  std::stringstream stream{".1"};
+  Parser parser{stream};
+  EXPECT_TRUE(parser.parse_number());
+  EXPECT_EQ(parser.m_curr.as<Float>(), .1);
+}
+
+TEST(Json, ParseTypeFloatLeadingDecimal) {
+    std::stringstream stream{".1"};
+    Parser parser{stream};
+    EXPECT_EQ(parser.parse_type(), Object::FLOAT_I);
+}
+
+TEST(Json, ParseNumberTrailingDecimal) {
   std::stringstream stream{"3."};
   Parser parser{stream};
   EXPECT_TRUE(parser.parse_number());
@@ -84,6 +130,32 @@ TEST(Json, ParseNumberMinusSignWithTerminator) {
   std::stringstream stream{"-,"};
   Parser parser1{stream};
   EXPECT_FALSE(parser1.parse_number());
+}
+
+TEST(Json, ParseSingleQuotedString) {
+    std::stringstream stream{"'tea'"};
+    Parser parser{stream};
+    EXPECT_TRUE(parser.parse_string());
+    EXPECT_EQ(parser.m_curr.as<String>(), "tea");
+}
+
+TEST(Json, ParseTypeStringSingleQuote) {
+    std::stringstream stream{"'tea'"};
+    Parser parser{stream};
+    EXPECT_EQ(parser.parse_type(), Object::STR_I);
+}
+
+TEST(Json, ParseDoubleQuotedString) {
+    std::stringstream stream{"\"tea\""};
+    Parser parser{stream};
+    EXPECT_TRUE(parser.parse_string());
+    EXPECT_EQ(parser.m_curr.as<String>(), "tea");
+}
+
+TEST(Json, ParseTypeStringDoubleQuote) {
+    std::stringstream stream{"\"tea\""};
+    Parser parser{stream};
+    EXPECT_EQ(parser.parse_type(), Object::STR_I);
 }
 
 TEST(Json, ParseListEmpty) {
