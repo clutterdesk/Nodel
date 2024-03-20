@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #include <sstream>
 
-#include <nodel/impl/json.h>
-#include <nodel/impl/Stopwatch.h>
+#include <nodel/serialization/json.h>
+#include <nodel/support/Stopwatch.h>
 
 using namespace nodel;
 using namespace nodel::json::impl;

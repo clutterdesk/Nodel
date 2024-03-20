@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <nodel/impl/logging.h>
+#include <nodel/support/logging.h>
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);

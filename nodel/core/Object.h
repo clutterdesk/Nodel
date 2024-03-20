@@ -33,12 +33,13 @@
 #include <memory>
 #include <type_traits>
 
-#include "support.h"
 #include "Oid.h"
 #include "Key.h"
-#include "types.h"
-#include "Flags.h"
-#include "logging.h"
+
+#include <nodel/support/Flags.h>
+#include <nodel/support/logging.h>
+#include <nodel/support/string.h>
+#include <nodel/types.h>
 
 
 namespace nodel {

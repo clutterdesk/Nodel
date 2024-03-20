@@ -13,8 +13,8 @@
 // limitations under the License.
 #pragma once
 
-#include "Object.h"
-#include "StreamIterator.h"
+#include <nodel/core/Object.h>
+#include <nodel/support/StreamIterator.h>
 
 #include <ctype.h>
 #include <cstdlib>

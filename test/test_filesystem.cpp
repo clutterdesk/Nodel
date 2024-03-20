@@ -5,6 +5,7 @@
 #include <nodel/filesystem/Directory.h>
 #include <nodel/filesystem/DefaultRegistry.h>
 #include <nodel/filesystem/JsonFile.h>
+#include <nodel/support/Finally.h>
 #include <nodel/nodel.h>
 
 using namespace nodel;
@@ -123,7 +124,7 @@ TEST(Filesystem, CreateDirectory) {
     std::string temp_dir_name = "temp_test_create";
     auto wd = std::filesystem::current_path() / "test_data";
 
-    OnBlockExit cleanup{ [&wd, &temp_dir_name] () { std::filesystem::remove(wd / temp_dir_name); } };
+    Finally cleanup{ [&wd, &temp_dir_name] () { std::filesystem::remove(wd / temp_dir_name); } };
 
     Object test_data = new Directory(new DefaultRegistry(), wd);
     test_data.set(temp_dir_name, new SubDirectory());
@@ -141,7 +142,7 @@ TEST(Filesystem, DeleteDirectory) {
     using Mode = DataSource::Mode;
     auto wd = std::filesystem::current_path() / "test_data";
 
-    OnBlockExit cleanup{ [&wd, &temp_dir_name] () { std::filesystem::remove(wd / temp_dir_name); } };
+    Finally cleanup{ [&wd, &temp_dir_name] () { std::filesystem::remove(wd / temp_dir_name); } };
 
     Object test_data = new Directory(new DefaultRegistry(), wd, Mode::ALL);
     test_data.set(temp_dir_name, new SubDirectory());
@@ -163,7 +164,7 @@ TEST(Filesystem, CreateJsonFile) {
     std::string new_file_name = "new_file.json";
     auto wd = std::filesystem::current_path() / "test_data";
 
-    OnBlockExit cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
+    Finally cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
 
     Object test_data = new Directory(new DefaultRegistry(), wd, DataSource::Mode::ALL);
     Object new_file = new JsonFile();
@@ -182,7 +183,7 @@ TEST(Filesystem, UpdateJsonFile) {
     std::string new_file_name = "new_file.json";
     auto wd = std::filesystem::current_path() / "test_data";
 
-    OnBlockExit cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
+    Finally cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
 
     Object test_data = new Directory(new DefaultRegistry(), wd, DataSource::Mode::ALL);
     Object new_file = new JsonFile();
@@ -202,7 +203,7 @@ TEST(Filesystem, UpdateJsonFile) {
 TEST(Filesystem, CopyFileToAnotherDirectory) {
     auto wd = std::filesystem::current_path() / "test_data";
 
-    OnBlockExit cleanup{ [&wd] () {
+    Finally cleanup{ [&wd] () {
         std::filesystem::remove(wd / "temp" / "example.json");
         std::filesystem::remove(wd / "temp");
     }};
@@ -233,7 +234,7 @@ void test_invalid_file(const char* file_name) {
     auto fs_obj_path = nodel::filesystem::path(fs_obj);
     std::filesystem::permissions(fs_obj_path, std::filesystem::perms::none);
 
-    OnBlockExit reset_permissions([&fs_obj_path](){
+    Finally reset_permissions([&fs_obj_path](){
         std::filesystem::permissions(
             fs_obj_path,
             std::filesystem::perms::owner_read | std::filesystem::perms::owner_write

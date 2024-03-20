@@ -3,8 +3,8 @@
 #include <nodel/nodel.h>
 #include <algorithm>
 
-#include <nodel/impl/Object.h>
-#include <nodel/impl/json.h>
+#include <nodel/core/Object.h>
+#include <nodel/serialization/json.h>
 
 using namespace nodel;
 

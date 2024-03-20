@@ -13,18 +13,18 @@
 // limitations under the License.
 #pragma once
 
-#include "Object.h"
-#include "StreamIterator.h"
+#include <nodel/core/Object.h>
+#include <nodel/support/StreamIterator.h>
 
 #include <fstream>
 
 namespace nodel {
 namespace csv {
 
-class CsvException : public std::exception
+class exception : public std::exception
 {
   public:
-    CsvException(const std::string& msg) : msg(msg) {}
+    exception(const std::string& msg) : msg(msg) {}
     const char* what() const throw() override { return msg.c_str(); }
 
   private:
@@ -34,10 +34,10 @@ class CsvException : public std::exception
 namespace impl {
 
 template <typename StreamType>
-class CsvParser
+class Parser
 {
   public:
-    CsvParser(StreamType& stream) : m_it{stream} {}
+    Parser(StreamType& stream) : m_it{stream} {}
 
     Object parse();
 
@@ -59,7 +59,7 @@ class CsvParser
 
 
 template <typename StreamType>
-Object CsvParser<StreamType>::parse() {
+Object Parser<StreamType>::parse() {
     List table;
     while (!m_it.done())
         if (!parse_row(table))
@@ -68,7 +68,7 @@ Object CsvParser<StreamType>::parse() {
 }
 
 template <typename StreamType>
-bool CsvParser<StreamType>::parse_row(List& table) {
+bool Parser<StreamType>::parse_row(List& table) {
     List row;
 
     do {
@@ -91,7 +91,7 @@ bool CsvParser<StreamType>::parse_row(List& table) {
 }
 
 template <typename StreamType>
-bool CsvParser<StreamType>::parse_column(List& row) {
+bool Parser<StreamType>::parse_column(List& row) {
     consume_whitespace();
     if (m_it.done()) return false;
     char c = m_it.peek();
@@ -114,7 +114,7 @@ bool CsvParser<StreamType>::parse_column(List& row) {
 }
 
 template <typename StreamType>
-Object CsvParser<StreamType>::parse_quoted() {
+Object Parser<StreamType>::parse_quoted() {
     Object object{Object::STR_I};
     auto& str = object.as<String>();
     char quote = m_it.peek();
@@ -138,7 +138,7 @@ Object CsvParser<StreamType>::parse_quoted() {
 }
 
 template <typename StreamType>
-Object CsvParser<StreamType>::parse_unquoted() {
+Object Parser<StreamType>::parse_unquoted() {
     Object object{Object::STR_I};
     auto& str = object.as<String>();
     for (char c = m_it.peek(); c != ',' && c != '\n' && c != 0 && !m_it.done(); m_it.next(), c = m_it.peek()) {
@@ -148,12 +148,12 @@ Object CsvParser<StreamType>::parse_unquoted() {
 }
 
 template <typename StreamType>
-void CsvParser<StreamType>::consume_whitespace() {
+void Parser<StreamType>::consume_whitespace() {
     for (char c = m_it.peek(); std::isspace(c) && c != '\n' && !m_it.done(); m_it.next(), c = m_it.peek());
 }
 
 template <typename StreamType>
-void CsvParser<StreamType>::set_error(const std::string& msg) {
+void Parser<StreamType>::set_error(const std::string& msg) {
     std::stringstream ss;
     ss << msg << " at m_pos=" << m_it.consumed();
     m_error = ss.str();
@@ -178,7 +178,7 @@ struct ParseError
 inline
 Object parse(std::string&& str, std::optional<ParseError>& error) {
     std::istringstream in{std::forward<std::string>(str)};
-    impl::CsvParser parser{in};
+    impl::Parser parser{in};
     Object result = parser.parse();
     if (result.is_null()) {
         error = ParseError{parser.pos(), std::move(parser.error())};
@@ -199,7 +199,7 @@ Object parse(std::string&& str, std::string& error) {
 inline
 Object parse(std::string&& str) {
     std::istringstream in{std::forward<std::string>(str)};
-    impl::CsvParser parser{in};
+    impl::Parser parser{in};
     return parser.parse();
 }
 
@@ -212,7 +212,7 @@ Object parse_file(const std::string& file_name, std::string& error) {
         error = ss.str();
         return null;
     } else {
-        impl::CsvParser parser{f_in};
+        impl::Parser parser{f_in};
         Object result = parser.parse();
         if (result.is_null()) {
             ParseError parse_error{parser.pos(), std::move(parser.error())};

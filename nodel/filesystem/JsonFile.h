@@ -14,8 +14,8 @@
 #pragma once
 
 #include "File.h"
-#include <nodel/impl/json.h>
-#include <nodel/impl/Object.h>
+#include <nodel/serialization/json.h>
+#include <nodel/core/Object.h>
 
 #include <fstream>
 

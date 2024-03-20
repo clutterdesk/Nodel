@@ -16,19 +16,10 @@
 #include <string>
 #include <charconv>
 #include <iomanip>
-#include <concepts>
-#include <functional>
 
-#include "types.h"
+#include <nodel/types.h>
 
 namespace nodel {
-
-// std::visit support
-template<class... Ts>
-struct overloaded : Ts... { using Ts::operator()...; };
-// explicit deduction guide (not needed as of C++20)
-template<class... Ts>
-overloaded(Ts...) -> overloaded<Ts...>;
 
 // string quoting, in case std::quoted method is slow
 inline
@@ -36,26 +27,6 @@ std::string quoted(const std::string& str) {
   std::stringstream ss;
   ss << std::quoted(str);
   return ss.str();
-}
-
-class OnBlockExit
-{
-  public:
-    template <typename Func>
-    OnBlockExit(Func&& func) : m_func{std::forward<Func>(func)} {}
-    ~OnBlockExit() { m_func(); }
-  private:
-    std::function<void()> m_func;
-};
-
-inline
-void make_path_step(const std::string_view& str, std::ostream& stream) {
-    auto pos = str.find_first_of(R"(".)");
-    if (pos != std::string_view::npos) {
-        stream << '[' << quoted(str) << ']';
-    } else {
-        stream << '.' << str;
-    }
 }
 
 inline
@@ -116,3 +87,4 @@ Float str_to_float(const std::string& str) {
 }
 
 } // nodel namespace
+

@@ -16,10 +16,10 @@
 #include "File.h"
 #include "Registry.h"
 
-#include <nodel/impl/support.h>
-#include <nodel/impl/algo.h>
-#include <nodel/impl/Object.h>
-#include <nodel/impl/Ref.h>
+#include <nodel/support/string.h>
+#include <nodel/support/Ref.h>
+#include <nodel/core/algo.h>
+#include <nodel/core/Object.h>
 
 #include <filesystem>
 

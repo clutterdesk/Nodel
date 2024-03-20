@@ -10,58 +10,59 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.#include <gtest/gtest.h>
+// limitations under the License.
 #include <gtest/gtest.h>
+
 #include <fmt/format.h>
-#include <nodel/impl/CsvParser.h>
+#include <nodel/serialization/csv.h>
 
 using namespace nodel;
 using namespace nodel::csv;
 using namespace nodel::csv::impl;
 
-TEST(CsvParser, Unquoted) {
+TEST(Parser, Unquoted) {
   std::stringstream stream{R"(
       a, bbb, cc
       dd, e, f
       g,hh,iii)"};
 
-  CsvParser parser{stream};
+  Parser parser{stream};
   Object obj = parser.parse();
   EXPECT_EQ(obj.to_str(), R"([["a", "bbb", "cc"], ["dd", "e", "f"], ["g", "hh", "iii"]])");
 }
 
-TEST(CsvParser, SingleQuoted) {
+TEST(Parser, SingleQuoted) {
   std::stringstream stream{R"(
       'a', 'bbb', 'cc'
       'dd', 'e', 'f'
       'g','hh','iii'
   )"};
 
-  CsvParser parser{stream};
+  Parser parser{stream};
   Object obj = parser.parse();
   EXPECT_EQ(obj.to_str(), R"([["a", "bbb", "cc"], ["dd", "e", "f"], ["g", "hh", "iii"]])");
 }
 
-TEST(CsvParser, DoubleQuoted) {
+TEST(Parser, DoubleQuoted) {
   std::stringstream stream{R"(
       "a", "bbb", "cc"
       "dd", "e", "f"
       "g","hh","iii"
   )"};
 
-  CsvParser parser{stream};
+  Parser parser{stream};
   Object obj = parser.parse();
   EXPECT_EQ(obj.to_str(), R"([["a", "bbb", "cc"], ["dd", "e", "f"], ["g", "hh", "iii"]])");
 }
 
-TEST(CsvParser, MixedQuoted) {
+TEST(Parser, MixedQuoted) {
   std::stringstream stream{R"(
       a, "bbb", 'cc'
       'dd', e,f
       'g',"hh",iii
   )"};
 
-  CsvParser parser{stream};
+  Parser parser{stream};
   Object obj = parser.parse();
   EXPECT_EQ(obj.to_str(), R"([["a", "bbb", "cc"], ["dd", "e", "f"], ["g", "hh", "iii"]])");
 }

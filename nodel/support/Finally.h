@@ -13,24 +13,18 @@
 // limitations under the License.
 #pragma once
 
-#include <nodel/core/Object.h>
-#include <filesystem>
+#include <functional>
 
 namespace nodel {
-namespace filesystem {
 
-class File : public DataSource
+class Finally
 {
   public:
-    File(const std::string& ext, Mode mode, Origin origin)                   : DataSource(Kind::COMPLETE, mode, origin), m_ext{ext} {}
-    File(const std::string& ext, Mode mode, ReprType repr_ix, Origin origin) : DataSource(Kind::COMPLETE, mode, repr_ix, origin), m_ext{ext} {}
-
-    std::string ext() const { return m_ext; }
-
+    template <typename Func>
+    Finally(Func&& func) : m_func{std::forward<Func>(func)} {}
+    ~Finally() { m_func(); }
   private:
-    std::string m_ext;
+    std::function<void()> m_func;
 };
 
-} // namespace filesystem
-} // namespace nodel
-
+} // nodel namespace

@@ -13,12 +13,12 @@
 // limitations under the License.
 #pragma once
 
-#include "support.h"
-#include "types.h"
-
 #include <string>
 #include <charconv>
 #include <iomanip>
+
+#include <nodel/support/string.h>
+#include <nodel/types.h>
 
 using namespace std::literals::string_literals;
 using namespace std::literals::string_view_literals;
@@ -291,8 +291,17 @@ class Key
             case INT_I:   stream << '[' << nodel::int_to_str(m_repr.i) << ']'; break;
             case UINT_I:  stream << '[' << nodel::int_to_str(m_repr.u) << ']'; break;
             case FLOAT_I: stream << '[' << nodel::float_to_str(m_repr.f) << ']'; break;
-            case STR_I:   make_path_step(m_repr.s, stream); break;
-            default:      throw wrong_type(m_repr_ix);
+            case STR_I: {
+                auto pos = m_repr.s.find_first_of(R"(".)");
+                if (pos != std::string_view::npos) {
+                    stream << '[' << quoted(m_repr.s) << ']';
+                } else {
+                    stream << '.' << m_repr.s;
+                }
+                break;
+            }
+            default:
+                throw wrong_type(m_repr_ix);
         }
     }
 

@@ -13,7 +13,7 @@
 // limitations under the License.
 #pragma once
 
-// TODO: put in nodel namespace
+namespace nodel {
 
 #ifndef NODEL_ARCH
 #if _WIN32 || _WIN64
@@ -64,3 +64,5 @@ concept is_number = is_integral<T> || is_like_Float<T>;
 
 template <typename T>
 concept is_byvalue = std::is_same<T, bool>::value || is_number<T>;
+
+} // namespace nodel

@@ -13,8 +13,8 @@
 // limitations under the License.
 #pragma once
 
-#include "impl/Object.h"
-#include "impl/json.h"
+#include "core/Object.h"
+#include "serialization/json.h"
 
 namespace nodel {
 

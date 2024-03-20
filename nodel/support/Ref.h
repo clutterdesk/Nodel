@@ -13,7 +13,7 @@
 // limitations under the License.
 #pragma once
 
-#include "types.h"
+#include <nodel/types.h>
 
 namespace nodel {
 
