@@ -379,8 +379,8 @@ class Object
     void to_json(std::ostream&) const;
 
     Object get(is_integral auto v) const;
-    Object get(const char* v) const;
-    Object get(const std::string& v) const;
+//    Object get(const char* v) const;
+//    Object get(const std::string& v) const;
     Object get(const Key& key) const;
     Object get(const OPath& path) const;
 
@@ -407,7 +407,6 @@ class Object
 
     Object& operator = (const Object& other);
     Object& operator = (Object&& other);
-    // TODO: Need other assignment ops to avoid Object temporaries
 
     template <class DataSourceType>
     DataSourceType* data_source() const;
@@ -461,8 +460,6 @@ class OPath
     OPath() {}
     OPath(const KeyList& keys)              : m_keys{keys} {}
     OPath(KeyList&& keys)                   : m_keys{std::forward<KeyList>(keys)} {}
-//    OPath(const Key& key)                   : m_keys{} { append(key); }
-//    OPath(Key&& key)                        : m_keys{} { append(std::forward<Key>(key)); }
 
     void prepend(const Key& key) { m_keys.push_back(key); }
     void prepend(Key&& key)      { m_keys.emplace_back(std::forward<Key>(key)); }
@@ -819,7 +816,7 @@ Object::Object(const Key& key) : m_fields{EMPTY_I} {
         case Key::FLOAT_I: m_fields.repr_ix = FLOAT_I; m_repr.f = key.m_repr.f; break;
         case Key::STR_I: {
             m_fields.repr_ix = STR_I;
-            m_repr.ps = new IRCString{key.m_repr.s, {}};
+            m_repr.ps = new IRCString{String{key.m_repr.s.data()}, {}};
             break;
         }
         default: throw std::invalid_argument("key");
@@ -836,7 +833,7 @@ Object::Object(Key&& key) : m_fields{EMPTY_I} {
         case Key::FLOAT_I: m_fields.repr_ix = FLOAT_I; m_repr.f = key.m_repr.f; break;
         case Key::STR_I: {
             m_fields.repr_ix = STR_I;
-            m_repr.ps = new IRCString{std::move(key.m_repr.s), {}};
+            m_repr.ps = new IRCString{String{key.m_repr.s.data()}, {}};
             break;
         }
         default: throw std::invalid_argument("key");
@@ -1174,35 +1171,35 @@ Key Object::into_key() {
     }
 }
 
-inline
-Object Object::get(const char* v) const {
-    switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
-        case OMAP_I: {
-            auto& map = std::get<0>(*m_repr.pm);
-            auto it = map.find(v);
-            if (it == map.end()) return null;
-            return it->second;
-        }
-        case DSRC_I:  return m_repr.ds->get(*this, v);
-        default:      throw wrong_type(m_fields.repr_ix);
-    }
-}
+//inline
+//Object Object::get(const char* v) const {
+//    switch (m_fields.repr_ix) {
+//        case EMPTY_I: throw empty_reference(__FUNCTION__);
+//        case OMAP_I: {
+//            auto& map = std::get<0>(*m_repr.pm);
+//            auto it = map.find(v);
+//            if (it == map.end()) return null;
+//            return it->second;
+//        }
+//        case DSRC_I:  return m_repr.ds->get(*this, v);
+//        default:      throw wrong_type(m_fields.repr_ix);
+//    }
+//}
 
-inline
-Object Object::get(const std::string& v) const {
-    switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
-        case OMAP_I: {
-            auto& map = std::get<0>(*m_repr.pm);
-            auto it = map.find(v);
-            if (it == map.end()) return null;
-            return it->second;
-        }
-        case DSRC_I:  return m_repr.ds->get(*this, v);
-        default:      throw wrong_type(m_fields.repr_ix);
-    }
-}
+//inline
+//Object Object::get(const std::string& v) const {
+//    switch (m_fields.repr_ix) {
+//        case EMPTY_I: throw empty_reference(__FUNCTION__);
+//        case OMAP_I: {
+//            auto& map = std::get<0>(*m_repr.pm);
+//            auto it = map.find(v);
+//            if (it == map.end()) return null;
+//            return it->second;
+//        }
+//        case DSRC_I:  return m_repr.ds->get(*this, v);
+//        default:      throw wrong_type(m_fields.repr_ix);
+//    }
+//}
 
 inline
 Object Object::get(is_integral auto index) const {

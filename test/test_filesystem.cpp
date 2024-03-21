@@ -15,30 +15,30 @@ TEST(Filesystem, IsFsobj) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new DefaultRegistry(), wd);
     EXPECT_TRUE(is_fs(test_data));
-    EXPECT_TRUE(is_fs(test_data.get("more")));
-    EXPECT_TRUE(is_fs(test_data.get("example.json")));
-    EXPECT_TRUE(is_fs(test_data.get("example.txt")));
-    EXPECT_TRUE(is_fs(test_data.get("more").get("example.csv")));
+    EXPECT_TRUE(is_fs(test_data.get("more"_key)));
+    EXPECT_TRUE(is_fs(test_data.get("example.json"_key)));
+    EXPECT_TRUE(is_fs(test_data.get("example.txt"_key)));
+    EXPECT_TRUE(is_fs(test_data.get("more"_key).get("example.csv"_key)));
 }
 
 TEST(Filesystem, IsDir) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new DefaultRegistry(), wd);
     EXPECT_TRUE(is_dir(test_data));
-    EXPECT_TRUE(is_dir(test_data.get("more")));
-    EXPECT_FALSE(is_dir(test_data.get("example.json")));
-    EXPECT_FALSE(is_dir(test_data.get("example.txt")));
-    EXPECT_FALSE(is_dir(test_data.get("more").get("example.csv")));
+    EXPECT_TRUE(is_dir(test_data.get("more"_key)));
+    EXPECT_FALSE(is_dir(test_data.get("example.json"_key)));
+    EXPECT_FALSE(is_dir(test_data.get("example.txt"_key)));
+    EXPECT_FALSE(is_dir(test_data.get("more"_key).get("example.csv"_key)));
 }
 
 TEST(Filesystem, IsFile) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new DefaultRegistry(), wd);
     EXPECT_FALSE(is_file(test_data));
-    EXPECT_FALSE(is_file(test_data.get("more")));
-    EXPECT_TRUE(is_file(test_data.get("example.json")));
-    EXPECT_TRUE(is_file(test_data.get("example.txt")));
-    EXPECT_TRUE(is_file(test_data.get("more").get("example.csv")));
+    EXPECT_FALSE(is_file(test_data.get("more"_key)));
+    EXPECT_TRUE(is_file(test_data.get("example.json"_key)));
+    EXPECT_TRUE(is_file(test_data.get("example.txt"_key)));
+    EXPECT_TRUE(is_file(test_data.get("more"_key).get("example.csv"_key)));
 }
 
 TEST(Filesystem, VisitOnlyFiles) {
@@ -53,7 +53,7 @@ TEST(Filesystem, VisitOnlyFiles) {
 TEST(Filesystem, EnterOnlyDirectories) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new DefaultRegistry(), wd);
-    Object more = test_data.get("more");
+    Object more = test_data.get("more"_key);
     for (const auto& file : test_data.iter_tree_if(is_dir)) {
         Object parent = file.parent();
         EXPECT_TRUE(parent.is_null() || parent.is(test_data) || parent.is(more));
@@ -75,49 +75,49 @@ TEST(Filesystem, DirectoryFiles) {
     EXPECT_FALSE(obj.data_source<DataSource>()->is_fully_cached());
     EXPECT_TRUE(obj.size() > 0);
 
-    auto example_csv = obj.get("example.csv");
+    auto example_csv = obj.get("example.csv"_key);
     EXPECT_TRUE(example_csv.parent().is(obj));
     EXPECT_TRUE(!example_csv.data_source<DataSource>()->is_fully_cached());
     EXPECT_TRUE(example_csv.is_list());
     EXPECT_TRUE(example_csv.get(7).is_list());
     EXPECT_EQ(example_csv.get(7).get(2), "Peg");
 
-    auto example_txt = obj.get("example.txt");
+    auto example_txt = obj.get("example.txt"_key);
     EXPECT_TRUE(example_txt.parent().is(obj));
     EXPECT_TRUE(!example_txt.data_source<DataSource>()->is_fully_cached());
     EXPECT_TRUE(example_txt.is_str());
     EXPECT_TRUE(example_txt.as<String>().contains("boring"));
 
-    auto example = obj.get("example.json");
+    auto example = obj.get("example.json"_key);
     EXPECT_TRUE(example.parent().is(obj));
     EXPECT_TRUE(!example.data_source<DataSource>()->is_fully_cached());
-    EXPECT_TRUE(example.get("teas").is_list());
-    EXPECT_EQ(example.get("teas").get(0), "Assam");
+    EXPECT_TRUE(example.get("teas"_key).is_list());
+    EXPECT_EQ(example.get("teas"_key).get(0), "Assam");
 
-    auto large_example_1 = obj.get("large_example_1.json");
+    auto large_example_1 = obj.get("large_example_1.json"_key);
     EXPECT_FALSE(large_example_1.data_source<DataSource>()->is_fully_cached());
-    EXPECT_EQ(large_example_1.get(0).get("guid"), "20e19d58-d42c-4bb9-a370-204de2fc87df");
+    EXPECT_EQ(large_example_1.get(0).get("guid"_key), "20e19d58-d42c-4bb9-a370-204de2fc87df");
     EXPECT_TRUE(large_example_1.data_source<DataSource>()->is_fully_cached());
 
-    auto large_example_2 = obj.get("large_example_2.json");
+    auto large_example_2 = obj.get("large_example_2.json"_key);
     EXPECT_FALSE(large_example_2.data_source<DataSource>()->is_fully_cached());
-    EXPECT_EQ(large_example_2.get("result").get(-1).get("location").get("city"), "Indianapolis");
+    EXPECT_EQ(large_example_2.get("result"_key).get(-1).get("location"_key).get("city"_key), "Indianapolis");
     EXPECT_TRUE(large_example_2.data_source<DataSource>()->is_fully_cached());
 }
 
 //TEST(Filesystem, JsonFileWithListBug) {
 //    auto wd = std::filesystem::current_path() / "test_data";
 //    Object test_data = new Directory(new DefaultRegistry(), wd);
-//    EXPECT_EQ(test_data.get("table.json").path()
+//    EXPECT_EQ(test_data.get("table.json"_key).path()
 //}
 
 TEST(Filesystem, Subdirectory) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new DefaultRegistry(), wd);
-    EXPECT_TRUE(test_data.get("more").is_map());
-    EXPECT_TRUE(test_data.get("more").get("example.csv").is_list());
-    EXPECT_TRUE(test_data.get("more").get("example.csv").get(-1).is_list());
-    EXPECT_EQ(test_data.get("more").get("example.csv").get(-1).get(-1), "andrew43514@gmail.comField Tags");
+    EXPECT_TRUE(test_data.get("more"_key).is_map());
+    EXPECT_TRUE(test_data.get("more"_key).get("example.csv"_key).is_list());
+    EXPECT_TRUE(test_data.get("more"_key).get("example.csv"_key).get(-1).is_list());
+    EXPECT_EQ(test_data.get("more"_key).get("example.csv"_key).get(-1).get(-1), "andrew43514@gmail.comField Tags");
 }
 
 TEST(Filesystem, CreateDirectory) {
@@ -173,10 +173,10 @@ TEST(Filesystem, CreateJsonFile) {
     test_data.save();
 
     Object test_data_2 = new Directory(new DefaultRegistry(), wd);
-    EXPECT_EQ(test_data_2.get(new_file_name).get("tea"), "Assam, please");
+    EXPECT_EQ(test_data_2.get(new_file_name).get("tea"_key), "Assam, please");
 
     test_data.reset();
-    EXPECT_EQ(test_data.get(new_file_name).get("tea"), "Assam, please");
+    EXPECT_EQ(test_data.get(new_file_name).get("tea"_key), "Assam, please");
 }
 
 TEST(Filesystem, UpdateJsonFile) {
@@ -193,11 +193,11 @@ TEST(Filesystem, UpdateJsonFile) {
 
     test_data.reset();
     new_file = test_data.get(new_file_name);
-    new_file.set("tea", "Assam, thanks!");
+    new_file.set("tea"_key, "Assam, thanks!");
     test_data.save();
 
     test_data.reset();
-    EXPECT_EQ(test_data.get(new_file_name).get("tea"), "Assam, thanks!");
+    EXPECT_EQ(test_data.get(new_file_name).get("tea"_key), "Assam, thanks!");
 }
 
 TEST(Filesystem, CopyFileToAnotherDirectory) {
@@ -209,23 +209,23 @@ TEST(Filesystem, CopyFileToAnotherDirectory) {
     }};
 
     Object test_data = new Directory(new DefaultRegistry(), wd, DataSource::Mode::ALL);
-    test_data.set("temp", new SubDirectory());
+    test_data.set("temp"_key, new SubDirectory());
     test_data.save();
 
     Object test_data_2 = new Directory(new DefaultRegistry(), wd, DataSource::Mode::ALL);
-    auto temp = test_data_2.get("temp");
-    temp.set("example.json", test_data.get("example.json"));
-    EXPECT_TRUE(temp.get("example.json").parent().is(temp));
+    auto temp = test_data_2.get("temp"_key);
+    temp.set("example.json"_key, test_data.get("example.json"_key));
+    EXPECT_TRUE(temp.get("example.json"_key).parent().is(temp));
     test_data_2.save();
 
     test_data.reset();
-    temp = test_data.get("temp");
+    temp = test_data.get("temp"_key);
     EXPECT_FALSE(temp.is_null());
-    EXPECT_FALSE(temp.get("example.json").is_null());
-    EXPECT_EQ(temp.get("example.json").get("favorite"), "Assam");
+    EXPECT_FALSE(temp.get("example.json"_key).is_null());
+    EXPECT_EQ(temp.get("example.json"_key).get("favorite"_key), "Assam");
 }
 
-void test_invalid_file(const char* file_name) {
+void test_invalid_file(const std::string& file_name) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new DefaultRegistry(), wd);
     Object fs_obj = test_data.get(file_name);

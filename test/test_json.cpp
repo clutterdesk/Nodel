@@ -192,8 +192,8 @@ TEST(Json, ParseExample1) {
     Object curr = parser1.m_curr;
     EXPECT_TRUE(curr.is_map());
     EXPECT_EQ(curr.size(), 2);
-    EXPECT_EQ(curr.get("x").get(0), 1);
-    EXPECT_EQ(curr.get("y").get(0), 2);
+    EXPECT_EQ(curr.get("x"_key).get(0), 1);
+    EXPECT_EQ(curr.get("y"_key).get(0), 2);
 }
 
 TEST(Json, ParseExampleFile) {
@@ -201,7 +201,7 @@ TEST(Json, ParseExampleFile) {
     Object example = json::parse_file("test_data/example.json", error);
     EXPECT_EQ(error, "");
     EXPECT_TRUE(example.is_map());
-    EXPECT_EQ(example.get("favorite"), "Assam");
+    EXPECT_EQ(example.get("favorite"_key), "Assam");
 }
 
 TEST(Json, ParseLargeExample1File) {

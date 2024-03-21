@@ -137,7 +137,7 @@ auto& KeyIterator::operator = (KeyIterator&& other) {
 inline
 auto& KeyIterator::operator ++ () {
     switch (m_repr_ix) {
-        case ReprType::LIST_I: ++(m_repr.li.as<UInt>()); break;
+        case ReprType::LIST_I: m_repr.li = m_repr.li.as<UInt>() + 1; break;
         case ReprType::OMAP_I: ++(m_repr.mi); break;
         case ReprType::DSRC_I: m_repr.pdi->next(); break;
         default:               throw Object::wrong_type(m_repr_ix);

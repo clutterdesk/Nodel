@@ -51,7 +51,7 @@ TEST(Key, StringLiteral) {
     Key k{"foo"s};
     EXPECT_TRUE(k.is_str());
     EXPECT_EQ(k.to_str(), "foo");
-    EXPECT_EQ(k.as<String>(), "foo");
+    EXPECT_EQ(k.as<StringView>(), "foo");
 }
 
 TEST(Key, String) {
@@ -59,7 +59,7 @@ TEST(Key, String) {
     Key k{s};
     EXPECT_TRUE(k.is_str());
     EXPECT_EQ(k.to_str(), "foo");
-    EXPECT_EQ(k.as<String>(), "foo");
+    EXPECT_EQ(k.as<StringView>(), "foo");
 }
 
 TEST(Key, AssignNull) {
@@ -108,7 +108,7 @@ TEST(Key, AssignStringLiteral) {
     EXPECT_TRUE(k.is_null());
     k = "foo"s;
     EXPECT_TRUE(k.is_str());
-    EXPECT_EQ(k.as<String>(), "foo");
+    EXPECT_EQ(k.as<StringView>(), "foo");
 }
 
 TEST(Key, CompareBool) {
@@ -277,14 +277,14 @@ TEST(Key, FloatStep) {
 }
 
 TEST(Key, SimpleString) {
-    Key k = "tea";
+    Key k = "tea"_key;
     std::stringstream ss;
     k.to_step(ss);
     EXPECT_EQ(ss.str(), ".tea");
 }
 
 TEST(Key, StringWithDQuote) {
-    Key k = "a\"b";
+    Key k = "a\"b"_key;
     std::stringstream ss;
     k.to_step(ss);
     EXPECT_EQ(ss.str(), R"(["a\"b"])");

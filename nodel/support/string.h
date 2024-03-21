@@ -50,13 +50,13 @@ std::string float_to_str(double v) {
 }
 
 inline
-bool str_to_bool(const std::string& str) {
+bool str_to_bool(const StringView& str) {
     // TODO: throw errors?
     return (str == "true" || str == "1");
 }
 
 inline
-Int str_to_int(const std::string& str) {
+Int str_to_int(const StringView& str) {
     // TODO: throw errors?
     Int value;
     const char* beg = str.data();
@@ -67,7 +67,7 @@ Int str_to_int(const std::string& str) {
 }
 
 inline
-UInt str_to_uint(const std::string& str) {
+UInt str_to_uint(const StringView& str) {
     // TODO: throw errors?
     UInt value;
     const char* beg = str.data();
@@ -78,7 +78,7 @@ UInt str_to_uint(const std::string& str) {
 }
 
 inline
-Float str_to_float(const std::string& str) {
+Float str_to_float(const StringView& str) {
     // TODO: throw errors?
     const char* beg = str.data();
     char* end = nullptr;
