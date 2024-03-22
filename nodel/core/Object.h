@@ -458,8 +458,8 @@ class OPath
     using ConstIterator = KeyList::const_reverse_iterator;
 
     OPath() {}
-    OPath(const KeyList& keys)              : m_keys{keys} {}
-    OPath(KeyList&& keys)                   : m_keys{std::forward<KeyList>(keys)} {}
+    OPath(const KeyList& keys) : m_keys{keys} {}
+    OPath(KeyList&& keys)      : m_keys{std::forward<KeyList>(keys)} {}
 
     void prepend(const Key& key) { m_keys.push_back(key); }
     void prepend(Key&& key)      { m_keys.emplace_back(std::forward<Key>(key)); }

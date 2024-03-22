@@ -327,14 +327,13 @@ class Key
 
     size_t hash() const {
         static std::hash<Float> float_hash;
-        static std::hash<StringView> string_hash;
         switch (m_repr_ix) {
             case NULL_I:  return 0;
             case BOOL_I:  return (size_t)m_repr.b;
             case INT_I:   return (size_t)m_repr.i;
             case UINT_I:  return (size_t)m_repr.u;
             case FLOAT_I: return (size_t)float_hash(m_repr.f);
-            case STR_I:   return string_hash(m_repr.s.data());
+            case STR_I:   return (size_t)m_repr.s.data().data();
             default:
                 throw wrong_type(m_repr_ix);
         }
