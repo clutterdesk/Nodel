@@ -152,12 +152,6 @@ class Object
         TABLE_I,   // TODO map-like key access, all rows have same keys (ex: CSV) (also update *Iterator classes)
         BIGI_I,    // TODO big integer with
         BIGF_I,    // TODO
-        VI4_I,     // TODO
-        VI8_I,     // TODO
-        VU4_I,     // TODO
-        VU8_I,     // TODO
-        VF4_I,     // TODO
-        VF8_I,     // TODO
         BLOB_I,    // TODO
         DSRC_I,    // DataSource
         DEL_I,     // indicates deleted key in sparse data-store
@@ -458,6 +452,8 @@ class OPath
     using ConstIterator = KeyList::const_reverse_iterator;
 
     OPath() {}
+    OPath(const std::string_view& spec);
+
     OPath(const KeyList& keys) : m_keys{keys} {}
     OPath(KeyList&& keys)      : m_keys{std::forward<KeyList>(keys)} {}
 
@@ -645,7 +641,7 @@ class DataSource
     virtual Object read_key(const Object& target, const Key&)                     { return {}; }  // sparse
     virtual void write(const Object& target, const Object&, bool)                 {}  // both
     virtual void write_key(const Object& target, const Key&, const Object&, bool) {}  // sparse
-    virtual void write_key(const Object& target, const Key&, Object&&, bool)      {}  // sparse
+    virtual void delete_key(const Object& target, const Key&, bool)               {}  // sparse
 
     // interface to use from virtual read methods
     void read_set(const Object& target, const Object& value);
@@ -2037,28 +2033,32 @@ template <class ValueType, typename VisitPred, typename EnterPred>
 class TreeIterator
 {
   public:
-    TreeIterator() = default;
+    using TreeRange = Object::TreeRange<ValueType, VisitPred, EnterPred>;
 
-    TreeIterator(List& list, auto&& visit_pred, auto&& enter_pred)
-      : m_it{list.begin()}
+  public:
+    TreeIterator(TreeRange& range) : m_range{range} {}
+
+    TreeIterator(TreeRange& range, List& list)
+      : m_range{range}
+      , m_it{list.begin()}
       , m_end{list.end()}
-      , m_visit_pred{visit_pred}
-      , m_enter_pred{enter_pred}
     {
-        m_fifo.push_back(Object{null});  // dummy
+        m_range.fifo().push_back(Object{null});  // dummy
         enter(list[0]);
         if (!visit(*m_it)) ++(*this);
     }
 
     TreeIterator& operator ++ () {
+        auto& fifo = m_range.fifo();
+
         while (1) {
             ++m_it;
 
             while (m_it == m_end) {
-                m_fifo.pop_front();
-                if (m_fifo.empty()) break;
-                m_it = m_fifo.front().begin();
-                m_end = m_fifo.front().end();
+                fifo.pop_front();
+                if (fifo.empty()) break;
+                m_it = fifo.front().begin();
+                m_end = fifo.front().end();
             }
 
             if (m_it == m_end) break;
@@ -2071,12 +2071,12 @@ class TreeIterator
     }
 
     Object operator * () const { return *m_it; }
-    bool operator == (const TreeIterator& other) const { return m_fifo.empty(); }
+    bool operator == (const TreeIterator& other) const { return m_range.fifo().empty(); }
 
   private:
     bool visit(const Object& obj) {
         if constexpr (std::is_invocable<VisitPred, const Object&>::value) {
-            return !m_visit_pred || m_visit_pred(obj);
+            return m_range.should_visit(obj);
         } else {
             return true;
         }
@@ -2084,25 +2084,26 @@ class TreeIterator
 
     void enter(const Object& obj) {
         if constexpr (std::is_invocable<EnterPred, const Object&>::value) {
-            if ((!m_enter_pred || m_enter_pred(obj)) && obj.is_container())
-                m_fifo.push_back(obj);
+            if (obj.is_container() && m_range.should_enter(obj))
+                m_range.fifo().push_back(obj);
         } else {
             if (obj.is_container())
-                m_fifo.push_back(obj);
+                m_range.fifo().push_back(obj);
         }
     }
 
   private:
-    std::deque<ValueRange> m_fifo;
+    TreeRange& m_range;
     ValueIterator m_it;
     ValueIterator m_end;
-    VisitPred m_visit_pred;
-    EnterPred m_enter_pred;
 };
 
 template <class ValueType, typename VisitPred, typename EnterPred>
 class Object::TreeRange
 {
+  public:
+    using TreeIterator = TreeIterator<ValueType, VisitPred, EnterPred>;
+
   public:
     TreeRange(const Object& object, VisitPred&& visit_pred, EnterPred&& enter_pred)
       : m_visit_pred{visit_pred}
@@ -2111,14 +2112,16 @@ class Object::TreeRange
         m_list.push_back(object);
     }
 
-    TreeIterator<ValueType, VisitPred, EnterPred> begin() const {
-        return {const_cast<List&>(m_list), m_visit_pred, m_enter_pred};
-    }
+    TreeIterator begin() { return TreeIterator{*this, m_list}; }
+    TreeIterator end()   { return TreeIterator{*this}; }
 
-    TreeIterator<ValueType, VisitPred, EnterPred> end() const   { return {}; }
+    bool should_visit(const Object& obj) const { return !m_visit_pred || m_visit_pred(obj); }
+    bool should_enter(const Object& obj) const { return !m_enter_pred || m_enter_pred(obj); }
+    auto& fifo() { return m_fifo; }
 
   private:
     List m_list;
+    std::deque<ValueRange> m_fifo;
     VisitPred m_visit_pred;
     EnterPred m_enter_pred;
 };
@@ -2393,7 +2396,7 @@ void DataSource::save(const Object& target, bool quiet) {
 
             for (auto& [key, value] : m_cache.items()) {
                 if (value.m_fields.repr_ix == Object::DEL_I) {
-                    write_key(target, key, value, quiet);
+                    delete_key(target, key, quiet);
                     del_keys.push_back(key);
                 } else {
                     write_key(target, key, value, quiet);

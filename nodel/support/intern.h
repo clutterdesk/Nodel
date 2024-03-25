@@ -53,14 +53,13 @@ intern_t intern_string_literal(const StringView& literal) {
 }
 
 inline
-intern_t intern_string(const String& str) {
+intern_t intern_string(const StringView& str) {
     if (auto match = thread_interns.find(str); match != thread_interns.end()) {
         return intern_t{*match};
     } else {
-        char* p_copy = new char[str.size() + 1];
+        char* p_copy = new char[str.size()];
         str.copy(p_copy, str.size());
-        p_copy[str.size()] = '\0';
-        StringView copy{p_copy};
+        StringView copy{p_copy, str.size()};
         thread_interns.insert(copy);
         return intern_t{copy};
     }

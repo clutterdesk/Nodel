@@ -13,7 +13,6 @@
 // limitations under the License.
 #pragma once
 
-#include "File.h"
 #include "Registry.h"
 
 #include <nodel/support/string.h>
@@ -44,6 +43,7 @@ struct FailedDeletes : std::exception
 
     std::string m_msg;
 };
+
 
 // DataSource for filesystem directories
 //
@@ -93,13 +93,13 @@ bool is_dir(const Object& obj) {
 inline
 bool is_file(const Object& obj) {
     auto p_ds = obj.data_source<DataSource>();
-    return dynamic_cast<File*>(p_ds) != nullptr;
+    return dynamic_cast<DataSource*>(p_ds) != nullptr;
 }
 
 inline
 bool is_fs(const Object& obj) {
     auto p_ds = obj.data_source<DataSource>();
-    return dynamic_cast<SubDirectory*>(p_ds) != nullptr || dynamic_cast<File*>(p_ds) != nullptr;
+    return dynamic_cast<SubDirectory*>(p_ds) != nullptr || dynamic_cast<DataSource*>(p_ds) != nullptr;
 }
 
 inline

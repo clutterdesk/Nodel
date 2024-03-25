@@ -13,7 +13,6 @@
 // limitations under the License.
 #pragma once
 
-#include "File.h"
 #include <nodel/serialization/csv.h>
 #include <nodel/core/Object.h>
 
@@ -22,14 +21,13 @@
 namespace nodel {
 namespace filesystem {
 
-class CsvFile : public File
+class CsvFile : public DataSource
 {
   public:
-    CsvFile(const std::string& ext, Origin origin) : File(ext, Mode::INHERIT, Object::LIST_I, origin) {}
-    CsvFile(const std::string& ext)                : CsvFile(ext, Origin::MEMORY) {}
-    CsvFile()                                      : CsvFile(".csv") {}
+    CsvFile(Origin origin) : DataSource(Kind::COMPLETE, Mode::INHERIT, Object::LIST_I, origin) {}
+    CsvFile()              : CsvFile(Origin::MEMORY) {}
 
-    DataSource* new_instance(const Object& target, Origin origin) const override { return new CsvFile(ext(), origin); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new CsvFile(origin); }
 
     void read(const Object& target) override;
     void write(const Object& target, const Object& cache, bool quiet) override;

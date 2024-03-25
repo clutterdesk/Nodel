@@ -168,7 +168,7 @@ TEST(Filesystem, CreateJsonFile) {
 
     Object test_data = new Directory(new DefaultRegistry(), wd, DataSource::Mode::ALL);
     Object new_file = new JsonFile();
-    new_file.set(parse_json("{'tea': 'Assam, please'}"));
+    new_file.set(json::parse("{'tea': 'Assam, please'}"));
     test_data.set(new_file_name, new_file);
     test_data.save();
 
@@ -187,7 +187,7 @@ TEST(Filesystem, UpdateJsonFile) {
 
     Object test_data = new Directory(new DefaultRegistry(), wd, DataSource::Mode::ALL);
     Object new_file = new JsonFile();
-    new_file.set(parse_json("{'tea': 'Assam, please'}"));
+    new_file.set(json::parse("{'tea': 'Assam, please'}"));
     test_data.set(new_file_name, new_file);
     test_data.save();
 

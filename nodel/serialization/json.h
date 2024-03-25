@@ -14,7 +14,7 @@
 #pragma once
 
 #include <nodel/core/Object.h>
-#include <nodel/support/StreamIterator.h>
+#include <nodel/support/parse.h>
 
 #include <ctype.h>
 #include <cstdlib>
@@ -42,7 +42,7 @@ template <typename StreamType>
 struct Parser
 {
   public:
-    Parser(StreamType& stream) : m_it{stream} {}
+    Parser(const StreamType& stream) : m_it{stream} {}
 
     Parser(Parser&&) =  default;
     Parser(const Parser&) = delete;
@@ -64,7 +64,7 @@ struct Parser
 
     void create_error(const std::string& message);
 
-    ::nodel::impl::StreamIterator<StreamType> m_it;
+    StreamType m_it;
     Object m_curr;
     std::string m_scratch{32};
     size_t m_error_offset = 0;
@@ -234,7 +234,7 @@ bool Parser<StreamType>::parse_string() {
         if (c == '\\') {
             escape = true;
         } else if (!escape) {
-            if (c == quote) { m_it.next(); break; }
+            if (c == quote) { m_it.next(); quote = 0; break; }
             str.push_back(c);
         } else {
             escape = false;
@@ -242,7 +242,7 @@ bool Parser<StreamType>::parse_string() {
         }
     }
 
-    if (m_it.done()) {
+    if (quote != 0) {
         create_error("Unterminated string");
         return false;
     }
@@ -386,9 +386,8 @@ struct ParseError
 
 
 inline
-Object parse(std::string&& json, std::optional<ParseError>& error) {
-    std::istringstream in{std::forward<std::string>(json)};
-    impl::Parser parser{in};
+Object parse(const std::string_view& str, std::optional<ParseError>& error) {
+    impl::Parser parser{nodel::impl::StringStreamAdapter{str}};
     if (!parser.parse_object()) {
         error = ParseError{parser.m_error_offset, std::move(parser.m_error_message)};
         return null;
@@ -397,9 +396,9 @@ Object parse(std::string&& json, std::optional<ParseError>& error) {
 }
 
 inline
-Object parse(std::string&& json, std::string& error) {
+Object parse(const std::string_view& str, std::string& error) {
     std::optional<nodel::json::ParseError> parse_error;
-    Object result = nodel::json::parse(std::forward<std::string>(json), parse_error);
+    Object result = parse(str, parse_error);
     if (parse_error) {
         error = parse_error->to_str();
         return null;
@@ -408,14 +407,14 @@ Object parse(std::string&& json, std::string& error) {
 }
 
 inline
-Object parse(std::string&& json) {
-    std::istringstream in{std::forward<std::string>(json)};
-    impl::Parser parser{in};
+Object parse(const std::string_view& str) {
+    impl::Parser parser{nodel::impl::StringStreamAdapter{str}};
     if (!parser.parse_object()) {
         return null;
     }
     return parser.m_curr;
 }
+
 
 inline
 Object parse_file(const std::string& file_name, std::string& error) {
@@ -426,7 +425,7 @@ Object parse_file(const std::string& file_name, std::string& error) {
         error = ss.str();
         return null;
     } else {
-        impl::Parser parser{f_in};
+        impl::Parser parser{nodel::impl::StreamAdapter{f_in}};
         if (!parser.parse_object()) {
             ParseError parse_error{parser.m_error_offset, std::move(parser.m_error_message)};
             error = parse_error.to_str();

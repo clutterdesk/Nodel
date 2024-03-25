@@ -13,7 +13,6 @@
 // limitations under the License.
 #pragma once
 
-#include "File.h"
 #include <nodel/serialization/json.h>
 #include <nodel/core/Object.h>
 
@@ -22,14 +21,13 @@
 namespace nodel {
 namespace filesystem {
 
-class JsonFile : public File
+class JsonFile : public DataSource
 {
   public:
-    JsonFile(const std::string& ext, Origin origin) : File(ext, Mode::ALL | Mode::INHERIT, origin) {}
-    JsonFile(const std::string& ext)                : File(ext, Mode::ALL | Mode::INHERIT, Origin::MEMORY) {}
-    JsonFile()                                      : JsonFile(".json") {}
+    JsonFile(Origin origin) : DataSource(Kind::COMPLETE, Mode::ALL | Mode::INHERIT, origin) {}
+    JsonFile()              : DataSource(Kind::COMPLETE, Mode::ALL | Mode::INHERIT, Origin::MEMORY) {}
 
-    DataSource* new_instance(const Object& target, Origin origin) const override { return new JsonFile(ext(), origin); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new JsonFile(origin); }
 
     void read_type(const Object& target) override;
     void read(const Object& target) override;
@@ -40,7 +38,7 @@ inline
 void JsonFile::read_type(const Object& target) {
     auto fpath = path(target).string();
     std::ifstream f_in{fpath, std::ios::in};
-    json::impl::Parser parser{f_in};
+    json::impl::Parser parser{nodel::impl::StreamAdapter{f_in}};
     read_set(target, (Object::ReprType)parser.parse_type());
 }
 

@@ -14,29 +14,66 @@
 #pragma once
 
 #include <filesystem>
+#include <regex>
 
-#include "File.h"
 #include <nodel/support/Ref.h>
+#include <nodel/core/Object.h>
 
 namespace nodel {
 namespace filesystem {
 
-namespace fs = std::filesystem;
 
 class Registry
 {
   public:
-    using Factory = std::function<File*(const Object&, const fs::path&)>;
+    using Factory = std::function<DataSource*(const Object&, const std::filesystem::path&)>;
 
     template <typename Func>
-    void set(const std::string_view& extension, Func&& factory) {
-        m_ext_registry.emplace(extension, std::forward<Func>(factory));
+    void add_directory(const std::string_view& extension, Func&& factory) {
+        m_dir_reg.emplace(extension, std::forward<Func>(factory));
     }
 
-    File* new_file(const Object& target, const fs::path& path) const {
-        auto ext = path.extension().string();
-        if (auto it = m_ext_registry.find(ext); it != m_ext_registry.end()) {
+    template <typename Func>
+    void add_directory(const std::regex& regex, Func&& factory) {
+        m_dir_regex_list.push_back(std::make_tuple(regex, factory));
+    }
+
+    template <typename Func>
+    void add_file(const std::string_view& extension, Func&& factory) {
+        m_file_reg.emplace(extension, std::forward<Func>(factory));
+    }
+
+    template <typename Func>
+    void add_file(const std::regex& regex, Func&& factory) {
+        m_file_regex_list.push_back(std::make_tuple(regex, factory));
+    }
+
+    DataSource* new_directory(const Object& target, const std::filesystem::path& path) const {
+        if (auto it = m_dir_reg.find(path.extension().string()); it != m_dir_reg.end()) {
             return it->second(target, path);
+        } else {
+            auto path_str = path.string();
+            for (auto& item : m_dir_regex_list) {
+                if (std::regex_search(path_str, std::get<0>(item))) {
+                    return std::get<1>(item)(target, path);
+                }
+            }
+        }
+
+        return nullptr;
+    }
+
+    DataSource* new_file(const Object& target, const std::filesystem::path& path) const {
+        auto ext = path.extension().string();
+        if (auto it = m_file_reg.find(ext); it != m_file_reg.end()) {
+            return it->second(target, path);
+        } else {
+            auto path_str = path.string();
+            for (auto& item : m_file_regex_list) {
+                if (std::regex_search(path_str, std::get<0>(item))) {
+                    return std::get<1>(item)(target, path);
+                }
+            }
         }
         return nullptr;
     }
@@ -45,8 +82,12 @@ class Registry
     Registry() = default;
 
   protected:
-    std::unordered_map<std::string, Factory> m_ext_registry;
-    std::filesystem::path m_path;
+    std::unordered_map<std::string, Factory> m_dir_reg;
+    std::unordered_map<std::string, Factory> m_file_reg;
+    std::vector<std::tuple<std::regex, Factory>> m_dir_regex_list;
+    std::vector<std::tuple<std::regex, Factory>> m_file_regex_list;
+
+  private:
     refcnt_t m_ref_count;
 
   template <typename> friend class ::nodel::Ref;

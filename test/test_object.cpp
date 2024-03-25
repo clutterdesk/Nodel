@@ -133,8 +133,8 @@ TEST(Object, Size) {
     EXPECT_EQ(Object(1ULL).size(), 0);
     EXPECT_EQ(Object(1.0).size(), 0);
     EXPECT_EQ(Object("foo").size(), 3);
-    EXPECT_EQ(parse_json("[1, 2, 3]").size(), 3);
-    EXPECT_EQ(parse_json("{'x': 1, 'y': 2}").size(), 2);
+    EXPECT_EQ(json::parse("[1, 2, 3]").size(), 3);
+    EXPECT_EQ(json::parse("{'x': 1, 'y': 2}").size(), 2);
 }
 
 TEST(Object, ToBool) {
@@ -248,11 +248,11 @@ TEST(Object, ToStr) {
   EXPECT_EQ(Object{0xFFFFFFFFFFFFFFFFULL}.to_str(), "18446744073709551615");
   EXPECT_EQ(Object{3.14}.to_str(), "3.14");
   EXPECT_EQ(Object{"trivial"}.to_str(), "trivial");
-  EXPECT_EQ(parse_json("[1, 2, 3]").to_str(), "[1, 2, 3]");
-  EXPECT_EQ(parse_json("{'name': 'Dude'}").to_str(), "{\"name\": \"Dude\"}");
+  EXPECT_EQ(json::parse("[1, 2, 3]").to_str(), "[1, 2, 3]");
+  EXPECT_EQ(json::parse("{'name': 'Dude'}").to_str(), "{\"name\": \"Dude\"}");
 
   const char* json = R"({"a": [], "b": [1], "c": [2, 3], "d": [4, [5, 6]]})";
-  EXPECT_EQ(parse_json(json).to_str(), json);
+  EXPECT_EQ(json::parse(json).to_str(), json);
 
   try {
       Object obj;
@@ -458,7 +458,7 @@ TEST(Object, CompareBoolStr) {
 
 TEST(Object, CompareBoolList) {
     Object a{true};
-    Object b = parse_json("[1]");
+    Object b = json::parse("[1]");
     try {
         EXPECT_FALSE(a == b);
         FAIL();
@@ -591,7 +591,7 @@ TEST(Object, CompareIntStr) {
 
 TEST(Object, CompareIntList) {
     Object a{1};
-    Object b = parse_json("[1]");
+    Object b = json::parse("[1]");
     try {
         EXPECT_FALSE(a == b);
         FAIL();
@@ -617,7 +617,7 @@ TEST(Object, CompareIntList) {
 
 TEST(Object, CompareIntMap) {
     Object a{1};
-    Object b = parse_json("{}");
+    Object b = json::parse("{}");
     EXPECT_TRUE(b.is_map());
     try {
         EXPECT_FALSE(a == b);
@@ -683,7 +683,7 @@ TEST(Object, CompareUIntStr) {
 
 TEST(Object, CompareUIntList) {
     Object a{1ULL};
-    Object b = parse_json("[1]");
+    Object b = json::parse("[1]");
     try {
         EXPECT_FALSE(a == b);
         FAIL();
@@ -709,7 +709,7 @@ TEST(Object, CompareUIntList) {
 
 TEST(Object, CompareUIntMap) {
     Object a{1ULL};
-    Object b = parse_json("{}");
+    Object b = json::parse("{}");
     EXPECT_TRUE(b.is_map());
     try {
         EXPECT_FALSE(a == b);
@@ -755,7 +755,7 @@ TEST(Object, CompareStrStr) {
 
 TEST(Object, CompareStrList) {
     Object a{"[1]"};
-    Object b = parse_json("[1]");
+    Object b = json::parse("[1]");
     try {
         EXPECT_TRUE(a == b);
         FAIL();
@@ -781,7 +781,7 @@ TEST(Object, CompareStrList) {
 
 TEST(Object, CompareStrMap) {
     Object a{"{}"};
-    Object b = parse_json("{}");
+    Object b = json::parse("{}");
     EXPECT_TRUE(b.is_map());
     try {
         EXPECT_TRUE(a == b);
@@ -828,7 +828,7 @@ TEST(Object, CopyBasic) {
 }
 
 TEST(Object, ListGet) {
-  Object obj = parse_json("[7, 8, 9]");
+  Object obj = json::parse("[7, 8, 9]");
   EXPECT_TRUE(obj.is_list());
   EXPECT_EQ(obj.get(0).to_int(), 7);
   EXPECT_EQ(obj.get(1).to_int(), 8);
@@ -843,13 +843,13 @@ TEST(Object, ListGet) {
 }
 
 TEST(Object, ListGetOutOfRange) {
-    Object obj = parse_json(R"([])");
+    Object obj = json::parse(R"([])");
     EXPECT_TRUE(obj.is_list());
     EXPECT_TRUE(obj.get(1).is_null());
 }
 
 TEST(Object, ListSet) {
-    Object obj = parse_json("[1, 2, 3]");
+    Object obj = json::parse("[1, 2, 3]");
     obj.set(1, 12);
     obj.set(-1, 13);
     EXPECT_EQ(obj.get(0), 1);
@@ -866,7 +866,7 @@ TEST(Object, ListSet) {
 }
 
 TEST(Object, ListDelete) {
-    Object obj = parse_json("[1, 2, 3]");
+    Object obj = json::parse("[1, 2, 3]");
     obj.del(0);
     EXPECT_EQ(obj.size(), 2);
     EXPECT_EQ(obj.get(0), 2);
@@ -877,7 +877,7 @@ TEST(Object, ListDelete) {
 }
 
 TEST(Object, MapGet) {
-  Object obj = parse_json(R"({0: 7, 1: 8, 2: 9, "name": "Brian"})");
+  Object obj = json::parse(R"({0: 7, 1: 8, 2: 9, "name": "Brian"})");
   EXPECT_TRUE(obj.is_map());
   EXPECT_EQ(obj.get(0).to_int(), 7);
   EXPECT_EQ(obj.get(1).to_int(), 8);
@@ -888,7 +888,7 @@ TEST(Object, MapGet) {
 }
 
 TEST(Object, MapGetNotFound) {
-    Object obj = parse_json(R"({})");
+    Object obj = json::parse(R"({})");
     EXPECT_TRUE(obj.is_map());
     EXPECT_TRUE(obj.get("x"_key).is_null());
 
@@ -900,33 +900,33 @@ TEST(Object, MapGetNotFound) {
 }
 
 TEST(Object, MultipleSubscriptMap) {
-  Object obj = parse_json(R"({"a": {"b": {"c": 7}}})");
+  Object obj = json::parse(R"({"a": {"b": {"c": 7}}})");
   EXPECT_TRUE(obj.is_map());
   EXPECT_EQ(obj.get("a"_key).get("b"_key).get("c"_key), 7);
 }
 
 TEST(Object, MapSetNumber) {
-    Object obj = parse_json("{'x': 100}");
+    Object obj = json::parse("{'x': 100}");
     obj.set("x"_key, 101);
     EXPECT_EQ(obj.get("x"s), 101);
 }
 
 TEST(Object, MapSetString) {
-    Object obj = parse_json("{'x': ''}");
+    Object obj = json::parse("{'x': ''}");
     obj.set("x"_key, "salmon");
     EXPECT_EQ(obj.get("x"s), "salmon");
 }
 
 TEST(Object, MapSetList) {
-    Object obj = parse_json("{'x': [100]}");
-    Object rhs = parse_json("[101]");
+    Object obj = json::parse("{'x': [100]}");
+    Object rhs = json::parse("[101]");
     obj.set("x"_key, rhs);
     EXPECT_EQ(obj.get("x"s).get(0), 101);
 }
 
 TEST(Object, MapSetMap) {
-    Object obj = parse_json("{'x': [100]}");
-    Object rhs = parse_json("{'y': 101}");
+    Object obj = json::parse("{'x': [100]}");
+    Object rhs = json::parse("{'y': 101}");
     obj.set("x"s, rhs);
     EXPECT_TRUE(obj.get("x"s).is_map());
     EXPECT_EQ(obj.get("x"s).get("y"s), 101);
@@ -942,7 +942,7 @@ TEST(Object, GetParentOfEmpty) {
 }
 
 TEST(Object, SetReplaceInParent) {
-    Object obj = parse_json("{'x': 'X'}");
+    Object obj = json::parse("{'x': 'X'}");
     EXPECT_EQ(obj.get("x"_key), "X");
 
     Object rhs{"Y"};
@@ -951,7 +951,7 @@ TEST(Object, SetReplaceInParent) {
 }
 
 TEST(Object, GetKey) {
-    Object obj = parse_json("{'x': 'X', 'y': 'Y', 'z': ['Z0', 'Z1']}");
+    Object obj = json::parse("{'x': 'X', 'y': 'Y', 'z': ['Z0', 'Z1']}");
     EXPECT_EQ(obj.get("x"_key).key(), "x"_key);
     EXPECT_EQ(obj.get("y"_key).key(), "y"_key);
     EXPECT_EQ(obj.get("z"_key).key(), "z"_key);
@@ -960,7 +960,7 @@ TEST(Object, GetKey) {
 }
 
 TEST(Object, KeyOf) {
-    Object obj = parse_json(
+    Object obj = json::parse(
         R"({"bool": true, 
             "int": 1, 
             "uint": 18446744073709551615, 
@@ -1000,7 +1000,7 @@ TEST(Object, KeyOfWrongType) {
 }
 
 TEST(Object, LineageRange) {
-    Object obj = parse_json(R"({"a": {"b": ["Assam", "Ceylon"]}})");
+    Object obj = json::parse(R"({"a": {"b": ["Assam", "Ceylon"]}})");
     List ancestors;
     for (auto anc : obj.get("a"_key).get("b"_key).get(1).iter_line())
         ancestors.push_back(anc);
@@ -1012,7 +1012,7 @@ TEST(Object, LineageRange) {
 }
 
 TEST(Object, ListChildrenRange) {
-    Object obj = parse_json(R"([true, 1, "x"])");
+    Object obj = json::parse(R"([true, 1, "x"])");
     List children;
     for (auto obj : obj.values())
         children.push_back(obj);
@@ -1023,7 +1023,7 @@ TEST(Object, ListChildrenRange) {
 }
 
 TEST(Object, OrderedMapChildrenRange) {
-    Object obj = parse_json(R"({"a": true, "b": 1, "c": "x"})");
+    Object obj = json::parse(R"({"a": true, "b": 1, "c": "x"})");
     List children;
     for (auto obj : obj.values())
         children.push_back(obj);
@@ -1034,7 +1034,7 @@ TEST(Object, OrderedMapChildrenRange) {
 }
 
 TEST(Object, TreeRange) {
-    Object obj = parse_json(R"({
+    Object obj = json::parse(R"({
         "a": {"aa": "AA", "ab": "AB"}, 
         "b": [{"b0a": "B0A", "b0b": "B0B"}, 
               {"b1a": "B1A", "b1b": ["B1B0"], "b1c": {"b1ca": "B1CA"}},
@@ -1053,7 +1053,7 @@ TEST(Object, TreeRange) {
 }
 
 TEST(Object, TreeRange_VisitPred) {
-    Object obj = parse_json(R"({
+    Object obj = json::parse(R"({
         "a": {"aa": "AA", "ab": "AB"}, 
         "b": [{"b0a": "B0A", "b0b": "B0B"}, 
               {"b1a": "B1A", "b1b": ["B1B0"], "b1c": {"b1ca": "B1CA"}},
@@ -1070,7 +1070,7 @@ TEST(Object, TreeRange_VisitPred) {
 }
 
 TEST(Object, TreeRange_EnterPred) {
-    Object obj = parse_json(R"({
+    Object obj = json::parse(R"({
         "a": {"aa": "AA", "ab": "AB"}, 
         "b": [{"b0a": "B0A", "b0b": "B0B"}, 
               {"b1a": "B1A", "b1b": ["B1B0"], "b1c": {"b1ca": "B1CA"}},
@@ -1089,7 +1089,7 @@ TEST(Object, TreeRange_EnterPred) {
 }
 
 TEST(Object, TreeRange_VisitAndEnterPred) {
-    Object obj = parse_json(R"({
+    Object obj = json::parse(R"({
         "a": {"aa": "AA", "ab": "AB"}, 
         "b": [{"b0a": "B0A", "b0b": "B0B"}, 
               {"b1a": "B1A", "b1b": ["B1B0"], "b1c": {"b1ca": "B1CA"}},
@@ -1106,8 +1106,8 @@ TEST(Object, TreeRange_VisitAndEnterPred) {
 }
 
 TEST(Object, ValuesRangeMultiuser) {
-    Object o1 = parse_json(R"({"a": "A", "b": "B", "c": "C"})");
-    Object o2 = parse_json(R"({"x": "X", "y": "Y", "z": "Z"})");
+    Object o1 = json::parse(R"({"a": "A", "b": "B", "c": "C"})");
+    Object o2 = json::parse(R"({"x": "X", "y": "Y", "z": "Z"})");
     List result;
     auto r1 = o1.values();
     auto it1 = r1.begin();
@@ -1128,7 +1128,7 @@ TEST(Object, ValuesRangeMultiuser) {
 }
 
 TEST(Object, GetPath) {
-    Object obj = parse_json(R"({"a": {"b": ["Assam", "Ceylon"]}})");
+    Object obj = json::parse(R"({"a": {"b": ["Assam", "Ceylon"]}})");
     EXPECT_EQ(obj.get("a"_key).path().to_str(), ".a");
     EXPECT_EQ(obj.get("a"_key).get("b"_key).path().to_str(), ".a.b");
     EXPECT_EQ(obj.get("a"_key).get("b"_key).get(1).path().to_str(), ".a.b[1]");
@@ -1138,7 +1138,7 @@ TEST(Object, GetPath) {
 }
 
 TEST(Object, GetPartialPath) {
-    Object obj = parse_json(R"({"a": {"b": {"c": ["Assam", "Ceylon"]}}})");
+    Object obj = json::parse(R"({"a": {"b": {"c": ["Assam", "Ceylon"]}}})");
     auto c = obj.get("a"_key).get("b"_key).get("c"_key);
     auto path = c.path(obj.get("a"_key));
     EXPECT_EQ(path.to_str(), ".b.c");
@@ -1146,7 +1146,7 @@ TEST(Object, GetPartialPath) {
 }
 
 TEST(Object, ConstructedPath) {
-    Object obj = parse_json(R"({"a": {"b": ["Assam", "Ceylon"]}})");
+    Object obj = json::parse(R"({"a": {"b": ["Assam", "Ceylon"]}})");
     OPath path;
     path.prepend("b"_key);
     path.prepend("a"_key);
@@ -1155,14 +1155,14 @@ TEST(Object, ConstructedPath) {
 }
 
 TEST(Object, PathParent) {
-    Object obj = parse_json(R"({"a": {"b": ["Assam", "Ceylon"]}})");
+    Object obj = json::parse(R"({"a": {"b": ["Assam", "Ceylon"]}})");
     auto path = obj.get("a"_key).get("b"_key).path().parent();
     EXPECT_EQ(path.to_str(), ".a");
     EXPECT_TRUE(obj.get(path).is(obj.get("a"_key)));
 }
 
 TEST(Object, CreatePath) {
-    Object obj = parse_json("{}");
+    Object obj = json::parse("{}");
 
     OPath path;
     path.append("a"_key);
@@ -1177,7 +1177,7 @@ TEST(Object, CreatePath) {
 }
 
 TEST(Object, CreatePartialPath) {
-    Object obj = parse_json("{'a': {}}");
+    Object obj = json::parse("{'a': {}}");
 
     OPath path;
     path.append("a"_key);
@@ -1192,8 +1192,8 @@ TEST(Object, CreatePartialPath) {
 }
 
 TEST(Object, CreatePathCopy) {
-    Object to_obj = parse_json("{}");
-    Object from_obj = parse_json("{'tea': ['Assam', 'Ceylon']}");
+    Object to_obj = json::parse("{}");
+    Object from_obj = json::parse("{'tea': ['Assam', 'Ceylon']}");
 
     OPath path;
     path.append("tea"_key);
@@ -1206,7 +1206,7 @@ TEST(Object, CreatePathCopy) {
 }
 
 TEST(Object, DelPath) {
-    Object obj = parse_json(R"({"a": {"b": ["Assam", "Ceylon"]}})");
+    Object obj = json::parse(R"({"a": {"b": ["Assam", "Ceylon"]}})");
 
     OPath path;
     path.append("a"_key);
@@ -1243,7 +1243,7 @@ TEST(Object, HashPath) {
 }
 
 TEST(Object, DelFromParent) {
-    Object obj = parse_json("{'x': 'X', 'y': 'Y', 'z': 'Z'}");
+    Object obj = json::parse("{'x': 'X', 'y': 'Y', 'z': 'Z'}");
     obj.get("y"_key).del_from_parent();
     EXPECT_EQ(obj.size(), 2);
     EXPECT_EQ(obj.get("x"_key), "X");
@@ -1257,16 +1257,16 @@ TEST(Object, DelFromParent) {
 //}
 
 TEST(Object, ParentUpdateRefCount) {
-    Object o1 = parse_json("{'x': 'X'}");
+    Object o1 = json::parse("{'x': 'X'}");
     Object x = o1.get("x"_key);
     EXPECT_EQ(x.ref_count(), 2);
-    Object o2 = parse_json("{}");
+    Object o2 = json::parse("{}");
     o2.set('x', x);
     EXPECT_EQ(x.ref_count(), 2);
 }
 
 TEST(Object, CopyCtorRefCountIntegrity) {
-    Object obj = parse_json("{}");
+    Object obj = json::parse("{}");
     EXPECT_EQ(obj.ref_count(), 1);
     Object copy{obj};
     EXPECT_EQ(obj.ref_count(), 2);
@@ -1274,7 +1274,7 @@ TEST(Object, CopyCtorRefCountIntegrity) {
 }
 
 TEST(Object, MoveCtorRefCountIntegrity) {
-    Object obj = parse_json("{}");
+    Object obj = json::parse("{}");
     Object move{std::move(obj)};
     EXPECT_EQ(move.ref_count(), 1);
     EXPECT_TRUE(obj.is_empty());
@@ -1282,7 +1282,7 @@ TEST(Object, MoveCtorRefCountIntegrity) {
 }
 
 TEST(Object, WalkDF) {
-  Object obj = parse_json("[1, [2, [{'x': 3}, [4, 5], {'x': 6}], 7], 8]");
+  Object obj = json::parse("[1, [2, [{'x': 3}, [4, 5], {'x': 6}], 7], 8]");
   std::vector<Int> expect_order{1, 2, 3, 4, 5, 6, 7, 8};
   std::vector<Int> actual_order;
 
@@ -1299,7 +1299,7 @@ TEST(Object, WalkDF) {
 }
 
 TEST(Object, WalkBF) {
-  Object obj = parse_json("[1, [2, [3, [{'x': 4}, {'x': 5}], 6], 7], 8]");
+  Object obj = json::parse("[1, [2, [3, [{'x': 4}, {'x': 5}], 6], 7], 8]");
   std::vector<Int> expect_order{1, 8, 2, 7, 3, 6, 4, 5};
   std::vector<Int> actual_order;
 
@@ -1499,7 +1499,7 @@ TEST(Object, AssignString) {
 }
 
 TEST(Object, RedundantAssign) {
-    Object obj = parse_json(R"({"x": [1], "y": [2]})");
+    Object obj = json::parse(R"({"x": [1], "y": [2]})");
     EXPECT_TRUE(obj.get("x"_key).is_list());
     EXPECT_EQ(obj.get("x"_key).get(0), 1);
     // ref count error might not manifest with one try
@@ -1511,7 +1511,7 @@ TEST(Object, RedundantAssign) {
 }
 
 TEST(Object, RootParentIsNull) {
-    Object root = parse_json(R"({"x": [1], "y": [2]})");
+    Object root = json::parse(R"({"x": [1], "y": [2]})");
     EXPECT_TRUE(root.parent().is_null());
 }
 
@@ -1538,8 +1538,8 @@ TEST(Object, ClearParentOnMapUpdate) {
 }
 
 TEST(Object, CopyChildToAnotherContainer) {
-    Object m1 = parse_json(R"({"x": "m1x"})");
-    Object m2 = parse_json(R"({})");
+    Object m1 = json::parse(R"({"x": "m1x"})");
+    Object m2 = json::parse(R"({})");
     m2.set("x"_key, m1);
     EXPECT_TRUE(m1.get("x"_key).parent().is(m1));
     EXPECT_TRUE(m2.get("x"_key).parent().is(m2));
@@ -1548,8 +1548,8 @@ TEST(Object, CopyChildToAnotherContainer) {
 }
 
 TEST(Object, DeepCopyChildToAnotherContainer) {
-    Object m1 = parse_json(R"({"x": ["m1x0", "m1x1"]})");
-    Object m2 = parse_json(R"({})");
+    Object m1 = json::parse(R"({"x": ["m1x0", "m1x1"]})");
+    Object m2 = json::parse(R"({})");
     m2.set("x"_key, m1.get("x"_key));
     EXPECT_TRUE(m1.get("x"_key).get(1).root().is(m1));
     EXPECT_TRUE(m2.get("x"_key).get(1).root().is(m2));
@@ -1559,7 +1559,7 @@ TEST(Object, DeepCopyChildToAnotherContainer) {
 }
 
 TEST(Object, ParentIntegrityOnDel) {
-    Object par = parse_json(R"({"x": [1], "y": [2]})");
+    Object par = json::parse(R"({"x": [1], "y": [2]})");
     Object x1 = par.get("x"_key);
     Object x2 = par.get("x"_key);
     EXPECT_TRUE(x1.parent().is_map());
@@ -1572,23 +1572,35 @@ TEST(Object, ParentIntegrityOnDel) {
 }
 
 TEST(Object, GetKeys) {
-    Object obj = parse_json(R"({"x": [1], "y": [2]})");
+    Object obj = json::parse(R"({"x": [1], "y": [2]})");
     KeyList expect = {"x"_key, "y"_key};  // NOTE: std::vector has a gotcha: {"x", "y"} is interpreted in an unexpected way.
     EXPECT_EQ(obj.keys(), expect);
+}
+
+TEST(Object, IterKeys) {
+    Object obj = json::parse(R"({"x": [1], "y": [2]})");
+    KeyList expect = {"x"_key, "y"_key};  // NOTE: std::vector has a gotcha: {"x", "y"} is interpreted in an unexpected way.
+    KeyList actual;
+    for (auto& key : obj.iter_keys())
+        actual.push_back(key);
+    EXPECT_EQ(actual, expect);
+    DEBUG("size={}\n", sizeof(obj.iter_items().begin()));
 }
 
 
 struct TestSimpleSource : public DataSource
 {
     TestSimpleSource(const std::string& json, Mode mode = Mode::READ | Mode::WRITE | Mode::OVERWRITE)
-      : DataSource(Kind::COMPLETE, mode, Origin::SOURCE), data{parse_json(json)} {}
+      : DataSource(Kind::COMPLETE, mode, Origin::SOURCE), data{json::parse(json)} {
+          DEBUG("data={}", data.to_str());
+      }
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSimpleSource(data.to_json()); }
 
     void read_type(const Object& target) override {
         read_meta_called = true;
         std::istringstream in{data.to_json()};
-        json::impl::Parser parser{in};
+        json::impl::Parser parser{nodel::impl::StreamAdapter{in}};
         read_set(target, (Object::ReprType)parser.parse_type());
     }
 
@@ -1616,14 +1628,14 @@ struct TestSimpleSource : public DataSource
 struct TestSparseSource : public DataSource
 {
     TestSparseSource(const std::string& json, Mode mode = Mode::READ | Mode::WRITE | Mode::OVERWRITE)
-      : DataSource(Kind::SPARSE, mode, Object::OMAP_I, Origin::SOURCE), data{parse_json(json)} {}
+      : DataSource(Kind::SPARSE, mode, Object::OMAP_I, Origin::SOURCE), data{json::parse(json)} {}
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSparseSource(data.to_json()); }
 
     void read_type(const Object& target) override {
         read_meta_called = true;
         std::istringstream in{data.to_json()};
-        json::impl::Parser parser{in};
+        json::impl::Parser parser{nodel::impl::StreamAdapter{in}};
         read_set(target, (Object::ReprType)parser.parse_type());
     }
 
@@ -1634,20 +1646,12 @@ struct TestSparseSource : public DataSource
 
     void write_key(const Object&, const Key& k, const Object& v, bool quiet) override {
         write_key_called = true;
-        if (v.is_deleted()) {
-            data.del(k);
-        } else {
-            data.set(k, v);
-        }
+        data.set(k, v);
     }
 
-    void write_key(const Object&, const Key& k, Object&& v, bool quiet) override {
-        write_key_called = true;
-        if (v.is_deleted()) {
-            data.del(k);
-        } else {
-            data.set(k, std::forward<Object>(v));
-        }
+    void delete_key(const Object&, const Key& k, bool quiet) override {
+        delete_key_called = true;
+        data.del(k);
     }
 
     class TestKeyIterator : public KeyIterator
@@ -1717,6 +1721,7 @@ struct TestSparseSource : public DataSource
     bool write_called = false;
     bool read_key_called = false;
     bool write_key_called = false;
+    bool delete_key_called = false;
     bool iter_deleted = false;
 };
 
@@ -1729,7 +1734,7 @@ TEST(Object, TestSimpleSource_Invalid) {
 TEST(Object, TestSimpleSource_ToBlah) {
     auto max_uint = std::numeric_limits<UInt>::max();
     auto max_uint_str = std::to_string(max_uint);
-    auto make = [] (auto&& json) { return Object{new TestSimpleSource(json)}; };
+    auto make = [] (const std::string& json) { return Object{new TestSimpleSource(json)}; };
     EXPECT_EQ(make("true").to_bool(), true);
     EXPECT_EQ(make("-1").to_int(), -1);
     EXPECT_EQ(make(max_uint_str).to_uint(), max_uint);
@@ -1804,7 +1809,7 @@ TEST(Object, TestSimpleSource_Compare) {
 }
 
 TEST(Object, TestSimpleSource_WalkDF) {
-  Object obj = parse_json("{}");
+  Object obj = json::parse("{}");
   obj.set("x"_key, new TestSimpleSource("[1, [2, [{'x': 3}, [4, 5], {'x': 6}], 7], 8]"));
   std::vector<Int> expect_order{1, 2, 3, 4, 5, 6, 7, 8};
   std::vector<Int> actual_order;
@@ -1822,8 +1827,8 @@ TEST(Object, TestSimpleSource_WalkDF) {
 }
 
 TEST(Object, TestSimpleSource_WalkBF) {
-  Object obj = parse_json("{}");
-  obj.set("x"_key, parse_json("[1, [2, [3, [{'x': 4}, {'x': 5}], 6], 7], 8]"));
+  Object obj = json::parse("{}");
+  obj.set("x"_key, json::parse("[1, [2, [3, [{'x': 4}, {'x': 5}], 6], 7], 8]"));
   std::vector<Int> expect_order{1, 8, 2, 7, 3, 6, 4, 5};
   std::vector<Int> actual_order;
 
@@ -2032,7 +2037,7 @@ TEST(Object, TestSparseSource_Write) {
     auto dsrc = new TestSparseSource(R"({"x": 1, "y": 2})");
     test::DataSourceTestInterface test_iface{*dsrc};
     Object obj{dsrc};
-    obj.set(parse_json(R"({"x": 9, "y": 10})"));
+    obj.set(json::parse(R"({"x": 9, "y": 10})"));
     EXPECT_FALSE(dsrc->write_called);
     EXPECT_FALSE(dsrc->write_key_called);
     EXPECT_EQ(test_iface.cache().get("x"_key), 9);

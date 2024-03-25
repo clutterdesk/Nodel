@@ -29,9 +29,9 @@ class DefaultRegistry : public Registry
     using Origin = DataSource::Origin;
 
     DefaultRegistry() {
-        m_ext_registry[".json"] = [] (const Object&, const fs::path& path) { return new JsonFile(".json", Origin::SOURCE); };
-        m_ext_registry[".csv"]  = [] (const Object&, const fs::path& path) { return new CsvFile(".csv", Origin::SOURCE); };
-        m_ext_registry[".txt"]  = [] (const Object&, const fs::path& path) { return new TextFile(".txt", Origin::SOURCE); };
+        add_file(".json", [] (const Object&, const fs::path& path) { return new JsonFile(Origin::SOURCE); });
+        add_file(".csv", [] (const Object&, const fs::path& path) { return new CsvFile(Origin::SOURCE); });
+        add_file(".txt", [] (const Object&, const fs::path& path) { return new TextFile(Origin::SOURCE); });
     }
 
   template <typename> friend class ::nodel::Ref;

@@ -52,7 +52,7 @@ class KeyIterator;
 
 class Key
 {
-  private:
+  public:
     enum {
         EMPTY_I,
         NULL_I,   // json null
@@ -63,6 +63,7 @@ class Key
         STR_I
     };
 
+  private:
     union Repr {
         Repr()           : z{(void*)0} {}
         Repr(bool v)     : b{v} {}
@@ -102,6 +103,7 @@ class Key
     Key(is_like_UInt auto v)  : m_repr{(UInt)v}, m_repr_ix{UINT_I} {}
     Key(intern_t s)           : m_repr{s}, m_repr_ix{STR_I} {}
     Key(const String& s)      : m_repr{intern_string(s)}, m_repr_ix{STR_I} {}
+    Key(const StringView& s)  : m_repr{intern_string(s)}, m_repr_ix{STR_I} {}
 
     ~Key() { release(); }
 
@@ -275,7 +277,6 @@ class Key
             case UINT_I:  stream << '[' << nodel::int_to_str(m_repr.u) << ']'; break;
             case FLOAT_I: stream << '[' << nodel::float_to_str(m_repr.f) << ']'; break;
             case STR_I: {
-                DEBUG("str={}", m_repr.s.data());
                 auto pos = m_repr.s.data().find_first_of("\".");
                 if (pos != StringView::npos) {
                     stream << '[' << quoted(m_repr.s.data()) << ']';
@@ -339,14 +340,14 @@ class Key
         }
     }
 
+    static WrongType wrong_type(uint8_t actual)                   { return type_name(actual); };
+    static WrongType wrong_type(uint8_t actual, uint8_t expected) { return {type_name(actual), type_name(expected)}; };
+
   private:
     void release() {
         m_repr.z = nullptr;
         m_repr_ix = NULL_I;
     }
-
-    WrongType wrong_type(uint8_t actual) const                   { return type_name(actual); };
-    WrongType wrong_type(uint8_t actual, uint8_t expected) const { return {type_name(actual), type_name(expected)}; };
 
   private:
     Repr m_repr;

@@ -14,7 +14,7 @@
 #pragma once
 
 #include <nodel/core/Object.h>
-#include <nodel/support/StreamIterator.h>
+#include <nodel/support/parse.h>
 
 #include <fstream>
 
@@ -53,7 +53,7 @@ class Parser
     void set_error(const std::string&);
 
   private:
-    nodel::impl::StreamIterator<StreamType> m_it;
+    nodel::impl::StreamAdapter<StreamType> m_it;
     std::string m_error;
 };
 

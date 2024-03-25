@@ -13,7 +13,6 @@
 // limitations under the License.
 #pragma once
 
-#include "File.h"
 #include <nodel/core/Object.h>
 
 #include <fstream>
@@ -21,14 +20,13 @@
 namespace nodel {
 namespace filesystem {
 
-class TextFile : public File
+class TextFile : public DataSource
 {
   public:
-    TextFile(const std::string& ext, Origin origin) : File(ext, Mode::INHERIT, Object::STR_I, origin) {}
-    TextFile(const std::string& ext)                : TextFile(ext, Origin::MEMORY) {}
-    TextFile()                                      : TextFile(".txt") {}
+    TextFile(Origin origin) : DataSource(Kind::COMPLETE, Mode::INHERIT, Object::STR_I, origin) {}
+    TextFile()              : TextFile(Origin::MEMORY) {}
 
-    DataSource* new_instance(const Object& target, Origin origin) const override { return new TextFile(ext(), origin); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new TextFile(origin); }
 
     void read(const Object& target) override;
     void write(const Object& target, const Object& cache, bool quiet) override;
@@ -50,7 +48,7 @@ inline
 void TextFile::write(const Object& target, const Object& cache, bool quiet) {
     auto fpath = path(target).string();
     auto& str = cache.as<String>();
-    std::ofstream f_out{fpath + ext(), std::ios::out};
+    std::ofstream f_out{fpath, std::ios::out};
     f_out.exceptions(std::ifstream::failbit);
     f_out.write(&str[0], str.size());
     if (f_out.fail() || f_out.bad()) set_failed(true);
