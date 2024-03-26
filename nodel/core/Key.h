@@ -21,6 +21,7 @@
 #include <nodel/support/logging.h>
 #include <nodel/support/string.h>
 #include <nodel/support/intern.h>
+#include <nodel/support/exception.h>
 #include <nodel/types.h>
 
 using namespace std::literals::string_literals;
@@ -29,22 +30,22 @@ using namespace std::literals::string_view_literals;
 
 namespace nodel {
 
-struct WrongType : std::exception
+struct WrongType : public NodelException
 {
-    WrongType(const std::string_view& actual) {
+    static std::string make_message(const std::string_view& actual) {
         std::stringstream ss;
         ss << "type=" << actual;
-        msg = ss.str();
+        return ss.str();
     }
 
-    WrongType(const std::string_view& actual, const std::string_view& expected) {
+    static std::string make_message(const std::string_view& actual, const std::string_view& expected) {
         std::stringstream ss;
         ss << "type=" << actual << ", expected=" << expected;
-        msg = ss.str();
+        return ss.str();
     }
 
-    const char* what() const noexcept override { return msg.c_str(); }
-    std::string msg;
+    WrongType(const std::string_view& actual) : NodelException(make_message(actual)) {}
+    WrongType(const std::string_view& actual, const std::string_view& expected) : NodelException(make_message(actual, expected)) {}
 };
 
 
@@ -312,7 +313,7 @@ class Key
                 // IEEE 754-1985 - max digits=24
                 std::string str(24, ' ');
                 auto [ptr, err] = std::to_chars(str.data(), str.data() + str.size(), m_repr.f);
-                assert(err == std::errc());
+                ASSERT(err == std::errc());
                 str.resize(ptr - str.data());
                 return str;
             }

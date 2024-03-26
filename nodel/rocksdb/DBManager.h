@@ -16,7 +16,6 @@
 #include <rocksdb/db.h>
 #include <unordered_map>
 #include <filesystem>
-#include <nodel/support/Ref.h>
 #include <nodel/types.h>
 
 namespace db = rocksdb;
@@ -32,15 +31,13 @@ class DBManager
     class DB
     {
       public:
-        DB(db::Options options, db::Status status, db::DB* ptr) : m_options{options}, m_status{status}, m_ptr{ptr} {}
+        DB(db::Options options, db::Status status, db::DB* ptr) : m_options{options}, m_status{status}, m_ptr{ptr}, m_ref_count{1} {}
         ~DB() { delete m_ptr; }
 
       public:
         db::Options m_options;
         db::Status m_status;
         db::DB* m_ptr;
-
-      private:
         refcnt_t m_ref_count;
 
       template <typename> friend class ::nodel::Ref;
@@ -53,19 +50,20 @@ class DBManager
     void close(const std::filesystem::path& path);
 
   private:
-    std::unordered_map<std::string, Ref<DB>> m_instances;
+    std::unordered_map<std::string, DB*> m_instances;
 };
 
 
 inline
 db::Status DBManager::open(db::Options options, const std::filesystem::path& path, db::DB*& p_db) {
-    if (!m_instances.contains(path)) {
+    if (!m_instances.contains(path.string())) {
         db::Status status = db::DB::Open(options, path.string(), &p_db);
-        assert(status.ok()); // TODO: error handling
+        ASSERT(status.ok()); // TODO: error handling
         m_instances.insert(std::make_pair(path.string(), new DB(options, status, p_db)));
         return status;
     } else {
         auto& item = m_instances.at(path.string());
+        ++(item->m_ref_count);
         // TODO: check relevant options are identical
         p_db = item->m_ptr;
         return item->m_status;
@@ -74,7 +72,11 @@ db::Status DBManager::open(db::Options options, const std::filesystem::path& pat
 
 inline
 void DBManager::close(const std::filesystem::path& path) {
-    m_instances.erase(path);
+    auto db_entry = m_instances.at(path.string());
+    if (--(db_entry->m_ref_count) == 0) {
+        delete db_entry;
+        m_instances.erase(path.string());
+    }
 }
 
 inline

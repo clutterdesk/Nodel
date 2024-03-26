@@ -14,6 +14,7 @@
 #pragma once
 
 #include <nodel/types.h>
+#include <nodel/support/exception.h>
 
 namespace nodel {
 
@@ -21,7 +22,7 @@ template <class T>
 class Ref
 {
   public:
-    Ref(T* ptr) : m_ptr(ptr) { assert(m_ptr != nullptr); inc_ref_count(); }
+    Ref(T* ptr) : m_ptr(ptr) { ASSERT(m_ptr != nullptr); inc_ref_count(); }
     ~Ref() { if (m_ptr != nullptr) dec_ref_count(); }
 
     Ref(const Ref& other) {

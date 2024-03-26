@@ -23,27 +23,37 @@
 
 namespace nodel::rocksdb {
 
-
+// A simple key/value store backed by RocksDB.
+// - Multiple objects may operate on the same DB, but no synchronization is provided.
+//   Use Object::refresh or Object::reset to synchronize one object after changes have
+//   been made to the DB.
+// - Updates and deletes are batched together when Object::save is called, providing
+//   atomicity.
 class KeyStore : public nodel::DataSource
 {
   public:
     KeyStore(const std::filesystem::path& path, Origin origin);
     KeyStore(const std::filesystem::path& path) : KeyStore{path, Origin::MEMORY} {}
-    KeyStore()                                  : KeyStore{std::filesystem::path{}, Origin::MEMORY} {}
+    KeyStore(Origin origin)                     : KeyStore{{}, origin} {}
+    KeyStore()                                  : KeyStore{{}, Origin::MEMORY} {}
 
     ~KeyStore();
+
+    void set_db_options(::rocksdb::Options options)         { m_options = options; }
+    void set_read_options(::rocksdb::ReadOptions options)   { m_read_options = options; }
+    void set_write_options(::rocksdb::WriteOptions options) { m_write_options = options; }
 
     DataSource* new_instance(const Object& target, Origin origin) const override {
         return new KeyStore(std::filesystem::path{}, origin);
     }
 
-    void read_type(const Object& target) override { assert(false); }
+    void read_type(const Object& target) override { ASSERT(false); }
     void read(const Object& target) override {}  // TODO: implement
     void write(const Object&, const Object& cache, bool quiet) override {} // TODO: implement
 
     Object read_key(const Object&, const Key& k) override;
     void write_key(const Object&, const Key& k, const Object& v, bool quiet) override;
-    void delete_key(const Object&, const Key& k, bool quiet) override;
+    void commit(const Object& target, const KeyList& del_keys, bool quiet) override;
 
     class KeyIterator : public nodel::DataSource::KeyIterator
     {
@@ -91,6 +101,7 @@ class KeyStore : public nodel::DataSource
     ::rocksdb::Options m_options;
     ::rocksdb::ReadOptions m_read_options;
     ::rocksdb::WriteOptions m_write_options;
+    ItemList updates;
 };
 
 
@@ -203,7 +214,7 @@ Key KeyStore::deserialize_key(const std::string_view& data) {
         case '4': return str_to_uint(data.substr(1));
         case '5': return str_to_float(data.substr(1));  // TODO: provide perfect serialization for floats
         case '6': return data.substr(1);
-        default:  assert(false); // TODO: throw or return BAD key
+        default:  ASSERT(false); // TODO: throw or return BAD key
     }
 }
 
@@ -220,13 +231,13 @@ Object KeyStore::deserialize_value(const std::string_view& data) {
         case '5': return str_to_float(data.substr(1));  // TODO: provide perfect serialization for floats
         case '6': return data.substr(1);
         case '7': return json::parse(data.substr(1));
-        default:  assert(false); // TODO: throw or return BAD object
+        default:  ASSERT(false); // TODO: throw or return BAD object
     }
 }
 
 inline
 void KeyStore::open(const std::filesystem::path& path, bool create_if_missing) {
-    assert(mp_db == nullptr);
+    ASSERT(mp_db == nullptr);
     m_options.create_if_missing = create_if_missing;
     auto status = DBManager::get_instance().open(m_options, path.string(), mp_db);
     assert (status.ok());  // TODO: error handling
@@ -243,29 +254,38 @@ Object KeyStore::read_key(const Object& target, const Key& key) {
     ::rocksdb::Status status = mp_db->Get(m_read_options, db_key, &value);
     if (status.code() == ::rocksdb::Status::Code::kNotFound)
         return null;
-    assert(status.ok()); // TODO: error handling
+    ASSERT(status.ok()); // TODO: error handling
     return deserialize_value(value);
 }
 
 inline
 void KeyStore::write_key(const Object& target, const Key& key, const Object& value, bool quiet) {
-    if (mp_db == nullptr) {
-        open(m_path.empty()? nodel::filesystem::path(target): m_path, true);
-    }
-    auto db_key = serialize_key(key);
-    auto db_value = serialize_value(value);
-    ::rocksdb::Status status = mp_db->Put(m_write_options, db_key, db_value);
-    assert(status.ok()); // TODO: error handling
+    updates.push_back(std::make_pair(key, value));
 }
 
 inline
-void KeyStore::delete_key(const Object& target, const Key& key, bool quiet) {
+void KeyStore::commit(const Object& target, const KeyList& del_keys, bool quiet) {
     if (mp_db == nullptr) {
         open(m_path.empty()? nodel::filesystem::path(target): m_path, true);
     }
-    auto db_key = serialize_key(key);
-    ::rocksdb::Status status = mp_db->Delete(m_write_options, db_key);
-    assert(status.ok()); // TODO: error handling
+
+    ::rocksdb::WriteBatch batch;
+
+    // batch delete
+    for (const auto& key : del_keys) {
+        auto db_key = serialize_key(key);
+        batch.Delete(db_key);
+    }
+
+    // batch update
+    for (auto& item : updates) {
+        auto db_key = serialize_key(item.first);
+        auto db_value = serialize_value(item.second);
+        batch.Put(db_key, db_value);
+    }
+
+    ::rocksdb::Status status = mp_db->Write(m_write_options, &batch);
+    ASSERT(status.ok());  // TODO: error handling
 }
 
 } // nodel::rocksdb namespace

@@ -21,11 +21,11 @@
 namespace nodel {
 namespace filesystem {
 
-class JsonFile : public DataSource
+class JsonFile : public File
 {
   public:
-    JsonFile(Origin origin) : DataSource(Kind::COMPLETE, Mode::ALL | Mode::INHERIT, origin) {}
-    JsonFile()              : DataSource(Kind::COMPLETE, Mode::ALL | Mode::INHERIT, Origin::MEMORY) {}
+    JsonFile(Origin origin) : File(Kind::COMPLETE, Mode::ALL | Mode::INHERIT, origin) {}
+    JsonFile()              : File(Kind::COMPLETE, Mode::ALL | Mode::INHERIT, Origin::MEMORY) {}
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new JsonFile(origin); }
 

@@ -15,6 +15,7 @@
 
 #include <nodel/core/Object.h>
 #include <nodel/support/parse.h>
+#include <nodel/support/exception.h>
 
 #include <ctype.h>
 #include <cstdlib>
@@ -25,7 +26,7 @@
 namespace nodel {
 namespace json {
 
-class JsonException : public std::exception
+class JsonException : public NodelException
 {
   public:
     JsonException(const std::string& msg) : msg(msg) {}

@@ -45,6 +45,15 @@ struct FailedDeletes : std::exception
 };
 
 
+// Base class for all files
+//
+class File : public DataSource
+{
+  public:
+    using DataSource::DataSource;
+};
+
+
 // DataSource for filesystem directories
 //
 class SubDirectory : public DataSource
@@ -86,20 +95,17 @@ class Directory : public SubDirectory
 
 inline
 bool is_dir(const Object& obj) {
-    auto p_ds = obj.data_source<DataSource>();
-    return dynamic_cast<SubDirectory*>(p_ds) != nullptr;
+    return obj.data_source<SubDirectory>() != nullptr;
 }
 
 inline
 bool is_file(const Object& obj) {
-    auto p_ds = obj.data_source<DataSource>();
-    return dynamic_cast<DataSource*>(p_ds) != nullptr;
+    return obj.data_source<File>() != nullptr;
 }
 
 inline
 bool is_fs(const Object& obj) {
-    auto p_ds = obj.data_source<DataSource>();
-    return dynamic_cast<SubDirectory*>(p_ds) != nullptr || dynamic_cast<DataSource*>(p_ds) != nullptr;
+    return is_dir(obj) || is_file(obj);
 }
 
 inline
@@ -134,11 +140,15 @@ void SubDirectory::read(const Object& target) {
     auto fpath = path(target);
     for (const auto& entry : std::filesystem::directory_iterator(fpath)) {
         auto fname = entry.path().filename().string();
+        auto& head_ds = *(head_anc.data_source<Directory>());
+        auto r_reg = head_ds.registry();
         if (entry.is_directory()) {
-            read_set(target, fname, new SubDirectory(mode(), Origin::SOURCE));
+            auto p_ds = r_reg->new_directory(target, entry.path());
+            if (p_ds == nullptr) {
+                p_ds = new SubDirectory(mode(), Origin::SOURCE);
+            }
+            read_set(target, fname, p_ds);
         } else {
-            auto& head_ds = *(head_anc.data_source<Directory>());
-            auto r_reg = head_ds.registry();
             auto p_ds = r_reg->new_file(target, entry.path());
             if (p_ds != nullptr) {
                 p_ds->set_mode((mode() & Mode::WRITE)? mode() | Mode::OVERWRITE: mode());

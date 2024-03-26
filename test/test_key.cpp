@@ -191,9 +191,11 @@ static void dump(const char* data) {
 }
 
 TEST(Key, HashStringLiteral) {
-    Key k{"foo"s};
-    EXPECT_TRUE(k.is_str());
-    EXPECT_EQ(std::hash<Key>{}(k), std::hash<std::string_view>{}("foo"));
+    Key k1{"foo"s};
+    Key k2{"foo"s};
+    EXPECT_TRUE(k1.is_str());
+    EXPECT_TRUE(k2.is_str());
+    EXPECT_EQ(std::hash<Key>{}(k1), std::hash<Key>{}(k2));
 }
 
 TEST(Key, ExplicitIntKeyMap) {

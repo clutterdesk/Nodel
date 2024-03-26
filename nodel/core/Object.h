@@ -39,43 +39,35 @@
 #include <nodel/support/Flags.h>
 #include <nodel/support/logging.h>
 #include <nodel/support/string.h>
+#include <nodel/support/exception.h>
 #include <nodel/types.h>
 
 
 namespace nodel {
 
-struct EmptyReference : std::exception
+struct EmptyReference : public NodelException
 {
-    EmptyReference(const char* func_name) {
-        std::stringstream ss;
-        ss << "Invalid function call '" << func_name << "' on empty/uninitialized object";
-        msg = ss.str();
-    }
-    const char* what() const noexcept override { return msg.c_str(); }
-    std::string msg;
+    EmptyReference() : NodelException("uninitialized object"s) {}
 };
 
-struct WriteProtected : std::exception
+struct WriteProtected : public NodelException
 {
-    WriteProtected() = default;
-    const char* what() const noexcept override { return "Data-source is write protected"; }
+    WriteProtected() : NodelException("Data-source is write protected"s) {}
 };
 
-struct OverwriteProtected : std::exception
+struct OverwriteProtected : public NodelException
 {
-    OverwriteProtected() = default;
-    const char* what() const noexcept override { return "Data-source is overwrite protected"; }
+    OverwriteProtected() : NodelException("Data-source is over-write protected"s) {}
 };
 
-struct InvalidPath : std::exception
+struct InvalidPath : public NodelException
 {
-    InvalidPath() = default;
-    const char* what() const noexcept override { return "Invalid object path"; }
+    InvalidPath() : NodelException("Invalid object path"s) {}
 };
 
-struct PathSyntax : std::exception
+struct PathSyntax : public NodelException
 {
-    PathSyntax(const char* spec, int64_t offset) {
+    static std::string make_message(const char* spec, int64_t offset) {
         std::stringstream ss;
         std::stringstream annot;
         ss << "\n'";
@@ -85,10 +77,11 @@ struct PathSyntax : std::exception
         }
         ss << '\'';
         annot << '^';
-        msg = ss.str() + '\n' + annot.str();
+        ss << '\n' << annot.str();
+        return ss.str();
     }
-    const char* what() const noexcept override { return msg.c_str(); }
-    std::string msg;
+
+    PathSyntax(const char* spec, int64_t offset) : NodelException(make_message(spec, offset)) {}
 };
 
 
@@ -253,7 +246,7 @@ class Object
     Object(const std::string& str)     : m_repr{new IRCString{str, NoParent()}}, m_fields{STR_I} {}
     Object(std::string&& str)          : m_repr{new IRCString(std::forward<std::string>(str), NoParent())}, m_fields{STR_I} {}
     Object(const std::string_view& sv) : m_repr{new IRCString{{sv.data(), sv.size()}, NoParent()}}, m_fields{STR_I} {}
-    Object(const char* v)              : m_repr{new IRCString{v, NoParent()}}, m_fields{STR_I} { assert(v != nullptr); }
+    Object(const char* v)              : m_repr{new IRCString{v, NoParent()}}, m_fields{STR_I} { ASSERT(v != nullptr); }
     Object(bool v)                     : m_repr{v}, m_fields{BOOL_I} {}
     Object(is_like_Float auto v)       : m_repr{(Float)v}, m_fields{FLOAT_I} {}
     Object(is_like_Int auto v)         : m_repr{(Int)v}, m_fields{INT_I} {}
@@ -413,7 +406,7 @@ class Object
 
     static WrongType wrong_type(uint8_t actual)                   { return type_name(actual); };
     static WrongType wrong_type(uint8_t actual, uint8_t expected) { return {type_name(actual), type_name(expected)}; };
-    static EmptyReference empty_reference(const char* func_name)  { return func_name; }
+    static EmptyReference empty_reference()                       { return {}; }
 
   protected:
     int resolve_repr_ix() const;
@@ -471,7 +464,7 @@ class OPath
         Object obj = origin;
         for (auto& key : *this) {
             auto child = obj.get(key);
-            assert(!child.is_empty());
+            ASSERT(!child.is_empty());
             if (child.is_null()) return {};
             obj.refer_to(child);
         }
@@ -638,10 +631,11 @@ class DataSource
     virtual DataSource* new_instance(const Object& target, Origin origin) const = 0;
     virtual void read_type(const Object& target)                                  {}  // define type/id of object
     virtual void read(const Object& target) = 0;
-    virtual Object read_key(const Object& target, const Key&)                     { return {}; }  // sparse
-    virtual void write(const Object& target, const Object&, bool)                 {}  // both
-    virtual void write_key(const Object& target, const Key&, const Object&, bool) {}  // sparse
-    virtual void delete_key(const Object& target, const Key&, bool)               {}  // sparse
+    virtual Object read_key(const Object& target, const Key&)                      { return {}; }  // sparse
+    virtual void write(const Object& target, const Object&, bool)                  {}  // both
+    virtual void write_key(const Object& target, const Key&, const Object&, bool)  {}  // sparse
+    virtual void delete_key(const Object& target, const Key&, bool)                {}  // sparse
+    virtual void commit(const Object& target, const KeyList& del_keys, bool quiet) {} // sparse
 
     // interface to use from virtual read methods
     void read_set(const Object& target, const Object& value);
@@ -875,7 +869,7 @@ Object Object::root() const {
 inline
 Object Object::parent() const {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case STR_I:   return std::get<1>(*m_repr.ps);
         case LIST_I:  return std::get<1>(*m_repr.pl);
         case OMAP_I:  return std::get<1>(*m_repr.pm);
@@ -887,7 +881,7 @@ Object Object::parent() const {
 template <typename V>
 void Object::visit(V&& visitor) const {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case NULL_I:  visitor(nullptr); break;
         case BOOL_I:  visitor(m_repr.b); break;
         case INT_I:   visitor(m_repr.i); break;
@@ -923,7 +917,7 @@ void Object::weak_refer_to(const Object& other) {
     //       It's part of a scheme for breaking the parent/child reference cycle.
     m_fields.repr_ix = other.m_fields.repr_ix;
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case NULL_I:  m_repr.z = nullptr; break;
 //        case BOOL_I:  m_repr.b = other.m_repr.b; break;
 //        case INT_I:   m_repr.i = other.m_repr.i; break;
@@ -1043,7 +1037,7 @@ T Object::value_cast() const {
 inline
 std::string Object::to_str() const {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case NULL_I:  return "null";
         case BOOL_I:  return m_repr.b? "true": "false";
         case INT_I:   return int_to_str(m_repr.i);
@@ -1068,7 +1062,7 @@ bool Object::is_valid() const {
 inline
 bool Object::to_bool() const {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case NULL_I:  throw wrong_type(m_fields.repr_ix, BOOL_I);
         case BOOL_I:  return m_repr.b;
         case INT_I:   return m_repr.i;
@@ -1083,7 +1077,7 @@ bool Object::to_bool() const {
 inline
 Int Object::to_int() const {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case NULL_I:  throw wrong_type(m_fields.repr_ix, INT_I);
         case BOOL_I:  return m_repr.b;
         case INT_I:   return m_repr.i;
@@ -1098,7 +1092,7 @@ Int Object::to_int() const {
 inline
 UInt Object::to_uint() const {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case NULL_I:  throw wrong_type(m_fields.repr_ix, UINT_I);
         case BOOL_I:  return m_repr.b;
         case INT_I:   return m_repr.i;
@@ -1116,7 +1110,7 @@ UInt Object::to_uint() const {
 inline
 Float Object::to_float() const {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case NULL_I:  throw wrong_type(m_fields.repr_ix, BOOL_I);
         case BOOL_I:  return m_repr.b;
         case INT_I:   return m_repr.i;
@@ -1131,7 +1125,7 @@ Float Object::to_float() const {
 inline
 Key Object::to_key() const {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case NULL_I:  return null;
         case BOOL_I:  return m_repr.b;
         case INT_I:   return m_repr.i;
@@ -1146,7 +1140,7 @@ Key Object::to_key() const {
 inline
 Key Object::into_key() {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case NULL_I:  return null;
         case BOOL_I:  return m_repr.b;
         case INT_I:   return m_repr.i;
@@ -1170,7 +1164,7 @@ Key Object::into_key() {
 //inline
 //Object Object::get(const char* v) const {
 //    switch (m_fields.repr_ix) {
-//        case EMPTY_I: throw empty_reference(__FUNCTION__);
+//        case EMPTY_I: throw empty_reference();
 //        case OMAP_I: {
 //            auto& map = std::get<0>(*m_repr.pm);
 //            auto it = map.find(v);
@@ -1185,7 +1179,7 @@ Key Object::into_key() {
 //inline
 //Object Object::get(const std::string& v) const {
 //    switch (m_fields.repr_ix) {
-//        case EMPTY_I: throw empty_reference(__FUNCTION__);
+//        case EMPTY_I: throw empty_reference();
 //        case OMAP_I: {
 //            auto& map = std::get<0>(*m_repr.pm);
 //            auto it = map.find(v);
@@ -1200,7 +1194,7 @@ Key Object::into_key() {
 inline
 Object Object::get(is_integral auto index) const {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case LIST_I: {
             auto& list = std::get<0>(*m_repr.pl);
             if (index < 0) index += list.size();
@@ -1221,7 +1215,7 @@ Object Object::get(is_integral auto index) const {
 inline
 Object Object::get(const Key& key) const {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case LIST_I: {
             auto& list = std::get<0>(*m_repr.pl);
             Int index = key.to_int();
@@ -1270,7 +1264,7 @@ Object Object::set(const Object& value) {
 inline
 Object Object::set(const Key& key, const Object& in_val) {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case LIST_I: {
             Object out_val = in_val.parent().is_null()? in_val: in_val.copy();
             auto& list = std::get<0>(*m_repr.pl);
@@ -1307,7 +1301,7 @@ Object Object::set(const Key& key, const Object& in_val) {
 inline
 Object Object::set(Key&& key, const Object& in_val) {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case LIST_I: {
             Object out_val = in_val.parent().is_null()? in_val: in_val.copy();
             auto& list = std::get<0>(*m_repr.pl);
@@ -1349,7 +1343,7 @@ Object Object::set(const OPath& path, const Object& in_val) {
 inline
 void Object::del(const Key& key) {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case LIST_I: {
             auto& list = std::get<0>(*m_repr.pl);
             Int index = key.to_int();
@@ -1398,7 +1392,7 @@ void Object::del_from_parent() {
 inline
 size_t Object::size() const {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case STR_I:   return std::get<0>(*m_repr.ps).size();
         case LIST_I:  return std::get<0>(*m_repr.pl).size();
         case OMAP_I:  return std::get<0>(*m_repr.pm).size();
@@ -1492,7 +1486,7 @@ const ItemList Object::items() const {
 
 inline
 bool Object::operator == (const Object& obj) const {
-    if (is_empty() || obj.is_empty()) throw empty_reference(__FUNCTION__);
+    if (is_empty() || obj.is_empty()) throw empty_reference();
     if (is(obj)) return true;
 
     switch (m_fields.repr_ix) {
@@ -1557,7 +1551,7 @@ inline
 std::partial_ordering Object::operator <=> (const Object& obj) const {
     using ordering = std::partial_ordering;
 
-    if (is_empty() || obj.is_empty()) throw empty_reference(__FUNCTION__);
+    if (is_empty() || obj.is_empty()) throw empty_reference();
     if (is(obj)) return ordering::equivalent;
 
     switch (m_fields.repr_ix) {
@@ -1637,7 +1631,7 @@ public:
     WalkDF(Object root, VisitFunc visitor)
     : m_visitor{visitor}
     {
-        if (root.is_empty()) throw root.empty_reference(__FUNCTION__);
+        if (root.is_empty()) throw root.empty_reference();
         m_stack.emplace(Object(), 0, root, FIRST_VALUE);
     }
 
@@ -1703,7 +1697,7 @@ public:
     WalkBF(Object root, VisitFunc visitor)
     : m_visitor{visitor}
     {
-        if (root.is_empty()) throw root.empty_reference(__FUNCTION__);
+        if (root.is_empty()) throw root.empty_reference();
         m_deque.emplace_back(Object(), 0, root);
     }
 
@@ -1769,7 +1763,7 @@ void Object::to_json(std::ostream& os) const {
         }
 
         switch (object.m_fields.repr_ix) {
-            case EMPTY_I: throw empty_reference(__FUNCTION__);
+            case EMPTY_I: throw empty_reference();
             case NULL_I:  os << "null"; break;
             case BOOL_I:  os << (object.m_repr.b? "true": "false"); break;
             case INT_I:   os << int_to_str(object.m_repr.i); break;
@@ -1789,7 +1783,7 @@ void Object::to_json(std::ostream& os) const {
 inline
 Oid Object::id() const {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case NULL_I:  return Oid::null();
         case BOOL_I:  return Oid{1, m_repr.b};
         case INT_I:   return Oid{2, *((uint64_t*)(&m_repr.i))};
@@ -1808,7 +1802,7 @@ bool Object::is(const Object& other) const {
     auto repr_ix = m_fields.repr_ix;
     if (other.m_fields.repr_ix != repr_ix) return false;
     switch (repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case NULL_I:  return true;
         case BOOL_I:  return m_repr.b == other.m_repr.b;
         case INT_I:   return m_repr.i == other.m_repr.i;
@@ -1825,7 +1819,7 @@ bool Object::is(const Object& other) const {
 inline
 Object Object::copy() const {
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case NULL_I:  return NULL_I;
         case BOOL_I:  return m_repr.b;
         case INT_I:   return m_repr.i;
@@ -1856,7 +1850,7 @@ inline
 void Object::inc_ref_count() const {
     Object& self = *const_cast<Object*>(this);
     switch (m_fields.repr_ix) {
-        case EMPTY_I: throw empty_reference(__FUNCTION__);
+        case EMPTY_I: throw empty_reference();
         case STR_I:   ++(std::get<1>(*self.m_repr.ps).m_fields.ref_count); break;
         case LIST_I:  ++(std::get<1>(*self.m_repr.pl).m_fields.ref_count); break;
         case OMAP_I:  ++(std::get<1>(*self.m_repr.pm).m_fields.ref_count); break;
@@ -1977,15 +1971,8 @@ Object& Object::operator = (Object&& other) {
 
 template <class DataSourceType>
 DataSourceType* Object::data_source() const {
-    if constexpr (std::is_same<DataSourceType, DataSource>::value) {
-        return (m_fields.repr_ix == DSRC_I)?
-               dynamic_cast<DataSource*>(m_repr.ds):
-               nullptr;
-    } else {
-        return (m_fields.repr_ix == DSRC_I && typeid(*m_repr.ds) == typeid(DataSourceType))?
-                dynamic_cast<DataSourceType*>(m_repr.ds):
-                nullptr;
-    }
+    if (m_fields.repr_ix != DSRC_I) return nullptr;
+    return dynamic_cast<DataSourceType*>(m_repr.ds);
 }
 
 
@@ -2392,20 +2379,23 @@ void DataSource::save(const Object& target, bool quiet) {
             write(target, m_cache, quiet);
         }
         else if (is_sparse()) {
-            KeyList del_keys;
+            KeyList deleted_keys;
 
             for (auto& [key, value] : m_cache.items()) {
                 if (value.m_fields.repr_ix == Object::DEL_I) {
                     delete_key(target, key, quiet);
-                    del_keys.push_back(key);
+                    deleted_keys.push_back(key);
                 } else {
                     write_key(target, key, value, quiet);
                 }
             }
 
             // clear delete records
-            for (auto& del_key : del_keys)
+            for (auto& del_key : deleted_keys)
                 m_cache.del(del_key);
+
+            // final save notification to support batching
+            commit(target, deleted_keys, quiet);
         }
     }
 }
