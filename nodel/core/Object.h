@@ -340,7 +340,6 @@ class Object
     }
 
     bool is_empty() const     { return m_fields.repr_ix == EMPTY_I; }
-    bool is_null() const      { return m_fields.repr_ix == NULL_I; }
     bool is_deleted() const   { return m_fields.repr_ix == DEL_I; }
 
     bool is_bool() const      { return resolve_repr_ix() == BOOL_I; }
@@ -381,6 +380,7 @@ class Object
     void del_from_parent();
 
     bool operator == (const Object&) const;
+    bool operator == (null_t) const;
     std::partial_ordering operator <=> (const Object&) const;
 
     Oid id() const;
@@ -465,7 +465,7 @@ class OPath
         for (auto& key : *this) {
             auto child = obj.get(key);
             ASSERT(!child.is_empty());
-            if (child.is_null()) return {};
+            if (child == null) return {};
             obj.refer_to(child);
         }
         return obj;
@@ -479,7 +479,7 @@ class OPath
             auto prev_it = it;
             while (++it != it_end) {
                 auto child = obj.get(*prev_it);
-                if (child.is_null()) {
+                if (child == null) {
                     child = Object{(*it).is_any_int()? Object::LIST_I: Object::OMAP_I};
                     obj.set(*prev_it, child);
                 }
@@ -524,7 +524,7 @@ OPath Object::path() const {
     OPath path;
     Object obj = *this;
     Object par = parent();
-    while (!par.is_null()) {
+    while (par != null) {
         path.prepend(par.key_of(obj));
         obj.refer_to(par);
         par.refer_to(obj.parent());
@@ -534,11 +534,11 @@ OPath Object::path() const {
 
 inline
 OPath Object::path(const Object& root) const {
-    if (root.is_null()) return path();
+    if (root == null) return path();
     OPath path;
     Object obj = *this;
     Object par = parent();
-    while (!par.is_null() && !obj.is(root)) {
+    while (par != null && !obj.is(root)) {
         path.prepend(par.key_of(obj));
         obj.refer_to(par);
         par.refer_to(obj.parent());
@@ -556,7 +556,7 @@ class DataSource
         virtual ~KeyIterator() {}
         void next() { if (!next_impl()) m_key = null; }
         Key& key() { return m_key; }
-        bool done() const { return m_key.is_null(); }
+        bool done() const { return m_key == null; }
 
       protected:
         virtual bool next_impl() = 0;
@@ -582,7 +582,7 @@ class DataSource
         virtual ~ItemIterator() {}
         void next() { if (!next_impl()) std::get<0>(m_item) = null; }
         Item& item() { return m_item; }
-        bool done() const { return m_item.first.is_null(); }
+        bool done() const { return m_item.first == null; }
 
       protected:
         virtual bool next_impl() = 0;
@@ -859,7 +859,7 @@ inline
 Object Object::root() const {
     Object obj = *this;
     Object par = parent();
-    while (!par.is_null()) {
+    while (par != null) {
         obj.refer_to(par);
         par.refer_to(par.parent());
     }
@@ -1247,7 +1247,7 @@ Object Object::set(const Object& value) {
         return value;
     } else {
         auto par = parent();
-        if (par.is_null()) {
+        if (par == null) {
             if (repr_ix == DSRC_I) {
                 m_repr.ds->set(*this, value);
                 return value;
@@ -1266,7 +1266,7 @@ Object Object::set(const Key& key, const Object& in_val) {
     switch (m_fields.repr_ix) {
         case EMPTY_I: throw empty_reference();
         case LIST_I: {
-            Object out_val = in_val.parent().is_null()? in_val: in_val.copy();
+            Object out_val = (in_val.parent() == null)? in_val: in_val.copy();
             auto& list = std::get<0>(*m_repr.pl);
             Int index = key.to_int();
             auto size = list.size();
@@ -1282,7 +1282,7 @@ Object Object::set(const Key& key, const Object& in_val) {
             return out_val;
         }
         case OMAP_I: {
-            Object out_val = in_val.parent().is_null()? in_val: in_val.copy();
+            Object out_val = (in_val.parent() == null)? in_val: in_val.copy();
             auto& map = std::get<0>(*m_repr.pm);
             auto it = map.find(key);
             if (it != map.end()) {
@@ -1303,7 +1303,7 @@ Object Object::set(Key&& key, const Object& in_val) {
     switch (m_fields.repr_ix) {
         case EMPTY_I: throw empty_reference();
         case LIST_I: {
-            Object out_val = in_val.parent().is_null()? in_val: in_val.copy();
+            Object out_val = (in_val.parent() == null)? in_val: in_val.copy();
             auto& list = std::get<0>(*m_repr.pl);
             Int index = key.to_int();
             auto size = list.size();
@@ -1319,7 +1319,7 @@ Object Object::set(Key&& key, const Object& in_val) {
             return out_val;
         }
         case OMAP_I: {
-            Object out_val = in_val.parent().is_null()? in_val: in_val.copy();
+            Object out_val = (in_val.parent() == null)? in_val: in_val.copy();
             auto& map = std::get<0>(*m_repr.pm);
             auto it = map.find(key);
             if (it != map.end()) {
@@ -1376,7 +1376,7 @@ void Object::del(const Key& key) {
 inline
 void Object::del(const OPath& path) {
     auto obj = path.lookup(*this);
-    if (!obj.is_null()) {
+    if (obj != null) {
         auto par = obj.parent();
         par.del(par.key_of(obj));
     }
@@ -1385,7 +1385,7 @@ void Object::del(const OPath& path) {
 inline
 void Object::del_from_parent() {
     Object par = parent();
-    if (!par.is_null())
+    if (par != null)
         par.del(par.key_of(*this));
 }
 
@@ -1492,7 +1492,6 @@ bool Object::operator == (const Object& obj) const {
     switch (m_fields.repr_ix) {
         case NULL_I: {
             if (obj.m_fields.repr_ix == NULL_I) return true;
-            throw wrong_type(m_fields.repr_ix);
         }
         case BOOL_I: {
             switch (obj.m_fields.repr_ix)
@@ -1545,6 +1544,11 @@ bool Object::operator == (const Object& obj) const {
         case DSRC_I: return m_repr.ds->get_cached(*this) == obj;
         default:     throw wrong_type(m_fields.repr_ix);
     }
+}
+
+inline
+bool Object::operator == (null_t) const {
+    return m_fields.repr_ix == NULL_I;
 }
 
 inline
@@ -1987,7 +1991,7 @@ class LineIterator
 
     LineIterator& operator ++ () {
         m_object.refer_to(m_object.parent());
-        if (m_object.is_null()) m_object.release();
+        if (m_object == null) m_object.release();
         return *this;
     }
     Object operator * () const { return m_object; }

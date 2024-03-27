@@ -180,7 +180,7 @@ Object parse(std::string&& str, std::optional<ParseError>& error) {
     std::istringstream in{std::forward<std::string>(str)};
     impl::Parser parser{in};
     Object result = parser.parse();
-    if (result.is_null()) {
+    if (result == null) {
         error = ParseError{parser.pos(), std::move(parser.error())};
     }
     return result;
@@ -214,7 +214,7 @@ Object parse_file(const std::string& file_name, std::string& error) {
     } else {
         impl::Parser parser{f_in};
         Object result = parser.parse();
-        if (result.is_null()) {
+        if (result == null) {
             ParseError parse_error{parser.pos(), std::move(parser.error())};
             error = parse_error.to_str();
         }

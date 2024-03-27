@@ -34,6 +34,8 @@ class Oid
 
     std::string to_str() { return fmt::format("{:x}/{:016x}", m_a, m_b); }
 
+    size_t hash() const { return m_b ^ (((uint64_t)m_a) << 56); }
+
     static Oid null() { return Oid{}; }
     static Oid illegal() { return Oid{0xFF, 0xFFFFFFFFFFFFFFFFULL}; }
 
@@ -43,3 +45,19 @@ class Oid
 };
 
 } // namespace nodel
+
+
+namespace std {
+
+//----------------------------------------------------------------------------------
+// std::hash
+//----------------------------------------------------------------------------------
+template<>
+struct hash<nodel::Oid>
+{
+    std::size_t operator () (const nodel::Oid& oid) const noexcept {
+      return oid.hash();
+    }
+};
+
+} // namespace std

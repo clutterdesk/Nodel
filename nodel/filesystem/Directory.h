@@ -174,7 +174,7 @@ void SubDirectory::write(const Object& target, const Object& cache, bool quiet) 
     std::vector<std::filesystem::path> deleted;
     for (const auto& entry : std::filesystem::directory_iterator(fpath)) {
         auto fname = entry.path().filename().string();
-        if (cache.get(fname).is_null())
+        if (cache.get(fname) == null)
             deleted.push_back(entry.path());
     }
 

@@ -37,7 +37,7 @@ TEST(Object, Empty) {
 
 TEST(Object, Null) {
   Object v{null};
-  EXPECT_TRUE(v.is_null());
+  EXPECT_TRUE(v == null);
   EXPECT_TRUE(v.is(null));
   EXPECT_EQ(v.to_json(), "null");
 }
@@ -93,7 +93,7 @@ TEST(Object, Double) {
 TEST(Object, String) {
   Object v{"123"};
   EXPECT_TRUE(v.is_str());
-  EXPECT_TRUE(v.parent().is_null());
+  EXPECT_TRUE(v.parent() == null);
   EXPECT_EQ(v.to_json(), "\"123\"");
 
   Object quoted{"a\"b"};
@@ -340,12 +340,8 @@ TEST(Object, CompareNull) {
     EXPECT_TRUE(Object{null} == Object{null});
     EXPECT_EQ(Object{null}.operator <=> (null), std::partial_ordering::equivalent);
 
-    try {
-        Object a{null};
-        EXPECT_FALSE(a == Object{1});
-        FAIL();
-    } catch (...) {
-    }
+    Object a{null};
+    EXPECT_FALSE(a == Object{1});
 
     try {
         Object a{null};
@@ -807,7 +803,7 @@ TEST(Object, CompareStrMap) {
 }
 
 TEST(Object, CopyBasic) {
-    EXPECT_TRUE(Object{null}.copy().is_null());
+    EXPECT_TRUE(Object{null}.copy() == null);
     EXPECT_TRUE(Object{-1}.copy().is_int());
     EXPECT_TRUE(Object{1UL}.copy().is_uint());
     EXPECT_TRUE(Object{2.718}.copy().is_float());
@@ -836,16 +832,16 @@ TEST(Object, ListGet) {
   EXPECT_EQ(obj.get(-1).to_int(), 9);
   EXPECT_EQ(obj.get(-2).to_int(), 8);
   EXPECT_EQ(obj.get(-3).to_int(), 7);
-  EXPECT_TRUE(obj.get(-4).is_null());
-  EXPECT_TRUE(obj.get(-5).is_null());
-  EXPECT_TRUE(obj.get(3).is_null());
-  EXPECT_TRUE(obj.get(4).is_null());
+  EXPECT_TRUE(obj.get(-4) == null);
+  EXPECT_TRUE(obj.get(-5) == null);
+  EXPECT_TRUE(obj.get(3) == null);
+  EXPECT_TRUE(obj.get(4) == null);
 }
 
 TEST(Object, ListGetOutOfRange) {
     Object obj = json::parse(R"([])");
     EXPECT_TRUE(obj.is_list());
-    EXPECT_TRUE(obj.get(1).is_null());
+    EXPECT_TRUE(obj.get(1) == null);
 }
 
 TEST(Object, ListSet) {
@@ -884,19 +880,19 @@ TEST(Object, MapGet) {
   EXPECT_EQ(obj.get(2).to_int(), 9);
   EXPECT_EQ(obj.get("name"_key).as<String>(), "Brian");
   EXPECT_EQ(obj.get("name"_key).as<String>(), "Brian");
-  EXPECT_TRUE(obj.get("blah"_key).is_null());
+  EXPECT_TRUE(obj.get("blah"_key) == null);
 }
 
 TEST(Object, MapGetNotFound) {
     Object obj = json::parse(R"({})");
     EXPECT_TRUE(obj.is_map());
-    EXPECT_TRUE(obj.get("x"_key).is_null());
+    EXPECT_TRUE(obj.get("x"_key) == null);
 
     obj.set("x"_key, "X");
-    EXPECT_FALSE(obj.get("x"_key).is_null());
+    EXPECT_FALSE(obj.get("x"_key) == null);
 
     obj.del("x"_key);
-    EXPECT_TRUE(obj.get("x"_key).is_null());
+    EXPECT_TRUE(obj.get("x"_key) == null);
 }
 
 TEST(Object, MultipleSubscriptMap) {
@@ -974,7 +970,7 @@ TEST(Object, KeyOf) {
             "redun_float": 3.1415926,
             "okay_str": "Assam Tea"
            })");
-    EXPECT_TRUE(Object{null}.key_of(obj).is_null());
+    EXPECT_TRUE(Object{null}.key_of(obj) == null);
     EXPECT_EQ(obj.key_of(obj.get("bool"_key)), "bool"_key);
     EXPECT_EQ(obj.key_of(obj.get("int"_key)), "int"_key);
     EXPECT_EQ(obj.key_of(obj.get("uint"_key)), "uint"_key);
@@ -1459,7 +1455,7 @@ TEST(Object, AssignNull) {
     Object obj{"foo"};
     EXPECT_EQ(obj.ref_count(), 1);
     obj = null;
-    EXPECT_TRUE(obj.is_null());
+    EXPECT_TRUE(obj == null);
 }
 
 TEST(Object, AssignBool) {
@@ -1512,7 +1508,7 @@ TEST(Object, RedundantAssign) {
 
 TEST(Object, RootParentIsNull) {
     Object root = json::parse(R"({"x": [1], "y": [2]})");
-    EXPECT_TRUE(root.parent().is_null());
+    EXPECT_TRUE(root.parent() == null);
 }
 
 TEST(Object, ClearParentOnListUpdate) {
@@ -1523,7 +1519,7 @@ TEST(Object, ClearParentOnListUpdate) {
     EXPECT_TRUE(first.parent().is(root));
 
     root.set(0, null);
-    EXPECT_TRUE(first.parent().is_null());
+    EXPECT_TRUE(first.parent() == null);
 }
 
 TEST(Object, ClearParentOnMapUpdate) {
@@ -1534,7 +1530,7 @@ TEST(Object, ClearParentOnMapUpdate) {
     EXPECT_TRUE(first.parent().is(root));
 
     root.set("0"_key, null);
-    EXPECT_TRUE(first.parent().is_null());
+    EXPECT_TRUE(first.parent() == null);
 }
 
 TEST(Object, CopyChildToAnotherContainer) {
@@ -1567,8 +1563,8 @@ TEST(Object, ParentIntegrityOnDel) {
     EXPECT_TRUE(x1.parent().is_map());
     EXPECT_EQ(x2.parent().id(), par.id());
     par.del("x"s);
-    EXPECT_TRUE(x1.parent().is_null());
-    EXPECT_TRUE(x2.parent().is_null());
+    EXPECT_TRUE(x1.parent() == null);
+    EXPECT_TRUE(x2.parent() == null);
 }
 
 TEST(Object, GetKeys) {
@@ -1937,7 +1933,7 @@ TEST(Object, TestSimpleSource_DeleteAndSave) {
     EXPECT_TRUE(dsrc->read_called);
     obj.del("tea"_key);
     obj.save();
-    EXPECT_TRUE(obj.get("tea"_key).is_null());
+    EXPECT_TRUE(obj.get("tea"_key) == null);
     EXPECT_TRUE(dsrc->write_called);
 }
 

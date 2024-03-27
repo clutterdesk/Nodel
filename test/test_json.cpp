@@ -12,7 +12,7 @@ TEST(Json, ParseNull) {
     std::stringstream stream{"null"};
     Parser parser{nodel::impl::StreamAdapter{stream}};
     ASSERT_TRUE(parser.parse_object());
-    EXPECT_TRUE(parser.m_curr.is_null());
+    EXPECT_TRUE(parser.m_curr == null);
 }
 
 TEST(Json, ParseTypeNull) {
@@ -142,7 +142,7 @@ TEST(Json, ParseSingleQuotedString) {
 
 TEST(Json, ParseUnterminatedString) {
     std::string err;
-    EXPECT_TRUE(parse("'tea", err).is_null());
+    EXPECT_TRUE(parse("'tea", err) == null);
     EXPECT_TRUE(err.size());
 }
 

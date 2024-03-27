@@ -7,7 +7,7 @@ using namespace nodel;
 
 TEST(Key, Null) {
   Key k;
-  EXPECT_TRUE(k.is_null());
+  EXPECT_TRUE(k == null);
   EXPECT_EQ(k, Key{});
   EXPECT_EQ(k.to_str(), "null");
 }
@@ -67,7 +67,7 @@ TEST(Key, AssignNull) {
   EXPECT_TRUE(k.is_int());
   EXPECT_EQ(k.as<Int>(), 1);
   k = null;
-  EXPECT_TRUE(k.is_null());
+  EXPECT_TRUE(k == null);
 }
 
 TEST(Key, AssignBool) {
@@ -81,7 +81,7 @@ TEST(Key, AssignBool) {
 
 TEST(Key, AssignInt) {
   Key k;
-  EXPECT_TRUE(k.is_null());
+  EXPECT_TRUE(k == null);
   k = 7;
   EXPECT_TRUE(k.is_int());
   EXPECT_EQ(k.as<Int>(), 7);
@@ -89,7 +89,7 @@ TEST(Key, AssignInt) {
 
 TEST(Key, AssignUInt) {
     Key k;
-    EXPECT_TRUE(k.is_null());
+    EXPECT_TRUE(k == null);
     k = 7UL;
     EXPECT_TRUE(k.is_uint());
     EXPECT_EQ(k.as<UInt>(), 7UL);
@@ -97,7 +97,7 @@ TEST(Key, AssignUInt) {
 
 TEST(Key, AssignFloat) {
   Key k;
-  EXPECT_TRUE(k.is_null());
+  EXPECT_TRUE(k == null);
   k = -2.2250738585072020e-308;
   EXPECT_TRUE(k.is_float());
   EXPECT_EQ(k.to_str(), "-2.225073858507202e-308");
@@ -105,7 +105,7 @@ TEST(Key, AssignFloat) {
 
 TEST(Key, AssignStringLiteral) {
     Key k;
-    EXPECT_TRUE(k.is_null());
+    EXPECT_TRUE(k == null);
     k = "foo"s;
     EXPECT_TRUE(k.is_str());
     EXPECT_EQ(k.as<StringView>(), "foo");
@@ -161,7 +161,7 @@ TEST(Key, CompareString) {
 
 TEST(Key, HashNull) {
     Key k;
-    EXPECT_TRUE(k.is_null());
+    EXPECT_TRUE(k == null);
     EXPECT_EQ(std::hash<Key>{}(k), 0);
 }
 

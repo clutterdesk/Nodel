@@ -168,7 +168,7 @@ class Key
 
     bool operator == (const Key& other) const {
         switch (m_repr_ix) {
-            case NULL_I:  return other.is_null();
+            case NULL_I:  return other == null;
             case BOOL_I:  return other == m_repr.b;
             case INT_I:   return other == m_repr.i;
             case UINT_I:  return other == m_repr.u;
@@ -177,6 +177,10 @@ class Key
             default:      break;
         }
         return false;
+    }
+
+    bool operator == (null_t) const {
+        return m_repr_ix == NULL_I;
     }
 
     bool operator == (intern_t s) const {
@@ -202,7 +206,6 @@ class Key
     uint8_t type() const   { return m_repr_ix; }
     auto type_name() const { return type_name(m_repr_ix); }
 
-    bool is_null() const    { return m_repr_ix == NULL_I; }
     bool is_bool() const    { return m_repr_ix == BOOL_I; }
     bool is_int() const     { return m_repr_ix == INT_I; }
     bool is_uint() const    { return m_repr_ix == UINT_I; }

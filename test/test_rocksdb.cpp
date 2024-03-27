@@ -96,8 +96,8 @@ TEST(KeyStore, Save) {
     kst_2.save();
 
     kst.reset();
-    EXPECT_TRUE(kst.get("tmp_1"_key).is_null());
-    EXPECT_TRUE(kst.get("tmp_2"_key).is_null());
+    EXPECT_TRUE(kst.get("tmp_1"_key) == null);
+    EXPECT_TRUE(kst.get("tmp_2"_key) == null);
 }
 
 TEST(KeyStore, IterKeys) {
@@ -175,7 +175,7 @@ TEST(KeyStore, FilesystemIntegration) {
     });
 
     Object test_data = new Directory(r_reg, wd);
-    ASSERT_TRUE(!test_data.get("test_db"_key).is_null());
+    ASSERT_TRUE(test_data.get("test_db"_key) != null);
     ASSERT_TRUE(test_data.get("test_db"_key).data_source<KeyStore>() != nullptr);
     EXPECT_EQ(test_data.get("test_db"_key).get("tea"_key), "tea");
 }
