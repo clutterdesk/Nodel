@@ -64,6 +64,7 @@ class StackItem
     StackItem(uint32_t step_i, ValueRange&& range) : m_repr{std::forward<ValueRange>(range)}, m_step_i{step_i}, m_repr_ix{ITER} {}
     StackItem(StackItem&&);
 
+    Object peek();
     Object next();
     bool done();
 
@@ -83,6 +84,7 @@ struct Step
     enum class Axis {
         ANCESTOR,
         PARENT,
+        SELF,
         CHILD,
         SUBTREE
     };
@@ -143,6 +145,18 @@ StackItem::StackItem(StackItem&& other) : m_step_i{other.m_step_i}, m_repr_ix{ot
 }
 
 inline
+Object StackItem::peek() {
+    if (m_repr_ix == OBJECT) {
+        return m_repr.m_obj;
+    } else {
+        auto& it = m_repr.m_bundle.m_it;
+        if (it != m_repr.m_bundle.m_end)
+            return *it;
+    }
+    return null;
+}
+
+inline
 Object StackItem::next() {
     if (m_repr_ix == OBJECT) {
         Object next_obj = m_repr.m_obj;
@@ -192,12 +206,19 @@ Object QueryEval::next() {
         auto& item = m_fifo.front();
         auto curr_step_i = item.m_step_i;
         auto next_step_i = curr_step_i + 1;
+        auto curr_obj = item.next();
+
+        if (curr_step_i == m_query.m_steps.size()) {
+            m_fifo.pop_front();
+            if (curr_obj != null) return curr_obj;
+            continue;
+        }
+
         auto& step = m_query.m_steps[curr_step_i];
         auto step_key =  step.m_key;
         auto step_axis = step.m_axis;
 //        auto step_push = step.m_push;
 
-        auto curr_obj = item.next();
         if (item.m_repr_ix != StackItem::ITER || item.done()) {
             m_fifo.pop_front();
         }
@@ -236,17 +257,24 @@ Object QueryEval::next() {
                 break;
             }
 
+            case Step::Axis::SELF: {
+                if (step_key == null || step_key == curr_obj.key()) {
+                    // proceed to next step, or return obj if last step
+                    if (next_step_i < m_query.m_steps.size()) {
+                        m_fifo.push_front({next_step_i, curr_obj});
+                    } else {
+                        return curr_obj;
+                    }
+                }
+                break;
+            }
+
             case Step::Axis::CHILD: {
                 if (curr_obj.is_container()) {
                     if (step_key == null) {
                         // NOTE: size of sparse data-source may be unknown, so always create iterator
-                        m_fifo.push_front({curr_step_i, curr_obj.iter_values()});
-                        Object next_obj = m_fifo.front().next();
-                        if (next_obj == null) {
-                            m_fifo.pop_front();
-                        } else {
-                            return next_obj;
-                        }
+                        m_fifo.push_front({next_step_i, curr_obj.iter_values()});
+                        if (m_fifo.front().done()) m_fifo.pop_front();
                     } else {
                         const auto& next_obj = curr_obj.get(step_key);
                         if (next_obj != null) {
@@ -262,11 +290,12 @@ Object QueryEval::next() {
                 break;
             }
 
-            case Step::Axis::SUBTREE:  {
+            case Step::Axis::SUBTREE: {
                 // continue current step: push current object children
                 if (curr_obj.is_container()) {
                     // NOTE: size of sparse data-source may be unknown, so always create iterator
                     m_fifo.push_front({curr_step_i, curr_obj.iter_values()});
+                    if (m_fifo.front().done()) m_fifo.pop_front();
                 }
 
                 if (step_key == null || step_key == curr_obj.key()) {

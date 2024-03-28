@@ -274,7 +274,7 @@ class Key
         }
     }
 
-    void to_step(std::ostream& stream) const {
+    void to_step(std::ostream& stream, bool is_first = false) const {
         switch (m_repr_ix) {
             case BOOL_I:  stream << (m_repr.b? "[1]": "[0]"); break;
             case INT_I:   stream << '[' << nodel::int_to_str(m_repr.i) << ']'; break;
@@ -285,7 +285,8 @@ class Key
                 if (pos != StringView::npos) {
                     stream << '[' << quoted(m_repr.s.data()) << ']';
                 } else {
-                    stream << '.' << m_repr.s.data();
+                    if (!is_first) stream << '.';
+                    stream << m_repr.s.data();
                 }
                 break;
             }

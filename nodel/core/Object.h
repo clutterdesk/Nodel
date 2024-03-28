@@ -67,12 +67,13 @@ struct InvalidPath : public NodelException
 
 struct PathSyntax : public NodelException
 {
-    static std::string make_message(const char* spec, int64_t offset) {
+    static std::string make_message(const std::string_view& spec, std::ptrdiff_t offset) {
         std::stringstream ss;
         std::stringstream annot;
         ss << "\n'";
-        for (char c = *spec; c != 0 && offset > 0; c = *(++spec), ++offset) {
-            ss << c;
+        auto it = spec.cbegin();
+        for (size_t i=0; i<offset && it != spec.cend(); ++i, ++it) {
+            ss << *it;
             annot << '-';
         }
         ss << '\'';
@@ -81,7 +82,7 @@ struct PathSyntax : public NodelException
         return ss.str();
     }
 
-    PathSyntax(const char* spec, int64_t offset) : NodelException(make_message(spec, offset)) {}
+    PathSyntax(const std::string_view& spec, std::ptrdiff_t offset) : NodelException(make_message(spec, offset)) {}
 };
 
 
@@ -441,8 +442,8 @@ class Object
 class OPath
 {
   public:
-    using Iterator = KeyList::reverse_iterator;
-    using ConstIterator = KeyList::const_reverse_iterator;
+    using Iterator = KeyList::iterator;
+    using ConstIterator = KeyList::const_iterator;
 
     OPath() {}
     OPath(const std::string_view& spec);
@@ -450,14 +451,12 @@ class OPath
     OPath(const KeyList& keys) : m_keys{keys} {}
     OPath(KeyList&& keys)      : m_keys{std::forward<KeyList>(keys)} {}
 
-    void prepend(const Key& key) { m_keys.push_back(key); }
-    void prepend(Key&& key)      { m_keys.emplace_back(std::forward<Key>(key)); }
-    void append(const Key& key)  { m_keys.insert(m_keys.begin(), key); }
-    void append(Key&& key)       { m_keys.emplace(m_keys.begin(), std::forward<Key>(key)); }
+    void append(const Key& key) { m_keys.push_back(key); }
+    void append(Key&& key)      { m_keys.emplace_back(std::forward<Key>(key)); }
 
     OPath parent() const {
         if (m_keys.size() == 0) throw InvalidPath();
-        return KeyList{m_keys.begin() + 1, m_keys.end()};
+        return KeyList{m_keys.begin(), m_keys.end() - 1};
     }
 
     Object lookup(const Object& origin) const {
@@ -495,8 +494,13 @@ class OPath
     std::string to_str() const {
         if (m_keys.size() == 0) return ".";
         std::stringstream ss;
-        for (auto& key : *this)
-            key.to_step(ss);
+        auto it = begin();
+        if (it != end()) {
+            it->to_step(ss, true);
+            ++it;
+        }
+        for (; it != end(); ++it)
+            it->to_step(ss);
         return ss.str();
     }
 
@@ -507,10 +511,19 @@ class OPath
         return result;
     }
 
-    Iterator begin() { return m_keys.rbegin(); }
-    Iterator end() { return m_keys.rend(); }
-    ConstIterator begin() const { return m_keys.crbegin(); }
-    ConstIterator end() const { return m_keys.crend(); }
+    void reverse() { std::reverse(m_keys.begin(), m_keys.end()); }
+    KeyList keys() { return m_keys; }
+
+    Iterator begin() { return m_keys.begin(); }
+    Iterator end() { return m_keys.end(); }
+    ConstIterator begin() const { return m_keys.cbegin(); }
+    ConstIterator end() const { return m_keys.cend(); }
+
+  private:
+    StringView parse_quoted(const StringView&, StringView::const_iterator&);
+    void consume_whitespace(const StringView&, StringView::const_iterator&);
+    Key parse_brace_key(const StringView&, StringView::const_iterator&);
+    Key parse_dot_key(const StringView&, StringView::const_iterator&);
 
   private:
     KeyList m_keys;
@@ -520,15 +533,102 @@ class OPath
 
 
 inline
+OPath::OPath(const std::string_view& spec) {
+    assert (spec.size() > 0);
+    auto it = spec.cbegin();
+    consume_whitespace(spec, it);
+    char c = *it;
+    if (c != '.' && c != '[') {
+        append(parse_dot_key(spec, it));
+    }
+
+    while (it != spec.cend()) {
+        char c = *it;
+        if (c == '.') {
+            if (++it != spec.cend()) {
+                append(parse_dot_key(spec, it));
+            }
+        } else if (c == '[') {
+            if (++it != spec.cend()) {
+                append(parse_brace_key(spec, it));
+            }
+        } else {
+            throw PathSyntax{spec, it - spec.cbegin()};
+        }
+    }
+}
+
+inline
+Key OPath::parse_brace_key(const StringView& spec, StringView::const_iterator& it) {
+    auto key_start = it;
+    char c = *it;
+    if (c == '\'' || c == '"') {
+        auto key = parse_quoted(spec, it);
+        if (key.size() == 0) throw PathSyntax{spec, key_start - spec.cbegin()};
+        consume_whitespace(spec, it);
+        if (*it != ']') throw PathSyntax{spec, key_start - spec.cbegin()};
+        ++it;
+        return key;
+    } else {
+        for (; it != spec.cend() && c != ']'; ++it, c = *it);
+        if (it == spec.cend()) throw PathSyntax{spec, key_start - spec.cbegin()};
+        std::string_view key{key_start, it};
+        if (it != spec.cend()) ++it;
+        return str_to_int(key);  // TODO: error handling
+    }
+}
+
+inline
+Key OPath::parse_dot_key(const StringView& spec, StringView::const_iterator& it) {
+    auto key_start = it;
+    for (char c = *it; it != spec.cend() && (std::isalnum(c) || c == '_'); ++it, c = *it);
+    return StringView{key_start, it};
+}
+
+inline
+StringView OPath::parse_quoted(const StringView& spec, StringView::const_iterator& it) {
+    consume_whitespace(spec, it);
+    if (it == spec.cend()) return "";
+    char quote = *it; ++it;
+    auto start_it = it;
+    bool escaped = false;
+    for (; it != spec.cend(); ++it) {
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+        char c = *it;
+        if (c == '\\') {
+            escaped = true;
+        } else if (c == quote) {
+            return {start_it, it++};
+        }
+    }
+    throw PathSyntax(spec, spec.size() - 1);
+}
+
+inline
+void OPath::consume_whitespace(const StringView& spec, StringView::const_iterator& it) {
+    for (char c = *it; std::isspace(c) && it != spec.cend(); ++it);
+}
+
+inline
+OPath operator ""_path (const char* str, size_t size) {
+    return OPath{StringView{str, size}};
+}
+
+
+inline
 OPath Object::path() const {
     OPath path;
     Object obj = *this;
     Object par = parent();
     while (par != null) {
-        path.prepend(par.key_of(obj));
+        path.append(par.key_of(obj));
         obj.refer_to(par);
         par.refer_to(obj.parent());
     }
+    path.reverse();
     return path;
 }
 
@@ -539,10 +639,11 @@ OPath Object::path(const Object& root) const {
     Object obj = *this;
     Object par = parent();
     while (par != null && !obj.is(root)) {
-        path.prepend(par.key_of(obj));
+        path.append(par.key_of(obj));
         obj.refer_to(par);
         par.refer_to(obj.parent());
     }
+    path.reverse();
     return path;
 }
 
@@ -2193,57 +2294,6 @@ std::ostream& operator<< (std::ostream& ostream, const Object& obj) {
     return ostream;
 }
 
-//
-//inline
-//OPath::OPath(const char* spec, char delimiter) {
-//    auto start = spec;
-//    auto it = start;
-//    auto c = *it;
-//    for (; c != 0; c = *(++it)) {
-//        if (c == '[') {
-//            if (it != start) key_list.push_back(std::string{start, it});
-//            ++it;
-//            char *end;
-//            key_list.push_back(strtoll(it, &end, 10));
-//            fmt::print("c={} dist={}\n", *end, (end - spec));
-//            if (end == it || *end == 0 || errno == ERANGE) throw PathSyntax{spec, it - spec};
-//            if (*end != ']') throw PathSyntax(spec, it - spec);
-//            it = ++end;
-//            start = it;
-//        } else if (c == delimiter) {
-//            key_list.push_back(std::string{start, it});
-//            start = ++it;
-//        }
-//    }
-//}
-//
-//inline
-//void OPath::parse(const char* spec) {
-//}
-//
-//inline
-//void OPath::parse_step(const char* spec, const char*& it, char delimiter) {
-//    while (auto c == *it, std::isspace(c) && c != 0) ++it;  // consume whitespace
-//
-//    auto c = *it;
-//    if (c != delimiter && c != '[')
-//        throw PathSyntax(spec, it - spec);
-//
-//    parse_key(spec, ++it, delimiter);
-//}
-//
-//inline
-//void OPath::parse_key(const char* spec, const char*& it, char delimiter) {
-//    while (auto c == *it, std::isspace(c) && c != 0) ++it;  // consume whitespace
-//
-//    if (c == '"') {
-//        parse_squote(spec, it, delimiter);
-//
-//    std::string key;
-//    for (auto c = *it; c != 0 && c != delimiter && c != ']'; c = *(++it)) {
-//        key.push_back(c);
-//    }
-//}
 
 inline
 size_t DataSource::size(const Object& target) {

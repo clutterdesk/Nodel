@@ -1125,10 +1125,10 @@ TEST(Object, ValuesRangeMultiuser) {
 
 TEST(Object, GetPath) {
     Object obj = json::parse(R"({"a": {"b": ["Assam", "Ceylon"]}})");
-    EXPECT_EQ(obj.get("a"_key).path().to_str(), ".a");
-    EXPECT_EQ(obj.get("a"_key).get("b"_key).path().to_str(), ".a.b");
-    EXPECT_EQ(obj.get("a"_key).get("b"_key).get(1).path().to_str(), ".a.b[1]");
-    EXPECT_EQ(obj.get("a"_key).get("b"_key).get(0).path().to_str(), ".a.b[0]");
+    EXPECT_EQ(obj.get("a"_key).path().to_str(), "a");
+    EXPECT_EQ(obj.get("a"_key).get("b"_key).path().to_str(), "a.b");
+    EXPECT_EQ(obj.get("a"_key).get("b"_key).get(1).path().to_str(), "a.b[1]");
+    EXPECT_EQ(obj.get("a"_key).get("b"_key).get(0).path().to_str(), "a.b[0]");
     OPath path = obj.get("a"_key).get("b"_key).get(1).path();
     EXPECT_EQ(obj.get(path).id(), obj.get("a"_key).get("b"_key).get(1).id());
 }
@@ -1137,15 +1137,15 @@ TEST(Object, GetPartialPath) {
     Object obj = json::parse(R"({"a": {"b": {"c": ["Assam", "Ceylon"]}}})");
     auto c = obj.get("a"_key).get("b"_key).get("c"_key);
     auto path = c.path(obj.get("a"_key));
-    EXPECT_EQ(path.to_str(), ".b.c");
+    EXPECT_EQ(path.to_str(), "b.c");
     EXPECT_TRUE(obj.get("a"_key).get(path).is(c));
 }
 
 TEST(Object, ConstructedPath) {
     Object obj = json::parse(R"({"a": {"b": ["Assam", "Ceylon"]}})");
     OPath path;
-    path.prepend("b"_key);
-    path.prepend("a"_key);
+    path.append("a"_key);
+    path.append("b"_key);
     path.append(0);
     EXPECT_EQ(obj.get(path), "Assam");
 }
@@ -1153,11 +1153,19 @@ TEST(Object, ConstructedPath) {
 TEST(Object, PathParent) {
     Object obj = json::parse(R"({"a": {"b": ["Assam", "Ceylon"]}})");
     auto path = obj.get("a"_key).get("b"_key).path().parent();
-    EXPECT_EQ(path.to_str(), ".a");
+    EXPECT_EQ(path.to_str(), "a");
     EXPECT_TRUE(obj.get(path).is(obj.get("a"_key)));
 }
 
-TEST(Object, CreatePath) {
+TEST(Object, ParsePath) {
+    EXPECT_EQ("a.b[1]"_path.to_str(), "a.b[1]");
+    EXPECT_EQ("['a']['b'][1]"_path.to_str(), "a.b[1]");
+    EXPECT_EQ(R"(["a"]["b"][1])"_path.to_str(), "a.b[1]");
+    EXPECT_EQ("a.b[2].c"_path.to_str(), "a.b[2].c");
+    EXPECT_EQ("a.b[-1].c"_path.to_str(), "a.b[-1].c");
+}
+
+TEST(Object, ManuallyCreatePath) {
     Object obj = json::parse("{}");
 
     OPath path;
@@ -1166,7 +1174,7 @@ TEST(Object, CreatePath) {
     path.append("b"_key);
     path.create(obj, 100);
 
-    EXPECT_EQ(path.to_str(), ".a[0].b");
+    EXPECT_EQ(path.to_str(), "a[0].b");
     EXPECT_TRUE(obj.get("a"_key).is_list());
     EXPECT_EQ(obj.get("a"_key).get(0).type(), Object::OMAP_I);
     EXPECT_EQ(obj.get("a"_key).get(0).get("b"_key), 100);
@@ -1181,7 +1189,7 @@ TEST(Object, CreatePartialPath) {
     path.append(0);
     path.create(obj, 100);
 
-    EXPECT_EQ(path.to_str(), ".a.b[0]");
+    EXPECT_EQ(path.to_str(), "a.b[0]");
     EXPECT_TRUE(obj.get("a"_key).is_map());
     EXPECT_TRUE(obj.get("a"_key).get("b"_key).is_list());
     EXPECT_EQ(obj.get("a"_key).get("b"_key).get(0), 100);
