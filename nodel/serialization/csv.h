@@ -20,17 +20,6 @@
 
 namespace nodel {
 namespace csv {
-
-class exception : public std::exception
-{
-  public:
-    exception(const std::string& msg) : msg(msg) {}
-    const char* what() const throw() override { return msg.c_str(); }
-
-  private:
-    const std::string msg;
-};
-
 namespace impl {
 
 template <typename StreamType>
@@ -106,10 +95,17 @@ bool Parser<StreamType>::parse_column(List& row) {
         }
         default:   {
             Object col = parse_unquoted();
-            if (col.size() > 0) row.push_back(col);
+            row.push_back(col);
             break;
         }
     }
+
+    if (row.size() == 1) {
+        auto col = row[0];
+        if (col.is_str() && col.size() == 0)
+            row.clear();
+    }
+
     return true;
 }
 
@@ -144,6 +140,16 @@ Object Parser<StreamType>::parse_unquoted() {
     for (char c = m_it.peek(); c != ',' && c != '\n' && c != 0 && !m_it.done(); m_it.next(), c = m_it.peek()) {
         str.push_back(c);
     }
+
+    char first_char = str[0];
+    if (std::isdigit(first_char) || first_char == '-' || first_char == '+') {
+        if (str.contains('.')) {
+            return str_to_float(str);
+        } else {
+            return str_to_int(str);
+        }
+    }
+
     return object;
 }
 

@@ -17,6 +17,7 @@
 #include <nodel/core/Object.h>
 
 #include <fstream>
+#include <iomanip>
 
 namespace nodel {
 namespace filesystem {
@@ -43,12 +44,19 @@ void CsvFile::read(const Object& target) {
 
 inline
 void CsvFile::write(const Object& target, const Object& cache, bool quiet) {
-//    auto fpath = path(target).string();
-//    std::ofstream f_out{fpath, std::ios::out};
-//
-//    // TODO: unfinished
-//
-//    if (f_out.fail() || f_out.bad()) set_failed(true);
+    auto fpath = path(target).string();
+    std::ofstream f_out{fpath, std::ios::out};
+
+    for (const auto& row : cache.values()) {
+        char sep = 0;
+        for (const auto& col: row.values()) {
+            if (sep == 0) sep = ','; else f_out << sep;
+            f_out << col.to_json();
+        }
+        f_out << "\n";
+    }
+
+    if (f_out.fail() || f_out.bad()) set_failed(true);
 }
 
 } // namespace filesystem

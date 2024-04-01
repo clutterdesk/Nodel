@@ -20,7 +20,7 @@ using namespace nodel;
 using namespace nodel::csv;
 using namespace nodel::csv::impl;
 
-TEST(Parser, Unquoted) {
+TEST(CsvParser, Unquoted) {
   std::stringstream stream{R"(
       a, bbb, cc
       dd, e, f
@@ -31,7 +31,7 @@ TEST(Parser, Unquoted) {
   EXPECT_EQ(obj.to_str(), R"([["a", "bbb", "cc"], ["dd", "e", "f"], ["g", "hh", "iii"]])");
 }
 
-TEST(Parser, SingleQuoted) {
+TEST(CsvParser, SingleQuoted) {
   std::stringstream stream{R"(
       'a', 'bbb', 'cc'
       'dd', 'e', 'f'
@@ -43,7 +43,7 @@ TEST(Parser, SingleQuoted) {
   EXPECT_EQ(obj.to_str(), R"([["a", "bbb", "cc"], ["dd", "e", "f"], ["g", "hh", "iii"]])");
 }
 
-TEST(Parser, DoubleQuoted) {
+TEST(CsvParser, DoubleQuoted) {
   std::stringstream stream{R"(
       "a", "bbb", "cc"
       "dd", "e", "f"
@@ -55,7 +55,7 @@ TEST(Parser, DoubleQuoted) {
   EXPECT_EQ(obj.to_str(), R"([["a", "bbb", "cc"], ["dd", "e", "f"], ["g", "hh", "iii"]])");
 }
 
-TEST(Parser, MixedQuoted) {
+TEST(CsvParser, MixedQuoted) {
   std::stringstream stream{R"(
       a, "bbb", 'cc'
       'dd', e,f

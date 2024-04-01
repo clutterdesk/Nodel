@@ -9,9 +9,10 @@
 using namespace nodel;
 using Axis = Step::Axis;
 
+
 TEST(Query, ChildStep) {
     Query query;
-    query.add_step({Axis::CHILD, "x"_key});
+    query.add_steps({Axis::CHILD, "x"_key});
 
     Object obj = json::parse("{'x': 'tea'}");
     auto it = query.eval(obj);
@@ -26,7 +27,7 @@ TEST(Query, ChildStep) {
 
 TEST(Query, ChildAnyStep) {
     Query query;
-    query.add_step({Axis::CHILD, null});
+    query.add_steps({Axis::CHILD, null});
 
     Object obj = json::parse("{'x': 'tea'}");
     auto it = query.eval(obj);
@@ -41,7 +42,7 @@ TEST(Query, ChildAnyStep) {
 
 TEST(Query, ParentStep) {
     Query query;
-    query.add_step({Axis::PARENT, "x"_key});
+    query.add_steps({Axis::PARENT, "x"_key});
 
     Object obj = json::parse("{'x': {'y': 'tea'}}");
     auto it = query.eval(obj.get("x"_key).get("y"_key));
@@ -56,7 +57,7 @@ TEST(Query, ParentStep) {
 
 TEST(Query, ParentAnyStep) {
     Query query;
-    query.add_step({Axis::PARENT, null});
+    query.add_steps({Axis::PARENT, null});
 
     Object obj = json::parse("{'x': 'tea'}");
     auto it = query.eval(obj.get("x"_key));
@@ -71,7 +72,7 @@ TEST(Query, ParentAnyStep) {
 
 TEST(Query, AncestorAnyStep) {
     Query query;
-    query.add_step({Axis::ANCESTOR, null});
+    query.add_steps({Axis::ANCESTOR, null});
 
     Object obj = json::parse("{'x': {'y': 'tea'}}");
     Object x = obj.get("x"_key);
@@ -79,6 +80,7 @@ TEST(Query, AncestorAnyStep) {
 
     auto it = query.eval(y);
 
+    EXPECT_TRUE(it.next().is(y));
     EXPECT_TRUE(it.next().is(x));
     EXPECT_TRUE(it.next().is(obj));
     EXPECT_TRUE(it.next() == null);
@@ -86,7 +88,7 @@ TEST(Query, AncestorAnyStep) {
 
 TEST(Query, AncestorStep) {
     Query query;
-    query.add_step({Axis::ANCESTOR, "y"_key});
+    query.add_steps({Axis::ANCESTOR, "y"_key});
 
     Object obj = json::parse("{'x': {'y': {'y': 'tea'}}}");
     Object x = obj.get("x"_key);
@@ -95,13 +97,14 @@ TEST(Query, AncestorStep) {
 
     auto it = query.eval(yy);
 
+    EXPECT_TRUE(it.next().is(yy));
     EXPECT_TRUE(it.next().is(y));
     EXPECT_TRUE(it.next() == null);
 }
 
 TEST(Query, SubtreeAnyStep) {
     Query query;
-    query.add_step({Axis::SUBTREE, null});
+    query.add_steps({Axis::SUBTREE, null});
 
     Object root = json::parse("{'x': [{'u': 'x0u', 'v': 'x0v'}, {'z': 'x1z'}], 'y': {'u': [['xyu00', 'xyu01'], 'xyu1']}}}");
 
@@ -115,6 +118,23 @@ TEST(Query, SubtreeAnyStep) {
     }
 
     EXPECT_EQ(count, expect.size());
+}
+
+TEST(Query, AncestorChild) {
+    Object root = json::parse("{'u': {'z': 'uz'}, 'y': {'u': 'yu', 'z': 'yz'}}");
+
+    Query query{Step{Step::Axis::ANCESTOR},
+                Step{Step::Axis::CHILD, "u"_key}};
+
+    List actual;
+    auto it = query.eval(root.get("y.z"_path));
+    for (auto it_obj = it.next(); it_obj != null; it_obj = it.next()) {
+        actual.push_back(it_obj);
+    }
+
+    EXPECT_EQ(actual.size(), 2);
+    EXPECT_EQ(actual[0], "yu");
+    EXPECT_EQ(actual[1].to_str(), R"({"z": "uz"})");
 }
 
 

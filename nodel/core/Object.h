@@ -40,6 +40,7 @@
 #include <nodel/support/logging.h>
 #include <nodel/support/string.h>
 #include <nodel/support/exception.h>
+#include <nodel/support/parse.h>
 #include <nodel/types.h>
 
 
@@ -63,26 +64,6 @@ struct OverwriteProtected : public NodelException
 struct InvalidPath : public NodelException
 {
     InvalidPath() : NodelException("Invalid object path"s) {}
-};
-
-struct PathSyntax : public NodelException
-{
-    static std::string make_message(const std::string_view& spec, std::ptrdiff_t offset) {
-        std::stringstream ss;
-        std::stringstream annot;
-        ss << "\n'";
-        auto it = spec.cbegin();
-        for (size_t i=0; i<offset && it != spec.cend(); ++i, ++it) {
-            ss << *it;
-            annot << '-';
-        }
-        ss << '\'';
-        annot << '^';
-        ss << '\n' << annot.str();
-        return ss.str();
-    }
-
-    PathSyntax(const std::string_view& spec, std::ptrdiff_t offset) : NodelException(make_message(spec, offset)) {}
 };
 
 
@@ -464,7 +445,7 @@ class OPath
         for (auto& key : *this) {
             auto child = obj.get(key);
             ASSERT(!child.is_empty());
-            if (child == null) return {};
+            if (child == null) return child;
             obj.refer_to(child);
         }
         return obj;
@@ -553,7 +534,7 @@ OPath::OPath(const std::string_view& spec) {
                 append(parse_brace_key(spec, it));
             }
         } else {
-            throw PathSyntax{spec, it - spec.cbegin()};
+            throw SyntaxError{spec, it - spec.cbegin(), "Expected '.' or '[':"};
         }
     }
 }
@@ -564,14 +545,14 @@ Key OPath::parse_brace_key(const StringView& spec, StringView::const_iterator& i
     char c = *it;
     if (c == '\'' || c == '"') {
         auto key = parse_quoted(spec, it);
-        if (key.size() == 0) throw PathSyntax{spec, key_start - spec.cbegin()};
+        if (key.size() == 0) throw SyntaxError{spec, key_start - spec.cbegin(), "Expected key:"};
         consume_whitespace(spec, it);
-        if (*it != ']') throw PathSyntax{spec, key_start - spec.cbegin()};
+        if (*it != ']') throw SyntaxError{spec, key_start - spec.cbegin(), "Missing closing ']':"};
         ++it;
         return key;
     } else {
         for (; it != spec.cend() && c != ']'; ++it, c = *it);
-        if (it == spec.cend()) throw PathSyntax{spec, key_start - spec.cbegin()};
+        if (it == spec.cend()) throw SyntaxError{spec, key_start - spec.cbegin(), "Missing closing ']':"};
         std::string_view key{key_start, it};
         if (it != spec.cend()) ++it;
         return str_to_int(key);  // TODO: error handling
@@ -604,7 +585,7 @@ StringView OPath::parse_quoted(const StringView& spec, StringView::const_iterato
             return {start_it, it++};
         }
     }
-    throw PathSyntax(spec, spec.size() - 1);
+    throw SyntaxError(spec, spec.size() - 1, "Missing closing quote:");
 }
 
 inline
@@ -1273,7 +1254,7 @@ Key Object::into_key() {
 //            return it->second;
 //        }
 //        case DSRC_I:  return m_repr.ds->get(*this, v);
-//        default:      throw wrong_type(m_fields.repr_ix);
+//        default:      return null;
 //    }
 //}
 
@@ -1288,7 +1269,7 @@ Key Object::into_key() {
 //            return it->second;
 //        }
 //        case DSRC_I:  return m_repr.ds->get(*this, v);
-//        default:      throw wrong_type(m_fields.repr_ix);
+//        default:      return null;
 //    }
 //}
 
@@ -1309,7 +1290,7 @@ Object Object::get(is_integral auto index) const {
             return it->second;
         }
         case DSRC_I:  return m_repr.ds->get(*this, index);
-        default:      throw wrong_type(m_fields.repr_ix);
+        default:      return null;
     }
 }
 
@@ -1318,6 +1299,7 @@ Object Object::get(const Key& key) const {
     switch (m_fields.repr_ix) {
         case EMPTY_I: throw empty_reference();
         case LIST_I: {
+            if (!key.is_any_int()) return null;
             auto& list = std::get<0>(*m_repr.pl);
             Int index = key.to_int();
             if (index < 0) index += list.size();
@@ -1331,7 +1313,7 @@ Object Object::get(const Key& key) const {
             return it->second;
         }
         case DSRC_I: return m_repr.ds->get(*this, key); break;
-        default:     throw wrong_type(m_fields.repr_ix);
+        default:     return null;
     }
 }
 

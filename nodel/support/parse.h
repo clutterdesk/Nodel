@@ -76,4 +76,28 @@ class StringStreamAdapter
 };
 
 } // namespace impl
+
+
+struct SyntaxError : public NodelException
+{
+    static std::string make_message(const std::string_view& spec, std::ptrdiff_t offset, const std::string& message) {
+        std::stringstream ss;
+        std::stringstream annot;
+        ss << message << std::endl;
+        ss << "'";
+        auto it = spec.cbegin();
+        for (size_t i=0; i<offset && it != spec.cend(); ++i, ++it) {
+            ss << *it;
+            annot << '-';
+        }
+        ss << '\'';
+        annot << '^';
+        ss << '\n' << annot.str();
+        return ss.str();
+    }
+
+    SyntaxError(const std::string_view& spec, std::ptrdiff_t offset, const std::string& message)
+      : NodelException(make_message(spec, offset, message)) {}
+};
+
 } // namespace nodel

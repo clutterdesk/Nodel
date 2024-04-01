@@ -82,7 +82,7 @@ class StackItem
 struct Step
 {
     enum class Axis {
-        ANCESTOR,
+        ANCESTOR,  // TODO: rename "LINEAGE"?
         PARENT,
         SELF,
         CHILD,
@@ -94,6 +94,7 @@ struct Step
 //        BACK
 //    };
 
+    Step(Axis axis)                 : m_axis{axis}, m_key{null} {}
     Step(Axis axis, const Key& key) : m_axis{axis}, m_key{key} {}
 
     Axis m_axis;
@@ -109,7 +110,16 @@ class QueryEval;
 class Query
 {
   public:
-    void add_step(const Step& step) { m_steps.push_back(step); }
+    Query() = default;
+    Query(const Step& step);
+
+    template <class ... Args>
+    Query(const Step& step, Args&& ... steps);
+
+    void add_steps(const Step& step);
+
+    template <class ... Args>
+    void add_steps(const Step& step, Args&& ... steps);
 
     QueryEval eval(const Object& obj) const;
     QueryEval eval(ValueRange&& range) const;
@@ -180,6 +190,30 @@ bool StackItem::done() {
 
 
 inline
+Query::Query(const Step& step) {
+    add_steps(step);
+}
+
+template <class ... Args>
+Query::Query(const Step& step, Args&& ... steps) {
+    add_steps(step);
+    add_steps(std::forward<Args>(steps) ...);
+}
+
+
+inline
+void Query::add_steps(const Step& step) {
+    m_steps.push_back(step);
+}
+
+template <class ... Args>
+void Query::add_steps(const Step& step, Args&& ... steps) {
+    add_steps(step);
+    add_steps(std::forward<Args>(steps) ...);
+}
+
+
+inline
 QueryEval Query::eval(const Object& obj) const {
     return {*this, obj};
 }
@@ -229,16 +263,17 @@ Object QueryEval::next() {
                 if (next_obj != null) {
                     // continue current step
                     m_fifo.push_front({curr_step_i, next_obj});
+                }
 
-                    // proceed to next step, or return obj if last step
-                    if (step_key == null || step_key == next_obj.key()) {
-                        if (next_step_i < m_query.m_steps.size()) {
-                            m_fifo.push_front({next_step_i, next_obj});
-                        } else {
-                            return next_obj;
-                        }
+                // proceed to next step, or return obj if last step
+                if (step_key == null || step_key == curr_obj.key()) {
+                    if (next_step_i < m_query.m_steps.size()) {
+                        m_fifo.push_front({next_step_i, curr_obj});
+                    } else {
+                        return curr_obj;
                     }
                 }
+
                 break;
             }
 

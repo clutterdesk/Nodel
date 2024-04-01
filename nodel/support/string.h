@@ -52,7 +52,6 @@ std::string float_to_str(double v) {
 
 inline
 bool str_to_bool(const StringView& str) {
-    // TODO: throw errors?
     return (str == "true" || str == "1");
 }
 

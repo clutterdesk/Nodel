@@ -179,6 +179,27 @@ TEST(Filesystem, CreateJsonFile) {
     EXPECT_EQ(test_data.get(new_file_name).get("tea"_key), "Assam, please");
 }
 
+TEST(Filesystem, CreateCsvFile) {
+    std::string new_file_name = "new_file.csv";
+    auto wd = std::filesystem::current_path() / "test_data";
+
+    Finally cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
+
+    Object test_data = new Directory(new DefaultRegistry(), wd, DataSource::Mode::ALL);
+    Object new_file = new CsvFile();
+    new_file.set(0, json::parse("['a', 'b']"));
+    new_file.set(1, json::parse("[0, 1]"));
+    new_file.set(2, json::parse("[2, 3]"));
+    test_data.set(new_file_name, new_file);
+    test_data.save();
+
+    Object test_data_2 = new Directory(new DefaultRegistry(), wd);
+    auto csv = test_data_2.get(new_file_name);
+    EXPECT_EQ(csv.get(0).to_json(), R"(["a", "b"])");
+    EXPECT_EQ(csv.get(1).to_json(), R"([0, 1])");
+    EXPECT_EQ(csv.get(2).to_json(), R"([2, 3])");
+}
+
 TEST(Filesystem, UpdateJsonFile) {
     std::string new_file_name = "new_file.json";
     auto wd = std::filesystem::current_path() / "test_data";
