@@ -35,6 +35,7 @@
 
 #include "Oid.h"
 #include "Key.h"
+#include "Interval.h"
 
 #include <nodel/support/Flags.h>
 #include <nodel/support/logging.h>
@@ -261,6 +262,10 @@ class Object
     ValueRange iter_values() const;
     LineRange iter_line() const;
 
+    KeyRange iter_keys(const Interval&) const;
+    ItemRange iter_items(const Interval&) const;
+    ValueRange iter_values(const Interval&) const;
+
     TreeRange<Object, NoPredicate, NoPredicate> iter_tree() const;
 
     template <typename VisitPred>
@@ -347,8 +352,6 @@ class Object
     void to_json(std::ostream&) const;
 
     Object get(is_integral auto v) const;
-//    Object get(const char* v) const;
-//    Object get(const std::string& v) const;
     Object get(const Key& key) const;
     Object get(const OPath& path) const;
 
@@ -733,6 +736,10 @@ class DataSource
     virtual std::unique_ptr<KeyIterator> key_iter()     { return nullptr; }
     virtual std::unique_ptr<ValueIterator> value_iter() { return nullptr; }
     virtual std::unique_ptr<ItemIterator> item_iter()   { return nullptr; }
+
+    virtual std::unique_ptr<KeyIterator> key_iter(const Interval&)     { return nullptr; }
+    virtual std::unique_ptr<ValueIterator> value_iter(const Interval&) { return nullptr; }
+    virtual std::unique_ptr<ItemIterator> item_iter(const Interval&)   { return nullptr; }
 
   public:
     const Object& get_cached(const Object& target) const { const_cast<DataSource*>(this)->insure_fully_cached(target); return m_cache; }
@@ -1243,36 +1250,6 @@ Key Object::into_key() {
     }
 }
 
-//inline
-//Object Object::get(const char* v) const {
-//    switch (m_fields.repr_ix) {
-//        case EMPTY_I: throw empty_reference();
-//        case OMAP_I: {
-//            auto& map = std::get<0>(*m_repr.pm);
-//            auto it = map.find(v);
-//            if (it == map.end()) return null;
-//            return it->second;
-//        }
-//        case DSRC_I:  return m_repr.ds->get(*this, v);
-//        default:      return null;
-//    }
-//}
-
-//inline
-//Object Object::get(const std::string& v) const {
-//    switch (m_fields.repr_ix) {
-//        case EMPTY_I: throw empty_reference();
-//        case OMAP_I: {
-//            auto& map = std::get<0>(*m_repr.pm);
-//            auto it = map.find(v);
-//            if (it == map.end()) return null;
-//            return it->second;
-//        }
-//        case DSRC_I:  return m_repr.ds->get(*this, v);
-//        default:      return null;
-//    }
-//}
-
 inline
 Object Object::get(is_integral auto index) const {
     switch (m_fields.repr_ix) {
@@ -1499,6 +1476,19 @@ inline ItemRange Object::iter_items() const {
 }
 
 inline ValueRange Object::iter_values() const {
+    return *this;
+}
+
+inline KeyRange Object::iter_keys(const Interval& itvl) const {
+    return {*this, itvl};
+}
+
+inline ItemRange Object::iter_items(const Interval& itvl) const {
+    return {*this, itvl};
+}
+
+inline ValueRange Object::iter_values(const Interval& itvl) const {
+//    return {*this, itvl};
     return *this;
 }
 

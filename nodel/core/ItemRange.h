@@ -65,8 +65,11 @@ class ItemRange
   using ReprType = Object::ReprType;
 
   public:
-    ItemRange(const Object& obj)
-      : m_obj{(obj.m_fields.repr_ix == Object::DSRC_I && !obj.m_repr.ds->is_sparse())? obj.m_repr.ds->get_cached(obj): obj} {}
+    ItemRange(const Object& obj, const Interval& itvl)
+      : m_obj{(obj.m_fields.repr_ix == Object::DSRC_I && !obj.m_repr.ds->is_sparse())? obj.m_repr.ds->get_cached(obj): obj}
+      , m_itvl{itvl} {}
+
+    ItemRange(const Object& obj) : ItemRange(obj, {}) {}
 
     ItemRange(const ItemRange&) = default;
     ItemRange(ItemRange&&) = default;
@@ -78,6 +81,7 @@ class ItemRange
 
   private:
     Object m_obj;
+    Interval m_itvl;
 };
 
 
@@ -174,10 +178,21 @@ inline
 ItemIterator ItemRange::begin() {
     auto repr_ix = m_obj.m_fields.repr_ix;
     switch (repr_ix) {
-        case ReprType::LIST_I: return ItemIterator{0UL, std::get<0>(*m_obj.m_repr.pl).begin()};
-        case ReprType::OMAP_I: return ItemIterator{std::get<0>(*m_obj.m_repr.pm).begin()};
+        case ReprType::LIST_I: {
+            auto& list = std::get<0>(*m_obj.m_repr.pl);
+            if (m_itvl.is_empty()) {
+                return ItemIterator{0UL, list.begin()};
+            } else {
+                auto indices = m_itvl.to_indices(list.size());
+                return ItemIterator{indices.first, list.begin() + indices.first};
+            }
+        }
+        case ReprType::OMAP_I: {
+            if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
+            return ItemIterator{std::get<0>(*m_obj.m_repr.pm).begin()};
+        }
         case ReprType::DSRC_I: {
-            auto p_it = m_obj.m_repr.ds->item_iter();
+            auto p_it = m_itvl.is_empty()? m_obj.m_repr.ds->item_iter(): m_obj.m_repr.ds->item_iter(m_itvl);
             return (p_it)? ItemIterator{std::move(p_it)}: ItemIterator{};
         }
         default: throw Object::wrong_type(repr_ix);
@@ -190,9 +205,17 @@ ItemIterator ItemRange::end() {
     switch (repr_ix) {
         case ReprType::LIST_I: {
             auto& list = std::get<0>(*m_obj.m_repr.pl);
-            return ItemIterator{list.size(), list.end()};
+            if (m_itvl.is_empty()) {
+                return ItemIterator{list.size(), list.end()};
+            } else {
+                auto indices = m_itvl.to_indices(list.size());
+                return ItemIterator{indices.second, list.begin() + indices.second};
+            }
         }
-        case ReprType::OMAP_I: return ItemIterator{std::get<0>(*m_obj.m_repr.pm).end()};
+        case ReprType::OMAP_I: {
+            if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
+            return ItemIterator{std::get<0>(*m_obj.m_repr.pm).end()};
+        }
         case ReprType::DSRC_I: return ItemIterator{};
         default: throw Object::wrong_type(repr_ix);
     }

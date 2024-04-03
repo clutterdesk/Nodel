@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <sstream>
 
-#include <nodel/serialization/json.h>
+#include <nodel/format/json.h>
 #include <nodel/support/Stopwatch.h>
 
 using namespace nodel;

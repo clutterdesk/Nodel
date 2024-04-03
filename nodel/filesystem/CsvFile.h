@@ -13,7 +13,7 @@
 // limitations under the License.
 #pragma once
 
-#include <nodel/serialization/csv.h>
+#include <nodel/format/csv.h>
 #include <nodel/core/Object.h>
 
 #include <fstream>

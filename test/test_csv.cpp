@@ -14,7 +14,7 @@
 #include <gtest/gtest.h>
 
 #include <fmt/format.h>
-#include <nodel/serialization/csv.h>
+#include <nodel/format/csv.h>
 
 using namespace nodel;
 using namespace nodel::csv;

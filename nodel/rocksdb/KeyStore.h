@@ -15,8 +15,9 @@
 
 #include <rocksdb/db.h>
 #include <nodel/core/Object.h>
+#include <nodel/core/serialize.h>
 #include <nodel/filesystem/Directory.h>
-#include <nodel/serialization/json.h>
+#include <nodel/format/json.h>
 #include "DBManager.h"
 
 #include <filesystem>
@@ -58,41 +59,46 @@ class KeyStore : public nodel::DataSource
     class KeyIterator : public nodel::DataSource::KeyIterator
     {
       public:
+        KeyIterator(::rocksdb::Iterator* p_iter, const Interval& itvl);
         KeyIterator(::rocksdb::Iterator* p_iter);
         bool next_impl() override;
       private:
         ::rocksdb::Iterator* mp_iter;
+        Interval m_itvl;
     };
 
     class ValueIterator : public nodel::DataSource::ValueIterator
     {
       public:
+        ValueIterator(::rocksdb::Iterator* p_iter, const Interval& itvl);
         ValueIterator(::rocksdb::Iterator* p_iter);
         bool next_impl() override;
       private:
         ::rocksdb::Iterator* mp_iter;
+        Interval m_itvl;
     };
 
     class ItemIterator : public nodel::DataSource::ItemIterator
     {
       public:
+        ItemIterator(::rocksdb::Iterator* p_iter, const Interval& itvl);
         ItemIterator(::rocksdb::Iterator* p_iter);
         bool next_impl() override;
       private:
         ::rocksdb::Iterator* mp_iter;
+        Interval m_itvl;
     };
 
-    std::unique_ptr<nodel::DataSource::KeyIterator> key_iter() override     { return std::make_unique<KeyIterator>(mp_db->NewIterator(m_read_options)); }
-    std::unique_ptr<nodel::DataSource::ValueIterator> value_iter() override { return std::make_unique<ValueIterator>(mp_db->NewIterator(m_read_options)); }
-    std::unique_ptr<nodel::DataSource::ItemIterator> item_iter() override   { return std::make_unique<ItemIterator>(mp_db->NewIterator(m_read_options)); }
+    std::unique_ptr<nodel::DataSource::KeyIterator> key_iter() override;
+    std::unique_ptr<nodel::DataSource::ValueIterator> value_iter() override;
+    std::unique_ptr<nodel::DataSource::ItemIterator> item_iter() override;
+
+    std::unique_ptr<nodel::DataSource::KeyIterator> key_iter(const Interval&) override;
+    std::unique_ptr<nodel::DataSource::ValueIterator> value_iter(const Interval&) override;
+    std::unique_ptr<nodel::DataSource::ItemIterator> item_iter(const Interval&) override;
 
   private:
     void open(const std::filesystem::path& path, bool create_if_missing);
-
-    static std::string serialize_key(const Key&);
-    static std::string serialize_value(const Object&);
-    static Key deserialize_key(const std::string_view&);
-    static Object deserialize_value(const std::string_view&);
 
   private:
     std::filesystem::path m_path;
@@ -123,116 +129,132 @@ KeyStore::~KeyStore() {
     }
 }
 
+
 inline
-KeyStore::KeyIterator::KeyIterator(::rocksdb::Iterator* p_iter) : mp_iter{p_iter} {
-    p_iter->SeekToFirst();
-    m_key = deserialize_key(p_iter->key().ToStringView());
+KeyStore::KeyIterator::KeyIterator(::rocksdb::Iterator* p_iter, const Interval& itvl) : mp_iter{p_iter}, m_itvl{itvl} {
+    ASSERT(deserialize(p_iter->key().ToStringView(), m_key));
+}
+
+inline
+KeyStore::KeyIterator::KeyIterator(::rocksdb::Iterator* p_iter) : KeyIterator(p_iter, {}) {
 }
 
 inline
 bool KeyStore::KeyIterator::next_impl() {
     mp_iter->Next();
     if (mp_iter->Valid()) {
-        m_key = deserialize_key(mp_iter->key().ToStringView());
+        ASSERT(deserialize(mp_iter->key().ToStringView(), m_key));
+        if (!m_itvl.is_empty() && m_itvl.contains(m_key))
+            return false;
         return true;
     }
+    // TODO: check status per API documentation to distinguish end from error
     return false;
 }
 
 inline
-KeyStore::ValueIterator::ValueIterator(::rocksdb::Iterator* p_iter) : mp_iter{p_iter} {
-    p_iter->SeekToFirst();
-    m_value = deserialize_value(p_iter->value().ToStringView());
+KeyStore::ValueIterator::ValueIterator(::rocksdb::Iterator* p_iter, const Interval& itvl) : mp_iter{p_iter}, m_itvl{itvl} {
+    ASSERT(deserialize(p_iter->value().ToStringView(), m_value));
+}
+
+inline
+KeyStore::ValueIterator::ValueIterator(::rocksdb::Iterator* p_iter) : ValueIterator(p_iter, {}) {
 }
 
 inline
 bool KeyStore::ValueIterator::next_impl() {
     mp_iter->Next();
     if (mp_iter->Valid()) {
-        m_value = deserialize_value(mp_iter->value().ToStringView());
+        Key key;
+        ASSERT(deserialize(mp_iter->key().ToStringView(), key));
+        if (!m_itvl.is_empty() && m_itvl.contains(key))
+            return false;
+        ASSERT(deserialize(mp_iter->value().ToStringView(), m_value));
         return true;
     }
+    // TODO: check status per API documentation to distinguish end from error
     return false;
 }
 
 inline
-KeyStore::ItemIterator::ItemIterator(::rocksdb::Iterator* p_iter) : mp_iter{p_iter} {
-    p_iter->SeekToFirst();
-    m_item = std::make_pair(deserialize_key(p_iter->key().ToStringView()), deserialize_value(p_iter->value().ToStringView()));
+KeyStore::ItemIterator::ItemIterator(::rocksdb::Iterator* p_iter, const Interval& itvl) : mp_iter{p_iter}, m_itvl{itvl} {
+    Key key;
+    ASSERT(deserialize(p_iter->key().ToStringView(), key));
+    Object value;
+    ASSERT(deserialize(p_iter->value().ToStringView(), value));
+    m_item = std::make_pair(key, value);
+}
+
+inline
+KeyStore::ItemIterator::ItemIterator(::rocksdb::Iterator* p_iter) : ItemIterator(p_iter, {}) {
 }
 
 inline
 bool KeyStore::ItemIterator::next_impl() {
     mp_iter->Next();
     if (mp_iter->Valid()) {
-        m_item = std::make_pair(deserialize_key(mp_iter->key().ToStringView()), deserialize_value(mp_iter->value().ToStringView()));
+        Key key;
+        ASSERT(deserialize(mp_iter->key().ToStringView(), key));
+        if (!m_itvl.is_empty() && m_itvl.contains(key))
+            return false;
+        Object value;
+        ASSERT(deserialize(mp_iter->value().ToStringView(), value));
+        m_item = std::make_pair(key, value);
         return true;
     }
+    // TODO: check status per API documentation to distinguish end from error
     return false;
 }
 
-
 inline
-std::string KeyStore::serialize_key(const Key& key) {
-    // TODO: move serialization out
-    switch (key.type()) {
-        case Key::NULL_I:  return "0";
-        case Key::BOOL_I:  return key.as<bool>()? "2": "1";
-        case Key::INT_I:   return '3' + key.to_str();
-        case Key::UINT_I:  return '4' + key.to_str();
-        case Key::FLOAT_I: return '5' + key.to_str();
-        case Key::STR_I:   return '6' + key.to_str();
-        default:           throw Key::wrong_type(key.type());
-    }
+std::unique_ptr<nodel::DataSource::KeyIterator> KeyStore::key_iter() {
+    return key_iter({});
 }
 
 inline
-std::string KeyStore::serialize_value(const Object& value) {
-    // TODO: move serialization out and parameterize
-    switch (value.type()) {
-        case Object::NULL_I:  return "0";
-        case Object::BOOL_I:  return value.as<bool>()? "2": "1";
-        case Object::INT_I:   return '3' + value.to_str();
-        case Object::UINT_I:  return '4' + value.to_str();
-        case Object::FLOAT_I: return '5' + value.to_str();  // TODO: provide perfect serialization for floats
-        case Object::STR_I:   return '6' + value.as<String>();
-        case Object::LIST_I:  [[fallthrough]];
-        case Object::OMAP_I:  return '7' + value.to_json();
-        default:      throw Object::wrong_type(value.type());
-    }
+std::unique_ptr<nodel::DataSource::ValueIterator> KeyStore::value_iter() {
+    return value_iter({});
 }
 
 inline
-Key KeyStore::deserialize_key(const std::string_view& data) {
-    // TODO: move serialization out and parameterize
-    assert (data.size() >= 1);
-    switch (data[0]) {
-        case '0': return null;
-        case '1': return false;
-        case '2': return true;
-        case '3': return str_to_int(data.substr(1));
-        case '4': return str_to_uint(data.substr(1));
-        case '5': return str_to_float(data.substr(1));  // TODO: provide perfect serialization for floats
-        case '6': return data.substr(1);
-        default:  ASSERT(false); // TODO: throw or return BAD key
-    }
+std::unique_ptr<nodel::DataSource::ItemIterator> KeyStore::item_iter() {
+    return item_iter({});
 }
 
 inline
-Object KeyStore::deserialize_value(const std::string_view& data) {
-    // TODO: move serialization out and parameterize
-    assert (data.size() >= 1);
-    switch (data[0]) {
-        case '0': return null;
-        case '1': return false;
-        case '2': return true;
-        case '3': return str_to_int(data.substr(1));
-        case '4': return str_to_uint(data.substr(1));
-        case '5': return str_to_float(data.substr(1));  // TODO: provide perfect serialization for floats
-        case '6': return data.substr(1);
-        case '7': return json::parse(data.substr(1));
-        default:  ASSERT(false); // TODO: throw or return BAD object
+std::unique_ptr<nodel::DataSource::KeyIterator> KeyStore::key_iter(const Interval& itvl) {
+    auto p_it = mp_db->NewIterator(m_read_options);
+    auto& min = itvl.min();
+    if (min.value() == null) {
+        p_it->SeekToFirst();
+    } else {
+        p_it->Seek(serialize(min.value()));
     }
+    return std::make_unique<KeyIterator>(p_it, itvl);
+}
+
+inline
+std::unique_ptr<nodel::DataSource::ValueIterator> KeyStore::value_iter(const Interval& itvl) {
+    auto p_it = mp_db->NewIterator(m_read_options);
+    auto& min = itvl.min();
+    if (min.value() == null) {
+        p_it->SeekToFirst();
+    } else {
+        p_it->Seek(serialize(min.value()));
+    }
+    return std::make_unique<ValueIterator>(p_it, itvl);
+}
+
+inline
+std::unique_ptr<nodel::DataSource::ItemIterator> KeyStore::item_iter(const Interval& itvl) {
+    auto p_it = mp_db->NewIterator(m_read_options);
+    auto& min = itvl.min();
+    if (min.value() == null) {
+        p_it->SeekToFirst();
+    } else {
+        p_it->Seek(serialize(min.value()));
+    }
+    return std::make_unique<ItemIterator>(p_it, itvl);
 }
 
 inline
@@ -249,13 +271,15 @@ Object KeyStore::read_key(const Object& target, const Key& key) {
     if (mp_db == nullptr) {
         open(m_path.empty()? nodel::filesystem::path(target): m_path, true);
     }
-    auto db_key = serialize_key(key);
-    std::string value;
-    ::rocksdb::Status status = mp_db->Get(m_read_options, db_key, &value);
+    auto db_key = serialize(key);
+    std::string data;
+    ::rocksdb::Status status = mp_db->Get(m_read_options, db_key, &data);
     if (status.code() == ::rocksdb::Status::Code::kNotFound)
         return null;
     ASSERT(status.ok()); // TODO: error handling
-    return deserialize_value(value);
+    Object value;
+    ASSERT(deserialize(data, value));
+    return value;
 }
 
 inline
@@ -273,14 +297,14 @@ void KeyStore::commit(const Object& target, const KeyList& del_keys, bool quiet)
 
     // batch delete
     for (const auto& key : del_keys) {
-        auto db_key = serialize_key(key);
+        auto db_key = serialize(key);
         batch.Delete(db_key);
     }
 
     // batch update
     for (auto& item : updates) {
-        auto db_key = serialize_key(item.first);
-        auto db_value = serialize_value(item.second);
+        auto db_key = serialize(item.first);
+        auto db_value = serialize(item.second);
         batch.Put(db_key, db_value);
     }
 

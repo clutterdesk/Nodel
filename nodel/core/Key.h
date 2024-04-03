@@ -198,8 +198,66 @@ class Key
             case INT_I:   return m_repr.i == other;
             case UINT_I:  return m_repr.u == other;
             case FLOAT_I: return m_repr.f == other;
-            default:
-                return false;
+            default:      return false;
+        }
+    }
+
+    std::partial_ordering operator <=> (const Key& other) const {
+        switch (m_repr_ix) {
+            case BOOL_I: {
+                switch (other.m_repr_ix) {
+                    case BOOL_I:  return m_repr.b <=> other.m_repr.b;
+                    case INT_I:   return m_repr.b <=> other.to_bool();
+                    case UINT_I:  return m_repr.b <=> other.to_bool();
+                    case FLOAT_I: return m_repr.b <=> other.to_bool();
+                    case STR_I:   return to_str() <=> other.m_repr.s.data();
+                    default:      return std::partial_ordering::unordered;
+                }
+            }
+            case INT_I: {
+                switch (other.m_repr_ix) {
+                    case BOOL_I:  return to_bool() <=> other.m_repr.b;
+                    case INT_I:   return m_repr.i <=> other.m_repr.i;
+                    case UINT_I:  {
+                        return (other.m_repr.u > std::numeric_limits<Int>::max())?
+                               std::partial_ordering::less:
+                               m_repr.i <=> other.to_int();
+                    }
+                    case FLOAT_I: return m_repr.i <=> other.m_repr.f;
+                    case STR_I:   return to_str() <=> other.m_repr.s.data();
+                    default:      return std::partial_ordering::unordered;
+                }
+            }
+            case UINT_I: {
+                switch (other.m_repr_ix) {
+                    case BOOL_I:  return to_bool() <=> other.m_repr.b;
+                    case INT_I:   {
+                        return (m_repr.u > std::numeric_limits<Int>::max())?
+                               std::partial_ordering::greater:
+                               to_int() <=> other.m_repr.i;
+                    }
+                    case UINT_I:  return m_repr.u <=> other.m_repr.u;
+                    case FLOAT_I: return m_repr.u <=> other.m_repr.f;
+                    case STR_I:   return to_str() <=> other.m_repr.s.data();
+                    default:      return std::partial_ordering::unordered;
+                }
+            }
+            case FLOAT_I: {
+                switch (other.m_repr_ix) {
+                    case BOOL_I:  return to_bool() <=> other.m_repr.b;
+                    case INT_I:   return m_repr.f <=> other.m_repr.i;
+                    case UINT_I:  return m_repr.f <=> other.m_repr.u;
+                    case FLOAT_I: return m_repr.f <=> other.m_repr.f;
+                    case STR_I:   return to_str() <=> other.m_repr.s.data();
+                    default:      return std::partial_ordering::unordered;
+                }
+            }
+            case STR_I: {
+                return m_repr.s.data() <=> other.to_str();
+            }
+            default: {
+                return std::partial_ordering::unordered;
+            }
         }
     }
 
@@ -270,7 +328,7 @@ class Key
             case FLOAT_I: return m_repr.f;
             case STR_I:   return str_to_float(m_repr.s.data());
             default:  // TODO
-                return std::numeric_limits<UInt>::max();
+                return std::numeric_limits<Float>::max();
         }
     }
 
@@ -295,16 +353,22 @@ class Key
         }
     }
 
-    String to_str() const {
+    void to_str(std::ostream& stream) const {
         switch (m_repr_ix) {
-            case NULL_I:  return "null";
-            case BOOL_I:  return m_repr.b? "true": "false";
-            case INT_I:   return nodel::int_to_str(m_repr.i);
-            case UINT_I:  return nodel::int_to_str(m_repr.u);
-            case FLOAT_I: return nodel::float_to_str(m_repr.f);
-            case STR_I:   return String{m_repr.s.data()};
+            case NULL_I:  stream << "null"; break;
+            case BOOL_I:  stream << (m_repr.b? "true": "false"); break;
+            case INT_I:   stream << nodel::int_to_str(m_repr.i); break;
+            case UINT_I:  stream << nodel::int_to_str(m_repr.u); break;
+            case FLOAT_I: stream << nodel::float_to_str(m_repr.f); break;
+            case STR_I:   stream << m_repr.s.data(); break;
             default:      throw wrong_type(m_repr_ix);
         }
+    }
+
+    String to_str() const {
+        std::stringstream ss;
+        to_str(ss);
+        return ss.str();
     }
 
     String to_json() const {

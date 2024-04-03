@@ -14,6 +14,7 @@
 #pragma once
 
 #include "Object.h"
+
 #include <cctype>
 
 namespace nodel {
@@ -30,6 +31,7 @@ Object find_first(InRange range, UnaryPredicate pred)
     return {};
 }
 
+// TODO: move to parse.h
 template <typename Iter>
 void consume_whitespace(Iter& it, Iter end) {
     while (it != end && std::isspace(*it)) ++it;

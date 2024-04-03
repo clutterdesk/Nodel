@@ -14,7 +14,7 @@
 #pragma once
 
 #include "core/Object.h"
-#include "serialization/json.h"
+#include "format/json.h"
 
 namespace nodel {
 

@@ -4,7 +4,7 @@
 #include <algorithm>
 
 #include <nodel/core/Object.h>
-#include <nodel/serialization/json.h>
+#include <nodel/format/json.h>
 
 using namespace nodel;
 
@@ -1581,14 +1581,69 @@ TEST(Object, GetKeys) {
     EXPECT_EQ(obj.keys(), expect);
 }
 
-TEST(Object, IterKeys) {
+TEST(Object, IterMapKeys) {
     Object obj = json::parse(R"({"x": [1], "y": [2]})");
     KeyList expect = {"x"_key, "y"_key};  // NOTE: std::vector has a gotcha: {"x", "y"} is interpreted in an unexpected way.
     KeyList actual;
     for (auto& key : obj.iter_keys())
         actual.push_back(key);
     EXPECT_EQ(actual, expect);
-    DEBUG("size={}\n", sizeof(obj.iter_items().begin()));
+}
+
+TEST(Object, IterListKeys) {
+    Object obj = json::parse(R"([100, 101, 102])");
+    KeyList expect = {0, 1, 2};
+    KeyList actual;
+    for (auto& key : obj.iter_keys())
+        actual.push_back(key);
+    EXPECT_EQ(actual, expect);
+}
+
+TEST(Object, IterListValues) {
+    Object obj = json::parse(R"([100, 101, 102])");
+    List expect = {100, 101, 102};
+    List actual;
+    for (auto& val : obj.iter_values())
+        actual.push_back(val);
+    EXPECT_EQ(actual, expect);
+}
+
+TEST(Object, IterListItems) {
+    Object obj = json::parse(R"([100, 101, 102])");
+    ItemList expect = {{0, 100}, {1, 101}, {2, 102}};
+    ItemList actual;
+    for (auto& item : obj.iter_items())
+        actual.push_back(item);
+    EXPECT_EQ(actual, expect);
+}
+
+TEST(Object, IterListKeyOpenOpenIntInterval) {
+    Object obj = json::parse(R"([100, 101, 102, 103])");
+    KeyList expect = {1, 2};
+    KeyList actual;
+    for (auto& key : obj.iter_keys({{0, Endpoint::Kind::OPEN}, {3, Endpoint::Kind::OPEN}})) {
+        DEBUG("{}", key);
+        actual.push_back(key);
+    }
+    EXPECT_EQ(actual, expect);
+}
+
+TEST(Object, IterListKeyOpenClosedIntInterval) {
+    Object obj = json::parse(R"([100, 101, 102, 103])");
+    KeyList expect = {1, 2, 3};
+    KeyList actual;
+    for (auto& key : obj.iter_keys({{0, Endpoint::Kind::OPEN}, {3, Endpoint::Kind::CLOSED}}))
+        actual.push_back(key);
+    EXPECT_EQ(actual, expect);
+}
+
+TEST(Object, IterListKeyClosedClosedIntInterval) {
+    Object obj = json::parse(R"([100, 101, 102, 103])");
+    KeyList expect = {0, 1, 2, 3};
+    KeyList actual;
+    for (auto& key : obj.iter_keys({{0, Endpoint::Kind::CLOSED}, {3, Endpoint::Kind::CLOSED}}))
+        actual.push_back(key);
+    EXPECT_EQ(actual, expect);
 }
 
 
@@ -1596,7 +1651,6 @@ struct TestSimpleSource : public DataSource
 {
     TestSimpleSource(const std::string& json, Mode mode = Mode::READ | Mode::WRITE | Mode::OVERWRITE)
       : DataSource(Kind::COMPLETE, mode, Origin::SOURCE), data{json::parse(json)} {
-          DEBUG("data={}", data.to_str());
       }
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSimpleSource(data.to_json()); }

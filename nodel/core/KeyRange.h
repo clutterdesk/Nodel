@@ -62,8 +62,13 @@ class KeyRange
   using ReprType = Object::ReprType;
 
   public:
-    KeyRange(const Object& obj)
-      : m_obj{(obj.m_fields.repr_ix == Object::DSRC_I && !obj.m_repr.ds->is_sparse())? obj.m_repr.ds->get_cached(obj): obj} {}
+    KeyRange(const Object& obj, const Interval& itvl)
+      : m_obj{(obj.m_fields.repr_ix == Object::DSRC_I && !obj.m_repr.ds->is_sparse())? obj.m_repr.ds->get_cached(obj): obj}
+      , m_itvl{itvl}
+    {}
+
+    KeyRange(const Object& obj) : KeyRange(obj, {}) {}
+
     KeyRange(const KeyRange&) = default;
     KeyRange(KeyRange&&) = default;
     KeyRange& operator = (const KeyRange&) = default;
@@ -74,6 +79,7 @@ class KeyRange
 
   private:
     Object m_obj;
+    Interval m_itvl;
 };
 
 
@@ -170,10 +176,21 @@ inline
 KeyIterator KeyRange::begin() {
     auto repr_ix = m_obj.m_fields.repr_ix;
     switch (repr_ix) {
-        case ReprType::LIST_I: return KeyIterator{0UL};
-        case ReprType::OMAP_I: return KeyIterator{std::get<0>(*m_obj.m_repr.pm).begin()};
+        case ReprType::LIST_I: {
+            auto& list = std::get<0>(*m_obj.m_repr.pl);
+            if (m_itvl.is_empty()) {
+                return KeyIterator{0UL};
+            } else {
+                auto indices = m_itvl.to_indices(list.size());
+                return KeyIterator{indices.first};
+            }
+        }
+        case ReprType::OMAP_I: {
+            if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
+            return KeyIterator{std::get<0>(*m_obj.m_repr.pm).begin()};
+        }
         case ReprType::DSRC_I: {
-            auto p_it = m_obj.m_repr.ds->key_iter();
+            auto p_it = m_itvl.is_empty()? m_obj.m_repr.ds->key_iter(): m_obj.m_repr.ds->key_iter(m_itvl);
             return (p_it)? KeyIterator{std::move(p_it)}: KeyIterator{};
         }
         default: throw Object::wrong_type(repr_ix);
@@ -184,9 +201,20 @@ inline
 KeyIterator KeyRange::end() {
     auto repr_ix = m_obj.m_fields.repr_ix;
     switch (repr_ix) {
-        case ReprType::LIST_I: return KeyIterator{std::get<0>(*m_obj.m_repr.pl).size()};
-        case ReprType::OMAP_I: return KeyIterator{std::get<0>(*m_obj.m_repr.pm).end()};
+        case ReprType::LIST_I: {
+            auto& list = std::get<0>(*m_obj.m_repr.pl);
+            if (m_itvl.is_empty()) {
+                return KeyIterator{list.size()};
+            } else {
+                auto indices = m_itvl.to_indices(list.size());
+                return KeyIterator{indices.second};
+            }
+        }
+        case ReprType::OMAP_I: {
+            if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
+            return KeyIterator{std::get<0>(*m_obj.m_repr.pm).end()};
+        }
         case ReprType::DSRC_I: return KeyIterator{};
-        default:               throw Object::wrong_type(repr_ix);
+        default: throw Object::wrong_type(repr_ix);
     }
 }
