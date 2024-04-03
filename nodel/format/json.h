@@ -37,6 +37,12 @@ class JsonException : public NodelException
 };
 
 
+struct Options
+{
+    bool use_sorted_map = false;
+};
+
+
 namespace impl {
 
 template <typename StreamType>
@@ -44,6 +50,7 @@ struct Parser
 {
   public:
     Parser(const StreamType& stream) : m_it{stream} {}
+    Parser(const Options& options, const StreamType& stream) : m_options{options}, m_it{stream} {}
 
     Parser(Parser&&) =  default;
     Parser(const Parser&) = delete;
@@ -63,8 +70,10 @@ struct Parser
 
     void consume_whitespace();
 
+    Object::ReprType get_map_type() const;
     void create_error(const std::string& message);
 
+    Options m_options;
     StreamType m_it;
     Object m_curr;
     std::string m_scratch{32};
@@ -76,7 +85,7 @@ template <typename StreamType>
 Object::ReprType Parser<StreamType>::parse_type() {
     consume_whitespace();
     switch (m_it.peek()) {
-        case '{': return Object::OMAP_I;
+        case '{': return get_map_type();
         case '[': return Object::LIST_I;
         case 'n': return Object::NULL_I;
         case 't':
@@ -286,7 +295,8 @@ bool Parser<StreamType>::parse_list() {
 
 template <typename StreamType>
 bool Parser<StreamType>::parse_map() {
-    Map map;
+    Object map = get_map_type();
+
     m_it.next();  // consume {
     consume_whitespace();
     if (m_it.peek() == '}') {
@@ -325,7 +335,7 @@ bool Parser<StreamType>::parse_map() {
             return false;
         }
 
-        map.emplace(key, m_curr);
+        map.set(key, m_curr);
         consume_whitespace();
 
         c = m_it.peek();
@@ -364,6 +374,11 @@ void Parser<StreamType>::consume_whitespace()
 }
 
 template <typename StreamType>
+Object::ReprType Parser<StreamType>::get_map_type() const {
+    return m_options.use_sorted_map? Object::MAP_I: Object::OMAP_I;
+}
+
+template <typename StreamType>
 void Parser<StreamType>::create_error(const std::string& message)
 {
     m_error_message = message;
@@ -387,8 +402,8 @@ struct Error
 
 
 inline
-Object parse(const std::string_view& str, std::optional<Error>& error) {
-    impl::Parser parser{nodel::impl::StringStreamAdapter{str}};
+Object parse(const Options& options, const std::string_view& str, std::optional<Error>& error) {
+    impl::Parser parser{options, nodel::impl::StringStreamAdapter{str}};
     if (!parser.parse_object()) {
         error = Error{parser.m_error_offset, std::move(parser.m_error_message)};
         return null;
@@ -397,9 +412,14 @@ Object parse(const std::string_view& str, std::optional<Error>& error) {
 }
 
 inline
-Object parse(const std::string_view& str, std::string& error) {
+Object parse(const std::string_view& str, std::optional<Error>& error) {
+    return parse({}, str, error);
+}
+
+inline
+Object parse(const Options& options, const std::string_view& str, std::string& error) {
     std::optional<nodel::json::Error> parse_error;
-    Object result = parse(str, parse_error);
+    Object result = parse(options, str, parse_error);
     if (parse_error) {
         error = parse_error->to_str();
         return null;
@@ -408,17 +428,28 @@ Object parse(const std::string_view& str, std::string& error) {
 }
 
 inline
-Object parse(const std::string_view& str) {
-    impl::Parser parser{nodel::impl::StringStreamAdapter{str}};
+Object parse(const std::string_view& str, std::string& error) {
+    return parse({}, str, error);
+}
+
+inline
+Object parse(const Options& options, const std::string_view& str) {
+    DEBUG("{}", options.use_sorted_map);
+    impl::Parser parser{options, nodel::impl::StringStreamAdapter{str}};
+    DEBUG("{}", parser.m_options.use_sorted_map);
     if (!parser.parse_object()) {
         throw SyntaxError(str, parser.m_error_offset, parser.m_error_message);
     }
     return parser.m_curr;
 }
 
+inline
+Object parse(const std::string_view& str) {
+    return parse({}, str);
+}
 
 inline
-Object parse_file(const std::string& file_name, std::string& error) {
+Object parse_file(const Options& options, const std::string& file_name, std::string& error) {
     std::ifstream f_in{file_name, std::ios::in};
     if (!f_in.is_open()) {
         std::stringstream ss;
@@ -426,7 +457,7 @@ Object parse_file(const std::string& file_name, std::string& error) {
         error = ss.str();
         return null;
     } else {
-        impl::Parser parser{nodel::impl::StreamAdapter{f_in}};
+        impl::Parser parser{options, nodel::impl::StreamAdapter{f_in}};
         if (!parser.parse_object()) {
             Error parse_error{parser.m_error_offset, std::move(parser.m_error_message)};
             error = parse_error.to_str();
@@ -434,6 +465,11 @@ Object parse_file(const std::string& file_name, std::string& error) {
         }
         return parser.m_curr;
     }
+}
+
+inline
+Object parse_file(const std::string& file_name, std::string& error) {
+    return parse_file({}, file_name, error);
 }
 
 } // namespace json

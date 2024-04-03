@@ -84,7 +84,8 @@ using Predicate = std::function<bool(const Object&)>;
 
 using String = std::string;
 using List = std::vector<Object>;
-using Map = tsl::ordered_map<Key, Object, KeyHash>;
+using Map = std::map<Key, Object>;
+using OMap = tsl::ordered_map<Key, Object, KeyHash>;
 
 using Item = std::pair<Key, Object>;
 using ConstItem = std::pair<const Key, const Object>;
@@ -95,10 +96,12 @@ using ItemList = std::vector<Item>;
 using IRCString = std::tuple<String, Object>;
 using IRCList = std::tuple<List, Object>;
 using IRCMap = std::tuple<Map, Object>;
+using IRCOMap = std::tuple<OMap, Object>;
 
 using IRCStringPtr = IRCString*;
 using IRCListPtr = IRCList*;
 using IRCMapPtr = IRCMap*;
+using IRCOMapPtr = IRCOMap*;
 using DataSourcePtr = DataSource*;
 
 namespace test { class DataSourceTestInterface; }
@@ -122,9 +125,9 @@ class Object
         FLOAT_I,
         STR_I,
         LIST_I,
-        SMAP_I,    // TODO small ordered map (also update *Iterator classes)
+        MAP_I,     // sorted map
+        TMAP_I,    // TODO tiny ordered map (also update *Iterator classes)
         OMAP_I,    // ordered map
-        RBTREE_I,  // TODO (also update *Iterator classes)
         TABLE_I,   // TODO map-like key access, all rows have same keys (ex: CSV) (also update *Iterator classes)
         BIGI_I,    // TODO big integer with
         BIGF_I,    // TODO
@@ -143,7 +146,8 @@ class Object
           Repr(Float v)         : f{v} {}
           Repr(IRCStringPtr p)  : ps{p} {}
           Repr(IRCListPtr p)    : pl{p} {}
-          Repr(IRCMapPtr p)     : pm{p} {}
+          Repr(IRCMapPtr p)     : psm{p} {}
+          Repr(IRCOMapPtr p)    : pom{p} {}
           Repr(DataSourcePtr p) : ds{p} {}
 
           void*         z;
@@ -153,7 +157,8 @@ class Object
           Float         f;
           IRCStringPtr  ps;
           IRCListPtr    pl;
-          IRCMapPtr     pm;
+          IRCMapPtr     psm;
+          IRCOMapPtr    pom;
           DataSourcePtr ds;
       };
 
@@ -182,7 +187,8 @@ class Object
     template <> ReprType ix_conv<Float>() const  { return FLOAT_I; }
     template <> ReprType ix_conv<String>() const { return STR_I; }
     template <> ReprType ix_conv<List>() const   { return LIST_I; }
-    template <> ReprType ix_conv<Map>() const    { return OMAP_I; }
+    template <> ReprType ix_conv<Map>() const    { return MAP_I; }
+    template <> ReprType ix_conv<OMap>() const   { return OMAP_I; }
 
     template <typename T> T val_conv() const requires is_byvalue<T>;
     template <> bool val_conv<bool>() const     { return m_repr.b; }
@@ -214,7 +220,8 @@ class Object
           case FLOAT_I: return "double";
           case STR_I:   return "string";
           case LIST_I:  return "list";
-          case OMAP_I:  return "map";
+          case MAP_I:   return "sorted-map";
+          case OMAP_I:  return "ordered-map";
           case DSRC_I:  return "data-source";
           case DEL_I:   return "deleted";
           default:      return "<undefined>";
@@ -238,8 +245,10 @@ class Object
 
     Object(const List&);
     Object(const Map&);
+    Object(const OMap&);
     Object(List&&);
     Object(Map&&);
+    Object(OMap&&);
 
     Object(const Key&);
     Object(Key&&);
@@ -291,7 +300,7 @@ class Object
     template <typename T>
     T value_cast() const;
 
-    // TODO: doesn't work for List, Map
+    // TODO: doesn't work for List, OMap
     template <typename T>
     bool is_type() const { return resolve_repr_ix() == ix_conv<T>(); }
 
@@ -326,18 +335,20 @@ class Object
         throw wrong_type(m_fields.repr_ix);
     }
 
-    bool is_empty() const     { return m_fields.repr_ix == EMPTY_I; }
-    bool is_deleted() const   { return m_fields.repr_ix == DEL_I; }
+    bool is_empty() const   { return m_fields.repr_ix == EMPTY_I; }
+    bool is_deleted() const { return m_fields.repr_ix == DEL_I; }
 
-    bool is_bool() const      { return resolve_repr_ix() == BOOL_I; }
-    bool is_int() const       { return resolve_repr_ix() == INT_I; }
-    bool is_uint() const      { return resolve_repr_ix() == UINT_I; }
-    bool is_float() const     { return resolve_repr_ix() == FLOAT_I; }
-    bool is_str() const       { return resolve_repr_ix() == STR_I; }
-    bool is_num() const       { auto type = resolve_repr_ix(); return type == INT_I || type == UINT_I || type == FLOAT_I; }
-    bool is_list() const      { return resolve_repr_ix() == LIST_I; }
-    bool is_map() const       { return resolve_repr_ix() == OMAP_I; }
-    bool is_container() const { auto type = resolve_repr_ix(); return type == LIST_I || type == OMAP_I; }
+    bool is_bool() const        { return resolve_repr_ix() == BOOL_I; }
+    bool is_int() const         { return resolve_repr_ix() == INT_I; }
+    bool is_uint() const        { return resolve_repr_ix() == UINT_I; }
+    bool is_float() const       { return resolve_repr_ix() == FLOAT_I; }
+    bool is_str() const         { return resolve_repr_ix() == STR_I; }
+    bool is_num() const         { auto type = resolve_repr_ix(); return type == INT_I || type == UINT_I || type == FLOAT_I; }
+    bool is_list() const        { return resolve_repr_ix() == LIST_I; }
+    bool is_any_map() const     { auto type = resolve_repr_ix(); return type == MAP_I || type == OMAP_I; }
+    bool is_ordered_map() const { return resolve_repr_ix() == OMAP_I; }
+    bool is_sorted_map() const  { return resolve_repr_ix() == MAP_I; }
+    bool is_container() const   { auto type = resolve_repr_ix(); return type == LIST_I || type == OMAP_I || type == MAP_I; }
 
     bool is_valid() const;
 
@@ -452,6 +463,17 @@ class OPath
             obj.refer_to(child);
         }
         return obj;
+    }
+
+    bool is_leaf(const Object& obj) const {
+        Object cursor = obj;
+        Object parent = obj.parent();
+        for (size_t i = 0; i < m_keys.size() && parent != null; ++i) {
+            cursor = parent;
+            parent = cursor.parent();
+        }
+        if (cursor == null) return false;
+        return lookup(cursor).is(obj);
     }
 
     Object create(const Object& origin, const Object& last_value) const {
@@ -823,7 +845,8 @@ Object::Object(const Object& other) : m_fields{other.m_fields} {
         case FLOAT_I: m_repr.f = other.m_repr.f; break;
         case STR_I:   m_repr.ps = other.m_repr.ps; inc_ref_count(); break;
         case LIST_I:  m_repr.pl = other.m_repr.pl; inc_ref_count(); break;
-        case OMAP_I:  m_repr.pm = other.m_repr.pm; inc_ref_count(); break;
+        case MAP_I:   m_repr.psm = other.m_repr.psm; inc_ref_count(); break;
+        case OMAP_I:  m_repr.pom = other.m_repr.pom; inc_ref_count(); break;
         case DSRC_I:  m_repr.ds = other.m_repr.ds; m_repr.ds->inc_ref_count(); break;
     }
 }
@@ -840,7 +863,8 @@ Object::Object(Object&& other) : m_fields{other.m_fields} {
         case FLOAT_I: m_repr.f = other.m_repr.f; break;
         case STR_I:   m_repr.ps = other.m_repr.ps; break;
         case LIST_I:  m_repr.pl = other.m_repr.pl; break;
-        case OMAP_I:  m_repr.pm = other.m_repr.pm; break;
+        case MAP_I:   m_repr.psm = other.m_repr.psm; break;
+        case OMAP_I:  m_repr.pom = other.m_repr.pom; break;
         case DSRC_I:  m_repr.ds = other.m_repr.ds; break;
     }
 
@@ -853,7 +877,7 @@ Object::Object(DataSourcePtr ptr) : m_repr{ptr}, m_fields{DSRC_I} {}  // DataSou
 
 inline
 Object::Object(const List& list) : m_repr{new IRCList({}, NoParent{})}, m_fields{LIST_I} {
-    List& my_list = std::get<0>(*m_repr.pl);
+    auto& my_list = std::get<0>(*m_repr.pl);
     for (auto& value : list) {
         Object copy = value.copy();
         my_list.push_back(copy);
@@ -862,8 +886,18 @@ Object::Object(const List& list) : m_repr{new IRCList({}, NoParent{})}, m_fields
 }
 
 inline
-Object::Object(const Map& map) : m_repr{new IRCMap({}, NoParent{})}, m_fields{OMAP_I} {
-    Map& my_map = std::get<0>(*m_repr.pm);
+Object::Object(const Map& map) : m_repr{new IRCMap({}, NoParent{})}, m_fields{MAP_I} {
+    auto& my_map = std::get<0>(*m_repr.psm);
+    for (auto& [key, value]: map) {
+        Object copy = value.copy();
+        my_map.insert({key, copy});
+        copy.set_parent(*this);
+    }
+}
+
+inline
+Object::Object(const OMap& map) : m_repr{new IRCOMap({}, NoParent{})}, m_fields{OMAP_I} {
+    auto& my_map = std::get<0>(*m_repr.pom);
     for (auto& [key, value]: map) {
         Object copy = value.copy();
         my_map.insert({key, copy});
@@ -873,14 +907,21 @@ Object::Object(const Map& map) : m_repr{new IRCMap({}, NoParent{})}, m_fields{OM
 
 inline
 Object::Object(List&& list) : m_repr{new IRCList(std::forward<List>(list), NoParent{})}, m_fields{LIST_I} {
-    List& my_list = std::get<0>(*m_repr.pl);
+    auto& my_list = std::get<0>(*m_repr.pl);
     for (auto& obj : my_list)
         obj.set_parent(*this);
 }
 
 inline
-Object::Object(Map&& map) : m_repr{new IRCMap(std::forward<Map>(map), NoParent{})}, m_fields{OMAP_I} {
-    Map& my_map = std::get<0>(*m_repr.pm);
+Object::Object(Map&& map) : m_repr{new IRCMap(std::forward<Map>(map), NoParent{})}, m_fields{MAP_I} {
+    auto& my_map = std::get<0>(*m_repr.psm);
+    for (auto& [key, obj]: my_map)
+        const_cast<Object&>(obj).set_parent(*this);
+}
+
+inline
+Object::Object(OMap&& map) : m_repr{new IRCOMap(std::forward<OMap>(map), NoParent{})}, m_fields{OMAP_I} {
+    auto& my_map = std::get<0>(*m_repr.pom);
     for (auto& [key, obj]: my_map)
         const_cast<Object&>(obj).set_parent(*this);
 }
@@ -930,7 +971,8 @@ Object::Object(ReprType type) : m_fields{(uint8_t)type} {
         case FLOAT_I: m_repr.f = 0.0; break;
         case STR_I:   m_repr.ps = new IRCString{"", NoParent{}}; break;
         case LIST_I:  m_repr.pl = new IRCList{{}, NoParent{}}; break;
-        case OMAP_I:  m_repr.pm = new IRCMap{{}, NoParent{}}; break;
+        case MAP_I:   m_repr.psm = new IRCMap{{}, NoParent{}}; break;
+        case OMAP_I:  m_repr.pom = new IRCOMap{{}, NoParent{}}; break;
         case DEL_I:   m_repr.z = nullptr; break;
         default:      throw wrong_type(type);
     }
@@ -961,7 +1003,8 @@ Object Object::parent() const {
         case EMPTY_I: throw empty_reference();
         case STR_I:   return std::get<1>(*m_repr.ps);
         case LIST_I:  return std::get<1>(*m_repr.pl);
-        case OMAP_I:  return std::get<1>(*m_repr.pm);
+        case MAP_I:   return std::get<1>(*m_repr.psm);
+        case OMAP_I:  return std::get<1>(*m_repr.pom);
         case DSRC_I:  return m_repr.ds->m_parent;
         default:      return null;
     }
@@ -1014,7 +1057,8 @@ void Object::weak_refer_to(const Object& other) {
 //        case FLOAT_I: m_repr.f = other.m_repr.f; break;
 //        case STR_I:   m_repr.ps = other.m_repr.ps; break;
         case LIST_I:  m_repr.pl = other.m_repr.pl; break;
-        case OMAP_I:  m_repr.pm = other.m_repr.pm; break;
+        case MAP_I:   m_repr.psm = other.m_repr.psm; break;
+        case OMAP_I:  m_repr.pom = other.m_repr.pom; break;
         case DSRC_I:  m_repr.ds = other.m_repr.ds; break;
         default:      throw wrong_type(m_fields.repr_ix);
     }
@@ -1033,8 +1077,13 @@ void Object::set_parent(const Object& new_parent) const {
             parent.weak_refer_to(new_parent);
             break;
         }
+        case MAP_I: {
+            auto& parent = std::get<1>(*m_repr.psm);
+            parent.weak_refer_to(new_parent);
+            break;
+        }
         case OMAP_I: {
-            auto& parent = std::get<1>(*m_repr.pm);
+            auto& parent = std::get<1>(*m_repr.pom);
             parent.weak_refer_to(new_parent);
             break;
         }
@@ -1061,8 +1110,13 @@ void Object::clear_parent() const {
             parent.m_fields.repr_ix = NULL_I;
             break;
         }
+        case MAP_I: {
+            auto& parent = std::get<1>(*m_repr.psm);
+            parent.m_fields.repr_ix = NULL_I;
+            break;
+        }
         case OMAP_I: {
-            auto& parent = std::get<1>(*m_repr.pm);
+            auto& parent = std::get<1>(*m_repr.pom);
             parent.m_fields.repr_ix = NULL_I;
             break;
         }
@@ -1094,8 +1148,16 @@ const Key Object::key_of(const Object& obj) const {
             }
             break;
         }
+        case MAP_I: {
+            const auto& map = std::get<0>(*m_repr.psm);
+            for (auto& [key, value] : map) {
+                if (value.is(obj))
+                    return key;
+            }
+            break;
+        }
         case OMAP_I: {
-            const auto& map = std::get<0>(*m_repr.pm);
+            const auto& map = std::get<0>(*m_repr.pom);
             for (auto& [key, value] : map) {
                 if (value.is(obj))
                     return key;
@@ -1133,7 +1195,8 @@ std::string Object::to_str() const {
         case UINT_I:  return int_to_str(m_repr.u);
         case FLOAT_I: return nodel::float_to_str(m_repr.f);
         case STR_I:   return std::get<0>(*m_repr.ps);
-        case LIST_I:
+        case LIST_I:  [[fallthrough]];
+        case MAP_I:   [[fallthrough]];
         case OMAP_I:  return to_json();
         case DSRC_I:  return const_cast<DataSourcePtr>(m_repr.ds)->to_str(*this);
         default:
@@ -1260,14 +1323,8 @@ Object Object::get(is_integral auto index) const {
             if (index < 0 || index >= list.size()) return null;
             return list[index];
         }
-        case OMAP_I: {
-            auto& map = std::get<0>(*m_repr.pm);
-            auto it = map.find(index);
-            if (it == map.end()) return null;
-            return it->second;
-        }
         case DSRC_I:  return m_repr.ds->get(*this, index);
-        default:      return null;
+        default:      return get(Key{index});
     }
 }
 
@@ -1283,8 +1340,14 @@ Object Object::get(const Key& key) const {
             if (index < 0 || index >= list.size()) return null;
             return list[index];
         }
+        case MAP_I: {
+            auto& map = std::get<0>(*m_repr.psm);
+            auto it = map.find(key);
+            if (it == map.end()) return null;
+            return it->second;
+        }
         case OMAP_I: {
-            auto& map = std::get<0>(*m_repr.pm);
+            auto& map = std::get<0>(*m_repr.pom);
             auto it = map.find(key);
             if (it == map.end()) return null;
             return it->second;
@@ -1341,9 +1404,21 @@ Object Object::set(const Key& key, const Object& in_val) {
             out_val.set_parent(*this);
             return out_val;
         }
+        case MAP_I: {
+            Object out_val = (in_val.parent() == null)? in_val: in_val.copy();
+            auto& map = std::get<0>(*m_repr.psm);
+            auto it = map.find(key);
+            if (it != map.end()) {
+                it->second.set_parent(null);
+                map.erase(it);
+            }
+            map.insert({key, out_val});
+            out_val.set_parent(*this);
+            return out_val;
+        }
         case OMAP_I: {
             Object out_val = (in_val.parent() == null)? in_val: in_val.copy();
-            auto& map = std::get<0>(*m_repr.pm);
+            auto& map = std::get<0>(*m_repr.pom);
             auto it = map.find(key);
             if (it != map.end()) {
                 it->second.set_parent(null);
@@ -1378,9 +1453,21 @@ Object Object::set(Key&& key, const Object& in_val) {
             out_val.set_parent(*this);
             return out_val;
         }
+        case MAP_I: {
+            Object out_val = (in_val.parent() == null)? in_val: in_val.copy();
+            auto& map = std::get<0>(*m_repr.psm);
+            auto it = map.find(key);
+            if (it != map.end()) {
+                it->second.set_parent(null);
+                map.erase(it);
+            }
+            map.insert({std::forward<Key>(key), out_val});
+            out_val.set_parent(*this);
+            return out_val;
+        }
         case OMAP_I: {
             Object out_val = (in_val.parent() == null)? in_val: in_val.copy();
-            auto& map = std::get<0>(*m_repr.pm);
+            auto& map = std::get<0>(*m_repr.pom);
             auto it = map.find(key);
             if (it != map.end()) {
                 it->second.set_parent(null);
@@ -1418,8 +1505,18 @@ void Object::del(const Key& key) {
             }
             break;
         }
+        case MAP_I: {
+            auto& map = std::get<0>(*m_repr.psm);
+            auto it = map.find(key);
+            if (it != map.end()) {
+                Object value = it->second;
+                value.clear_parent();
+                map.erase(it);
+            }
+            break;
+        }
         case OMAP_I: {
-            auto& map = std::get<0>(*m_repr.pm);
+            auto& map = std::get<0>(*m_repr.pom);
             auto it = map.find(key);
             if (it != map.end()) {
                 Object value = it->second;
@@ -1455,7 +1552,8 @@ size_t Object::size() const {
         case EMPTY_I: throw empty_reference();
         case STR_I:   return std::get<0>(*m_repr.ps).size();
         case LIST_I:  return std::get<0>(*m_repr.pl).size();
-        case OMAP_I:  return std::get<0>(*m_repr.pm).size();
+        case MAP_I:   return std::get<0>(*m_repr.psm).size();
+        case OMAP_I:  return std::get<0>(*m_repr.pom).size();
         case DSRC_I:  return m_repr.ds->size(*this);
         default:
             return 0;
@@ -1509,8 +1607,13 @@ const List Object::values() const {
                 children.push_back(child);
             break;
         }
+        case MAP_I:  {
+            for (auto& item : std::get<0>(*m_repr.psm))
+                children.push_back(item.second);
+            break;
+        }
         case OMAP_I:  {
-            for (auto& item : std::get<0>(*m_repr.pm))
+            for (auto& item : std::get<0>(*m_repr.pom))
                 children.push_back(item.second);
             break;
         }
@@ -1535,8 +1638,13 @@ inline
 const ItemList Object::items() const {
     ItemList items;
     switch (m_fields.repr_ix) {
+        case MAP_I:  {
+            for (auto& item : std::get<0>(*m_repr.psm))
+                items.push_back(item);
+            break;
+        }
         case OMAP_I:  {
-            for (auto& item : std::get<0>(*m_repr.pm))
+            for (auto& item : std::get<0>(*m_repr.pom))
                 items.push_back(item);
             break;
         }
@@ -1732,10 +1840,21 @@ public:
                         }
                         break;
                     }
+                    case Object::MAP_I: {
+                        m_visitor(parent, key, object, event | BEGIN_PARENT);
+                        m_stack.emplace(parent, key, object, event | END_PARENT);
+                        auto& map = std::get<0>(*object.m_repr.psm);
+                        Int index = map.size() - 1;
+                        for (auto it = map.crbegin(); it != map.crend(); it++, index--) {
+                            auto& [key, child] = *it;
+                            m_stack.emplace(object, key, child, (index == 0)? FIRST_VALUE: NEXT_VALUE);
+                        }
+                        break;
+                    }
                     case Object::OMAP_I: {
                         m_visitor(parent, key, object, event | BEGIN_PARENT);
                         m_stack.emplace(parent, key, object, event | END_PARENT);
-                        auto& map = std::get<0>(*object.m_repr.pm);
+                        auto& map = std::get<0>(*object.m_repr.pom);
                         Int index = map.size() - 1;
                         for (auto it = map.rcbegin(); it != map.rcend(); it++, index--) {
                             auto& [key, child] = *it;
@@ -1794,8 +1913,16 @@ public:
                     }
                     break;
                 }
+                case Object::MAP_I: {
+                    auto& map = std::get<0>(*object.m_repr.psm);
+                    for (auto it = map.cbegin(); it != map.cend(); it++) {
+                        auto& [key, child] = *it;
+                        m_deque.emplace_back(object, key, child);
+                    }
+                    break;
+                }
                 case Object::OMAP_I: {
-                    auto& map = std::get<0>(*object.m_repr.pm);
+                    auto& map = std::get<0>(*object.m_repr.pom);
                     for (auto it = map.cbegin(); it != map.cend(); it++) {
                         auto& [key, child] = *it;
                         m_deque.emplace_back(object, key, child);
@@ -1835,7 +1962,7 @@ void Object::to_json(std::ostream& os) const {
             os << ", ";
         }
 
-        if (parent.is_map() && !(event & WalkDF::END_PARENT)) {
+        if (parent.is_any_map() && !(event & WalkDF::END_PARENT)) {
             os << key.to_json() << ": ";
         }
 
@@ -1848,6 +1975,7 @@ void Object::to_json(std::ostream& os) const {
             case FLOAT_I: os << float_to_str(object.m_repr.f); break;
             case STR_I:   os << std::quoted(std::get<0>(*object.m_repr.ps)); break;
             case LIST_I:  os << ((event & WalkDF::BEGIN_PARENT)? '[': ']'); break;
+            case MAP_I:   [[fallthrough]];
             case OMAP_I:  os << ((event & WalkDF::BEGIN_PARENT)? '{': '}'); break;
             default:      throw wrong_type(object.m_fields.repr_ix);
         }
@@ -1859,17 +1987,19 @@ void Object::to_json(std::ostream& os) const {
 
 inline
 Oid Object::id() const {
-    switch (m_fields.repr_ix) {
+    auto repr_ix = m_fields.repr_ix;
+    switch (repr_ix) {
         case EMPTY_I: throw empty_reference();
         case NULL_I:  return Oid::null();
-        case BOOL_I:  return Oid{1, m_repr.b};
-        case INT_I:   return Oid{2, *((uint64_t*)(&m_repr.i))};
-        case UINT_I:  return Oid{3, m_repr.u};;
-        case FLOAT_I: return Oid{4, *((uint64_t*)(&m_repr.f))};;
-        case STR_I:   return Oid{5, (uint64_t)(&(std::get<0>(*m_repr.ps)))};
-        case LIST_I:  return Oid{6, (uint64_t)(&(std::get<0>(*m_repr.pl)))};
-        case OMAP_I:  return Oid{7, (uint64_t)(&(std::get<0>(*m_repr.pm)))};
-        case DSRC_I:  return Oid{8, (uint64_t)(m_repr.ds)};
+        case BOOL_I:  return Oid{repr_ix, m_repr.b};
+        case INT_I:   return Oid{repr_ix, *((uint64_t*)(&m_repr.i))};
+        case UINT_I:  return Oid{repr_ix, m_repr.u};;
+        case FLOAT_I: return Oid{repr_ix, *((uint64_t*)(&m_repr.f))};;
+        case STR_I:   return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.ps)))};
+        case LIST_I:  return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.pl)))};
+        case MAP_I:   return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.pom)))};
+        case OMAP_I:  return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.pom)))};
+        case DSRC_I:  return Oid{repr_ix, (uint64_t)(m_repr.ds)};
         default:      throw wrong_type(m_fields.repr_ix);
     }
 }
@@ -1887,7 +2017,8 @@ bool Object::is(const Object& other) const {
         case FLOAT_I: return m_repr.f == other.m_repr.f;
         case STR_I:   return m_repr.ps == other.m_repr.ps;
         case LIST_I:  return m_repr.pl == other.m_repr.pl;
-        case OMAP_I:  return m_repr.pm == other.m_repr.pm;
+        case MAP_I:   return m_repr.psm == other.m_repr.psm;
+        case OMAP_I:  return m_repr.pom == other.m_repr.pom;
         case DSRC_I:  return m_repr.ds == other.m_repr.ds;
         default:      throw wrong_type(m_fields.repr_ix);
     }
@@ -1904,7 +2035,8 @@ Object Object::copy() const {
         case FLOAT_I: return m_repr.f;
         case STR_I:   return std::get<0>(*m_repr.ps);
         case LIST_I:  return std::get<0>(*m_repr.pl);  // TODO: long-hand deep-copy, instead of using stack
-        case OMAP_I:  return std::get<0>(*m_repr.pm);  // TODO: long-hand deep-copy, instead of using stack
+        case MAP_I:   return std::get<0>(*m_repr.psm);  // TODO: long-hand deep-copy, instead of using stack
+        case OMAP_I:  return std::get<0>(*m_repr.pom);  // TODO: long-hand deep-copy, instead of using stack
         case DSRC_I:  return m_repr.ds->copy(*this, DataSource::Origin::MEMORY);
         case DEL_I:   return DEL_I;
         default:      throw wrong_type(m_fields.repr_ix);
@@ -1916,7 +2048,8 @@ refcnt_t Object::ref_count() const {
     switch (m_fields.repr_ix) {
         case STR_I:   return std::get<1>(*m_repr.ps).m_fields.ref_count;
         case LIST_I:  return std::get<1>(*m_repr.pl).m_fields.ref_count;
-        case OMAP_I:  return std::get<1>(*m_repr.pm).m_fields.ref_count;
+        case MAP_I:   return std::get<1>(*m_repr.psm).m_fields.ref_count;
+        case OMAP_I:  return std::get<1>(*m_repr.pom).m_fields.ref_count;
         case DSRC_I:  return m_repr.ds->ref_count();
         default:      return no_ref_count;
     }
@@ -1930,7 +2063,8 @@ void Object::inc_ref_count() const {
         case EMPTY_I: throw empty_reference();
         case STR_I:   ++(std::get<1>(*self.m_repr.ps).m_fields.ref_count); break;
         case LIST_I:  ++(std::get<1>(*self.m_repr.pl).m_fields.ref_count); break;
-        case OMAP_I:  ++(std::get<1>(*self.m_repr.pm).m_fields.ref_count); break;
+        case MAP_I:   ++(std::get<1>(*self.m_repr.psm).m_fields.ref_count); break;
+        case OMAP_I:  ++(std::get<1>(*self.m_repr.pom).m_fields.ref_count); break;
         case DSRC_I:  m_repr.ds->inc_ref_count(); break;
         default:      break;
     }
@@ -1956,8 +2090,17 @@ void Object::dec_ref_count() const {
             }
             break;
         }
+        case MAP_I: {
+            auto p_irc = self.m_repr.psm;
+            if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
+                for (auto& item : std::get<0>(*p_irc))
+                    item.second.clear_parent();
+                delete p_irc;
+            }
+            break;
+        }
         case OMAP_I: {
-            auto p_irc = self.m_repr.pm;
+            auto p_irc = self.m_repr.pom;
             if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
                 for (auto& item : std::get<0>(*p_irc))
                     item.second.clear_parent();
@@ -2007,8 +2150,13 @@ Object& Object::operator = (const Object& other) {
             inc_ref_count();
             break;
         }
+        case MAP_I: {
+            m_repr.psm = other.m_repr.psm;
+            inc_ref_count();
+            break;
+        }
         case OMAP_I: {
-            m_repr.pm = other.m_repr.pm;
+            m_repr.pom = other.m_repr.pom;
             inc_ref_count();
             break;
         }
@@ -2036,7 +2184,8 @@ Object& Object::operator = (Object&& other) {
         case FLOAT_I: m_repr.f = other.m_repr.f; break;
         case STR_I:   m_repr.ps = other.m_repr.ps; break;
         case LIST_I:  m_repr.pl = other.m_repr.pl; break;
-        case OMAP_I:  m_repr.pm = other.m_repr.pm; break;
+        case MAP_I:   m_repr.psm = other.m_repr.psm; break;
+        case OMAP_I:  m_repr.pom = other.m_repr.pom; break;
         case DSRC_I:  m_repr.ds = other.m_repr.ds; break;
     }
 
@@ -2468,8 +2617,13 @@ void DataSource::insure_fully_cached(const Object& target) {
                     value.set_parent(target);  // TODO: avoid setting parent twice
                 break;
             }
+            case Object::MAP_I: {
+                for (auto& item : std::get<0>(*m_cache.m_repr.psm))
+                    item.second.set_parent(target);  // TODO: avoid setting parent twice
+                break;
+            }
             case Object::OMAP_I: {
-                for (auto& item : std::get<0>(*m_cache.m_repr.pm))
+                for (auto& item : std::get<0>(*m_cache.m_repr.pom))
                     item.second.set_parent(target);  // TODO: avoid setting parent twice
                 break;
             }
@@ -2529,31 +2683,3 @@ struct hash<nodel::OPath>
 };
 
 } // namespace std
-
-
-//----------------------------------------------------------------------------------
-// fmtlib support
-//----------------------------------------------------------------------------------
-#ifdef FMT_FORMAT_H_
-
-namespace fmt {
-
-template <>
-struct formatter<nodel::Object> : formatter<const char*> {
-    auto format(const nodel::Object& obj, format_context& ctx) {
-        std::string str = obj.to_str();
-        return fmt::formatter<const char*>::format((const char*)str.c_str(), ctx);
-    }
-};
-
-template <>
-struct formatter<nodel::OPath> : formatter<const char*> {
-    auto format(const nodel::OPath& path, format_context& ctx) {
-        std::string str = path.to_str();
-        return fmt::formatter<const char*>::format((const char*)str.c_str(), ctx);
-    }
-};
-
-} // namespace fmt
-
-#endif

@@ -24,22 +24,25 @@ class KeyIterator
 
     union Repr
     {
-        Repr()                 : li{0UL} {}
-        Repr(UInt it)          : li{it} {}
-        Repr(Map::iterator it) : mi{it} {}
-        Repr(DsIterPtr&& p_it) : pdi{std::forward<DsIterPtr>(p_it)} {}
+        Repr()                  : li{0UL} {}
+        Repr(UInt it)           : li{it} {}
+        Repr(Map::iterator it)  : smi{it} {}
+        Repr(OMap::iterator it) : omi{it} {}
+        Repr(DsIterPtr&& p_it)  : pdi{std::forward<DsIterPtr>(p_it)} {}
         ~Repr() {}
 
         Key li;
-        Map::iterator mi;
+        Map::iterator smi;
+        OMap::iterator omi;
         DsIterPtr pdi;
     };
 
   public:
-    KeyIterator()                 : m_repr_ix{ReprType::NULL_I}, m_repr{} {}
-    KeyIterator(size_t pos)       : m_repr_ix{ReprType::LIST_I}, m_repr{pos} {}
-    KeyIterator(Map::iterator it) : m_repr_ix{ReprType::OMAP_I}, m_repr{it} {}
-    KeyIterator(DsIterPtr&& p_it) : m_repr_ix{ReprType::DSRC_I}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
+    KeyIterator()                  : m_repr_ix{ReprType::NULL_I}, m_repr{} {}
+    KeyIterator(size_t pos)        : m_repr_ix{ReprType::LIST_I}, m_repr{pos} {}
+    KeyIterator(Map::iterator it)  : m_repr_ix{ReprType::MAP_I}, m_repr{it} {}
+    KeyIterator(OMap::iterator it) : m_repr_ix{ReprType::OMAP_I}, m_repr{it} {}
+    KeyIterator(DsIterPtr&& p_it)  : m_repr_ix{ReprType::DSRC_I}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
     ~KeyIterator();
 
     KeyIterator(const KeyIterator& other) = delete;
@@ -92,40 +95,17 @@ KeyIterator::~KeyIterator() {
     }
 }
 
-//inline
-//KeyIterator::KeyIterator(const KeyIterator& other) : m_repr_ix{other.m_repr_ix} {
-//    switch (m_repr_ix) {
-//        case ReprType::NULL_I: break;
-//        case ReprType::LIST_I: m_repr.li = other.m_repr.li; break;
-//        case ReprType::OMAP_I: m_repr.mi = other.m_repr.mi; break;
-//        case ReprType::DSRC_I: m_repr.pdi = other.m_repr.pdi; break;
-//        default:               throw Object::wrong_type(m_repr_ix);
-//    }
-//}
-
 inline
 KeyIterator::KeyIterator(KeyIterator&& other) : m_repr_ix{other.m_repr_ix} {
     switch (m_repr_ix) {
         case ReprType::NULL_I: break;
         case ReprType::LIST_I: m_repr.li = other.m_repr.li; break;
-        case ReprType::OMAP_I: m_repr.mi = other.m_repr.mi; break;
+        case ReprType::MAP_I:  m_repr.smi = other.m_repr.smi; break;
+        case ReprType::OMAP_I: m_repr.omi = other.m_repr.omi; break;
         case ReprType::DSRC_I: m_repr.pdi = std::move(other.m_repr.pdi); break;
         default:               throw Object::wrong_type(m_repr_ix);
     }
 }
-
-//inline
-//auto& KeyIterator::operator = (const KeyIterator& other) {
-//    m_repr_ix = other.m_repr_ix;
-//    switch (m_repr_ix) {
-//        case ReprType::NULL_I: break;
-//        case ReprType::LIST_I: m_repr.li = other.m_repr.li; break;
-//        case ReprType::OMAP_I: m_repr.mi = other.m_repr.mi; break;
-//        case ReprType::DSRC_I: m_repr.pdi = other.m_repr.pdi; break;
-//        default:               throw Object::wrong_type(m_repr_ix);
-//    }
-//    return *this;
-//}
 
 inline
 auto& KeyIterator::operator = (KeyIterator&& other) {
@@ -133,7 +113,8 @@ auto& KeyIterator::operator = (KeyIterator&& other) {
     switch (m_repr_ix) {
         case ReprType::NULL_I: break;
         case ReprType::LIST_I: m_repr.li = other.m_repr.li; break;
-        case ReprType::OMAP_I: m_repr.mi = other.m_repr.mi; break;
+        case ReprType::MAP_I:  m_repr.smi = other.m_repr.smi; break;
+        case ReprType::OMAP_I: m_repr.omi = other.m_repr.omi; break;
         case ReprType::DSRC_I: m_repr.pdi = std::move(other.m_repr.pdi); break;
         default:               throw Object::wrong_type(m_repr_ix);
     }
@@ -144,7 +125,8 @@ inline
 auto& KeyIterator::operator ++ () {
     switch (m_repr_ix) {
         case ReprType::LIST_I: m_repr.li = m_repr.li.as<UInt>() + 1; break;
-        case ReprType::OMAP_I: ++(m_repr.mi); break;
+        case ReprType::MAP_I:  ++(m_repr.smi); break;
+        case ReprType::OMAP_I: ++(m_repr.omi); break;
         case ReprType::DSRC_I: m_repr.pdi->next(); break;
         default:               throw Object::wrong_type(m_repr_ix);
     }
@@ -155,7 +137,8 @@ inline
 const Key& KeyIterator::operator * () const {
     switch (m_repr_ix) {
         case ReprType::LIST_I: return m_repr.li;
-        case ReprType::OMAP_I: return m_repr.mi->first;
+        case ReprType::MAP_I:  return m_repr.smi->first;
+        case ReprType::OMAP_I: return m_repr.omi->first;
         case ReprType::DSRC_I: return m_repr.pdi->key();
         default:               throw Object::wrong_type(m_repr_ix);
     }
@@ -166,7 +149,8 @@ bool KeyIterator::operator == (const KeyIterator& other) const {
     switch (m_repr_ix) {
         case ReprType::NULL_I: return other.m_repr_ix == ReprType::NULL_I || other == *this;
         case ReprType::LIST_I: return m_repr.li == other.m_repr.li;
-        case ReprType::OMAP_I: return m_repr.mi == other.m_repr.mi;
+        case ReprType::MAP_I:  return m_repr.smi == other.m_repr.smi;
+        case ReprType::OMAP_I: return m_repr.omi == other.m_repr.omi;
         case ReprType::DSRC_I: return m_repr.pdi->done() && other.m_repr_ix == ReprType::NULL_I;
         default:               throw Object::wrong_type(m_repr_ix);
     }
@@ -185,9 +169,13 @@ KeyIterator KeyRange::begin() {
                 return KeyIterator{indices.first};
             }
         }
+        case ReprType::MAP_I: {
+            if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
+            return KeyIterator{std::get<0>(*m_obj.m_repr.psm).begin()};
+        }
         case ReprType::OMAP_I: {
             if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
-            return KeyIterator{std::get<0>(*m_obj.m_repr.pm).begin()};
+            return KeyIterator{std::get<0>(*m_obj.m_repr.pom).begin()};
         }
         case ReprType::DSRC_I: {
             auto p_it = m_itvl.is_empty()? m_obj.m_repr.ds->key_iter(): m_obj.m_repr.ds->key_iter(m_itvl);
@@ -210,9 +198,13 @@ KeyIterator KeyRange::end() {
                 return KeyIterator{indices.second};
             }
         }
+        case ReprType::MAP_I: {
+            if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
+            return KeyIterator{std::get<0>(*m_obj.m_repr.psm).end()};
+        }
         case ReprType::OMAP_I: {
             if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
-            return KeyIterator{std::get<0>(*m_obj.m_repr.pm).end()};
+            return KeyIterator{std::get<0>(*m_obj.m_repr.pom).end()};
         }
         case ReprType::DSRC_I: return KeyIterator{};
         default: throw Object::wrong_type(repr_ix);

@@ -32,19 +32,22 @@ class ValueIterator
     {
         Repr()                  : pdi{nullptr} {}
         Repr(List::iterator it) : li{it} {}
-        Repr(Map::iterator it)  : mi{it} {}
+        Repr(Map::iterator it)  : smi{it} {}
+        Repr(OMap::iterator it) : omi{it} {}
         Repr(DsIterPtr&& p_it)  : pdi{std::forward<DsIterPtr>(p_it)} {}
         ~Repr() {}
 
         List::iterator li;
-        Map::iterator mi;
+        Map::iterator smi;
+        OMap::iterator omi;
         DsIterPtr pdi;
     };
 
   public:
     ValueIterator()                  : m_repr_ix{ReprType::NULL_I}, m_repr{} {}
     ValueIterator(List::iterator it) : m_repr_ix{ReprType::LIST_I}, m_repr{it} {}
-    ValueIterator(Map::iterator it)  : m_repr_ix{ReprType::OMAP_I}, m_repr{it} {}
+    ValueIterator(Map::iterator it)  : m_repr_ix{ReprType::MAP_I}, m_repr{it} {}
+    ValueIterator(OMap::iterator it) : m_repr_ix{ReprType::OMAP_I}, m_repr{it} {}
     ValueIterator(DsIterPtr&& p_it)  : m_repr_ix{ReprType::DSRC_I}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
     ~ValueIterator();
 
@@ -85,40 +88,17 @@ ValueIterator::~ValueIterator() {
     if (m_repr_ix == ReprType::DSRC_I) std::destroy_at(&m_repr.pdi);
 }
 
-//inline
-//ValueIterator::ValueIterator(const ValueIterator& other) : m_repr_ix{other.m_repr_ix} {
-//    switch (m_repr_ix) {
-//        case ReprType::NULL_I: break;
-//        case ReprType::LIST_I: m_repr.li = other.m_repr.li; break;
-//        case ReprType::OMAP_I: m_repr.mi = other.m_repr.mi; break;
-//        case ReprType::DSRC_I: m_repr.pdi = other.m_repr.pdi; break;
-//        default:               throw Object::wrong_type(m_repr_ix);
-//    }
-//}
-
 inline
 ValueIterator::ValueIterator(ValueIterator&& other) : m_repr_ix{other.m_repr_ix} {
     switch (m_repr_ix) {
         case ReprType::NULL_I: break;
         case ReprType::LIST_I: m_repr.li = other.m_repr.li; break;
-        case ReprType::OMAP_I: m_repr.mi = other.m_repr.mi; break;
+        case ReprType::MAP_I:  m_repr.smi = other.m_repr.smi; break;
+        case ReprType::OMAP_I: m_repr.omi = other.m_repr.omi; break;
         case ReprType::DSRC_I: m_repr.pdi = std::move(other.m_repr.pdi); break;
         default:               throw Object::wrong_type(m_repr_ix);
     }
 }
-
-//inline
-//auto& ValueIterator::operator = (const ValueIterator& other) {
-//    m_repr_ix = other.m_repr_ix;
-//    switch (m_repr_ix) {
-//        case ReprType::NULL_I: break;
-//        case ReprType::LIST_I: m_repr.li = other.m_repr.li; break;
-//        case ReprType::OMAP_I: m_repr.mi = other.m_repr.mi; break;
-//        case ReprType::DSRC_I: m_repr.pdi = other.m_repr.pdi; break;
-//        default:               throw Object::wrong_type(m_repr_ix);
-//    }
-//    return *this;
-//}
 
 inline
 auto& ValueIterator::operator = (ValueIterator&& other) {
@@ -126,7 +106,8 @@ auto& ValueIterator::operator = (ValueIterator&& other) {
     switch (m_repr_ix) {
         case ReprType::NULL_I: break;
         case ReprType::LIST_I: m_repr.li = other.m_repr.li; break;
-        case ReprType::OMAP_I: m_repr.mi = other.m_repr.mi; break;
+        case ReprType::MAP_I:  m_repr.smi = other.m_repr.smi; break;
+        case ReprType::OMAP_I: m_repr.omi = other.m_repr.omi; break;
         case ReprType::DSRC_I: m_repr.pdi.release(); m_repr.pdi = std::move(other.m_repr.pdi); break;
         default:               throw Object::wrong_type(m_repr_ix);
     }
@@ -137,7 +118,8 @@ inline
 auto& ValueIterator::operator ++ () {
     switch (m_repr_ix) {
         case ReprType::LIST_I: ++(m_repr.li); break;
-        case ReprType::OMAP_I: ++(m_repr.mi); break;
+        case ReprType::MAP_I:  ++(m_repr.smi); break;
+        case ReprType::OMAP_I: ++(m_repr.omi); break;
         case ReprType::DSRC_I: m_repr.pdi->next(); break;
         default:               throw Object::wrong_type(m_repr_ix);
     }
@@ -148,7 +130,8 @@ inline
 const Object& ValueIterator::operator * () const {
     switch (m_repr_ix) {
         case ReprType::LIST_I: return *m_repr.li;
-        case ReprType::OMAP_I: return m_repr.mi->second;
+        case ReprType::MAP_I:  return m_repr.smi->second;
+        case ReprType::OMAP_I: return m_repr.omi->second;
         case ReprType::DSRC_I: return m_repr.pdi->value();
         default:               throw Object::wrong_type(m_repr_ix);
     }
@@ -159,7 +142,8 @@ bool ValueIterator::operator == (const ValueIterator& other) const {
     switch (m_repr_ix) {
         case ReprType::NULL_I: return other.m_repr_ix == ReprType::NULL_I || other == *this;
         case ReprType::LIST_I: return m_repr.li == other.m_repr.li;
-        case ReprType::OMAP_I: return m_repr.mi == other.m_repr.mi;
+        case ReprType::MAP_I:  return m_repr.smi == other.m_repr.smi;
+        case ReprType::OMAP_I: return m_repr.omi == other.m_repr.omi;
         case ReprType::DSRC_I: return m_repr.pdi->done() && other.m_repr_ix == ReprType::NULL_I;
         default:               throw Object::wrong_type(m_repr_ix);
     }
@@ -170,7 +154,8 @@ ValueIterator ValueRange::begin() {
     auto repr_ix = m_obj.m_fields.repr_ix;
     switch (repr_ix) {
         case ReprType::LIST_I: return ValueIterator{std::get<0>(*m_obj.m_repr.pl).begin()};
-        case ReprType::OMAP_I: return ValueIterator{std::get<0>(*m_obj.m_repr.pm).begin()};
+        case ReprType::MAP_I:  return ValueIterator{std::get<0>(*m_obj.m_repr.psm).begin()};
+        case ReprType::OMAP_I: return ValueIterator{std::get<0>(*m_obj.m_repr.pom).begin()};
         case ReprType::DSRC_I: {
             auto p_it = m_obj.m_repr.ds->value_iter();
             return (p_it)? ValueIterator{std::move(p_it)}: ValueIterator{};
@@ -184,7 +169,8 @@ ValueIterator ValueRange::end() {
     auto repr_ix = m_obj.m_fields.repr_ix;
     switch (repr_ix) {
         case ReprType::LIST_I: return ValueIterator{std::get<0>(*m_obj.m_repr.pl).end()};
-        case ReprType::OMAP_I: return ValueIterator{std::get<0>(*m_obj.m_repr.pm).end()};
+        case ReprType::MAP_I:  return ValueIterator{std::get<0>(*m_obj.m_repr.psm).end()};
+        case ReprType::OMAP_I: return ValueIterator{std::get<0>(*m_obj.m_repr.pom).end()};
         case ReprType::DSRC_I: return ValueIterator{};
         default: throw Object::wrong_type(repr_ix);
     }

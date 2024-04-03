@@ -27,7 +27,8 @@ TEST(Object, TypeName) {
     EXPECT_EQ(Object{1UL}.type_name(), "uint");
     EXPECT_EQ(Object{"foo"}.type_name(), "string");
     EXPECT_EQ(Object{Object::LIST_I}.type_name(), "list");
-    EXPECT_EQ(Object{Object::OMAP_I}.type_name(), "map");
+    EXPECT_EQ(Object{Object::MAP_I}.type_name(), "sorted-map");
+    EXPECT_EQ(Object{Object::OMAP_I}.type_name(), "ordered-map");
 }
 
 TEST(Object, Empty) {
@@ -115,14 +116,26 @@ TEST(Object, List) {
   EXPECT_EQ(list.to_json(), "[1, \"tea\", 3.14, true]");
 }
 
-TEST(Object, Map) {
+TEST(Object, SortedMap) {
   Object map{Map{}};
-  EXPECT_TRUE(map.is_map());
+  EXPECT_TRUE(map.is_sorted_map());
 }
 
-TEST(Object, MapKeyOrder) {
-  Object map{Map{{"x"_key, Object(100)}, {"y"_key, Object("tea")}, {90, Object(true)}}};
-  EXPECT_TRUE(map.is_map());
+TEST(Object, SortedMapKeyOrder) {
+  Object map{Map{{"y"_key, Object("tea")}, {"x"_key, Object(100)}, {90, Object(true)}}};
+  EXPECT_TRUE(map.is_sorted_map());
+  map.to_json();
+  EXPECT_EQ(map.to_json(), "{90: true, \"x\": 100, \"y\": \"tea\"}");
+}
+
+TEST(Object, OrderedMap) {
+  Object map{OMap{}};
+  EXPECT_TRUE(map.is_ordered_map());
+}
+
+TEST(Object, OrderedMapKeyOrder) {
+  Object map{OMap{{"x"_key, Object(100)}, {"y"_key, Object("tea")}, {90, Object(true)}}};
+  EXPECT_TRUE(map.is_ordered_map());
   map.to_json();
   EXPECT_EQ(map.to_json(), "{\"x\": 100, \"y\": \"tea\", 90: true}");
 }
@@ -135,6 +148,9 @@ TEST(Object, Size) {
     EXPECT_EQ(Object("foo").size(), 3);
     EXPECT_EQ(json::parse("[1, 2, 3]").size(), 3);
     EXPECT_EQ(json::parse("{'x': 1, 'y': 2}").size(), 2);
+    json::Options options;
+    options.use_sorted_map = true;
+    EXPECT_EQ(json::parse(options, "{'x': 1, 'y': 2}").size(), 2);
 }
 
 TEST(Object, ToBool) {
@@ -611,10 +627,10 @@ TEST(Object, CompareIntList) {
     }
 }
 
-TEST(Object, CompareIntMap) {
+TEST(Object, CompareIntOrderedMap) {
     Object a{1};
     Object b = json::parse("{}");
-    EXPECT_TRUE(b.is_map());
+    EXPECT_TRUE(b.is_ordered_map());
     try {
         EXPECT_FALSE(a == b);
         FAIL();
@@ -706,7 +722,7 @@ TEST(Object, CompareUIntList) {
 TEST(Object, CompareUIntMap) {
     Object a{1ULL};
     Object b = json::parse("{}");
-    EXPECT_TRUE(b.is_map());
+    EXPECT_TRUE(b.is_ordered_map());
     try {
         EXPECT_FALSE(a == b);
         FAIL();
@@ -778,7 +794,7 @@ TEST(Object, CompareStrList) {
 TEST(Object, CompareStrMap) {
     Object a{"{}"};
     Object b = json::parse("{}");
-    EXPECT_TRUE(b.is_map());
+    EXPECT_TRUE(b.is_ordered_map());
     try {
         EXPECT_TRUE(a == b);
         FAIL();
@@ -872,20 +888,30 @@ TEST(Object, ListDelete) {
     EXPECT_EQ(obj.get(0), 2);
 }
 
-TEST(Object, MapGet) {
+TEST(Object, OrderedMapGet) {
   Object obj = json::parse(R"({0: 7, 1: 8, 2: 9, "name": "Brian"})");
-  EXPECT_TRUE(obj.is_map());
+  EXPECT_TRUE(obj.is_ordered_map());
   EXPECT_EQ(obj.get(0).to_int(), 7);
   EXPECT_EQ(obj.get(1).to_int(), 8);
   EXPECT_EQ(obj.get(2).to_int(), 9);
   EXPECT_EQ(obj.get("name"_key).as<String>(), "Brian");
+  EXPECT_TRUE(obj.get("blah"_key) == null);
+}
+
+TEST(Object, SortedMapGet) {
+  json::Options options; options.use_sorted_map = true;
+  Object obj = json::parse(options, R"({0: 7, 1: 8, 2: 9, "name": "Brian"})");
+  EXPECT_TRUE(obj.is_sorted_map());
+  EXPECT_EQ(obj.get(0).to_int(), 7);
+  EXPECT_EQ(obj.get(1).to_int(), 8);
+  EXPECT_EQ(obj.get(2).to_int(), 9);
   EXPECT_EQ(obj.get("name"_key).as<String>(), "Brian");
   EXPECT_TRUE(obj.get("blah"_key) == null);
 }
 
-TEST(Object, MapGetNotFound) {
+TEST(Object, OrderedMapGetNotFound) {
     Object obj = json::parse(R"({})");
-    EXPECT_TRUE(obj.is_map());
+    EXPECT_TRUE(obj.is_ordered_map());
     EXPECT_TRUE(obj.get("x"_key) == null);
 
     obj.set("x"_key, "X");
@@ -895,36 +921,88 @@ TEST(Object, MapGetNotFound) {
     EXPECT_TRUE(obj.get("x"_key) == null);
 }
 
-TEST(Object, MultipleSubscriptMap) {
+TEST(Object, SortedMapGetNotFound) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, R"({})");
+    EXPECT_TRUE(obj.is_sorted_map());
+    EXPECT_TRUE(obj.get("x"_key) == null);
+
+    obj.set("x"_key, "X");
+    EXPECT_FALSE(obj.get("x"_key) == null);
+
+    obj.del("x"_key);
+    EXPECT_TRUE(obj.get("x"_key) == null);
+}
+
+TEST(Object, MultipleSubscriptOrderedMap) {
   Object obj = json::parse(R"({"a": {"b": {"c": 7}}})");
-  EXPECT_TRUE(obj.is_map());
+  EXPECT_TRUE(obj.is_ordered_map());
   EXPECT_EQ(obj.get("a"_key).get("b"_key).get("c"_key), 7);
 }
 
-TEST(Object, MapSetNumber) {
+TEST(Object, MultipleSubscriptSortedMap) {
+  json::Options options; options.use_sorted_map = true;
+  Object obj = json::parse(options, R"({"a": {"b": {"c": 7}}})");
+  EXPECT_TRUE(obj.is_sorted_map());
+  EXPECT_EQ(obj.get("a"_key).get("b"_key).get("c"_key), 7);
+}
+
+TEST(Object, OrderedMapSetNumber) {
     Object obj = json::parse("{'x': 100}");
     obj.set("x"_key, 101);
     EXPECT_EQ(obj.get("x"s), 101);
 }
 
-TEST(Object, MapSetString) {
+TEST(Object, SortedMapSetNumber) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, "{'x': 100}");
+    obj.set("x"_key, 101);
+    EXPECT_EQ(obj.get("x"s), 101);
+}
+
+TEST(Object, OrderedMapSetString) {
     Object obj = json::parse("{'x': ''}");
     obj.set("x"_key, "salmon");
     EXPECT_EQ(obj.get("x"s), "salmon");
 }
 
-TEST(Object, MapSetList) {
+TEST(Object, SortedMapSetString) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, "{'x': ''}");
+    obj.set("x"_key, "salmon");
+    EXPECT_EQ(obj.get("x"s), "salmon");
+}
+
+TEST(Object, OrderedMapSetList) {
     Object obj = json::parse("{'x': [100]}");
     Object rhs = json::parse("[101]");
     obj.set("x"_key, rhs);
     EXPECT_EQ(obj.get("x"s).get(0), 101);
 }
 
-TEST(Object, MapSetMap) {
+TEST(Object, SortedMapSetList) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, "{'x': [100]}");
+    Object rhs = json::parse("[101]");
+    obj.set("x"_key, rhs);
+    EXPECT_EQ(obj.get("x"s).get(0), 101);
+}
+
+TEST(Object, OrderedMapSetOrderedMap) {
     Object obj = json::parse("{'x': [100]}");
     Object rhs = json::parse("{'y': 101}");
     obj.set("x"s, rhs);
-    EXPECT_TRUE(obj.get("x"s).is_map());
+    EXPECT_TRUE(obj.get("x"s).is_ordered_map());
+    EXPECT_EQ(obj.get("x"s).get("y"s), 101);
+}
+
+TEST(Object, SortedMapSetOrderedMap) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, "{'x': [100]}");
+    Object rhs = json::parse("{'y': 101}");
+    obj.set("x"s, rhs);
+    EXPECT_TRUE(obj.is_sorted_map());
+    EXPECT_TRUE(obj.get("x"s).is_ordered_map());
     EXPECT_EQ(obj.get("x"s).get("y"s), 101);
 }
 
@@ -946,8 +1024,18 @@ TEST(Object, SetReplaceInParent) {
     EXPECT_EQ(obj.get("x"_key), "Y");
 }
 
-TEST(Object, GetKey) {
+TEST(Object, OrderedMapGetKey) {
     Object obj = json::parse("{'x': 'X', 'y': 'Y', 'z': ['Z0', 'Z1']}");
+    EXPECT_EQ(obj.get("x"_key).key(), "x"_key);
+    EXPECT_EQ(obj.get("y"_key).key(), "y"_key);
+    EXPECT_EQ(obj.get("z"_key).key(), "z"_key);
+    EXPECT_EQ(obj.get("z"_key).get(0).key(), 0);
+    EXPECT_EQ(obj.get("z"_key).get(1).key(), 1);
+}
+
+TEST(Object, SortedMapGetKey) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, "{'x': 'X', 'y': 'Y', 'z': ['Z0', 'Z1']}");
     EXPECT_EQ(obj.get("x"_key).key(), "x"_key);
     EXPECT_EQ(obj.get("y"_key).key(), "y"_key);
     EXPECT_EQ(obj.get("z"_key).key(), "z"_key);
@@ -1029,7 +1117,19 @@ TEST(Object, OrderedMapChildrenRange) {
     EXPECT_TRUE(children[2].is_str());
 }
 
-TEST(Object, TreeRange) {
+TEST(Object, SortedMapChildrenRange) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, R"({"b": 1, "a": true, "c": "x"})");
+    List children;
+    for (auto obj : obj.values())
+        children.push_back(obj);
+    EXPECT_EQ(children.size(), 3);
+    EXPECT_TRUE(children[0].is_bool());
+    EXPECT_TRUE(children[1].is_int());
+    EXPECT_TRUE(children[2].is_str());
+}
+
+TEST(Object, TreeRangeOverOrderedMaps) {
     Object obj = json::parse(R"({
         "a": {"aa": "AA", "ab": "AB"}, 
         "b": [{"b0a": "B0A", "b0b": "B0B"}, 
@@ -1048,7 +1148,27 @@ TEST(Object, TreeRange) {
     EXPECT_EQ(list[15], "B1CA");
 }
 
-TEST(Object, TreeRange_VisitPred) {
+TEST(Object, TreeRangeOverSortedMaps) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, R"({
+        "b": [{"b0a": "B0A", "b0b": "B0B"}, 
+              {"b1b": ["B1B0"], "b1a": "B1A", "b1c": {"b1ca": "B1CA"}},
+              [], "B2"],
+        "a": {"ab": "AB", "aa": "AA"} 
+    })");
+    List list;
+    for (auto des : obj.iter_tree())
+        list.push_back(des);
+    ASSERT_EQ(list.size(), 16);
+    EXPECT_TRUE(list[0].is(obj));
+    EXPECT_TRUE(list[1].is(obj.get("a"_key)));
+    EXPECT_TRUE(list[7].is(obj.get("b"_key).get(2)));
+    EXPECT_TRUE(list[8].is(obj.get("b"_key).get(3)));
+    EXPECT_EQ(list[9], "B0A");
+    EXPECT_EQ(list[15], "B1CA");
+}
+
+TEST(Object, TreeRangeVisitPredOverOrderedMaps) {
     Object obj = json::parse(R"({
         "a": {"aa": "AA", "ab": "AB"}, 
         "b": [{"b0a": "B0A", "b0b": "B0B"}, 
@@ -1065,12 +1185,50 @@ TEST(Object, TreeRange_VisitPred) {
     EXPECT_TRUE(list[5].is(obj.get("b"_key).get(1).get("b1c"_key).get("b1ca"_key)));
 }
 
-TEST(Object, TreeRange_EnterPred) {
+TEST(Object, TreeRangeVisitPredOverSortedMaps) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, R"({
+        "b": [{"b0a": "B0A", "b0b": "B0B"}, 
+              {"b1b": ["B1B0"], "b1a": "B1A", "b1c": {"b1ca": "B1CA"}},
+              [], "B2"],
+        "a": {"ab": "AB", "aa": "AA"} 
+    })");
+    List list;
+    auto pred = [](const Object& o) { return o.is_type<String>() && o.as<String>()[0] == 'B'; };
+    for (auto des : obj.iter_tree(pred))
+        list.push_back(des);
+    ASSERT_EQ(list.size(), 6);
+    EXPECT_TRUE(list[0].is(obj.get("b"_key).get(3)));
+    EXPECT_TRUE(list[1].is(obj.get("b"_key).get(0).get("b0a"_key)));
+    EXPECT_TRUE(list[5].is(obj.get("b"_key).get(1).get("b1c"_key).get("b1ca"_key)));
+}
+
+TEST(Object, TreeRangeEnterPredOverOrderedMaps) {
     Object obj = json::parse(R"({
         "a": {"aa": "AA", "ab": "AB"}, 
         "b": [{"b0a": "B0A", "b0b": "B0B"}, 
               {"b1a": "B1A", "b1b": ["B1B0"], "b1c": {"b1ca": "B1CA"}},
               [], "B2"]
+    })");
+    List list;
+    auto pred = [](const Object& o) { return o.is_type<OMap>(); };
+    for (auto des : obj.iter_tree_if(pred))
+        list.push_back(des);
+    ASSERT_EQ(list.size(), 5);
+    EXPECT_TRUE(list[0].is(obj));
+    EXPECT_TRUE(list[1].is(obj.get("a"_key)));
+    EXPECT_TRUE(list[2].is(obj.get("b"_key)));
+    EXPECT_TRUE(list[3].is(obj.get("a"_key).get("aa"_key)));
+    EXPECT_TRUE(list[4].is(obj.get("a"_key).get("ab"_key)));
+}
+
+TEST(Object, TreeRangeEnterPredOverSortedMaps) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, R"({
+        "b": [{"b0a": "B0A", "b0b": "B0B"}, 
+              {"b1b": ["B1B0"], "b1a": "B1A", "b1c": {"b1ca": "B1CA"}},
+              [], "B2"],
+        "a": {"ab": "AB", "aa": "AA"} 
     })");
     List list;
     auto pred = [](const Object& o) { return o.is_type<Map>(); };
@@ -1084,12 +1242,30 @@ TEST(Object, TreeRange_EnterPred) {
     EXPECT_TRUE(list[4].is(obj.get("a"_key).get("ab"_key)));
 }
 
-TEST(Object, TreeRange_VisitAndEnterPred) {
+TEST(Object, TreeRange_VisitAndEnterPredOverOrderedMaps) {
     Object obj = json::parse(R"({
         "a": {"aa": "AA", "ab": "AB"}, 
         "b": [{"b0a": "B0A", "b0b": "B0B"}, 
               {"b1a": "B1A", "b1b": ["B1B0"], "b1c": {"b1ca": "B1CA"}},
               [], "B2"]
+    })");
+    List list;
+    auto visit_pred = [](const Object& o) { return o.is_type<String>(); };
+    auto enter_pred = [](const Object& o) { return o.is_type<OMap>(); };
+    for (auto des : obj.iter_tree_if(visit_pred, enter_pred))
+        list.push_back(des);
+    ASSERT_EQ(list.size(), 2);
+    EXPECT_EQ(list[0], "AA");
+    EXPECT_EQ(list[1], "AB");
+}
+
+TEST(Object, TreeRange_VisitAndEnterPredOverSortedMaps) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, R"({
+        "b": [{"b0a": "B0A", "b0b": "B0B"}, 
+              {"b1b": ["B1B0"], "b1a": "B1A", "b1c": {"b1ca": "B1CA"}},
+              [], "B2"],
+        "a": {"ab": "AB", "aa": "AA"} 
     })");
     List list;
     auto visit_pred = [](const Object& o) { return o.is_type<String>(); };
@@ -1123,8 +1299,21 @@ TEST(Object, ValuesRangeMultiuser) {
     }
 }
 
-TEST(Object, GetPath) {
+TEST(Object, GetPathOrderedMaps) {
     Object obj = json::parse(R"({"a": {"b": ["Assam", "Ceylon"]}})");
+    EXPECT_TRUE(obj.is_ordered_map());
+    EXPECT_EQ(obj.get("a"_key).path().to_str(), "a");
+    EXPECT_EQ(obj.get("a"_key).get("b"_key).path().to_str(), "a.b");
+    EXPECT_EQ(obj.get("a"_key).get("b"_key).get(1).path().to_str(), "a.b[1]");
+    EXPECT_EQ(obj.get("a"_key).get("b"_key).get(0).path().to_str(), "a.b[0]");
+    OPath path = obj.get("a"_key).get("b"_key).get(1).path();
+    EXPECT_EQ(obj.get(path).id(), obj.get("a"_key).get("b"_key).get(1).id());
+}
+
+TEST(Object, GetPathSortedMaps) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, R"({"a": {"b": ["Assam", "Ceylon"]}})");
+    EXPECT_TRUE(obj.is_sorted_map());
     EXPECT_EQ(obj.get("a"_key).path().to_str(), "a");
     EXPECT_EQ(obj.get("a"_key).get("b"_key).path().to_str(), "a.b");
     EXPECT_EQ(obj.get("a"_key).get("b"_key).get(1).path().to_str(), "a.b[1]");
@@ -1141,8 +1330,20 @@ TEST(Object, GetPartialPath) {
     EXPECT_TRUE(obj.get("a"_key).get(path).is(c));
 }
 
-TEST(Object, ConstructedPath) {
+TEST(Object, ConstructedPathOverOrderedMaps) {
     Object obj = json::parse(R"({"a": {"b": ["Assam", "Ceylon"]}})");
+    EXPECT_TRUE(obj.is_ordered_map());
+    OPath path;
+    path.append("a"_key);
+    path.append("b"_key);
+    path.append(0);
+    EXPECT_EQ(obj.get(path), "Assam");
+}
+
+TEST(Object, ConstructedPathOverSortedMaps) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, R"({"a": {"b": ["Assam", "Ceylon"]}})");
+    EXPECT_TRUE(obj.is_sorted_map());
     OPath path;
     path.append("a"_key);
     path.append("b"_key);
@@ -1190,9 +1391,18 @@ TEST(Object, CreatePartialPath) {
     path.create(obj, 100);
 
     EXPECT_EQ(path.to_str(), "a.b[0]");
-    EXPECT_TRUE(obj.get("a"_key).is_map());
+    EXPECT_TRUE(obj.get("a"_key).is_ordered_map());
     EXPECT_TRUE(obj.get("a"_key).get("b"_key).is_list());
     EXPECT_EQ(obj.get("a"_key).get("b"_key).get(0), 100);
+}
+
+TEST(Object, PathIsLeaf) {
+    Object obj = json::parse("{'a': {'a': {'a': 'tea'}}, 'b': {'a': {'a': 'totally unlike tea'}}}");
+    auto path = "a.a"_path;
+    EXPECT_TRUE(path.is_leaf(obj.get(path)));
+    EXPECT_TRUE(path.is_leaf(obj.get("b"_key).get(path)));
+    EXPECT_FALSE(path.is_leaf(obj.get("b"_key)));
+    EXPECT_FALSE(path.is_leaf(obj.get("b"_key).get("a"_key)));
 }
 
 TEST(Object, CreatePathCopy) {
@@ -1338,8 +1548,8 @@ TEST(Object, RefCountNewList) {
 }
 
 TEST(Object, RefCountNewMap) {
-  Object obj{Map{}};
-  EXPECT_TRUE(obj.is_map());
+  Object obj{OMap{}};
+  EXPECT_TRUE(obj.is_ordered_map());
   EXPECT_EQ(obj.ref_count(), 1);
 }
 
@@ -1428,7 +1638,7 @@ TEST(Object, ListPtrAlignmentRequirement) {
 }
 
 TEST(Object, MapPtrAlignmentRequirement) {
-  ptr_alignment_requirement_test<IRCMap>();
+  ptr_alignment_requirement_test<IRCOMap>();
 }
 
 TEST(Object, PtrIDEquality) {
@@ -1566,9 +1776,9 @@ TEST(Object, ParentIntegrityOnDel) {
     Object par = json::parse(R"({"x": [1], "y": [2]})");
     Object x1 = par.get("x"_key);
     Object x2 = par.get("x"_key);
-    EXPECT_TRUE(x1.parent().is_map());
+    EXPECT_TRUE(x1.parent().is_ordered_map());
     EXPECT_EQ(x2.parent().id(), par.id());
-    EXPECT_TRUE(x1.parent().is_map());
+    EXPECT_TRUE(x1.parent().is_ordered_map());
     EXPECT_EQ(x2.parent().id(), par.id());
     par.del("x"s);
     EXPECT_TRUE(x1.parent() == null);
@@ -1715,11 +1925,13 @@ struct TestSparseSource : public DataSource
     class TestKeyIterator : public KeyIterator
     {
       public:
-        TestKeyIterator(TestSparseSource& ds, const Object& data) : m_ds{ds} {
+        TestKeyIterator(TestSparseSource& ds, const Object& data, const Interval& itvl) : m_ds{ds}, m_itvl{itvl} {
             auto range = data.iter_keys();
             m_it = range.begin();
             m_end = range.end();
         }
+
+        TestKeyIterator(TestSparseSource& ds, const Object& data) : TestKeyIterator{ds, data, {}} {}
 
         ~TestKeyIterator() { m_ds.iter_deleted = true; }
 
@@ -1729,16 +1941,19 @@ struct TestSparseSource : public DataSource
         TestSparseSource& m_ds;
         nodel::KeyIterator m_it;
         nodel::KeyIterator m_end;
+        Interval m_itvl;
     };
 
     class TestValueIterator : public ValueIterator
     {
       public:
-        TestValueIterator(TestSparseSource& ds, const Object& data) : m_ds{ds} {
+        TestValueIterator(TestSparseSource& ds, const Object& data, const Interval& itvl) : m_ds{ds}, m_itvl{itvl} {
             auto range = data.iter_values();
             m_it = range.begin();
             m_end = range.end();
         }
+
+        TestValueIterator(TestSparseSource& ds, const Object& data) : TestValueIterator{ds, data, {}} {}
 
         ~TestValueIterator() { m_ds.iter_deleted = true; }
 
@@ -1748,16 +1963,19 @@ struct TestSparseSource : public DataSource
         TestSparseSource& m_ds;
         nodel::ValueIterator m_it;
         nodel::ValueIterator m_end;
+        Interval m_itvl;
     };
 
     class TestItemIterator : public ItemIterator
     {
       public:
-        TestItemIterator(TestSparseSource& ds, const Object& data) : m_ds{ds} {
+        TestItemIterator(TestSparseSource& ds, const Object& data, const Interval& itvl) : m_ds{ds}, m_itvl{itvl} {
             auto range = data.iter_items();
             m_it = range.begin();
             m_end = range.end();
         }
+
+        TestItemIterator(TestSparseSource& ds, const Object& data) : TestItemIterator{ds, data, {}} {}
 
         ~TestItemIterator() { m_ds.iter_deleted = true; }
 
@@ -1767,11 +1985,16 @@ struct TestSparseSource : public DataSource
         TestSparseSource& m_ds;
         nodel::ItemIterator m_it;
         nodel::ItemIterator m_end;
+        Interval m_itvl;
     };
 
     std::unique_ptr<KeyIterator> key_iter() override     { return std::make_unique<TestKeyIterator>(*this, data); }
     std::unique_ptr<ValueIterator> value_iter() override { return std::make_unique<TestValueIterator>(*this, data); }
     std::unique_ptr<ItemIterator> item_iter() override   { return std::make_unique<TestItemIterator>(*this, data); }
+
+    std::unique_ptr<KeyIterator> key_iter(const Interval& itvl) override     { return std::make_unique<TestKeyIterator>(*this, data, itvl); }
+    std::unique_ptr<ValueIterator> value_iter(const Interval& itvl) override { return std::make_unique<TestValueIterator>(*this, data, itvl); }
+    std::unique_ptr<ItemIterator> item_iter(const Interval& itvl) override   { return std::make_unique<TestItemIterator>(*this, data, itvl); }
 
     Object data;
     bool read_meta_called = false;
@@ -1855,7 +2078,7 @@ TEST(Object, TestSimpleSource_RefCountMoveAssign) {
 
 TEST(Object, TestSimpleSource_GetType) {
     Object obj{new TestSimpleSource(R"({"x": 1, "y": 2})")};
-    EXPECT_TRUE(obj.is_map());
+    EXPECT_TRUE(obj.is_ordered_map());
     EXPECT_EQ(obj.type(), Object::OMAP_I);
 }
 

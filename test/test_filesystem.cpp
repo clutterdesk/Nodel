@@ -63,7 +63,7 @@ TEST(Filesystem, EnterOnlyDirectories) {
 TEST(Filesystem, Directory) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object obj = new Directory(new DefaultRegistry(), wd);
-    EXPECT_TRUE(obj.is_map());
+    EXPECT_TRUE(obj.is_any_map());
     EXPECT_FALSE(obj.data_source<DataSource>()->is_fully_cached());
     EXPECT_TRUE(obj.size() > 0);
 }
@@ -71,7 +71,7 @@ TEST(Filesystem, Directory) {
 TEST(Filesystem, DirectoryFiles) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object obj = new Directory(new DefaultRegistry(), wd);
-    EXPECT_TRUE(obj.is_map());
+    EXPECT_TRUE(obj.is_any_map());
     EXPECT_FALSE(obj.data_source<DataSource>()->is_fully_cached());
     EXPECT_TRUE(obj.size() > 0);
 
@@ -114,7 +114,7 @@ TEST(Filesystem, DirectoryFiles) {
 TEST(Filesystem, Subdirectory) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new DefaultRegistry(), wd);
-    EXPECT_TRUE(test_data.get("more"_key).is_map());
+    EXPECT_TRUE(test_data.get("more"_key).is_any_map());
     EXPECT_TRUE(test_data.get("more"_key).get("example.csv"_key).is_list());
     EXPECT_TRUE(test_data.get("more"_key).get("example.csv"_key).get(-1).is_list());
     EXPECT_EQ(test_data.get("more"_key).get("example.csv"_key).get(-1).get(-1), "andrew43514@gmail.comField Tags");

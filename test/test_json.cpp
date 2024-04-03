@@ -197,7 +197,7 @@ TEST(Json, ParseExample1) {
   Parser parser1{nodel::impl::StreamAdapter{stream}};
     EXPECT_TRUE(parser1.parse_object());
     Object curr = parser1.m_curr;
-    EXPECT_TRUE(curr.is_map());
+    EXPECT_TRUE(curr.is_ordered_map());
     EXPECT_EQ(curr.size(), 2);
     EXPECT_EQ(curr.get("x"_key).get(0), 1);
     EXPECT_EQ(curr.get("y"_key).get(0), 2);
@@ -207,7 +207,7 @@ TEST(Json, ParseExampleFile) {
     std::string error;
     Object example = json::parse_file("test_data/example.json", error);
     EXPECT_EQ(error, "");
-    EXPECT_TRUE(example.is_map());
+    EXPECT_TRUE(example.is_ordered_map());
     EXPECT_EQ(example.get("favorite"_key), "Assam");
 }
 
@@ -222,7 +222,7 @@ TEST(Json, ParseLargeExample2File) {
     std::string error;
     Object example = json::parse_file("test_data/large_example_2.json", error);
     EXPECT_EQ(error, "");
-    EXPECT_TRUE(example.is_map());
+    EXPECT_TRUE(example.is_ordered_map());
 }
 
 //
