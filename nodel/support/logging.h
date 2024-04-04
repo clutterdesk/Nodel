@@ -14,8 +14,6 @@
 #pragma once
 
 #include <fmt/format.h>
-#include <source_location>
-
 #include <string_view>
 
 namespace nodel {
@@ -32,53 +30,32 @@ enum Level
 constexpr static int level = DEBUG;
 
 constexpr auto HEADING = "\033[38;5;39m";
-constexpr auto MESSAGE = "\033[38;5;39m";
+constexpr auto MESSAGE = " \033[38;5;39m";
 constexpr auto SOURCE = "\033[38;5;7m";
 constexpr auto RESTORE = "\033[0m";
 
 inline
-std::string_view trim_file_name(const std::source_location& loc) {
-    auto fname = loc.file_name();
-    auto len = std::strlen(fname);
-    return (len > 20)? std::string_view{(fname + len - 20), 20}: std::string_view{fname, len};
+std::string_view trim_file_name(const char* file) {
+    auto len = std::strlen(file);
+    return (len > 20)? std::string_view{(file + len - 20), 20}: std::string_view{file, len};
 }
 
 template <typename ... Args>
-void debug(const std::source_location& loc, const char *format, Args&& ... args) {
-    if constexpr (level >= Level::DEBUG) {
-        std::cout << HEADING << "[DEBUG] " << SOURCE << trim_file_name(loc) << ':' << loc.line() << " - " << MESSAGE <<
-            fmt::format(fmt::runtime(format), std::forward<Args>(args)...) << RESTORE << std::endl;
-    }
+void log(const char* file, int line, const char* level_name, const char *str) {
+    std::cout << HEADING << level_name << SOURCE << trim_file_name(file) << ':' << line << MESSAGE <<
+        str << RESTORE << std::endl;
 }
 
 template <typename ... Args>
-void warn(const std::source_location& loc, const char *format, Args&& ... args) {
-    if constexpr (level >= Level::DEBUG) {
-        std::cout << HEADING << "[WARNING] " << SOURCE << trim_file_name(loc) << ':' << loc.line() << " - " << MESSAGE <<
-            fmt::format(fmt::runtime(format), std::forward<Args>(args)...) << RESTORE << std::endl;
-    }
+void log(const char* file, int line, const char* level_name, const char *format, Args&& ... args) {
+    std::cout << HEADING << level_name << SOURCE << trim_file_name(file) << ':' << line << MESSAGE <<
+        fmt::format(fmt::runtime(format), std::forward<Args>(args)...) << RESTORE << std::endl;
 }
 
-template <typename ... Args>
-void error(const std::source_location& loc, const char *format, Args&& ... args) {
-    if constexpr (level >= Level::DEBUG) {
-        std::cout << HEADING << "[ERROR] " << SOURCE << trim_file_name(loc) << ':' << loc.line() << " - " << MESSAGE <<
-            fmt::format(fmt::runtime(format), std::forward<Args>(args)...) << RESTORE << std::endl;
-    }
-}
-
-template <typename ... Args>
-void fatal(const std::source_location& loc, const char *format, Args&& ... args) {
-    if constexpr (level >= Level::DEBUG) {
-        std::cout << HEADING << "[FATAL] " << SOURCE << trim_file_name(loc) << ':' << loc.line() << " - " << MESSAGE <<
-            fmt::format(fmt::runtime(format), std::forward<Args>(args)...) << RESTORE << std::endl;
-    }
-}
-
-#define DEBUG(format, ...) ::nodel::log::debug(std::source_location::current(), format, __VA_ARGS__);
-#define WARN(format, ...) ::nodel::log::warn(std::source_location::current(), format, __VA_ARGS__);
-#define ERROR(format, ...) ::nodel::log::error(std::source_location::current(), format, __VA_ARGS__);
-#define FATAL(format, ...) ::nodel::log::fatal(std::source_location::current(), format, __VA_ARGS__);
+#define DEBUG(...) { if (::nodel::log::level >= ::nodel::log::Level::DEBUG)   ::nodel::log::log(__FILE__, __LINE__, "[DEBUG] ",   __VA_ARGS__); }
+#define WARN(...)  { if (::nodel::log::level >= ::nodel::log::Level::WARNING) ::nodel::log::log(__FILE__, __LINE__, "[WARNING] ", __VA_ARGS__); }
+#define ERROR(...) { if (::nodel::log::level >= ::nodel::log::Level::ERROR)   ::nodel::log::log(__FILE__, __LINE__, "[ERROR] ",   __VA_ARGS__); }
+#define FATAL(...) { if (::nodel::log::level >= ::nodel::log::Level::FATAL)   ::nodel::log::log(__FILE__, __LINE__, "[FATAL] ",   __VA_ARGS__); }
 
 } // namespace log
 } // namespace nodel

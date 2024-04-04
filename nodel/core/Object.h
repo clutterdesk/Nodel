@@ -2638,6 +2638,8 @@ void DataSource::read_del(const Object& target, const Key& key) {
 
 namespace test {
 
+// Test interface for examining the private DataSource cache.
+//
 class DataSourceTestInterface
 {
   public:
