@@ -143,7 +143,7 @@ Object Parser<StreamType>::parse_unquoted() {
 
     char first_char = str[0];
     if (std::isdigit(first_char) || first_char == '-' || first_char == '+') {
-        if (str.contains('.')) {
+        if (str.find('.') != std::string::npos) {
             return str_to_float(str);
         } else {
             return str_to_int(str);

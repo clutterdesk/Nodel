@@ -1664,8 +1664,7 @@ bool Object::operator == (const Object& obj) const {
                 case INT_I:   return m_repr.b == obj.m_repr.i;
                 case UINT_I:  return m_repr.b == obj.m_repr.u;
                 case FLOAT_I: return m_repr.b == obj.m_repr.f;
-                default:
-                    throw wrong_type(m_fields.repr_ix);
+                default:      return false;
             }
         }
         case INT_I: {
@@ -1675,8 +1674,7 @@ bool Object::operator == (const Object& obj) const {
                 case INT_I:   return m_repr.i == obj.m_repr.i;
                 case UINT_I:  return m_repr.i == obj.m_repr.u;
                 case FLOAT_I: return m_repr.i == obj.m_repr.f;
-                default:
-                    throw wrong_type(m_fields.repr_ix);
+                default:      return false;
             }
         }
         case UINT_I: {
@@ -1686,8 +1684,7 @@ bool Object::operator == (const Object& obj) const {
                 case INT_I:   return m_repr.u == obj.m_repr.i;
                 case UINT_I:  return m_repr.u == obj.m_repr.u;
                 case FLOAT_I: return m_repr.u == obj.m_repr.f;
-                default:
-                    throw wrong_type(m_fields.repr_ix);
+                default:      return false;
             }
         }
         case FLOAT_I: {
@@ -1697,13 +1694,33 @@ bool Object::operator == (const Object& obj) const {
                 case INT_I:   return m_repr.f == obj.m_repr.i;
                 case UINT_I:  return m_repr.f == obj.m_repr.u;
                 case FLOAT_I: return m_repr.f == obj.m_repr.f;
-                default:
-                    throw wrong_type(m_fields.repr_ix);
+                default:      return false;
             }
         }
         case STR_I: {
             if (obj.m_fields.repr_ix == STR_I) return std::get<0>(*m_repr.ps) == std::get<0>(*obj.m_repr.ps);
-            throw wrong_type(m_fields.repr_ix);
+            return false;
+        }
+        case LIST_I: {
+            if (obj.m_fields.repr_ix != LIST_I) return false;
+            auto& lhs = std::get<0>(*m_repr.pl);
+            auto& rhs = std::get<0>(*obj.m_repr.pl);
+            if (lhs.size() != rhs.size()) return false;
+            for (List::size_type i=0; i<lhs.size(); i++)
+                if (lhs[i] != rhs[i])
+                    return false;
+            return true;
+        }
+        case MAP_I: [[fallthrough]];
+        case OMAP_I: {
+            if (!obj.is_map()) return false;
+            if (size() != obj.size()) return false;
+            if (keys() != obj.keys()) return false;
+            for (const auto& item : iter_items()) {
+                if (item.second != obj.get(item.first))
+                    return false;
+            }
+            return true;
         }
         case DSRC_I: return m_repr.ds->get_cached(*this) == obj;
         default:     throw wrong_type(m_fields.repr_ix);

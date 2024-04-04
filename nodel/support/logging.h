@@ -40,10 +40,10 @@ std::string_view trim_file_name(const char* file) {
     return (len > 20)? std::string_view{(file + len - 20), 20}: std::string_view{file, len};
 }
 
-template <typename ... Args>
-void log(const char* file, int line, const char* level_name, const char *str) {
+template <typename Arg>
+void log(const char* file, int line, const char* level_name, Arg&& arg) {
     std::cout << HEADING << level_name << SOURCE << trim_file_name(file) << ':' << line << MESSAGE <<
-        str << RESTORE << std::endl;
+        std::forward<Arg>(arg) << RESTORE << std::endl;
 }
 
 template <typename ... Args>

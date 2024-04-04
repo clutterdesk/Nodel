@@ -146,8 +146,8 @@ TEST(Object, Size) {
     EXPECT_EQ(Object(1ULL).size(), 0);
     EXPECT_EQ(Object(1.0).size(), 0);
     EXPECT_EQ(Object("foo").size(), 3);
-    EXPECT_EQ(json::parse("[1, 2, 3]").size(), 3);
-    EXPECT_EQ(json::parse("{'x': 1, 'y': 2}").size(), 2);
+    EXPECT_EQ("[1, 2, 3]"_json.size(), 3);
+    EXPECT_EQ("{'x': 1, 'y': 2}"_json.size(), 2);
     json::Options options; options.use_sorted_map = true;
     EXPECT_EQ(json::parse(options, "{'x': 1, 'y': 2}").size(), 2);
 }
@@ -263,8 +263,8 @@ TEST(Object, ToStr) {
   EXPECT_EQ(Object{0xFFFFFFFFFFFFFFFFULL}.to_str(), "18446744073709551615");
   EXPECT_EQ(Object{3.14}.to_str(), "3.14");
   EXPECT_EQ(Object{"trivial"}.to_str(), "trivial");
-  EXPECT_EQ(json::parse("[1, 2, 3]").to_str(), "[1, 2, 3]");
-  EXPECT_EQ(json::parse("{'name': 'Dude'}").to_str(), "{\"name\": \"Dude\"}");
+  EXPECT_EQ("[1, 2, 3]"_json.to_str(), "[1, 2, 3]");
+  EXPECT_EQ("{'name': 'Dude'}"_json.to_str(), "{\"name\": \"Dude\"}");
 
   const char* json = R"({"a": [], "b": [1], "c": [2, 3], "d": [4, [5, 6]]})";
   EXPECT_EQ(json::parse(json).to_str(), json);
@@ -444,22 +444,16 @@ TEST(Object, CompareBoolFloat) {
 TEST(Object, CompareBoolStr) {
     Object a{true};
     Object b{"false"};
-    try {
-        EXPECT_FALSE(a == b);
-        FAIL();
-    } catch (...) {
-    }
+
+    EXPECT_FALSE(a == b);
+    EXPECT_FALSE(b == a);
+
     try {
         EXPECT_TRUE(a > b);
         FAIL();
     } catch (...) {
     }
 
-    try {
-        EXPECT_FALSE(b == a);
-        FAIL();
-    } catch (...) {
-    }
     try {
         EXPECT_TRUE(b < a);
         FAIL();
@@ -469,23 +463,17 @@ TEST(Object, CompareBoolStr) {
 
 TEST(Object, CompareBoolList) {
     Object a{true};
-    Object b = json::parse("[1]");
-    try {
-        EXPECT_FALSE(a == b);
-        FAIL();
-    } catch (...) {
-    }
+    Object b = "[1]"_json;
+
+    EXPECT_FALSE(a == b);
+    EXPECT_FALSE(b == a);
+
     try {
         EXPECT_FALSE(a > b);
         FAIL();
     } catch (...) {
     }
 
-    try {
-        EXPECT_FALSE(b == a);
-        FAIL();
-    } catch (...) {
-    }
     try {
         EXPECT_FALSE(b < a);
         FAIL();
@@ -576,11 +564,10 @@ TEST(Object, CompareIntFloat) {
 TEST(Object, CompareIntStr) {
     Object a{1};
     Object b{"1"};
-    try {
-        EXPECT_FALSE(a == b);
-        FAIL();
-    } catch (...) {
-    }
+
+    EXPECT_FALSE(a == b);
+    EXPECT_FALSE(b == a);
+
     Object c{"0"};
     try {
         EXPECT_TRUE(a > c);
@@ -588,11 +575,6 @@ TEST(Object, CompareIntStr) {
     } catch (...) {
     }
 
-    try {
-        EXPECT_FALSE(b == a);
-        FAIL();
-    } catch (...) {
-    }
     try {
         EXPECT_TRUE(c < a);
         FAIL();
@@ -602,23 +584,16 @@ TEST(Object, CompareIntStr) {
 
 TEST(Object, CompareIntList) {
     Object a{1};
-    Object b = json::parse("[1]");
-    try {
-        EXPECT_FALSE(a == b);
-        FAIL();
-    } catch (...) {
-    }
+    Object b = "[1]"_json;
+    EXPECT_FALSE(a == b);
+    EXPECT_FALSE(b == a);
+
     try {
         EXPECT_FALSE(a > b);
         FAIL();
     } catch (...) {
     }
 
-    try {
-        EXPECT_FALSE(b == a);
-        FAIL();
-    } catch (...) {
-    }
     try {
         EXPECT_FALSE(b < a);
         FAIL();
@@ -628,24 +603,18 @@ TEST(Object, CompareIntList) {
 
 TEST(Object, CompareIntOrderedMap) {
     Object a{1};
-    Object b = json::parse("{}");
+    Object b = "{}"_json;
+
     EXPECT_TRUE(b.is_type<OrderedMap>());
-    try {
-        EXPECT_FALSE(a == b);
-        FAIL();
-    } catch (...) {
-    }
+    EXPECT_FALSE(a == b);
+    EXPECT_FALSE(b == a);
+
     try {
         EXPECT_FALSE(a > b);
         FAIL();
     } catch (...) {
     }
 
-    try {
-        EXPECT_FALSE(b == a);
-        FAIL();
-    } catch (...) {
-    }
     try {
         EXPECT_FALSE(b < a);
         FAIL();
@@ -668,11 +637,10 @@ TEST(Object, CompareUIntFloat) {
 TEST(Object, CompareUIntStr) {
     Object a{1ULL};
     Object b{"1"};
-    try {
-        EXPECT_FALSE(a == b);
-        FAIL();
-    } catch (...) {
-    }
+
+    EXPECT_FALSE(a == b);
+    EXPECT_FALSE(b == a);
+
     Object c{"0"};
     try {
         EXPECT_TRUE(a > c);
@@ -680,11 +648,6 @@ TEST(Object, CompareUIntStr) {
     } catch (...) {
     }
 
-    try {
-        EXPECT_FALSE(b == a);
-        FAIL();
-    } catch (...) {
-    }
     try {
         EXPECT_TRUE(c < a);
         FAIL();
@@ -694,23 +657,17 @@ TEST(Object, CompareUIntStr) {
 
 TEST(Object, CompareUIntList) {
     Object a{1ULL};
-    Object b = json::parse("[1]");
-    try {
-        EXPECT_FALSE(a == b);
-        FAIL();
-    } catch (...) {
-    }
+    Object b = "[1]"_json;
+
+    EXPECT_FALSE(a == b);
+    EXPECT_FALSE(b == a);
+
     try {
         EXPECT_FALSE(a > b);
         FAIL();
     } catch (...) {
     }
 
-    try {
-        EXPECT_FALSE(b == a);
-        FAIL();
-    } catch (...) {
-    }
     try {
         EXPECT_FALSE(b < a);
         FAIL();
@@ -720,24 +677,18 @@ TEST(Object, CompareUIntList) {
 
 TEST(Object, CompareUIntMap) {
     Object a{1ULL};
-    Object b = json::parse("{}");
+    Object b = "{}"_json;
+
     EXPECT_TRUE(b.is_type<OrderedMap>());
-    try {
-        EXPECT_FALSE(a == b);
-        FAIL();
-    } catch (...) {
-    }
+    EXPECT_FALSE(a == b);
+    EXPECT_FALSE(b == a);
+
     try {
         EXPECT_FALSE(a > b);
         FAIL();
     } catch (...) {
     }
 
-    try {
-        EXPECT_FALSE(b == a);
-        FAIL();
-    } catch (...) {
-    }
     try {
         EXPECT_FALSE(b < a);
         FAIL();
@@ -766,23 +717,17 @@ TEST(Object, CompareStrStr) {
 
 TEST(Object, CompareStrList) {
     Object a{"[1]"};
-    Object b = json::parse("[1]");
-    try {
-        EXPECT_TRUE(a == b);
-        FAIL();
-    } catch (...) {
-    }
+    Object b = "[1]"_json;
+
+    EXPECT_FALSE(a == b);
+    EXPECT_FALSE(b == a);
+
     try {
         EXPECT_FALSE(a > b);
         FAIL();
     } catch (...) {
     }
 
-    try {
-        EXPECT_TRUE(b == a);
-        FAIL();
-    } catch (...) {
-    }
     try {
         EXPECT_FALSE(b < a);
         FAIL();
@@ -792,13 +737,12 @@ TEST(Object, CompareStrList) {
 
 TEST(Object, CompareStrMap) {
     Object a{"{}"};
-    Object b = json::parse("{}");
+    Object b = "{}"_json;
+
     EXPECT_TRUE(b.is_type<OrderedMap>());
-    try {
-        EXPECT_TRUE(a == b);
-        FAIL();
-    } catch (...) {
-    }
+    EXPECT_FALSE(a == b);
+    EXPECT_FALSE(b == a);
+
     try {
         EXPECT_FALSE(a > b);
         FAIL();
@@ -806,15 +750,18 @@ TEST(Object, CompareStrMap) {
     }
 
     try {
-        EXPECT_TRUE(b == a);
-        FAIL();
-    } catch (...) {
-    }
-    try {
         EXPECT_FALSE(b < a);
         FAIL();
     } catch (...) {
     }
+}
+
+TEST(Object, CompareListList) {
+    Object a = "['Assam', 'Darjeeling']"_json;
+    Object b = "['Assam', 'Darjeeling']"_json;
+    Object c = "['Assam', 'Ceylon']"_json;
+    EXPECT_EQ(a, b);
+    EXPECT_NE(a, c);
 }
 
 TEST(Object, CopyBasic) {
@@ -839,7 +786,7 @@ TEST(Object, CopyBasic) {
 }
 
 TEST(Object, ListGet) {
-  Object obj = json::parse("[7, 8, 9]");
+  Object obj = "[7, 8, 9]"_json;
   EXPECT_TRUE(obj.is_type<List>());
   EXPECT_EQ(obj.get(0).to_int(), 7);
   EXPECT_EQ(obj.get(1).to_int(), 8);
@@ -860,7 +807,7 @@ TEST(Object, ListGetOutOfRange) {
 }
 
 TEST(Object, ListSet) {
-    Object obj = json::parse("[1, 2, 3]");
+    Object obj = "[1, 2, 3]"_json;
     obj.set(1, 12);
     obj.set(-1, 13);
     EXPECT_EQ(obj.get(0), 1);
@@ -877,7 +824,7 @@ TEST(Object, ListSet) {
 }
 
 TEST(Object, ListDelete) {
-    Object obj = json::parse("[1, 2, 3]");
+    Object obj = "[1, 2, 3]"_json;
     obj.del(0);
     EXPECT_EQ(obj.size(), 2);
     EXPECT_EQ(obj.get(0), 2);
@@ -947,7 +894,7 @@ TEST(Object, MultipleSubscriptSortedMap) {
 }
 
 TEST(Object, OrderedMapSetNumber) {
-    Object obj = json::parse("{'x': 100}");
+    Object obj = "{'x': 100}"_json;
     obj.set("x"_key, 101);
     EXPECT_EQ(obj.get("x"s), 101);
 }
@@ -960,7 +907,7 @@ TEST(Object, SortedMapSetNumber) {
 }
 
 TEST(Object, OrderedMapSetString) {
-    Object obj = json::parse("{'x': ''}");
+    Object obj = "{'x': ''}"_json;
     obj.set("x"_key, "salmon");
     EXPECT_EQ(obj.get("x"s), "salmon");
 }
@@ -973,8 +920,8 @@ TEST(Object, SortedMapSetString) {
 }
 
 TEST(Object, OrderedMapSetList) {
-    Object obj = json::parse("{'x': [100]}");
-    Object rhs = json::parse("[101]");
+    Object obj = "{'x': [100]}"_json;
+    Object rhs = "[101]"_json;
     obj.set("x"_key, rhs);
     EXPECT_EQ(obj.get("x"s).get(0), 101);
 }
@@ -982,14 +929,14 @@ TEST(Object, OrderedMapSetList) {
 TEST(Object, SortedMapSetList) {
     json::Options options; options.use_sorted_map = true;
     Object obj = json::parse(options, "{'x': [100]}");
-    Object rhs = json::parse("[101]");
+    Object rhs = "[101]"_json;
     obj.set("x"_key, rhs);
     EXPECT_EQ(obj.get("x"s).get(0), 101);
 }
 
 TEST(Object, OrderedMapSetOrderedMap) {
-    Object obj = json::parse("{'x': [100]}");
-    Object rhs = json::parse("{'y': 101}");
+    Object obj = "{'x': [100]}"_json;
+    Object rhs = "{'y': 101}"_json;
     obj.set("x"s, rhs);
     EXPECT_TRUE(obj.get("x"s).is_type<OrderedMap>());
     EXPECT_EQ(obj.get("x"s).get("y"s), 101);
@@ -1899,7 +1846,6 @@ TEST(Object, IterListKeyOpenOpenIntInterval) {
     KeyList expect = {1, 2};
     KeyList actual;
     for (auto& key : obj.iter_keys({{0, Endpoint::Kind::OPEN}, {3, Endpoint::Kind::OPEN}})) {
-        DEBUG("{}", key);
         actual.push_back(key);
     }
     EXPECT_EQ(actual, expect);

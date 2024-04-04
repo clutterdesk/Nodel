@@ -86,7 +86,7 @@ TEST(Filesystem, DirectoryFiles) {
     EXPECT_TRUE(example_txt.parent().is(obj));
     EXPECT_TRUE(!example_txt.data_source<DataSource>()->is_fully_cached());
     EXPECT_TRUE(example_txt.is_type<String>());
-    EXPECT_TRUE(example_txt.as<String>().contains("boring"));
+    EXPECT_TRUE(example_txt.as<String>().find("boring") != std::string::npos);
 
     auto example = obj.get("example.json"_key);
     EXPECT_TRUE(example.parent().is(obj));
@@ -104,12 +104,6 @@ TEST(Filesystem, DirectoryFiles) {
     EXPECT_EQ(large_example_2.get("result"_key).get(-1).get("location"_key).get("city"_key), "Indianapolis");
     EXPECT_TRUE(large_example_2.data_source<DataSource>()->is_fully_cached());
 }
-
-//TEST(Filesystem, JsonFileWithListBug) {
-//    auto wd = std::filesystem::current_path() / "test_data";
-//    Object test_data = new Directory(new DefaultRegistry(), wd);
-//    EXPECT_EQ(test_data.get("table.json"_key).path()
-//}
 
 TEST(Filesystem, Subdirectory) {
     auto wd = std::filesystem::current_path() / "test_data";

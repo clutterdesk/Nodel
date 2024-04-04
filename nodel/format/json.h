@@ -471,4 +471,15 @@ Object parse_file(const std::string& file_name, std::string& error) {
 }
 
 } // namespace json
+
+
+#ifndef NODEL_NO_JSON_LITERAL
+
+inline
+Object operator ""_json (const char* str, size_t size) {
+    return json::parse({str, size});
+}
+
+#endif
+
 } // namespace nodel
