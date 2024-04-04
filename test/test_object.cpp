@@ -45,65 +45,60 @@ TEST(Object, Null) {
 
 TEST(Object, Bool) {
   Object v{true};
-  EXPECT_TRUE(v.is_bool());
   EXPECT_TRUE(v.is_type<bool>());
   EXPECT_FALSE(v.is_num());
   EXPECT_EQ(v.to_json(), "true");
 
   v = false;
-  EXPECT_TRUE(v.is_bool());
+  EXPECT_TRUE(v.is_type<bool>());
   EXPECT_EQ(v.to_json(), "false");
 
   v = Object::BOOL_I;
-  EXPECT_TRUE(v.is_bool());
+  EXPECT_TRUE(v.is_type<bool>());
   EXPECT_EQ(v.to_json(), "false");
 }
 
 TEST(Object, Int64) {
   Object v{-0x7FFFFFFFFFFFFFFFLL};
   EXPECT_TRUE(v.is_type<Int>());
-  EXPECT_TRUE(v.is_int());
   EXPECT_TRUE(v.is_num());
   EXPECT_EQ(v.to_json(), "-9223372036854775807");
 
   v = Object::INT_I;
-  EXPECT_TRUE(v.is_int());
+  EXPECT_TRUE(v.is_type<Int>());
   EXPECT_EQ(v.to_json(), "0");
 }
 
 TEST(Object, UInt64) {
   Object v{0xFFFFFFFFFFFFFFFFULL};
   EXPECT_TRUE(v.is_type<UInt>());
-  EXPECT_TRUE(v.is_uint());
   EXPECT_TRUE(v.is_num());
   EXPECT_EQ(v.to_json(), "18446744073709551615");
 
   v = Object::UINT_I;
-  EXPECT_TRUE(v.is_uint());
+  EXPECT_TRUE(v.is_type<UInt>());
   EXPECT_EQ(v.to_json(), "0");
 }
 
 TEST(Object, Double) {
   Object v{3.141593};
   EXPECT_TRUE(v.is_type<Float>());
-  EXPECT_TRUE(v.is_float());
   EXPECT_TRUE(v.is_num());
   EXPECT_EQ(v.to_json(), "3.141593");
 
   v = Object::FLOAT_I;
-  EXPECT_TRUE(v.is_float());
+  EXPECT_TRUE(v.is_type<Float>());
   EXPECT_EQ(v.to_json(), "0");
 }
 
 TEST(Object, String) {
   Object v{"123"};
   EXPECT_TRUE(v.is_type<String>());
-  EXPECT_TRUE(v.is_str());
   EXPECT_TRUE(v.parent() == null);
   EXPECT_EQ(v.to_json(), "\"123\"");
 
   Object quoted{"a\"b"};
-  EXPECT_TRUE(quoted.is_str());
+  EXPECT_TRUE(quoted.is_type<String>());
   EXPECT_EQ(quoted.to_json(), "\"a\\\"b\"");
 }
 
@@ -118,32 +113,29 @@ TEST(Object, ConstructWithInvalidRepr) {
 TEST(Object, List) {
   Object list{List{Object(1), Object("tea"), Object(3.14), Object(true)}};
   EXPECT_TRUE(list.is_type<List>());
-  EXPECT_TRUE(list.is_list());
   EXPECT_EQ(list.to_json(), "[1, \"tea\", 3.14, true]");
 }
 
 TEST(Object, SortedMap) {
-  Object map{Map{}};
-  EXPECT_TRUE(map.is_type<Map>());
-  EXPECT_TRUE(map.is_sorted_map());
+  Object map{SortedMap{}};
+  EXPECT_TRUE(map.is_type<SortedMap>());
 }
 
 TEST(Object, SortedMapKeyOrder) {
-  Object map{Map{{"y"_key, Object("tea")}, {"x"_key, Object(100)}, {90, Object(true)}}};
-  EXPECT_TRUE(map.is_sorted_map());
+  Object map{SortedMap{{"y"_key, Object("tea")}, {"x"_key, Object(100)}, {90, Object(true)}}};
+  EXPECT_TRUE(map.is_type<SortedMap>());
   map.to_json();
   EXPECT_EQ(map.to_json(), "{90: true, \"x\": 100, \"y\": \"tea\"}");
 }
 
 TEST(Object, OrderedMap) {
-  Object map{OMap{}};
-  EXPECT_TRUE(map.is_type<OMap>());
-  EXPECT_TRUE(map.is_ordered_map());
+  Object map{OrderedMap{}};
+  EXPECT_TRUE(map.is_type<OrderedMap>());
 }
 
 TEST(Object, OrderedMapKeyOrder) {
-  Object map{OMap{{"x"_key, Object(100)}, {"y"_key, Object("tea")}, {90, Object(true)}}};
-  EXPECT_TRUE(map.is_ordered_map());
+  Object map{OrderedMap{{"x"_key, Object(100)}, {"y"_key, Object("tea")}, {90, Object(true)}}};
+  EXPECT_TRUE(map.is_type<OrderedMap>());
   map.to_json();
   EXPECT_EQ(map.to_json(), "{\"x\": 100, \"y\": \"tea\", 90: true}");
 }
@@ -294,7 +286,7 @@ TEST(Object, ToStr) {
 
 TEST(Object, ToKey) {
     Object obj{"key"};
-    EXPECT_TRUE(obj.is_str());
+    EXPECT_TRUE(obj.is_type<String>());
     EXPECT_EQ(obj.to_key().as<StringView>(), "key");
 
     EXPECT_EQ(Object{null}.to_key(), Key{null});
@@ -637,7 +629,7 @@ TEST(Object, CompareIntList) {
 TEST(Object, CompareIntOrderedMap) {
     Object a{1};
     Object b = json::parse("{}");
-    EXPECT_TRUE(b.is_ordered_map());
+    EXPECT_TRUE(b.is_type<OrderedMap>());
     try {
         EXPECT_FALSE(a == b);
         FAIL();
@@ -729,7 +721,7 @@ TEST(Object, CompareUIntList) {
 TEST(Object, CompareUIntMap) {
     Object a{1ULL};
     Object b = json::parse("{}");
-    EXPECT_TRUE(b.is_ordered_map());
+    EXPECT_TRUE(b.is_type<OrderedMap>());
     try {
         EXPECT_FALSE(a == b);
         FAIL();
@@ -801,7 +793,7 @@ TEST(Object, CompareStrList) {
 TEST(Object, CompareStrMap) {
     Object a{"{}"};
     Object b = json::parse("{}");
-    EXPECT_TRUE(b.is_ordered_map());
+    EXPECT_TRUE(b.is_type<OrderedMap>());
     try {
         EXPECT_TRUE(a == b);
         FAIL();
@@ -827,10 +819,10 @@ TEST(Object, CompareStrMap) {
 
 TEST(Object, CopyBasic) {
     EXPECT_TRUE(Object{null}.copy() == null);
-    EXPECT_TRUE(Object{-1}.copy().is_int());
-    EXPECT_TRUE(Object{1UL}.copy().is_uint());
-    EXPECT_TRUE(Object{2.718}.copy().is_float());
-    EXPECT_TRUE(Object{"tea"}.copy().is_str());
+    EXPECT_TRUE(Object{-1}.copy().is_type<Int>());
+    EXPECT_TRUE(Object{1UL}.copy().is_type<UInt>());
+    EXPECT_TRUE(Object{2.718}.copy().is_type<Float>());
+    EXPECT_TRUE(Object{"tea"}.copy().is_type<String>());
 
     EXPECT_EQ(Object{null}.copy(), null);
     EXPECT_EQ(Object{-1}.copy(), -1);
@@ -848,7 +840,7 @@ TEST(Object, CopyBasic) {
 
 TEST(Object, ListGet) {
   Object obj = json::parse("[7, 8, 9]");
-  EXPECT_TRUE(obj.is_list());
+  EXPECT_TRUE(obj.is_type<List>());
   EXPECT_EQ(obj.get(0).to_int(), 7);
   EXPECT_EQ(obj.get(1).to_int(), 8);
   EXPECT_EQ(obj.get(2).to_int(), 9);
@@ -863,7 +855,7 @@ TEST(Object, ListGet) {
 
 TEST(Object, ListGetOutOfRange) {
     Object obj = json::parse(R"([])");
-    EXPECT_TRUE(obj.is_list());
+    EXPECT_TRUE(obj.is_type<List>());
     EXPECT_TRUE(obj.get(1) == null);
 }
 
@@ -897,7 +889,7 @@ TEST(Object, ListDelete) {
 
 TEST(Object, OrderedMapGet) {
   Object obj = json::parse(R"({0: 7, 1: 8, 2: 9, "name": "Brian"})");
-  EXPECT_TRUE(obj.is_ordered_map());
+  EXPECT_TRUE(obj.is_type<OrderedMap>());
   EXPECT_EQ(obj.get(0).to_int(), 7);
   EXPECT_EQ(obj.get(1).to_int(), 8);
   EXPECT_EQ(obj.get(2).to_int(), 9);
@@ -908,7 +900,7 @@ TEST(Object, OrderedMapGet) {
 TEST(Object, SortedMapGet) {
   json::Options options; options.use_sorted_map = true;
   Object obj = json::parse(options, R"({0: 7, 1: 8, 2: 9, "name": "Brian"})");
-  EXPECT_TRUE(obj.is_sorted_map());
+  EXPECT_TRUE(obj.is_type<SortedMap>());
   EXPECT_EQ(obj.get(0).to_int(), 7);
   EXPECT_EQ(obj.get(1).to_int(), 8);
   EXPECT_EQ(obj.get(2).to_int(), 9);
@@ -918,7 +910,7 @@ TEST(Object, SortedMapGet) {
 
 TEST(Object, OrderedMapGetNotFound) {
     Object obj = json::parse(R"({})");
-    EXPECT_TRUE(obj.is_ordered_map());
+    EXPECT_TRUE(obj.is_type<OrderedMap>());
     EXPECT_TRUE(obj.get("x"_key) == null);
 
     obj.set("x"_key, "X");
@@ -931,7 +923,7 @@ TEST(Object, OrderedMapGetNotFound) {
 TEST(Object, SortedMapGetNotFound) {
     json::Options options; options.use_sorted_map = true;
     Object obj = json::parse(options, R"({})");
-    EXPECT_TRUE(obj.is_sorted_map());
+    EXPECT_TRUE(obj.is_type<SortedMap>());
     EXPECT_TRUE(obj.get("x"_key) == null);
 
     obj.set("x"_key, "X");
@@ -943,14 +935,14 @@ TEST(Object, SortedMapGetNotFound) {
 
 TEST(Object, MultipleSubscriptOrderedMap) {
   Object obj = json::parse(R"({"a": {"b": {"c": 7}}})");
-  EXPECT_TRUE(obj.is_ordered_map());
+  EXPECT_TRUE(obj.is_type<OrderedMap>());
   EXPECT_EQ(obj.get("a"_key).get("b"_key).get("c"_key), 7);
 }
 
 TEST(Object, MultipleSubscriptSortedMap) {
   json::Options options; options.use_sorted_map = true;
   Object obj = json::parse(options, R"({"a": {"b": {"c": 7}}})");
-  EXPECT_TRUE(obj.is_sorted_map());
+  EXPECT_TRUE(obj.is_type<SortedMap>());
   EXPECT_EQ(obj.get("a"_key).get("b"_key).get("c"_key), 7);
 }
 
@@ -999,7 +991,7 @@ TEST(Object, OrderedMapSetOrderedMap) {
     Object obj = json::parse("{'x': [100]}");
     Object rhs = json::parse("{'y': 101}");
     obj.set("x"s, rhs);
-    EXPECT_TRUE(obj.get("x"s).is_ordered_map());
+    EXPECT_TRUE(obj.get("x"s).is_type<OrderedMap>());
     EXPECT_EQ(obj.get("x"s).get("y"s), 101);
 }
 
@@ -1008,8 +1000,8 @@ TEST(Object, SortedMapSetOrderedMap) {
     Object obj = json::parse(options, "{'x': [100]}");
     Object rhs = json::parse("{'y': 101}");
     obj.set("x"s, rhs);
-    EXPECT_TRUE(obj.is_sorted_map());
-    EXPECT_TRUE(obj.get("x"s).is_ordered_map());
+    EXPECT_TRUE(obj.is_type<SortedMap>());
+    EXPECT_TRUE(obj.get("x"s).is_type<OrderedMap>());
     EXPECT_EQ(obj.get("x"s).get("y"s), 101);
 }
 
@@ -1108,9 +1100,9 @@ TEST(Object, ListChildrenRange) {
     for (auto obj : obj.values())
         children.push_back(obj);
     EXPECT_EQ(children.size(), 3);
-    EXPECT_TRUE(children[0].is_bool());
-    EXPECT_TRUE(children[1].is_int());
-    EXPECT_TRUE(children[2].is_str());
+    EXPECT_TRUE(children[0].is_type<bool>());
+    EXPECT_TRUE(children[1].is_type<Int>());
+    EXPECT_TRUE(children[2].is_type<String>());
 }
 
 TEST(Object, OrderedMapChildrenRange) {
@@ -1119,9 +1111,9 @@ TEST(Object, OrderedMapChildrenRange) {
     for (auto obj : obj.values())
         children.push_back(obj);
     EXPECT_EQ(children.size(), 3);
-    EXPECT_TRUE(children[0].is_bool());
-    EXPECT_TRUE(children[1].is_int());
-    EXPECT_TRUE(children[2].is_str());
+    EXPECT_TRUE(children[0].is_type<bool>());
+    EXPECT_TRUE(children[1].is_type<Int>());
+    EXPECT_TRUE(children[2].is_type<String>());
 }
 
 TEST(Object, SortedMapChildrenRange) {
@@ -1131,9 +1123,9 @@ TEST(Object, SortedMapChildrenRange) {
     for (auto obj : obj.values())
         children.push_back(obj);
     EXPECT_EQ(children.size(), 3);
-    EXPECT_TRUE(children[0].is_bool());
-    EXPECT_TRUE(children[1].is_int());
-    EXPECT_TRUE(children[2].is_str());
+    EXPECT_TRUE(children[0].is_type<bool>());
+    EXPECT_TRUE(children[1].is_type<Int>());
+    EXPECT_TRUE(children[2].is_type<String>());
 }
 
 TEST(Object, TreeRangeOverOrderedMaps) {
@@ -1218,7 +1210,7 @@ TEST(Object, TreeRangeEnterPredOverOrderedMaps) {
               [], "B2"]
     })");
     List list;
-    auto pred = [](const Object& o) { return o.is_type<OMap>(); };
+    auto pred = [](const Object& o) { return o.is_type<OrderedMap>(); };
     for (auto des : obj.iter_tree_if(pred))
         list.push_back(des);
     ASSERT_EQ(list.size(), 5);
@@ -1238,7 +1230,7 @@ TEST(Object, TreeRangeEnterPredOverSortedMaps) {
         "a": {"ab": "AB", "aa": "AA"} 
     })");
     List list;
-    auto pred = [](const Object& o) { return o.is_type<Map>(); };
+    auto pred = [](const Object& o) { return o.is_type<SortedMap>(); };
     for (auto des : obj.iter_tree_if(pred))
         list.push_back(des);
     ASSERT_EQ(list.size(), 5);
@@ -1258,7 +1250,7 @@ TEST(Object, TreeRange_VisitAndEnterPredOverOrderedMaps) {
     })");
     List list;
     auto visit_pred = [](const Object& o) { return o.is_type<String>(); };
-    auto enter_pred = [](const Object& o) { return o.is_type<OMap>(); };
+    auto enter_pred = [](const Object& o) { return o.is_type<OrderedMap>(); };
     for (auto des : obj.iter_tree_if(visit_pred, enter_pred))
         list.push_back(des);
     ASSERT_EQ(list.size(), 2);
@@ -1276,7 +1268,7 @@ TEST(Object, TreeRange_VisitAndEnterPredOverSortedMaps) {
     })");
     List list;
     auto visit_pred = [](const Object& o) { return o.is_type<String>(); };
-    auto enter_pred = [](const Object& o) { return o.is_type<Map>(); };
+    auto enter_pred = [](const Object& o) { return o.is_type<SortedMap>(); };
     for (auto des : obj.iter_tree_if(visit_pred, enter_pred))
         list.push_back(des);
     ASSERT_EQ(list.size(), 2);
@@ -1308,7 +1300,7 @@ TEST(Object, ValuesRangeMultiuser) {
 
 TEST(Object, GetPathOrderedMaps) {
     Object obj = json::parse(R"({"a": {"b": ["Assam", "Ceylon"]}})");
-    EXPECT_TRUE(obj.is_ordered_map());
+    EXPECT_TRUE(obj.is_type<OrderedMap>());
     EXPECT_EQ(obj.get("a"_key).path().to_str(), "a");
     EXPECT_EQ(obj.get("a"_key).get("b"_key).path().to_str(), "a.b");
     EXPECT_EQ(obj.get("a"_key).get("b"_key).get(1).path().to_str(), "a.b[1]");
@@ -1320,7 +1312,7 @@ TEST(Object, GetPathOrderedMaps) {
 TEST(Object, GetPathSortedMaps) {
     json::Options options; options.use_sorted_map = true;
     Object obj = json::parse(options, R"({"a": {"b": ["Assam", "Ceylon"]}})");
-    EXPECT_TRUE(obj.is_sorted_map());
+    EXPECT_TRUE(obj.is_type<SortedMap>());
     EXPECT_EQ(obj.get("a"_key).path().to_str(), "a");
     EXPECT_EQ(obj.get("a"_key).get("b"_key).path().to_str(), "a.b");
     EXPECT_EQ(obj.get("a"_key).get("b"_key).get(1).path().to_str(), "a.b[1]");
@@ -1339,7 +1331,7 @@ TEST(Object, GetPartialPath) {
 
 TEST(Object, ConstructedPathOverOrderedMaps) {
     Object obj = json::parse(R"({"a": {"b": ["Assam", "Ceylon"]}})");
-    EXPECT_TRUE(obj.is_ordered_map());
+    EXPECT_TRUE(obj.is_type<OrderedMap>());
     OPath path;
     path.append("a"_key);
     path.append("b"_key);
@@ -1350,7 +1342,7 @@ TEST(Object, ConstructedPathOverOrderedMaps) {
 TEST(Object, ConstructedPathOverSortedMaps) {
     json::Options options; options.use_sorted_map = true;
     Object obj = json::parse(options, R"({"a": {"b": ["Assam", "Ceylon"]}})");
-    EXPECT_TRUE(obj.is_sorted_map());
+    EXPECT_TRUE(obj.is_type<SortedMap>());
     OPath path;
     path.append("a"_key);
     path.append("b"_key);
@@ -1383,7 +1375,7 @@ TEST(Object, ManuallyCreatePath) {
     path.create(obj, 100);
 
     EXPECT_EQ(path.to_str(), "a[0].b");
-    EXPECT_TRUE(obj.get("a"_key).is_list());
+    EXPECT_TRUE(obj.get("a"_key).is_type<List>());
     EXPECT_EQ(obj.get("a"_key).get(0).type(), Object::OMAP_I);
     EXPECT_EQ(obj.get("a"_key).get(0).get("b"_key), 100);
 }
@@ -1398,8 +1390,8 @@ TEST(Object, CreatePartialPath) {
     path.create(obj, 100);
 
     EXPECT_EQ(path.to_str(), "a.b[0]");
-    EXPECT_TRUE(obj.get("a"_key).is_ordered_map());
-    EXPECT_TRUE(obj.get("a"_key).get("b"_key).is_list());
+    EXPECT_TRUE(obj.get("a"_key).is_type<OrderedMap>());
+    EXPECT_TRUE(obj.get("a"_key).get("b"_key).is_type<List>());
     EXPECT_EQ(obj.get("a"_key).get("b"_key).get(0), 100);
 }
 
@@ -1532,25 +1524,25 @@ TEST(Object, WalkBF) {
 
 TEST(Object, RefCountPrimitive) {
   Object obj{7};
-  EXPECT_TRUE(obj.is_int());
+  EXPECT_TRUE(obj.is_type<Int>());
   EXPECT_EQ(obj.ref_count(), Object::no_ref_count);
 }
 
 TEST(Object, RefCountNewString) {
   Object obj{"etc"};
-  EXPECT_TRUE(obj.is_str());
+  EXPECT_TRUE(obj.is_type<String>());
   EXPECT_EQ(obj.ref_count(), 1);
 }
 
 TEST(Object, RefCountNewList) {
   Object obj{List{}};
-  EXPECT_TRUE(obj.is_list());
+  EXPECT_TRUE(obj.is_type<List>());
   EXPECT_EQ(obj.ref_count(), 1);
 }
 
 TEST(Object, RefCountNewMap) {
-  Object obj{OMap{}};
-  EXPECT_TRUE(obj.is_ordered_map());
+  Object obj{OrderedMap{}};
+  EXPECT_TRUE(obj.is_type<OrderedMap>());
   EXPECT_EQ(obj.ref_count(), 1);
 }
 
@@ -1559,10 +1551,10 @@ TEST(Object, RefCountCopy) {
   Object copy1{obj};
   Object copy2{obj};
   Object* copy3 = new Object(copy2);
-  EXPECT_TRUE(obj.is_str());
-  EXPECT_TRUE(copy1.is_str());
-  EXPECT_TRUE(copy2.is_str());
-  EXPECT_TRUE(copy3->is_str());
+  EXPECT_TRUE(obj.is_type<String>());
+  EXPECT_TRUE(copy1.is_type<String>());
+  EXPECT_TRUE(copy2.is_type<String>());
+  EXPECT_TRUE(copy3->is_type<String>());
   EXPECT_EQ(obj.ref_count(), 4);
   EXPECT_EQ(copy1.ref_count(), 4);
   EXPECT_EQ(copy2.ref_count(), 4);
@@ -1577,7 +1569,7 @@ TEST(Object, RefCountMove) {
   Object obj{"etc"};
   Object copy{std::move(obj)};
   EXPECT_TRUE(obj.is_empty());
-  EXPECT_TRUE(copy.is_str());
+  EXPECT_TRUE(copy.is_type<String>());
   EXPECT_EQ(obj.ref_count(), Object::no_ref_count);
   EXPECT_EQ(copy.ref_count(), 1);
 }
@@ -1587,10 +1579,10 @@ TEST(Object, RefCountCopyAssign) {
   Object copy1; copy1 = obj;
   Object copy2; copy2 = obj;
   Object* copy3 = new Object(); *copy3 = copy2;
-  EXPECT_TRUE(obj.is_str());
-  EXPECT_TRUE(copy1.is_str());
-  EXPECT_TRUE(copy2.is_str());
-  EXPECT_TRUE(copy3->is_str());
+  EXPECT_TRUE(obj.is_type<String>());
+  EXPECT_TRUE(copy1.is_type<String>());
+  EXPECT_TRUE(copy2.is_type<String>());
+  EXPECT_TRUE(copy3->is_type<String>());
   EXPECT_EQ(obj.ref_count(), 4);
   EXPECT_EQ(copy1.ref_count(), 4);
   EXPECT_EQ(copy2.ref_count(), 4);
@@ -1606,14 +1598,14 @@ TEST(Object, RefCountMoveAssign) {
   Object copy;
   copy = std::move(obj);
   EXPECT_TRUE(obj.is_empty());
-  EXPECT_TRUE(copy.is_str());
+  EXPECT_TRUE(copy.is_type<String>());
   EXPECT_EQ(obj.ref_count(), Object::no_ref_count);
   EXPECT_EQ(copy.ref_count(), 1);
 }
 
 TEST(Object, RefCountTemporary) {
   Object obj{Object{"etc"}};
-  EXPECT_TRUE(obj.is_str());
+  EXPECT_TRUE(obj.is_type<String>());
   EXPECT_EQ(obj.ref_count(), 1);
 }
 
@@ -1680,47 +1672,47 @@ TEST(Object, AssignNull) {
 TEST(Object, AssignBool) {
     Object obj{"foo"};
     obj = true;
-    EXPECT_TRUE(obj.is_bool());
+    EXPECT_TRUE(obj.is_type<bool>());
 }
 
 TEST(Object, AssignInt32) {
     Object obj{"foo"};
     obj = (int32_t)1;
-    EXPECT_TRUE(obj.is_int());
+    EXPECT_TRUE(obj.is_type<Int>());
 }
 
 TEST(Object, AssignInt64) {
     Object obj{"foo"};
     obj = (int64_t)1;
-    EXPECT_TRUE(obj.is_int());
+    EXPECT_TRUE(obj.is_type<Int>());
 }
 
 TEST(Object, AssignUInt32) {
     Object obj{"foo"};
     obj = (uint32_t)1;
-    EXPECT_TRUE(obj.is_uint());
+    EXPECT_TRUE(obj.is_type<UInt>());
 }
 
 TEST(Object, AssignUInt64) {
     Object obj{"foo"};
     obj = (uint64_t)1;
-    EXPECT_TRUE(obj.is_uint());
+    EXPECT_TRUE(obj.is_type<UInt>());
 }
 
 TEST(Object, AssignString) {
     Object obj{7};
     obj = "foo"sv;
-    EXPECT_TRUE(obj.is_str());
+    EXPECT_TRUE(obj.is_type<String>());
 }
 
 TEST(Object, RedundantAssign) {
     Object obj = json::parse(R"({"x": [1], "y": [2]})");
-    EXPECT_TRUE(obj.get("x"_key).is_list());
+    EXPECT_TRUE(obj.get("x"_key).is_type<List>());
     EXPECT_EQ(obj.get("x"_key).get(0), 1);
     // ref count error might not manifest with one try
     for (int i=0; i<100; i++) {
         obj.get("x"_key) = obj.get("x"_key);
-        EXPECT_TRUE(obj.get("x"_key).is_list());
+        EXPECT_TRUE(obj.get("x"_key).is_type<List>());
         ASSERT_EQ(obj.get("x"_key).get(0), 1);
     }
 }
@@ -1777,9 +1769,9 @@ TEST(Object, ParentIntegrityOnDel) {
     Object par = json::parse(R"({"x": [1], "y": [2]})");
     Object x1 = par.get("x"_key);
     Object x2 = par.get("x"_key);
-    EXPECT_TRUE(x1.parent().is_ordered_map());
+    EXPECT_TRUE(x1.parent().is_type<OrderedMap>());
     EXPECT_EQ(x2.parent().id(), par.id());
-    EXPECT_TRUE(x1.parent().is_ordered_map());
+    EXPECT_TRUE(x1.parent().is_type<OrderedMap>());
     EXPECT_EQ(x2.parent().id(), par.id());
     par.del("x"s);
     EXPECT_TRUE(x1.parent() == null);
@@ -1949,7 +1941,7 @@ struct TestSimpleSource : public DataSource
 
     void read(const Object& target) override {
         read_called = true;
-        if (data.is_int() && data == 0xbad) {
+        if (data.is_type<Int>() && data == 0xbad) {
             set_failed(true);
         } else {
             read_set(target, data);
@@ -2153,7 +2145,7 @@ TEST(Object, TestSimpleSource_RefCountMoveAssign) {
 
 TEST(Object, TestSimpleSource_GetType) {
     Object obj{new TestSimpleSource(R"({"x": 1, "y": 2})")};
-    EXPECT_TRUE(obj.is_ordered_map());
+    EXPECT_TRUE(obj.is_type<OrderedMap>());
     EXPECT_EQ(obj.type(), Object::OMAP_I);
 }
 

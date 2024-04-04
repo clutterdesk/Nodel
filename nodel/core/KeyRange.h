@@ -25,22 +25,22 @@ class KeyIterator
     {
         Repr()                  : li{0UL} {}
         Repr(UInt it)           : li{it} {}
-        Repr(Map::iterator it)  : smi{it} {}
-        Repr(OMap::iterator it) : omi{it} {}
+        Repr(SortedMap::iterator it)  : smi{it} {}
+        Repr(OrderedMap::iterator it) : omi{it} {}
         Repr(DsIterPtr&& p_it)  : pdi{std::forward<DsIterPtr>(p_it)} {}
         ~Repr() {}
 
         Key li;
-        Map::iterator smi;
-        OMap::iterator omi;
+        SortedMap::iterator smi;
+        OrderedMap::iterator omi;
         DsIterPtr pdi;
     };
 
   public:
     KeyIterator()                  : m_repr_ix{ReprType::NULL_I}, m_repr{} {}
     KeyIterator(size_t pos)        : m_repr_ix{ReprType::LIST_I}, m_repr{pos} {}
-    KeyIterator(Map::iterator it)  : m_repr_ix{ReprType::MAP_I}, m_repr{it} {}
-    KeyIterator(OMap::iterator it) : m_repr_ix{ReprType::OMAP_I}, m_repr{it} {}
+    KeyIterator(SortedMap::iterator it)  : m_repr_ix{ReprType::MAP_I}, m_repr{it} {}
+    KeyIterator(OrderedMap::iterator it) : m_repr_ix{ReprType::OMAP_I}, m_repr{it} {}
     KeyIterator(DsIterPtr&& p_it)  : m_repr_ix{ReprType::DSRC_I}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
     ~KeyIterator();
 

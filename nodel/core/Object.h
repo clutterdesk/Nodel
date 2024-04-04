@@ -84,8 +84,8 @@ using Predicate = std::function<bool(const Object&)>;
 
 using String = std::string;
 using List = std::vector<Object>;
-using Map = std::map<Key, Object>;
-using OMap = tsl::ordered_map<Key, Object, KeyHash>;
+using SortedMap = std::map<Key, Object>;
+using OrderedMap = tsl::ordered_map<Key, Object, KeyHash>;
 
 using Item = std::pair<Key, Object>;
 using ConstItem = std::pair<const Key, const Object>;
@@ -95,8 +95,8 @@ using ItemList = std::vector<Item>;
 // inplace reference count types (ref-count stored in parent bit-field)
 using IRCString = std::tuple<String, Object>;
 using IRCList = std::tuple<List, Object>;
-using IRCMap = std::tuple<Map, Object>;
-using IRCOMap = std::tuple<OMap, Object>;
+using IRCMap = std::tuple<SortedMap, Object>;
+using IRCOMap = std::tuple<OrderedMap, Object>;
 
 using IRCStringPtr = IRCString*;
 using IRCListPtr = IRCList*;
@@ -176,14 +176,14 @@ class Object
 
   private:
     template <typename T> ReprType get_repr_ix() const;
-    template <> ReprType get_repr_ix<bool>() const   { return BOOL_I; }
-    template <> ReprType get_repr_ix<Int>() const    { return INT_I; }
-    template <> ReprType get_repr_ix<UInt>() const   { return UINT_I; }
-    template <> ReprType get_repr_ix<Float>() const  { return FLOAT_I; }
-    template <> ReprType get_repr_ix<String>() const { return STR_I; }
-    template <> ReprType get_repr_ix<List>() const   { return LIST_I; }
-    template <> ReprType get_repr_ix<Map>() const    { return MAP_I; }
-    template <> ReprType get_repr_ix<OMap>() const   { return OMAP_I; }
+    template <> ReprType get_repr_ix<bool>() const       { return BOOL_I; }
+    template <> ReprType get_repr_ix<Int>() const        { return INT_I; }
+    template <> ReprType get_repr_ix<UInt>() const       { return UINT_I; }
+    template <> ReprType get_repr_ix<Float>() const      { return FLOAT_I; }
+    template <> ReprType get_repr_ix<String>() const     { return STR_I; }
+    template <> ReprType get_repr_ix<List>() const       { return LIST_I; }
+    template <> ReprType get_repr_ix<SortedMap>() const  { return MAP_I; }
+    template <> ReprType get_repr_ix<OrderedMap>() const { return OMAP_I; }
 
     template <typename T> T get_repr() const requires is_byvalue<T>;
     template <> bool get_repr<bool>() const     { return m_repr.b; }
@@ -239,11 +239,11 @@ class Object
     Object(DataSourcePtr ptr);
 
     Object(const List&);
-    Object(const Map&);
-    Object(const OMap&);
+    Object(const SortedMap&);
+    Object(const OrderedMap&);
     Object(List&&);
-    Object(Map&&);
-    Object(OMap&&);
+    Object(SortedMap&&);
+    Object(OrderedMap&&);
 
     Object(const Key&);
     Object(Key&&);
@@ -332,17 +332,9 @@ class Object
     bool is_empty() const   { return m_fields.repr_ix == EMPTY_I; }
     bool is_deleted() const { return m_fields.repr_ix == DEL_I; }
 
-    bool is_bool() const        { return resolve_repr_ix() == BOOL_I; }
-    bool is_int() const         { return resolve_repr_ix() == INT_I; }
-    bool is_uint() const        { return resolve_repr_ix() == UINT_I; }
-    bool is_float() const       { return resolve_repr_ix() == FLOAT_I; }
-    bool is_str() const         { return resolve_repr_ix() == STR_I; }
-    bool is_num() const         { auto type = resolve_repr_ix(); return type == INT_I || type == UINT_I || type == FLOAT_I; }
-    bool is_list() const        { return resolve_repr_ix() == LIST_I; }
-    bool is_any_map() const     { auto type = resolve_repr_ix(); return type == MAP_I || type == OMAP_I; }
-    bool is_ordered_map() const { return resolve_repr_ix() == OMAP_I; }
-    bool is_sorted_map() const  { return resolve_repr_ix() == MAP_I; }
-    bool is_container() const   { auto type = resolve_repr_ix(); return type == LIST_I || type == OMAP_I || type == MAP_I; }
+    bool is_num() const       { auto type = resolve_repr_ix(); return type == INT_I || type == UINT_I || type == FLOAT_I; }
+    bool is_map() const       { auto type = resolve_repr_ix(); return type == MAP_I || type == OMAP_I; }
+    bool is_container() const { auto type = resolve_repr_ix(); return type == LIST_I || type == OMAP_I || type == MAP_I; }
 
     bool is_valid() const;
 
@@ -878,7 +870,7 @@ Object::Object(const List& list) : m_repr{new IRCList({}, NoParent{})}, m_fields
 }
 
 inline
-Object::Object(const Map& map) : m_repr{new IRCMap({}, NoParent{})}, m_fields{MAP_I} {
+Object::Object(const SortedMap& map) : m_repr{new IRCMap({}, NoParent{})}, m_fields{MAP_I} {
     auto& my_map = std::get<0>(*m_repr.psm);
     for (auto& [key, value]: map) {
         Object copy = value.copy();
@@ -888,7 +880,7 @@ Object::Object(const Map& map) : m_repr{new IRCMap({}, NoParent{})}, m_fields{MA
 }
 
 inline
-Object::Object(const OMap& map) : m_repr{new IRCOMap({}, NoParent{})}, m_fields{OMAP_I} {
+Object::Object(const OrderedMap& map) : m_repr{new IRCOMap({}, NoParent{})}, m_fields{OMAP_I} {
     auto& my_map = std::get<0>(*m_repr.pom);
     for (auto& [key, value]: map) {
         Object copy = value.copy();
@@ -905,14 +897,14 @@ Object::Object(List&& list) : m_repr{new IRCList(std::forward<List>(list), NoPar
 }
 
 inline
-Object::Object(Map&& map) : m_repr{new IRCMap(std::forward<Map>(map), NoParent{})}, m_fields{MAP_I} {
+Object::Object(SortedMap&& map) : m_repr{new IRCMap(std::forward<SortedMap>(map), NoParent{})}, m_fields{MAP_I} {
     auto& my_map = std::get<0>(*m_repr.psm);
     for (auto& [key, obj]: my_map)
         const_cast<Object&>(obj).set_parent(*this);
 }
 
 inline
-Object::Object(OMap&& map) : m_repr{new IRCOMap(std::forward<OMap>(map), NoParent{})}, m_fields{OMAP_I} {
+Object::Object(OrderedMap&& map) : m_repr{new IRCOMap(std::forward<OrderedMap>(map), NoParent{})}, m_fields{OMAP_I} {
     auto& my_map = std::get<0>(*m_repr.pom);
     for (auto& [key, obj]: my_map)
         const_cast<Object&>(obj).set_parent(*this);
@@ -1953,7 +1945,7 @@ void Object::to_json(std::ostream& os) const {
             os << ", ";
         }
 
-        if (parent.is_any_map() && !(event & WalkDF::END_PARENT)) {
+        if (parent.is_map() && !(event & WalkDF::END_PARENT)) {
             os << key.to_json() << ": ";
         }
 

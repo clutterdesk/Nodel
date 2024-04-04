@@ -255,12 +255,7 @@ class Key
     template <typename T>
     bool is_type() const { return m_repr_ix == get_repr_ix<T>(); }
 
-    bool is_bool() const    { return m_repr_ix == BOOL_I; }
-    bool is_int() const     { return m_repr_ix == INT_I; }
-    bool is_uint() const    { return m_repr_ix == UINT_I; }
     bool is_any_int() const { return m_repr_ix == INT_I || m_repr_ix == UINT_I; }
-    bool is_float() const   { return m_repr_ix == FLOAT_I; }
-    bool is_str() const     { return m_repr_ix == STR_I; }
     bool is_num() const     { return m_repr_ix >= INT_I && m_repr_ix <= FLOAT_I; }
 
     // unsafe, but will not segv
@@ -459,11 +454,11 @@ struct KeyHash
 // Operations
 //----------------------------------------------------------------------------------
 //template <> bool is_null(const Key& key)  { return key.is_null(); }
-//template <> bool is_bool(const Key& key)  { return key.is_bool(); }
-//template <> bool is_int(const Key& key)   { return key.is_int(); }
-//template <> bool is_uint(const Key& key)  { return key.is_uint(); }
-//template <> bool is_float(const Key& key) { return key.is_float(); }
-//template <> bool is_str(const Key& key)   { return key.is_str(); }
+//template <> bool is_bool(const Key& key)  { return key.is_type<bool>(); }
+//template <> bool is_int(const Key& key)   { return key.is_type<Int>(); }
+//template <> bool is_uint(const Key& key)  { return key.is_type<UInt>(); }
+//template <> bool is_float(const Key& key) { return key.is_type<Float>(); }
+//template <> bool is_str(const Key& key)   { return key.is_type<String>(); }
 //template <> bool is_num(const Key& key)   { return key.is_num(); }
 //
 //template <> bool to_bool(const Key& key)             { return key.to_bool(); }

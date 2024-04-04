@@ -27,22 +27,22 @@ class ItemIterator
     {
         Repr()                              : pdi{nullptr} {}
         Repr(size_t pos, List::iterator it) : li{pos, it} {}
-        Repr(Map::iterator it)              : smi{it} {}
-        Repr(OMap::iterator it)             : omi{it} {}
+        Repr(SortedMap::iterator it)              : smi{it} {}
+        Repr(OrderedMap::iterator it)             : omi{it} {}
         Repr(DsIterPtr&& p_it)              : pdi{std::forward<DsIterPtr>(p_it)} {}
         ~Repr() {}
 
         ListIterator li;
-        Map::iterator smi;
-        OMap::iterator omi;
+        SortedMap::iterator smi;
+        OrderedMap::iterator omi;
         DsIterPtr pdi;
     };
 
   public:
     ItemIterator()                              : m_repr_ix{ReprType::NULL_I} {}
     ItemIterator(size_t pos, List::iterator it) : m_repr_ix{ReprType::LIST_I}, m_repr{pos, it} {}
-    ItemIterator(Map::iterator it)              : m_repr_ix{ReprType::MAP_I}, m_repr{it} {}
-    ItemIterator(OMap::iterator it)             : m_repr_ix{ReprType::OMAP_I}, m_repr{it} {}
+    ItemIterator(SortedMap::iterator it)              : m_repr_ix{ReprType::MAP_I}, m_repr{it} {}
+    ItemIterator(OrderedMap::iterator it)             : m_repr_ix{ReprType::OMAP_I}, m_repr{it} {}
     ItemIterator(DsIterPtr&& p_it)              : m_repr_ix{ReprType::DSRC_I}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
     ~ItemIterator();
     

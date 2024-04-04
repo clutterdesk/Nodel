@@ -63,7 +63,7 @@ TEST(Filesystem, EnterOnlyDirectories) {
 TEST(Filesystem, Directory) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object obj = new Directory(new DefaultRegistry(), wd);
-    EXPECT_TRUE(obj.is_any_map());
+    EXPECT_TRUE(obj.is_map());
     EXPECT_FALSE(obj.data_source<DataSource>()->is_fully_cached());
     EXPECT_TRUE(obj.size() > 0);
 }
@@ -71,27 +71,27 @@ TEST(Filesystem, Directory) {
 TEST(Filesystem, DirectoryFiles) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object obj = new Directory(new DefaultRegistry(), wd);
-    EXPECT_TRUE(obj.is_any_map());
+    EXPECT_TRUE(obj.is_map());
     EXPECT_FALSE(obj.data_source<DataSource>()->is_fully_cached());
     EXPECT_TRUE(obj.size() > 0);
 
     auto example_csv = obj.get("example.csv"_key);
     EXPECT_TRUE(example_csv.parent().is(obj));
     EXPECT_TRUE(!example_csv.data_source<DataSource>()->is_fully_cached());
-    EXPECT_TRUE(example_csv.is_list());
-    EXPECT_TRUE(example_csv.get(7).is_list());
+    EXPECT_TRUE(example_csv.is_type<List>());
+    EXPECT_TRUE(example_csv.get(7).is_type<List>());
     EXPECT_EQ(example_csv.get(7).get(2), "Peg");
 
     auto example_txt = obj.get("example.txt"_key);
     EXPECT_TRUE(example_txt.parent().is(obj));
     EXPECT_TRUE(!example_txt.data_source<DataSource>()->is_fully_cached());
-    EXPECT_TRUE(example_txt.is_str());
+    EXPECT_TRUE(example_txt.is_type<String>());
     EXPECT_TRUE(example_txt.as<String>().contains("boring"));
 
     auto example = obj.get("example.json"_key);
     EXPECT_TRUE(example.parent().is(obj));
     EXPECT_TRUE(!example.data_source<DataSource>()->is_fully_cached());
-    EXPECT_TRUE(example.get("teas"_key).is_list());
+    EXPECT_TRUE(example.get("teas"_key).is_type<List>());
     EXPECT_EQ(example.get("teas"_key).get(0), "Assam");
 
     auto large_example_1 = obj.get("large_example_1.json"_key);
@@ -114,9 +114,9 @@ TEST(Filesystem, DirectoryFiles) {
 TEST(Filesystem, Subdirectory) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new DefaultRegistry(), wd);
-    EXPECT_TRUE(test_data.get("more"_key).is_any_map());
-    EXPECT_TRUE(test_data.get("more"_key).get("example.csv"_key).is_list());
-    EXPECT_TRUE(test_data.get("more"_key).get("example.csv"_key).get(-1).is_list());
+    EXPECT_TRUE(test_data.get("more"_key).is_map());
+    EXPECT_TRUE(test_data.get("more"_key).get("example.csv"_key).is_type<List>());
+    EXPECT_TRUE(test_data.get("more"_key).get("example.csv"_key).get(-1).is_type<List>());
     EXPECT_EQ(test_data.get("more"_key).get("example.csv"_key).get(-1).get(-1), "andrew43514@gmail.comField Tags");
 }
 

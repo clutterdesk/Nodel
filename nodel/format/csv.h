@@ -102,7 +102,7 @@ bool Parser<StreamType>::parse_column(List& row) {
 
     if (row.size() == 1) {
         auto col = row[0];
-        if (col.is_str() && col.size() == 0)
+        if (col.is_type<String>() && col.size() == 0)
             row.clear();
     }
 

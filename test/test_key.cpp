@@ -15,7 +15,6 @@ TEST(Key, Null) {
 TEST(Key, Bool) {
   Key k{true};
   EXPECT_TRUE(k.is_type<bool>());
-  EXPECT_TRUE(k.is_bool());
   EXPECT_EQ(k.to_str(), "true");
   EXPECT_EQ(k.as<bool>(), true);
 }
@@ -23,7 +22,7 @@ TEST(Key, Bool) {
 TEST(Key, Int) {
   Int v = std::numeric_limits<Int>::min();
   Key k{v};
-  EXPECT_TRUE(k.is_int());
+  EXPECT_TRUE(k.is_type<Int>());
   EXPECT_EQ(k.to_str(), int_to_str(v));
   EXPECT_EQ(k.as<Int>(), v);
 }
@@ -31,7 +30,7 @@ TEST(Key, Int) {
 TEST(Key, UInt) {
   UInt v = std::numeric_limits<UInt>::min();
   Key k{v};
-  EXPECT_TRUE(k.is_uint());
+  EXPECT_TRUE(k.is_type<UInt>());
   EXPECT_EQ(k.to_str(), int_to_str(v));
   EXPECT_EQ(k.as<UInt>(), v);
 }
@@ -39,18 +38,18 @@ TEST(Key, UInt) {
 TEST(Key, Float) {
   double v = 8.8541878128e-12;
   Key k{v};
-  EXPECT_TRUE(k.is_float());
+  EXPECT_TRUE(k.is_type<Float>());
   EXPECT_EQ(k.to_str(), "8.8541878128e-12");
   EXPECT_EQ(k.as<Float>(), v);
 
   Key k2 = -2.2250738585072020e-308;
-  EXPECT_TRUE(k2.is_float());
+  EXPECT_TRUE(k2.is_type<Float>());
   EXPECT_EQ(k2.to_str(), "-2.225073858507202e-308");
 }
 
 TEST(Key, StringLiteral) {
     Key k{"foo"s};
-    EXPECT_TRUE(k.is_str());
+    EXPECT_TRUE(k.is_type<String>());
     EXPECT_EQ(k.to_str(), "foo");
     EXPECT_EQ(k.as<StringView>(), "foo");
 }
@@ -58,14 +57,14 @@ TEST(Key, StringLiteral) {
 TEST(Key, String) {
     std::string s{"foo"};
     Key k{s};
-    EXPECT_TRUE(k.is_str());
+    EXPECT_TRUE(k.is_type<String>());
     EXPECT_EQ(k.to_str(), "foo");
     EXPECT_EQ(k.as<StringView>(), "foo");
 }
 
 TEST(Key, AssignNull) {
   Key k{1};
-  EXPECT_TRUE(k.is_int());
+  EXPECT_TRUE(k.is_type<Int>());
   EXPECT_EQ(k.as<Int>(), 1);
   k = null;
   EXPECT_TRUE(k == null);
@@ -73,10 +72,10 @@ TEST(Key, AssignNull) {
 
 TEST(Key, AssignBool) {
   Key k{7};
-  EXPECT_TRUE(k.is_int());
+  EXPECT_TRUE(k.is_type<Int>());
   EXPECT_EQ(k.as<Int>(), 7);
   k = true;
-  EXPECT_TRUE(k.is_bool());
+  EXPECT_TRUE(k.is_type<bool>());
   EXPECT_EQ(k.as<bool>(), true);
 }
 
@@ -84,7 +83,7 @@ TEST(Key, AssignInt) {
   Key k;
   EXPECT_TRUE(k == null);
   k = 7;
-  EXPECT_TRUE(k.is_int());
+  EXPECT_TRUE(k.is_type<Int>());
   EXPECT_EQ(k.as<Int>(), 7);
 }
 
@@ -92,7 +91,7 @@ TEST(Key, AssignUInt) {
     Key k;
     EXPECT_TRUE(k == null);
     k = 7UL;
-    EXPECT_TRUE(k.is_uint());
+    EXPECT_TRUE(k.is_type<UInt>());
     EXPECT_EQ(k.as<UInt>(), 7UL);
 }
 
@@ -100,7 +99,7 @@ TEST(Key, AssignFloat) {
   Key k;
   EXPECT_TRUE(k == null);
   k = -2.2250738585072020e-308;
-  EXPECT_TRUE(k.is_float());
+  EXPECT_TRUE(k.is_type<Float>());
   EXPECT_EQ(k.to_str(), "-2.225073858507202e-308");
 }
 
@@ -108,13 +107,13 @@ TEST(Key, AssignStringLiteral) {
     Key k;
     EXPECT_TRUE(k == null);
     k = "foo"s;
-    EXPECT_TRUE(k.is_str());
+    EXPECT_TRUE(k.is_type<String>());
     EXPECT_EQ(k.as<StringView>(), "foo");
 }
 
 TEST(Key, CompareBool) {
     Key k{true};
-    EXPECT_TRUE(k.is_bool());
+    EXPECT_TRUE(k.is_type<bool>());
     EXPECT_EQ(k, true);
     EXPECT_EQ(k, 1);
     EXPECT_EQ(k, 1.0);
@@ -124,7 +123,7 @@ TEST(Key, CompareBool) {
 
 TEST(Key, CompareInt) {
     Key k{7};
-    EXPECT_TRUE(k.is_int());
+    EXPECT_TRUE(k.is_type<Int>());
     EXPECT_EQ(k, 7);
     EXPECT_EQ(k, 7ULL);
     EXPECT_EQ(k, 7.0);
@@ -133,7 +132,7 @@ TEST(Key, CompareInt) {
 
 TEST(Key, CompareUInt) {
     Key k{7UL};
-    EXPECT_TRUE(k.is_uint());
+    EXPECT_TRUE(k.is_type<UInt>());
     EXPECT_EQ(k, 7);
     EXPECT_EQ(k, 7ULL);
     EXPECT_EQ(k, 7.0);
@@ -144,7 +143,7 @@ TEST(Key, CompareUInt) {
 
 TEST(Key, CompareFloat) {
     Key k{7.0};
-    EXPECT_TRUE(k.is_float());
+    EXPECT_TRUE(k.is_type<Float>());
     EXPECT_EQ(k, 7);
     EXPECT_EQ(k, 7ULL);
     EXPECT_EQ(k, 7.0);
@@ -155,7 +154,7 @@ TEST(Key, CompareFloat) {
 
 TEST(Key, CompareString) {
     Key k{"foo"s};
-    EXPECT_TRUE(k.is_str());
+    EXPECT_TRUE(k.is_type<String>());
     EXPECT_EQ(k, "foo"s);
     EXPECT_EQ(k, Key{"foo"s});
 }
@@ -168,19 +167,19 @@ TEST(Key, HashNull) {
 
 TEST(Key, HashInt) {
     Key k{7};
-    EXPECT_TRUE(k.is_int());
+    EXPECT_TRUE(k.is_type<Int>());
     EXPECT_EQ(std::hash<Key>{}(k), 7);
 }
 
 TEST(Key, HashUInt) {
     Key k{7ULL};
-    EXPECT_TRUE(k.is_uint());
+    EXPECT_TRUE(k.is_type<UInt>());
     EXPECT_EQ(std::hash<Key>{}(k), 7);
 }
 
 TEST(Key, HashFloat) {
     Key k{-2.2250738585072020e-308};
-    EXPECT_TRUE(k.is_float());
+    EXPECT_TRUE(k.is_type<Float>());
     EXPECT_NE(std::hash<Key>{}(k), 0);
 }
 
@@ -194,8 +193,8 @@ static void dump(const char* data) {
 TEST(Key, HashStringLiteral) {
     Key k1{"foo"s};
     Key k2{"foo"s};
-    EXPECT_TRUE(k1.is_str());
-    EXPECT_TRUE(k2.is_str());
+    EXPECT_TRUE(k1.is_type<String>());
+    EXPECT_TRUE(k2.is_type<String>());
     EXPECT_EQ(std::hash<Key>{}(k1), std::hash<Key>{}(k2));
 }
 

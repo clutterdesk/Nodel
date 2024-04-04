@@ -315,7 +315,7 @@ bool Parser<StreamType>::parse_map() {
         Key key = m_curr.into_key();
 
         if (m_curr.is_container()) {
-            create_error("Map keys must be a primitive type");
+            create_error("Keys must be a primitive type");
             return false;
         }
 
