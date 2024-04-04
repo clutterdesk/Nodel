@@ -13,7 +13,6 @@
 // limitations under the License.
 #pragma once
 
-#include "Object.h"
 #include <memory>
 
 class KeyIterator
@@ -65,6 +64,8 @@ class KeyRange
   using ReprType = Object::ReprType;
 
   public:
+    KeyRange() = default;
+
     KeyRange(const Object& obj, const Interval& itvl)
       : m_obj{(obj.m_fields.repr_ix == Object::DSRC_I && !obj.m_repr.ds->is_sparse())? obj.m_repr.ds->get_cached(obj): obj}
       , m_itvl{itvl}
@@ -162,7 +163,7 @@ KeyIterator KeyRange::begin() {
     switch (repr_ix) {
         case ReprType::LIST_I: {
             auto& list = std::get<0>(*m_obj.m_repr.pl);
-            if (m_itvl.is_empty()) {
+            if (m_itvl.min().value() == null) {
                 return KeyIterator{0UL};
             } else {
                 auto indices = m_itvl.to_indices(list.size());
@@ -170,8 +171,16 @@ KeyIterator KeyRange::begin() {
             }
         }
         case ReprType::MAP_I: {
-            if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
-            return KeyIterator{std::get<0>(*m_obj.m_repr.psm).begin()};
+            auto& map = std::get<0>(*m_obj.m_repr.psm);
+            auto& min_key = m_itvl.min().value();
+            if (min_key == null) {
+                return KeyIterator{map.begin()};
+            } else {
+                auto it = map.lower_bound(min_key);
+                if (m_itvl.min().is_open() && it != map.end())
+                    ++it;
+                return KeyIterator{it};
+            }
         }
         case ReprType::OMAP_I: {
             if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
@@ -191,7 +200,7 @@ KeyIterator KeyRange::end() {
     switch (repr_ix) {
         case ReprType::LIST_I: {
             auto& list = std::get<0>(*m_obj.m_repr.pl);
-            if (m_itvl.is_empty()) {
+            if (m_itvl.max().value() == null) {
                 return KeyIterator{list.size()};
             } else {
                 auto indices = m_itvl.to_indices(list.size());
@@ -199,8 +208,16 @@ KeyIterator KeyRange::end() {
             }
         }
         case ReprType::MAP_I: {
-            if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
-            return KeyIterator{std::get<0>(*m_obj.m_repr.psm).end()};
+            auto& map = std::get<0>(*m_obj.m_repr.psm);
+            auto& max_key = m_itvl.max().value();
+            if (max_key == null) {
+                return KeyIterator{map.end()};
+            } else {
+                auto it = map.upper_bound(max_key);
+                if (m_itvl.max().is_open())
+                    --it;
+                return KeyIterator{it};
+            }
         }
         case ReprType::OMAP_I: {
             if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));

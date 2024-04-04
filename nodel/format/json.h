@@ -434,9 +434,7 @@ Object parse(const std::string_view& str, std::string& error) {
 
 inline
 Object parse(const Options& options, const std::string_view& str) {
-    DEBUG("{}", options.use_sorted_map);
     impl::Parser parser{options, nodel::impl::StringStreamAdapter{str}};
-    DEBUG("{}", parser.m_options.use_sorted_map);
     if (!parser.parse_object()) {
         throw SyntaxError(str, parser.m_error_offset, parser.m_error_message);
     }

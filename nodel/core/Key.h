@@ -17,6 +17,7 @@
 #include <cstring>
 #include <charconv>
 #include <iomanip>
+#include <ctime>
 
 #include <nodel/support/logging.h>
 #include <nodel/support/string.h>
@@ -118,18 +119,6 @@ class Key
             case FLOAT_I: m_repr.f = key.m_repr.f; break;
             case STR_I:   m_repr.s = key.m_repr.s; break;
         }
-    }
-
-    Key(Key&& key) {
-        m_repr_ix = key.m_repr_ix;
-        if (m_repr_ix == STR_I) {
-            m_repr.s = key.m_repr.s;
-        } else {
-            // generic memory copy
-            m_repr.u = key.m_repr.u;
-        }
-        key.m_repr.z = (void*)0;
-        key.m_repr_ix = NULL_I;
     }
 
     Key& operator = (const Key& key) {
@@ -270,7 +259,7 @@ class Key
     bool is_any_int() const { return m_repr_ix == INT_I || m_repr_ix == UINT_I; }
     bool is_float() const   { return m_repr_ix == FLOAT_I; }
     bool is_str() const     { return m_repr_ix == STR_I; }
-    bool is_num() const     { return m_repr_ix && m_repr_ix < STR_I; }
+    bool is_num() const     { return m_repr_ix >= INT_I && m_repr_ix <= FLOAT_I; }
 
     // unsafe, but will not segv
     template <typename T> T as() const requires is_byvalue<T>;

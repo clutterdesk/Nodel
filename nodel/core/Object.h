@@ -126,12 +126,7 @@ class Object
         STR_I,
         LIST_I,
         MAP_I,     // sorted map
-        TMAP_I,    // TODO tiny ordered map (also update *Iterator classes)
         OMAP_I,    // ordered map
-        TABLE_I,   // TODO map-like key access, all rows have same keys (ex: CSV) (also update *Iterator classes)
-        BIGI_I,    // TODO big integer with
-        BIGF_I,    // TODO
-        BLOB_I,    // TODO
         DSRC_I,    // DataSource
         DEL_I,     // indicates deleted key in sparse data-store
         BAD_I = 31
@@ -835,7 +830,6 @@ bool is_fully_cached(const Object& obj) {
 
 inline
 Object::Object(const Object& other) : m_fields{other.m_fields} {
-//        fmt::print("Object(const Object& other)\n");
     switch (m_fields.repr_ix) {
         case EMPTY_I: m_repr.z = nullptr; break;
         case NULL_I:  m_repr.z = nullptr; break;
@@ -853,7 +847,6 @@ Object::Object(const Object& other) : m_fields{other.m_fields} {
 
 inline
 Object::Object(Object&& other) : m_fields{other.m_fields} {
-//        fmt::print("Object(Object&& other)\n");
     switch (m_fields.repr_ix) {
         case EMPTY_I: m_repr.z = nullptr; break;
         case NULL_I:  m_repr.z = nullptr; break;
@@ -1586,8 +1579,7 @@ inline ItemRange Object::iter_items(const Interval& itvl) const {
 }
 
 inline ValueRange Object::iter_values(const Interval& itvl) const {
-//    return {*this, itvl};
-    return *this;
+    return {*this, itvl};
 }
 
 inline
@@ -2129,7 +2121,6 @@ void Object::release() {
 
 inline
 Object& Object::operator = (const Object& other) {
-//    fmt::print("Object::operator = (const Object&)\n");
     dec_ref_count();
 
     m_fields.repr_ix = other.m_fields.repr_ix;
@@ -2171,7 +2162,6 @@ Object& Object::operator = (const Object& other) {
 
 inline
 Object& Object::operator = (Object&& other) {
-//    fmt::print("Object::operator = (Object&&)\n");
     dec_ref_count();
 
     m_fields.repr_ix = other.m_fields.repr_ix;

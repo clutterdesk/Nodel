@@ -71,15 +71,21 @@ class ValueRange
   using ReprType = Object::ReprType;
 
   public:
-    ValueRange() {}
-    ValueRange(const Object& obj)
-      : m_obj{(obj.m_fields.repr_ix == Object::DSRC_I && !obj.m_repr.ds->is_sparse())? obj.m_repr.ds->get_cached(obj): obj} {}
+    ValueRange() = default;
+
+    ValueRange(const Object& obj, const Interval& itvl)
+      : m_obj{(obj.m_fields.repr_ix == Object::DSRC_I && !obj.m_repr.ds->is_sparse())? obj.m_repr.ds->get_cached(obj): obj}
+      , m_itvl{itvl}
+    {}
+
+    ValueRange(const Object& obj) : ValueRange(obj, {}) {}
 
     ValueIterator begin();
     ValueIterator end();
 
   private:
     Object m_obj;
+    Interval m_itvl;
 };
 
 
@@ -153,11 +159,33 @@ inline
 ValueIterator ValueRange::begin() {
     auto repr_ix = m_obj.m_fields.repr_ix;
     switch (repr_ix) {
-        case ReprType::LIST_I: return ValueIterator{std::get<0>(*m_obj.m_repr.pl).begin()};
-        case ReprType::MAP_I:  return ValueIterator{std::get<0>(*m_obj.m_repr.psm).begin()};
-        case ReprType::OMAP_I: return ValueIterator{std::get<0>(*m_obj.m_repr.pom).begin()};
+        case ReprType::LIST_I: {
+            auto& list = std::get<0>(*m_obj.m_repr.pl);
+            if (m_itvl.min().value() == null) {
+                return ValueIterator{list.begin()};
+            } else {
+                auto indices = m_itvl.to_indices(list.size());
+                return ValueIterator{list.begin() + indices.first};
+            }
+        }
+        case ReprType::MAP_I: {
+            auto& map = std::get<0>(*m_obj.m_repr.psm);
+            auto& min_key = m_itvl.min().value();
+            if (min_key == null) {
+                return ValueIterator{map.begin()};
+            } else {
+                auto it = map.lower_bound(min_key);
+                if (m_itvl.min().is_open() && it != map.end())
+                    ++it;
+                return ValueIterator{it};
+            }
+        }
+        case ReprType::OMAP_I: {
+            if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
+            return ValueIterator{std::get<0>(*m_obj.m_repr.pom).begin()};
+        }
         case ReprType::DSRC_I: {
-            auto p_it = m_obj.m_repr.ds->value_iter();
+            auto p_it = m_itvl.is_empty()? m_obj.m_repr.ds->value_iter(): m_obj.m_repr.ds->value_iter(m_itvl);
             return (p_it)? ValueIterator{std::move(p_it)}: ValueIterator{};
         }
         default: throw Object::wrong_type(repr_ix);
@@ -168,9 +196,31 @@ inline
 ValueIterator ValueRange::end() {
     auto repr_ix = m_obj.m_fields.repr_ix;
     switch (repr_ix) {
-        case ReprType::LIST_I: return ValueIterator{std::get<0>(*m_obj.m_repr.pl).end()};
-        case ReprType::MAP_I:  return ValueIterator{std::get<0>(*m_obj.m_repr.psm).end()};
-        case ReprType::OMAP_I: return ValueIterator{std::get<0>(*m_obj.m_repr.pom).end()};
+        case ReprType::LIST_I: {
+            auto& list = std::get<0>(*m_obj.m_repr.pl);
+            if (m_itvl.max().value() == null) {
+                return ValueIterator{list.end()};
+            } else {
+                auto indices = m_itvl.to_indices(list.size());
+                return ValueIterator{list.begin() + indices.second};
+            }
+        }
+        case ReprType::MAP_I: {
+            auto& map = std::get<0>(*m_obj.m_repr.psm);
+            auto& max_key = m_itvl.max().value();
+            if (max_key == null) {
+                return ValueIterator{map.end()};
+            } else {
+                auto it = map.upper_bound(max_key);
+                if (m_itvl.max().is_open())
+                    --it;
+                return ValueIterator{it};
+            }
+        }
+        case ReprType::OMAP_I: {
+            if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
+            return ValueIterator{std::get<0>(*m_obj.m_repr.pom).end()};
+        }
         case ReprType::DSRC_I: return ValueIterator{};
         default: throw Object::wrong_type(repr_ix);
     }

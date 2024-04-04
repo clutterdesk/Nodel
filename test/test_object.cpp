@@ -148,8 +148,7 @@ TEST(Object, Size) {
     EXPECT_EQ(Object("foo").size(), 3);
     EXPECT_EQ(json::parse("[1, 2, 3]").size(), 3);
     EXPECT_EQ(json::parse("{'x': 1, 'y': 2}").size(), 2);
-    json::Options options;
-    options.use_sorted_map = true;
+    json::Options options; options.use_sorted_map = true;
     EXPECT_EQ(json::parse(options, "{'x': 1, 'y': 2}").size(), 2);
 }
 
@@ -1464,12 +1463,6 @@ TEST(Object, DelFromParent) {
     EXPECT_EQ(obj.get("z"_key), "Z");
 }
 
-//TEST(Object, ParsePath) {
-//    Path path{"a.b[1].c[2][3].d"};
-//    KeyList keys = {"a", "b", 1, "c", 2, 3, "d"};
-//    EXPECT_EQ(path.keys(), keys);
-//}
-
 TEST(Object, ParentUpdateRefCount) {
     Object o1 = json::parse("{'x': 'X'}");
     Object x = o1.get("x"_key);
@@ -1791,12 +1784,86 @@ TEST(Object, GetKeys) {
     EXPECT_EQ(obj.keys(), expect);
 }
 
-TEST(Object, IterMapKeys) {
+TEST(Object, IterOrderedMapKeys) {
     Object obj = json::parse(R"({"x": [1], "y": [2]})");
     KeyList expect = {"x"_key, "y"_key};  // NOTE: std::vector has a gotcha: {"x", "y"} is interpreted in an unexpected way.
     KeyList actual;
     for (auto& key : obj.iter_keys())
         actual.push_back(key);
+    EXPECT_EQ(actual, expect);
+}
+
+TEST(Object, IterSortedMapKeys) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, R"({"y": [2], "x": [1]})");
+    KeyList expect = {"x"_key, "y"_key};  // NOTE: std::vector has a gotcha: {"x", "y"} is interpreted in an unexpected way.
+    KeyList actual;
+    for (auto& key : obj.iter_keys())
+        actual.push_back(key);
+    EXPECT_EQ(actual, expect);
+}
+
+TEST(Object, IterSortedMapKeysLowerBound) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, R"({"z": [3], "y": [2], "x": [1]})");
+    KeyList expect = {"y"_key, "z"_key};  // NOTE: std::vector has a gotcha: {"x", "y"} is interpreted in an unexpected way.
+    KeyList actual;
+    for (auto& key : obj.iter_keys({"y"_key, {}}))
+        actual.push_back(key);
+    EXPECT_EQ(actual, expect);
+}
+
+TEST(Object, IterSortedMapKeysUpperBound) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, R"({"z": [3], "y": [2], "x": [1]})");
+    KeyList expect = {"x"_key, "y"_key};  // NOTE: std::vector has a gotcha: {"x", "y"} is interpreted in an unexpected way.
+    KeyList actual;
+    for (auto& key : obj.iter_keys({{}, "z"_key}))
+        actual.push_back(key);
+    EXPECT_EQ(actual, expect);
+}
+
+TEST(Object, IterSortedMapValuesLowerBound) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, R"({"z": [3], "y": [2], "x": [1]})");
+    List expect = {obj.get("y"_key), obj.get("z"_key)};
+    List actual;
+    for (auto& value : obj.iter_values({"y"_key, {}}))
+        actual.push_back(value);
+    EXPECT_EQ(actual, expect);
+}
+
+TEST(Object, IterSortedMapValuesUpperBound) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, R"({"z": [3], "y": [2], "x": [1]})");
+    List expect = {obj.get("x"_key), obj.get("y"_key)};
+    List actual;
+    for (auto& value : obj.iter_values({{}, "z"_key}))
+        actual.push_back(value);
+    EXPECT_EQ(actual, expect);
+}
+
+TEST(Object, IterSortedMapItemsLowerBound) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, R"({"z": [3], "y": [2], "x": [1]})");
+    Key y = "y"_key;
+    Key z = "z"_key;
+    ItemList expect = {{y, obj.get(y)}, {z, obj.get(z)}};
+    ItemList actual;
+    for (auto& item : obj.iter_items({"y"_key, {}}))
+        actual.push_back(item);
+    EXPECT_EQ(actual, expect);
+}
+
+TEST(Object, IterSortedMapItemsUpperBound) {
+    json::Options options; options.use_sorted_map = true;
+    Object obj = json::parse(options, R"({"z": [3], "y": [2], "x": [1]})");
+    Key x = "x"_key;
+    Key y = "y"_key;
+    ItemList expect = {{x, obj.get(x)}, {y, obj.get(y)}};
+    ItemList actual;
+    for (auto& item : obj.iter_items({{}, "z"_key}))
+        actual.push_back(item);
     EXPECT_EQ(actual, expect);
 }
 

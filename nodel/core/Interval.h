@@ -25,6 +25,7 @@ struct Endpoint
     Endpoint(const Key& value)            : m_value{value}, m_kind{Kind::DEFAULT} {}
     Endpoint(const Key& value, Kind kind) : m_value{value}, m_kind{kind} {}
 
+    bool is_open() const { return m_kind == Kind::OPEN; }
     const Key& value() const { return m_value; }
 
     Key m_value;

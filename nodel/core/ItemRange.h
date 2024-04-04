@@ -15,7 +15,6 @@
 
 #include <tuple>
 
-
 class ItemIterator
 {
   private:
@@ -68,6 +67,8 @@ class ItemRange
   using ReprType = Object::ReprType;
 
   public:
+    ItemRange() = default;
+
     ItemRange(const Object& obj, const Interval& itvl)
       : m_obj{(obj.m_fields.repr_ix == Object::DSRC_I && !obj.m_repr.ds->is_sparse())? obj.m_repr.ds->get_cached(obj): obj}
       , m_itvl{itvl} {}
@@ -167,7 +168,7 @@ ItemIterator ItemRange::begin() {
     switch (repr_ix) {
         case ReprType::LIST_I: {
             auto& list = std::get<0>(*m_obj.m_repr.pl);
-            if (m_itvl.is_empty()) {
+            if (m_itvl.min().value() == null) {
                 return ItemIterator{0UL, list.begin()};
             } else {
                 auto indices = m_itvl.to_indices(list.size());
@@ -175,8 +176,16 @@ ItemIterator ItemRange::begin() {
             }
         }
         case ReprType::MAP_I: {
-            if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
-            return ItemIterator{std::get<0>(*m_obj.m_repr.psm).begin()};
+            auto& map = std::get<0>(*m_obj.m_repr.psm);
+            auto& min_key = m_itvl.min().value();
+            if (min_key == null) {
+                return ItemIterator{map.begin()};
+            } else {
+                auto it = map.lower_bound(min_key);
+                if (m_itvl.min().is_open() && it != map.end())
+                    ++it;
+                return ItemIterator{it};
+            }
         }
         case ReprType::OMAP_I: {
             if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
@@ -204,8 +213,16 @@ ItemIterator ItemRange::end() {
             }
         }
         case ReprType::MAP_I: {
-            if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
-            return ItemIterator{std::get<0>(*m_obj.m_repr.psm).end()};
+            auto& map = std::get<0>(*m_obj.m_repr.psm);
+            auto& max_key = m_itvl.max().value();
+            if (max_key == null) {
+                return ItemIterator{map.end()};
+            } else {
+                auto it = map.upper_bound(max_key);
+                if (m_itvl.max().is_open())
+                    --it;
+                return ItemIterator{it};
+            }
         }
         case ReprType::OMAP_I: {
             if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
