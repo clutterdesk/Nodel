@@ -175,30 +175,30 @@ class Object
       };
 
   private:
-    template <typename T> ReprType ix_conv() const;
-    template <> ReprType ix_conv<bool>() const   { return BOOL_I; }
-    template <> ReprType ix_conv<Int>() const    { return INT_I; }
-    template <> ReprType ix_conv<UInt>() const   { return UINT_I; }
-    template <> ReprType ix_conv<Float>() const  { return FLOAT_I; }
-    template <> ReprType ix_conv<String>() const { return STR_I; }
-    template <> ReprType ix_conv<List>() const   { return LIST_I; }
-    template <> ReprType ix_conv<Map>() const    { return MAP_I; }
-    template <> ReprType ix_conv<OMap>() const   { return OMAP_I; }
+    template <typename T> ReprType get_repr_ix() const;
+    template <> ReprType get_repr_ix<bool>() const   { return BOOL_I; }
+    template <> ReprType get_repr_ix<Int>() const    { return INT_I; }
+    template <> ReprType get_repr_ix<UInt>() const   { return UINT_I; }
+    template <> ReprType get_repr_ix<Float>() const  { return FLOAT_I; }
+    template <> ReprType get_repr_ix<String>() const { return STR_I; }
+    template <> ReprType get_repr_ix<List>() const   { return LIST_I; }
+    template <> ReprType get_repr_ix<Map>() const    { return MAP_I; }
+    template <> ReprType get_repr_ix<OMap>() const   { return OMAP_I; }
 
-    template <typename T> T val_conv() const requires is_byvalue<T>;
-    template <> bool val_conv<bool>() const     { return m_repr.b; }
-    template <> Int val_conv<Int>() const       { return m_repr.i; }
-    template <> UInt val_conv<UInt>() const     { return m_repr.u; }
-    template <> Float val_conv<Float>() const   { return m_repr.f; }
+    template <typename T> T get_repr() const requires is_byvalue<T>;
+    template <> bool get_repr<bool>() const     { return m_repr.b; }
+    template <> Int get_repr<Int>() const       { return m_repr.i; }
+    template <> UInt get_repr<UInt>() const     { return m_repr.u; }
+    template <> Float get_repr<Float>() const   { return m_repr.f; }
 
-    template <typename T> T& val_conv() requires is_byvalue<T>;
-    template <> bool& val_conv<bool>()     { return m_repr.b; }
-    template <> Int& val_conv<Int>()       { return m_repr.i; }
-    template <> UInt& val_conv<UInt>()     { return m_repr.u; }
-    template <> Float& val_conv<Float>()   { return m_repr.f; }
+    template <typename T> T& get_repr() requires is_byvalue<T>;
+    template <> bool& get_repr<bool>()     { return m_repr.b; }
+    template <> Int& get_repr<Int>()       { return m_repr.i; }
+    template <> UInt& get_repr<UInt>()     { return m_repr.u; }
+    template <> Float& get_repr<Float>()   { return m_repr.f; }
 
-    template <typename T> const T& val_conv() const requires std::is_same<T, String>::value { return std::get<0>(*m_repr.ps); }
-    template <typename T> T& val_conv() requires std::is_same<T, String>::value             { return std::get<0>(*m_repr.ps); }
+    template <typename T> const T& get_repr() const requires std::is_same<T, String>::value { return std::get<0>(*m_repr.ps); }
+    template <typename T> T& get_repr() requires std::is_same<T, String>::value             { return std::get<0>(*m_repr.ps); }
 
   private:
     struct NoParent {};
@@ -295,37 +295,36 @@ class Object
     template <typename T>
     T value_cast() const;
 
-    // TODO: doesn't work for List, OMap
     template <typename T>
-    bool is_type() const { return resolve_repr_ix() == ix_conv<T>(); }
+    bool is_type() const { return resolve_repr_ix() == get_repr_ix<T>(); }
 
     template <typename V>
     void visit(V&& visitor) const;
 
     template <typename T>
     T as() const requires is_byvalue<T> {
-        if (m_fields.repr_ix == ix_conv<T>()) return val_conv<T>();
+        if (m_fields.repr_ix == get_repr_ix<T>()) return get_repr<T>();
         else if (m_fields.repr_ix == DSRC_I) return dsrc_read().as<T>();
         throw wrong_type(m_fields.repr_ix);
     }
 
     template <typename T>
     const T& as() const requires std::is_same<T, String>::value {
-        if (m_fields.repr_ix == ix_conv<T>()) return val_conv<T>();
+        if (m_fields.repr_ix == get_repr_ix<T>()) return get_repr<T>();
         else if (m_fields.repr_ix == DSRC_I) return dsrc_read().as<T>();
         throw wrong_type(m_fields.repr_ix);
     }
 
     template <typename T>
     T& as() requires is_byvalue<T> {
-        if (m_fields.repr_ix == ix_conv<T>()) return val_conv<T>();
+        if (m_fields.repr_ix == get_repr_ix<T>()) return get_repr<T>();
         else if (m_fields.repr_ix == DSRC_I) return dsrc_read().as<T>();
         throw wrong_type(m_fields.repr_ix);
     }
 
     template <typename T>
     T& as() requires std::is_same<T, String>::value {
-        if (m_fields.repr_ix == ix_conv<T>()) return val_conv<T>();
+        if (m_fields.repr_ix == get_repr_ix<T>()) return get_repr<T>();
         else if (m_fields.repr_ix == DSRC_I) return dsrc_read().as<T>();
         throw wrong_type(m_fields.repr_ix);
     }

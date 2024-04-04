@@ -55,8 +55,7 @@ class KeyIterator;
 class Key
 {
   public:
-    enum {
-        EMPTY_I,
+    enum ReprType {
         NULL_I,   // json null
         BOOL_I,
         INT_I,
@@ -84,7 +83,7 @@ class Key
     };
 
   public:
-    static std::string_view type_name(uint8_t repr_ix) {
+    static std::string_view type_name(ReprType repr_ix) {
         switch (repr_ix) {
             case NULL_I:  return "null";
             case BOOL_I:  return "bool";
@@ -250,8 +249,11 @@ class Key
         }
     }
 
-    uint8_t type() const   { return m_repr_ix; }
+    ReprType type() const   { return m_repr_ix; }
     auto type_name() const { return type_name(m_repr_ix); }
+
+    template <typename T>
+    bool is_type() const { return m_repr_ix == get_repr_ix<T>(); }
 
     bool is_bool() const    { return m_repr_ix == BOOL_I; }
     bool is_int() const     { return m_repr_ix == INT_I; }
@@ -398,8 +400,8 @@ class Key
         }
     }
 
-    static WrongType wrong_type(uint8_t actual)                   { return type_name(actual); };
-    static WrongType wrong_type(uint8_t actual, uint8_t expected) { return {type_name(actual), type_name(expected)}; };
+    static WrongType wrong_type(ReprType actual)                    { return type_name(actual); };
+    static WrongType wrong_type(ReprType actual, ReprType expected) { return {type_name(actual), type_name(expected)}; };
 
   private:
     void release() {
@@ -407,9 +409,17 @@ class Key
         m_repr_ix = NULL_I;
     }
 
+    template <typename T> ReprType get_repr_ix() const;
+    template <> ReprType get_repr_ix<bool>() const     { return BOOL_I; }
+    template <> ReprType get_repr_ix<Int>() const      { return INT_I; }
+    template <> ReprType get_repr_ix<UInt>() const     { return UINT_I; }
+    template <> ReprType get_repr_ix<Float>() const    { return FLOAT_I; }
+    template <> ReprType get_repr_ix<intern_t>() const { return STR_I; }
+    template <> ReprType get_repr_ix<String>() const   { return STR_I; }
+
   private:
     Repr m_repr;
-    uint8_t m_repr_ix;
+    ReprType m_repr_ix;
 
   friend std::ostream& operator<< (std::ostream& ostream, const Key& key);
   friend class Object;

@@ -14,6 +14,7 @@ TEST(Key, Null) {
 
 TEST(Key, Bool) {
   Key k{true};
+  EXPECT_TRUE(k.is_type<bool>());
   EXPECT_TRUE(k.is_bool());
   EXPECT_EQ(k.to_str(), "true");
   EXPECT_EQ(k.as<bool>(), true);

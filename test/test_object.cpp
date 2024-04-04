@@ -46,6 +46,7 @@ TEST(Object, Null) {
 TEST(Object, Bool) {
   Object v{true};
   EXPECT_TRUE(v.is_bool());
+  EXPECT_TRUE(v.is_type<bool>());
   EXPECT_FALSE(v.is_num());
   EXPECT_EQ(v.to_json(), "true");
 
@@ -60,6 +61,7 @@ TEST(Object, Bool) {
 
 TEST(Object, Int64) {
   Object v{-0x7FFFFFFFFFFFFFFFLL};
+  EXPECT_TRUE(v.is_type<Int>());
   EXPECT_TRUE(v.is_int());
   EXPECT_TRUE(v.is_num());
   EXPECT_EQ(v.to_json(), "-9223372036854775807");
@@ -71,6 +73,7 @@ TEST(Object, Int64) {
 
 TEST(Object, UInt64) {
   Object v{0xFFFFFFFFFFFFFFFFULL};
+  EXPECT_TRUE(v.is_type<UInt>());
   EXPECT_TRUE(v.is_uint());
   EXPECT_TRUE(v.is_num());
   EXPECT_EQ(v.to_json(), "18446744073709551615");
@@ -82,6 +85,7 @@ TEST(Object, UInt64) {
 
 TEST(Object, Double) {
   Object v{3.141593};
+  EXPECT_TRUE(v.is_type<Float>());
   EXPECT_TRUE(v.is_float());
   EXPECT_TRUE(v.is_num());
   EXPECT_EQ(v.to_json(), "3.141593");
@@ -93,6 +97,7 @@ TEST(Object, Double) {
 
 TEST(Object, String) {
   Object v{"123"};
+  EXPECT_TRUE(v.is_type<String>());
   EXPECT_TRUE(v.is_str());
   EXPECT_TRUE(v.parent() == null);
   EXPECT_EQ(v.to_json(), "\"123\"");
@@ -112,12 +117,14 @@ TEST(Object, ConstructWithInvalidRepr) {
 
 TEST(Object, List) {
   Object list{List{Object(1), Object("tea"), Object(3.14), Object(true)}};
+  EXPECT_TRUE(list.is_type<List>());
   EXPECT_TRUE(list.is_list());
   EXPECT_EQ(list.to_json(), "[1, \"tea\", 3.14, true]");
 }
 
 TEST(Object, SortedMap) {
   Object map{Map{}};
+  EXPECT_TRUE(map.is_type<Map>());
   EXPECT_TRUE(map.is_sorted_map());
 }
 
@@ -130,6 +137,7 @@ TEST(Object, SortedMapKeyOrder) {
 
 TEST(Object, OrderedMap) {
   Object map{OMap{}};
+  EXPECT_TRUE(map.is_type<OMap>());
   EXPECT_TRUE(map.is_ordered_map());
 }
 
