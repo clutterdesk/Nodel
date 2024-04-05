@@ -25,12 +25,12 @@ namespace nodel {
 inline
 std::string serialize(const Key& key) {
     switch (key.type()) {
-        case Key::NULL_I:  return "0";
-        case Key::BOOL_I:  return key.as<bool>()? "2": "1";
-        case Key::INT_I:   return "3" + key.to_str();
-        case Key::UINT_I:  return "4" + key.to_str();
-        case Key::FLOAT_I: return "5" + key.to_str();
-        case Key::STR_I:   return "6" + key.to_str();
+        case Key::NONE:  return "0";
+        case Key::BOOL:  return key.as<bool>()? "2": "1";
+        case Key::INT:   return "3" + key.to_str();
+        case Key::UINT:  return "4" + key.to_str();
+        case Key::FLOAT: return "5" + key.to_str();
+        case Key::STR:   return "6" + key.to_str();
         default:           throw Key::wrong_type(key.type());
     }
 }
@@ -39,7 +39,7 @@ inline
 bool deserialize(const std::string_view& data, Key& key) {
     if (data.size() < 1) return false;
     switch (data[0]) {
-        case '0': key = null; break;
+        case '0': key = none; break;
         case '1': key = false; break;
         case '2': key = true; break;
         case '3': key = str_to_int(data.substr(1)); break;
@@ -54,14 +54,14 @@ bool deserialize(const std::string_view& data, Key& key) {
 inline
 std::string serialize(const Object& value) {
     switch (value.type()) {
-        case Object::NULL_I:  return "0";
-        case Object::BOOL_I:  return value.as<bool>()? "2": "1";
-        case Object::INT_I:   return '3' + value.to_str();
-        case Object::UINT_I:  return '4' + value.to_str();
-        case Object::FLOAT_I: return '5' + value.to_str();
-        case Object::STR_I:   return '6' + value.as<String>();
-        case Object::LIST_I:  [[fallthrough]];
-        case Object::OMAP_I:  return '7' + value.to_json();
+        case Object::NONE:  return "0";
+        case Object::BOOL:  return value.as<bool>()? "2": "1";
+        case Object::INT:   return '3' + value.to_str();
+        case Object::UINT:  return '4' + value.to_str();
+        case Object::FLOAT: return '5' + value.to_str();
+        case Object::STR:   return '6' + value.as<String>();
+        case Object::LIST:  [[fallthrough]];
+        case Object::OMAP:  return '7' + value.to_json();
         default:              throw Object::wrong_type(value.type());
     }
 }
@@ -70,7 +70,7 @@ inline
 bool deserialize(const std::string_view& data, Object& value) {
     if (data.size() < 1) return false;
     switch (data[0]) {
-        case '0': value = null; break;
+        case '0': value = none; break;
         case '1': value = false; break;
         case '2': value = true; break;
         case '3': value = str_to_int(data.substr(1)); break;

@@ -36,7 +36,7 @@ class Oid
 
     size_t hash() const { return m_b ^ (((uint64_t)m_a) << 56); }
 
-    static Oid null() { return Oid{}; }
+    static Oid none() { return Oid{}; }
     static Oid illegal() { return Oid{0xFF, 0xFFFFFFFFFFFFFFFFULL}; }
 
   private:

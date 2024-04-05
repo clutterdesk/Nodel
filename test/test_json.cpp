@@ -9,22 +9,22 @@ using namespace nodel::json;
 using namespace nodel::json::impl;
 
 TEST(Json, ParseNull) {
-    std::stringstream stream{"null"};
+    std::stringstream stream{"none"};
     Parser parser{nodel::impl::StreamAdapter{stream}};
     ASSERT_TRUE(parser.parse_object());
-    EXPECT_TRUE(parser.m_curr == null);
+    EXPECT_TRUE(parser.m_curr == none);
 }
 
 TEST(Json, ParseTypeNull) {
-    std::stringstream stream{"null"};
+    std::stringstream stream{"none"};
     Parser parser{nodel::impl::StreamAdapter{stream}};
-    EXPECT_EQ(parser.parse_type(), Object::NULL_I);
+    EXPECT_EQ(parser.parse_type(), Object::NONE);
 }
 
 TEST(Json, ParseTypeBoolFalse) {
     std::stringstream stream{"false"};
     Parser parser{nodel::impl::StreamAdapter{stream}};
-    EXPECT_EQ(parser.parse_type(), Object::BOOL_I);
+    EXPECT_EQ(parser.parse_type(), Object::BOOL);
 }
 
 TEST(Json, ParseBoolTrue) {
@@ -38,7 +38,7 @@ TEST(Json, ParseBoolTrue) {
 TEST(Json, ParseTypeBoolTrue) {
     std::stringstream stream{"true"};
     Parser parser{nodel::impl::StreamAdapter{stream}};
-    EXPECT_EQ(parser.parse_type(), Object::BOOL_I);
+    EXPECT_EQ(parser.parse_type(), Object::BOOL);
 }
 
 TEST(Json, ParseNumberSignedInt) {
@@ -80,7 +80,7 @@ TEST(Json, ParseNumberFloatLeadingDecimal) {
 TEST(Json, ParseTypeFloatLeadingDecimal) {
     std::stringstream stream{".1"};
     Parser parser{nodel::impl::StreamAdapter{stream}};
-    EXPECT_EQ(parser.parse_type(), Object::FLOAT_I);
+    EXPECT_EQ(parser.parse_type(), Object::FLOAT);
 }
 
 TEST(Json, ParseNumberTrailingDecimal) {
@@ -142,14 +142,14 @@ TEST(Json, ParseSingleQuotedString) {
 
 TEST(Json, ParseUnterminatedString) {
     std::string err;
-    EXPECT_TRUE(parse("'tea", err) == null);
+    EXPECT_TRUE(parse("'tea", err) == none);
     EXPECT_TRUE(err.size());
 }
 
 TEST(Json, ParseTypeStringSingleQuote) {
     std::stringstream stream{"'tea'"};
     Parser parser{nodel::impl::StreamAdapter{stream}};
-    EXPECT_EQ(parser.parse_type(), Object::STR_I);
+    EXPECT_EQ(parser.parse_type(), Object::STR);
 }
 
 TEST(Json, ParseDoubleQuotedString) {
@@ -162,7 +162,7 @@ TEST(Json, ParseDoubleQuotedString) {
 TEST(Json, ParseTypeStringDoubleQuote) {
     std::stringstream stream{"\"tea\""};
     Parser parser{nodel::impl::StreamAdapter{stream}};
-    EXPECT_EQ(parser.parse_type(), Object::STR_I);
+    EXPECT_EQ(parser.parse_type(), Object::STR);
 }
 
 TEST(Json, ParseListEmpty) {

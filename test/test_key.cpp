@@ -7,9 +7,9 @@ using namespace nodel;
 
 TEST(Key, Null) {
   Key k;
-  EXPECT_TRUE(k == null);
+  EXPECT_TRUE(k == none);
   EXPECT_EQ(k, Key{});
-  EXPECT_EQ(k.to_str(), "null");
+  EXPECT_EQ(k.to_str(), "none");
 }
 
 TEST(Key, Bool) {
@@ -66,8 +66,8 @@ TEST(Key, AssignNull) {
   Key k{1};
   EXPECT_TRUE(k.is_type<Int>());
   EXPECT_EQ(k.as<Int>(), 1);
-  k = null;
-  EXPECT_TRUE(k == null);
+  k = none;
+  EXPECT_TRUE(k == none);
 }
 
 TEST(Key, AssignBool) {
@@ -81,7 +81,7 @@ TEST(Key, AssignBool) {
 
 TEST(Key, AssignInt) {
   Key k;
-  EXPECT_TRUE(k == null);
+  EXPECT_TRUE(k == none);
   k = 7;
   EXPECT_TRUE(k.is_type<Int>());
   EXPECT_EQ(k.as<Int>(), 7);
@@ -89,7 +89,7 @@ TEST(Key, AssignInt) {
 
 TEST(Key, AssignUInt) {
     Key k;
-    EXPECT_TRUE(k == null);
+    EXPECT_TRUE(k == none);
     k = 7UL;
     EXPECT_TRUE(k.is_type<UInt>());
     EXPECT_EQ(k.as<UInt>(), 7UL);
@@ -97,7 +97,7 @@ TEST(Key, AssignUInt) {
 
 TEST(Key, AssignFloat) {
   Key k;
-  EXPECT_TRUE(k == null);
+  EXPECT_TRUE(k == none);
   k = -2.2250738585072020e-308;
   EXPECT_TRUE(k.is_type<Float>());
   EXPECT_EQ(k.to_str(), "-2.225073858507202e-308");
@@ -105,7 +105,7 @@ TEST(Key, AssignFloat) {
 
 TEST(Key, AssignStringLiteral) {
     Key k;
-    EXPECT_TRUE(k == null);
+    EXPECT_TRUE(k == none);
     k = "foo"s;
     EXPECT_TRUE(k.is_type<String>());
     EXPECT_EQ(k.as<StringView>(), "foo");
@@ -161,7 +161,7 @@ TEST(Key, CompareString) {
 
 TEST(Key, HashNull) {
     Key k;
-    EXPECT_TRUE(k == null);
+    EXPECT_TRUE(k == none);
     EXPECT_EQ(std::hash<Key>{}(k), 0);
 }
 

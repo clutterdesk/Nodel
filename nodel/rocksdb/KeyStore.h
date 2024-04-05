@@ -113,7 +113,7 @@ class KeyStore : public nodel::DataSource
 
 inline
 KeyStore::KeyStore(const std::filesystem::path& path, Origin origin)
-  : nodel::DataSource(Kind::SPARSE, Mode::READ | Mode::WRITE, Object::OMAP_I, origin)
+  : nodel::DataSource(Kind::SPARSE, Mode::READ | Mode::WRITE, Object::OMAP, origin)
   , m_path{path} {
     m_options.error_if_exists = false;
     if (!path.empty()) {
@@ -225,7 +225,7 @@ inline
 std::unique_ptr<nodel::DataSource::KeyIterator> KeyStore::key_iter(const Interval& itvl) {
     auto p_it = mp_db->NewIterator(m_read_options);
     auto& min = itvl.min();
-    if (min.value() == null) {
+    if (min.value() == none) {
         p_it->SeekToFirst();
     } else {
         p_it->Seek(serialize(min.value()));
@@ -237,7 +237,7 @@ inline
 std::unique_ptr<nodel::DataSource::ValueIterator> KeyStore::value_iter(const Interval& itvl) {
     auto p_it = mp_db->NewIterator(m_read_options);
     auto& min = itvl.min();
-    if (min.value() == null) {
+    if (min.value() == none) {
         p_it->SeekToFirst();
     } else {
         p_it->Seek(serialize(min.value()));
@@ -249,7 +249,7 @@ inline
 std::unique_ptr<nodel::DataSource::ItemIterator> KeyStore::item_iter(const Interval& itvl) {
     auto p_it = mp_db->NewIterator(m_read_options);
     auto& min = itvl.min();
-    if (min.value() == null) {
+    if (min.value() == none) {
         p_it->SeekToFirst();
     } else {
         p_it->Seek(serialize(min.value()));
@@ -275,7 +275,7 @@ Object KeyStore::read_key(const Object& target, const Key& key) {
     std::string data;
     ::rocksdb::Status status = mp_db->Get(m_read_options, db_key, &data);
     if (status.code() == ::rocksdb::Status::Code::kNotFound)
-        return null;
+        return none;
     ASSERT(status.ok()); // TODO: error handling
     Object value;
     ASSERT(deserialize(data, value));

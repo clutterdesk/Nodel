@@ -24,7 +24,7 @@ namespace nodel {
 //    Object result = nodel::json::parse(std::string(json), parse_error);
 //    if (parse_error) {
 //        error = parse_error->to_str();
-//        return null;
+//        return none;
 //    }
 //    return Object{result};
 //}

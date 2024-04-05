@@ -42,7 +42,7 @@ struct Interval
         if (m_max.m_kind == Endpoint::Kind::DEFAULT) m_max.m_kind = Endpoint::Kind::OPEN;
     }
 
-    bool is_empty() const { return m_min.m_value == null && m_max.m_value == null; }
+    bool is_empty() const { return m_min.m_value == none && m_max.m_value == none; }
 
     bool contains(const Key& key) const;
 
@@ -85,18 +85,18 @@ std::pair<UInt, UInt> Interval::to_indices(size_t list_size) const {
     UInt max_i;
 
     switch (m_min.m_value.type()) {
-        case Key::NULL_I: {
+        case Key::NONE: {
             min_i = 0;
             assert (m_max.m_kind == Endpoint::Kind::CLOSED);
             break;
         }
-        case Key::INT_I: {
+        case Key::INT: {
             min_i = (m_min.m_kind == Endpoint::Kind::OPEN)?
                     (m_min.m_value.to_int() + 1):
                     m_min.m_value.to_int();
             break;
         }
-        case Key::UINT_I: {
+        case Key::UINT: {
             min_i = (m_min.m_kind == Endpoint::Kind::OPEN)?
                     (m_min.m_value.to_uint() + 1):
                     m_min.m_value.to_uint();
@@ -107,19 +107,19 @@ std::pair<UInt, UInt> Interval::to_indices(size_t list_size) const {
     }
 
     switch (m_max.m_value.type()) {
-        case Key::NULL_I: {
+        case Key::NONE: {
             max_i = list_size;
             assert (m_max.m_kind == Endpoint::Kind::OPEN);
             break;
         }
-        case Key::INT_I: {
+        case Key::INT: {
             max_i = (m_max.m_kind == Endpoint::Kind::OPEN)?
                     m_max.m_value.to_int():
                     (m_max.m_value.to_int() + 1);
             break;
         }
 
-        case Key::UINT_I: {
+        case Key::UINT: {
             max_i = (m_max.m_kind == Endpoint::Kind::OPEN)?
                     m_max.m_value.to_uint():
                     (m_max.m_value.to_uint() + 1);

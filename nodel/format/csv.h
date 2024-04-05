@@ -52,7 +52,7 @@ Object Parser<StreamType>::parse() {
     List table;
     while (!m_it.done())
         if (!parse_row(table))
-            return null;
+            return none;
     return table;
 }
 
@@ -111,7 +111,7 @@ bool Parser<StreamType>::parse_column(List& row) {
 
 template <typename StreamType>
 Object Parser<StreamType>::parse_quoted() {
-    Object object{Object::STR_I};
+    Object object{Object::STR};
     auto& str = object.as<String>();
     char quote = m_it.peek();
     m_it.next();
@@ -135,7 +135,7 @@ Object Parser<StreamType>::parse_quoted() {
 
 template <typename StreamType>
 Object Parser<StreamType>::parse_unquoted() {
-    Object object{Object::STR_I};
+    Object object{Object::STR};
     auto& str = object.as<String>();
     for (char c = m_it.peek(); c != ',' && c != '\n' && c != 0 && !m_it.done(); m_it.next(), c = m_it.peek()) {
         str.push_back(c);
@@ -186,7 +186,7 @@ Object parse(std::string&& str, std::optional<ParseError>& error) {
     std::istringstream in{std::forward<std::string>(str)};
     impl::Parser parser{in};
     Object result = parser.parse();
-    if (result == null) {
+    if (result == none) {
         error = ParseError{parser.pos(), std::move(parser.error())};
     }
     return result;
@@ -216,11 +216,11 @@ Object parse_file(const std::string& file_name, std::string& error) {
         std::stringstream ss;
         ss << "Error opening file: " << file_name;
         error = ss.str();
-        return null;
+        return none;
     } else {
         impl::Parser parser{f_in};
         Object result = parser.parse();
-        if (result == null) {
+        if (result == none) {
             ParseError parse_error{parser.pos(), std::move(parser.error())};
             error = parse_error.to_str();
         }

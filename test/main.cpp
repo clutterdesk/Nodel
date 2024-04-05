@@ -6,7 +6,7 @@
 #include <string_view>
 
 
-NODEL_INTERN_STATIC_INIT;
+NODELNTERN_STATIC_INIT;
 
 int main(int argc, char **argv) {
   cpptrace::register_terminate_handler();

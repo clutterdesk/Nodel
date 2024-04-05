@@ -23,7 +23,7 @@ namespace filesystem {
 class TextFile : public File
 {
   public:
-    TextFile(Origin origin) : File(Kind::COMPLETE, Mode::INHERIT, Object::STR_I, origin) {}
+    TextFile(Origin origin) : File(Kind::COMPLETE, Mode::INHERIT, Object::STR, origin) {}
     TextFile()              : TextFile(Origin::MEMORY) {}
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new TextFile(origin); }

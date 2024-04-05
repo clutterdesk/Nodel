@@ -55,13 +55,13 @@ class KeyIterator;
 class Key
 {
   public:
-    enum ReprType {
-        NULL_I,   // json null
-        BOOL_I,
-        INT_I,
-        UINT_I,
-        FLOAT_I,
-        STR_I
+    enum ReprIX {
+        NONE,   // json null
+        BOOL,
+        INT,
+        UINT,
+        FLOAT,
+        STR
     };
 
   private:
@@ -83,40 +83,40 @@ class Key
     };
 
   public:
-    static std::string_view type_name(ReprType repr_ix) {
+    static std::string_view type_name(ReprIX repr_ix) {
         switch (repr_ix) {
-            case NULL_I:  return "null";
-            case BOOL_I:  return "bool";
-            case INT_I:   return "int";
-            case UINT_I:  return "uint";
-            case FLOAT_I: return "float";
-            case STR_I:   return "string";
+            case NONE:  return "none";
+            case BOOL:  return "bool";
+            case INT:   return "int";
+            case UINT:  return "uint";
+            case FLOAT: return "float";
+            case STR:   return "string";
             default:      throw std::logic_error("invalid repr_ix");
         }
     }
 
   public:
-    Key()                     : m_repr{}, m_repr_ix{NULL_I} {}
-    Key(null_t)               : m_repr{}, m_repr_ix{NULL_I} {}
-    Key(is_bool auto v)       : m_repr{v}, m_repr_ix{BOOL_I} {}
-    Key(is_like_Float auto v) : m_repr{v}, m_repr_ix{FLOAT_I} {}
-    Key(is_like_Int auto v)   : m_repr{(Int)v}, m_repr_ix{INT_I} {}
-    Key(is_like_UInt auto v)  : m_repr{(UInt)v}, m_repr_ix{UINT_I} {}
-    Key(intern_t s)           : m_repr{s}, m_repr_ix{STR_I} {}
-    Key(const String& s)      : m_repr{intern_string(s)}, m_repr_ix{STR_I} {}
-    Key(const StringView& s)  : m_repr{intern_string(s)}, m_repr_ix{STR_I} {}
+    Key()                     : m_repr{}, m_repr_ix{NONE} {}
+    Key(null_t)               : m_repr{}, m_repr_ix{NONE} {}
+    Key(is_bool auto v)       : m_repr{v}, m_repr_ix{BOOL} {}
+    Key(is_like_Float auto v) : m_repr{v}, m_repr_ix{FLOAT} {}
+    Key(is_like_Int auto v)   : m_repr{(Int)v}, m_repr_ix{INT} {}
+    Key(is_like_UInt auto v)  : m_repr{(UInt)v}, m_repr_ix{UINT} {}
+    Key(intern_t s)           : m_repr{s}, m_repr_ix{STR} {}
+    Key(const String& s)      : m_repr{intern_string(s)}, m_repr_ix{STR} {}
+    Key(const StringView& s)  : m_repr{intern_string(s)}, m_repr_ix{STR} {}
 
     ~Key() { release(); }
 
     Key(const Key& key) {
         m_repr_ix = key.m_repr_ix;
         switch (m_repr_ix) {
-            case NULL_I:  m_repr.z = key.m_repr.z; break;
-            case BOOL_I:  m_repr.b = key.m_repr.b; break;
-            case INT_I:   m_repr.i = key.m_repr.i; break;
-            case UINT_I:  m_repr.u = key.m_repr.u; break;
-            case FLOAT_I: m_repr.f = key.m_repr.f; break;
-            case STR_I:   m_repr.s = key.m_repr.s; break;
+            case NONE:  m_repr.z = key.m_repr.z; break;
+            case BOOL:  m_repr.b = key.m_repr.b; break;
+            case INT:   m_repr.i = key.m_repr.i; break;
+            case UINT:  m_repr.u = key.m_repr.u; break;
+            case FLOAT: m_repr.f = key.m_repr.f; break;
+            case STR:   m_repr.s = key.m_repr.s; break;
         }
     }
 
@@ -124,123 +124,123 @@ class Key
         release();
         m_repr_ix = key.m_repr_ix;
         switch (m_repr_ix) {
-            case NULL_I:  m_repr.z = key.m_repr.z; break;
-            case BOOL_I:  m_repr.b = key.m_repr.b; break;
-            case INT_I:   m_repr.i = key.m_repr.i; break;
-            case UINT_I:  m_repr.u = key.m_repr.u; break;
-            case FLOAT_I: m_repr.f = key.m_repr.f; break;
-            case STR_I:   m_repr.s = key.m_repr.s; break;
+            case NONE:  m_repr.z = key.m_repr.z; break;
+            case BOOL:  m_repr.b = key.m_repr.b; break;
+            case INT:   m_repr.i = key.m_repr.i; break;
+            case UINT:  m_repr.u = key.m_repr.u; break;
+            case FLOAT: m_repr.f = key.m_repr.f; break;
+            case STR:   m_repr.s = key.m_repr.s; break;
         }
         return *this;
     }
 
-    Key& operator = (null_t)               { release(); m_repr.z = nullptr; m_repr_ix = NULL_I; return *this; }
-    Key& operator = (is_bool auto v)       { release(); m_repr.b = v; m_repr_ix = BOOL_I; return *this; }
-    Key& operator = (is_like_Int auto v)   { release(); m_repr.i = v; m_repr_ix = INT_I; return *this; }
-    Key& operator = (is_like_UInt auto v)  { release(); m_repr.u = v; m_repr_ix = UINT_I; return *this; }
-    Key& operator = (Float v)              { release(); m_repr.f = v; m_repr_ix = FLOAT_I; return *this; }
+    Key& operator = (null_t)               { release(); m_repr.z = nullptr; m_repr_ix = NONE; return *this; }
+    Key& operator = (is_bool auto v)       { release(); m_repr.b = v; m_repr_ix = BOOL; return *this; }
+    Key& operator = (is_like_Int auto v)   { release(); m_repr.i = v; m_repr_ix = INT; return *this; }
+    Key& operator = (is_like_UInt auto v)  { release(); m_repr.u = v; m_repr_ix = UINT; return *this; }
+    Key& operator = (Float v)              { release(); m_repr.f = v; m_repr_ix = FLOAT; return *this; }
 
     Key& operator = (const String& s) {
         release();
         m_repr.s = intern_string(s);
-        m_repr_ix = STR_I;
+        m_repr_ix = STR;
         return *this;
     }
 
     Key& operator = (intern_t s) {
         release();
         m_repr.s = s;
-        m_repr_ix = STR_I;
+        m_repr_ix = STR;
         return *this;
     }
 
     bool operator == (const Key& other) const {
         switch (m_repr_ix) {
-            case NULL_I:  return other == null;
-            case BOOL_I:  return other == m_repr.b;
-            case INT_I:   return other == m_repr.i;
-            case UINT_I:  return other == m_repr.u;
-            case FLOAT_I: return other == m_repr.f;
-            case STR_I:   return other == m_repr.s;
+            case NONE:  return other == none;
+            case BOOL:  return other == m_repr.b;
+            case INT:   return other == m_repr.i;
+            case UINT:  return other == m_repr.u;
+            case FLOAT: return other == m_repr.f;
+            case STR:   return other == m_repr.s;
             default:      break;
         }
         return false;
     }
 
     bool operator == (null_t) const {
-        return m_repr_ix == NULL_I;
+        return m_repr_ix == NONE;
     }
 
     bool operator == (intern_t s) const {
-        if (m_repr_ix == STR_I) return s == m_repr.s;
+        if (m_repr_ix == STR) return s == m_repr.s;
         else return false;
     }
 
     bool operator == (is_like_string auto&& other) const {
-        return (m_repr_ix == STR_I)? (m_repr.s == other): false;
+        return (m_repr_ix == STR)? (m_repr.s == other): false;
     }
 
     bool operator == (is_number auto other) const {
         switch (m_repr_ix) {
-            case BOOL_I:  return m_repr.b == other;
-            case INT_I:   return m_repr.i == other;
-            case UINT_I:  return m_repr.u == other;
-            case FLOAT_I: return m_repr.f == other;
+            case BOOL:  return m_repr.b == other;
+            case INT:   return m_repr.i == other;
+            case UINT:  return m_repr.u == other;
+            case FLOAT: return m_repr.f == other;
             default:      return false;
         }
     }
 
     std::partial_ordering operator <=> (const Key& other) const {
         switch (m_repr_ix) {
-            case BOOL_I: {
+            case BOOL: {
                 switch (other.m_repr_ix) {
-                    case BOOL_I:  return m_repr.b <=> other.m_repr.b;
-                    case INT_I:   return m_repr.b <=> other.to_bool();
-                    case UINT_I:  return m_repr.b <=> other.to_bool();
-                    case FLOAT_I: return m_repr.b <=> other.to_bool();
-                    case STR_I:   return to_str() <=> other.m_repr.s.data();
+                    case BOOL:  return m_repr.b <=> other.m_repr.b;
+                    case INT:   return m_repr.b <=> other.to_bool();
+                    case UINT:  return m_repr.b <=> other.to_bool();
+                    case FLOAT: return m_repr.b <=> other.to_bool();
+                    case STR:   return to_str() <=> other.m_repr.s.data();
                     default:      return std::partial_ordering::unordered;
                 }
             }
-            case INT_I: {
+            case INT: {
                 switch (other.m_repr_ix) {
-                    case BOOL_I:  return to_bool() <=> other.m_repr.b;
-                    case INT_I:   return m_repr.i <=> other.m_repr.i;
-                    case UINT_I:  {
+                    case BOOL:  return to_bool() <=> other.m_repr.b;
+                    case INT:   return m_repr.i <=> other.m_repr.i;
+                    case UINT:  {
                         return (other.m_repr.u > std::numeric_limits<Int>::max())?
                                std::partial_ordering::less:
                                m_repr.i <=> other.to_int();
                     }
-                    case FLOAT_I: return m_repr.i <=> other.m_repr.f;
-                    case STR_I:   return to_str() <=> other.m_repr.s.data();
+                    case FLOAT: return m_repr.i <=> other.m_repr.f;
+                    case STR:   return to_str() <=> other.m_repr.s.data();
                     default:      return std::partial_ordering::unordered;
                 }
             }
-            case UINT_I: {
+            case UINT: {
                 switch (other.m_repr_ix) {
-                    case BOOL_I:  return to_bool() <=> other.m_repr.b;
-                    case INT_I:   {
+                    case BOOL:  return to_bool() <=> other.m_repr.b;
+                    case INT:   {
                         return (m_repr.u > std::numeric_limits<Int>::max())?
                                std::partial_ordering::greater:
                                to_int() <=> other.m_repr.i;
                     }
-                    case UINT_I:  return m_repr.u <=> other.m_repr.u;
-                    case FLOAT_I: return m_repr.u <=> other.m_repr.f;
-                    case STR_I:   return to_str() <=> other.m_repr.s.data();
+                    case UINT:  return m_repr.u <=> other.m_repr.u;
+                    case FLOAT: return m_repr.u <=> other.m_repr.f;
+                    case STR:   return to_str() <=> other.m_repr.s.data();
                     default:      return std::partial_ordering::unordered;
                 }
             }
-            case FLOAT_I: {
+            case FLOAT: {
                 switch (other.m_repr_ix) {
-                    case BOOL_I:  return to_bool() <=> other.m_repr.b;
-                    case INT_I:   return m_repr.f <=> other.m_repr.i;
-                    case UINT_I:  return m_repr.f <=> other.m_repr.u;
-                    case FLOAT_I: return m_repr.f <=> other.m_repr.f;
-                    case STR_I:   return to_str() <=> other.m_repr.s.data();
+                    case BOOL:  return to_bool() <=> other.m_repr.b;
+                    case INT:   return m_repr.f <=> other.m_repr.i;
+                    case UINT:  return m_repr.f <=> other.m_repr.u;
+                    case FLOAT: return m_repr.f <=> other.m_repr.f;
+                    case STR:   return to_str() <=> other.m_repr.s.data();
                     default:      return std::partial_ordering::unordered;
                 }
             }
-            case STR_I: {
+            case STR: {
                 return m_repr.s.data() <=> other.to_str();
             }
             default: {
@@ -249,14 +249,14 @@ class Key
         }
     }
 
-    ReprType type() const   { return m_repr_ix; }
+    ReprIX type() const   { return m_repr_ix; }
     auto type_name() const { return type_name(m_repr_ix); }
 
     template <typename T>
     bool is_type() const { return m_repr_ix == get_repr_ix<T>(); }
 
-    bool is_any_int() const { return m_repr_ix == INT_I || m_repr_ix == UINT_I; }
-    bool is_num() const     { return m_repr_ix >= INT_I && m_repr_ix <= FLOAT_I; }
+    bool is_any_int() const { return m_repr_ix == INT || m_repr_ix == UINT; }
+    bool is_num() const     { return m_repr_ix >= INT && m_repr_ix <= FLOAT; }
 
     // unsafe, but will not segv
     template <typename T> T as() const requires is_byvalue<T>;
@@ -266,17 +266,17 @@ class Key
     template <> Float as<Float>() const   { return m_repr.f; }
 
     template <typename T> const T& as() const requires std::is_same<T, StringView>::value {
-        if (m_repr_ix != STR_I) throw wrong_type(m_repr_ix);
+        if (m_repr_ix != STR) throw wrong_type(m_repr_ix);
         return m_repr.s.data();
     }
 
     bool to_bool() const {
         switch (m_repr_ix) {
-            case BOOL_I:  return m_repr.b;
-            case INT_I:   return (bool)m_repr.i;
-            case UINT_I:  return (bool)m_repr.u;
-            case FLOAT_I: return (bool)m_repr.f;
-            case STR_I:   return str_to_bool(m_repr.s.data());
+            case BOOL:  return m_repr.b;
+            case INT:   return (bool)m_repr.i;
+            case UINT:  return (bool)m_repr.u;
+            case FLOAT: return (bool)m_repr.f;
+            case STR:   return str_to_bool(m_repr.s.data());
             default: // TODO
                 return std::numeric_limits<Int>::max();
         }
@@ -284,11 +284,11 @@ class Key
 
     Int to_int() const {
         switch (m_repr_ix) {
-            case BOOL_I:  return (Int)m_repr.b;
-            case INT_I:   return m_repr.i;
-            case UINT_I:  return (Int)m_repr.u;
-            case FLOAT_I: return (Int)m_repr.f;
-            case STR_I:   return str_to_int(m_repr.s.data());
+            case BOOL:  return (Int)m_repr.b;
+            case INT:   return m_repr.i;
+            case UINT:  return (Int)m_repr.u;
+            case FLOAT: return (Int)m_repr.f;
+            case STR:   return str_to_int(m_repr.s.data());
             default: // TODO
                 return std::numeric_limits<Int>::max();
         }
@@ -296,11 +296,11 @@ class Key
 
     UInt to_uint() const {
         switch (m_repr_ix) {
-            case BOOL_I:  return (UInt)m_repr.b;
-            case INT_I:   return (UInt)m_repr.i;
-            case UINT_I:  return m_repr.u;
-            case FLOAT_I: return (UInt)m_repr.f;
-            case STR_I:   return str_to_uint(m_repr.s.data());
+            case BOOL:  return (UInt)m_repr.b;
+            case INT:   return (UInt)m_repr.i;
+            case UINT:  return m_repr.u;
+            case FLOAT: return (UInt)m_repr.f;
+            case STR:   return str_to_uint(m_repr.s.data());
             default:  // TODO
                 return std::numeric_limits<UInt>::max();
         }
@@ -308,11 +308,11 @@ class Key
 
     Float to_float() const {
         switch (m_repr_ix) {
-            case BOOL_I:  return (Float)m_repr.b;
-            case INT_I:   return (Float)m_repr.i;
-            case UINT_I:  return (Float)m_repr.u;
-            case FLOAT_I: return m_repr.f;
-            case STR_I:   return str_to_float(m_repr.s.data());
+            case BOOL:  return (Float)m_repr.b;
+            case INT:   return (Float)m_repr.i;
+            case UINT:  return (Float)m_repr.u;
+            case FLOAT: return m_repr.f;
+            case STR:   return str_to_float(m_repr.s.data());
             default:  // TODO
                 return std::numeric_limits<Float>::max();
         }
@@ -320,11 +320,11 @@ class Key
 
     void to_step(std::ostream& stream, bool is_first = false) const {
         switch (m_repr_ix) {
-            case BOOL_I:  stream << (m_repr.b? "[1]": "[0]"); break;
-            case INT_I:   stream << '[' << nodel::int_to_str(m_repr.i) << ']'; break;
-            case UINT_I:  stream << '[' << nodel::int_to_str(m_repr.u) << ']'; break;
-            case FLOAT_I: stream << '[' << nodel::float_to_str(m_repr.f) << ']'; break;
-            case STR_I: {
+            case BOOL:  stream << (m_repr.b? "[1]": "[0]"); break;
+            case INT:   stream << '[' << nodel::int_to_str(m_repr.i) << ']'; break;
+            case UINT:  stream << '[' << nodel::int_to_str(m_repr.u) << ']'; break;
+            case FLOAT: stream << '[' << nodel::float_to_str(m_repr.f) << ']'; break;
+            case STR: {
                 auto pos = m_repr.s.data().find_first_of("\".");
                 if (pos != StringView::npos) {
                     stream << '[' << quoted(m_repr.s.data()) << ']';
@@ -341,12 +341,12 @@ class Key
 
     void to_str(std::ostream& stream) const {
         switch (m_repr_ix) {
-            case NULL_I:  stream << "null"; break;
-            case BOOL_I:  stream << (m_repr.b? "true": "false"); break;
-            case INT_I:   stream << nodel::int_to_str(m_repr.i); break;
-            case UINT_I:  stream << nodel::int_to_str(m_repr.u); break;
-            case FLOAT_I: stream << nodel::float_to_str(m_repr.f); break;
-            case STR_I:   stream << m_repr.s.data(); break;
+            case NONE:  stream << "none"; break;
+            case BOOL:  stream << (m_repr.b? "true": "false"); break;
+            case INT:   stream << nodel::int_to_str(m_repr.i); break;
+            case UINT:  stream << nodel::int_to_str(m_repr.u); break;
+            case FLOAT: stream << nodel::float_to_str(m_repr.f); break;
+            case STR:   stream << m_repr.s.data(); break;
             default:      throw wrong_type(m_repr_ix);
         }
     }
@@ -359,11 +359,11 @@ class Key
 
     String to_json() const {
         switch (m_repr_ix) {
-            case NULL_I:  return "null";
-            case BOOL_I:  return m_repr.b? "true": "false";
-            case INT_I:   return nodel::int_to_str(m_repr.i);
-            case UINT_I:  return nodel::int_to_str(m_repr.u);
-            case FLOAT_I: {
+            case NONE:  return "none";
+            case BOOL:  return m_repr.b? "true": "false";
+            case INT:   return nodel::int_to_str(m_repr.i);
+            case UINT:  return nodel::int_to_str(m_repr.u);
+            case FLOAT: {
                 // IEEE 754-1985 - max digits=24
                 std::string str(24, ' ');
                 auto [ptr, err] = std::to_chars(str.data(), str.data() + str.size(), m_repr.f);
@@ -371,7 +371,7 @@ class Key
                 str.resize(ptr - str.data());
                 return str;
             }
-            case STR_I: {
+            case STR: {
                 std::stringstream ss;
                 ss << std::quoted(m_repr.s.data());
                 return ss.str();
@@ -384,37 +384,37 @@ class Key
     size_t hash() const {
         static std::hash<Float> float_hash;
         switch (m_repr_ix) {
-            case NULL_I:  return 0;
-            case BOOL_I:  return (size_t)m_repr.b;
-            case INT_I:   return (size_t)m_repr.i;
-            case UINT_I:  return (size_t)m_repr.u;
-            case FLOAT_I: return (size_t)float_hash(m_repr.f);
-            case STR_I:   return (size_t)m_repr.s.data().data();
+            case NONE:  return 0;
+            case BOOL:  return (size_t)m_repr.b;
+            case INT:   return (size_t)m_repr.i;
+            case UINT:  return (size_t)m_repr.u;
+            case FLOAT: return (size_t)float_hash(m_repr.f);
+            case STR:   return (size_t)m_repr.s.data().data();
             default:
                 throw wrong_type(m_repr_ix);
         }
     }
 
-    static WrongType wrong_type(ReprType actual)                    { return type_name(actual); };
-    static WrongType wrong_type(ReprType actual, ReprType expected) { return {type_name(actual), type_name(expected)}; };
+    static WrongType wrong_type(ReprIX actual)                  { return type_name(actual); };
+    static WrongType wrong_type(ReprIX actual, ReprIX expected) { return {type_name(actual), type_name(expected)}; };
 
   private:
     void release() {
         m_repr.z = nullptr;
-        m_repr_ix = NULL_I;
+        m_repr_ix = NONE;
     }
 
-    template <typename T> ReprType get_repr_ix() const;
-    template <> ReprType get_repr_ix<bool>() const     { return BOOL_I; }
-    template <> ReprType get_repr_ix<Int>() const      { return INT_I; }
-    template <> ReprType get_repr_ix<UInt>() const     { return UINT_I; }
-    template <> ReprType get_repr_ix<Float>() const    { return FLOAT_I; }
-    template <> ReprType get_repr_ix<intern_t>() const { return STR_I; }
-    template <> ReprType get_repr_ix<String>() const   { return STR_I; }
+    template <typename T> ReprIX get_repr_ix() const;
+    template <> ReprIX get_repr_ix<bool>() const     { return BOOL; }
+    template <> ReprIX get_repr_ix<Int>() const      { return INT; }
+    template <> ReprIX get_repr_ix<UInt>() const     { return UINT; }
+    template <> ReprIX get_repr_ix<Float>() const    { return FLOAT; }
+    template <> ReprIX get_repr_ix<intern_t>() const { return STR; }
+    template <> ReprIX get_repr_ix<String>() const   { return STR; }
 
   private:
     Repr m_repr;
-    ReprType m_repr_ix;
+    ReprIX m_repr_ix;
 
   friend std::ostream& operator<< (std::ostream& ostream, const Key& key);
   friend class Object;
@@ -431,12 +431,12 @@ Key operator ""_key (const char* str, size_t size) {
 inline
 std::ostream& operator<< (std::ostream& ostream, const Key& key) {
     switch (key.m_repr_ix) {
-        case Key::NULL_I:  return ostream << "null";
-        case Key::BOOL_I:  return ostream << key.m_repr.b;
-        case Key::INT_I:   return ostream << key.m_repr.i;
-        case Key::UINT_I:  return ostream << key.m_repr.u;
-        case Key::FLOAT_I: return ostream << key.m_repr.f;
-        case Key::STR_I:   return ostream << key.m_repr.s.data();
+        case Key::NONE:  return ostream << "none";
+        case Key::BOOL:  return ostream << key.m_repr.b;
+        case Key::INT:   return ostream << key.m_repr.i;
+        case Key::UINT:  return ostream << key.m_repr.u;
+        case Key::FLOAT: return ostream << key.m_repr.f;
+        case Key::STR:   return ostream << key.m_repr.s.data();
         default:           throw std::invalid_argument("key");
     }
 }

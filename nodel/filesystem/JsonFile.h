@@ -39,7 +39,7 @@ void JsonFile::read_type(const Object& target) {
     auto fpath = path(target).string();
     std::ifstream f_in{fpath, std::ios::in};
     json::impl::Parser parser{nodel::impl::StreamAdapter{f_in}};
-    read_set(target, (Object::ReprType)parser.parse_type());
+    read_set(target, (Object::ReprIX)parser.parse_type());
 }
 
 inline

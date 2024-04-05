@@ -22,7 +22,7 @@ void build_db() {
     db::Status status = db::DB::Open(options, "test_data/test_db", &db);
     ASSERT(status.ok());
 
-    status = db->Put(db::WriteOptions(), "0", "0");  // null key
+    status = db->Put(db::WriteOptions(), "0", "0");  // none key
     ASSERT(status.ok());
 
     status = db->Put(db::WriteOptions(), "1", "1");
@@ -68,7 +68,7 @@ TEST(KeyStore, Values) {
     Finally finally{ []() { delete_db(); } };
 
     Object kst = new KeyStore("test_data/test_db");
-    EXPECT_EQ(kst.get(null), Object{null});
+    EXPECT_EQ(kst.get(none), Object{none});
     EXPECT_EQ(kst.get(true), Object{true});
     EXPECT_EQ(kst.get(-7), Object{-7});
     EXPECT_EQ(kst.get(7UL), Object{7UL});
@@ -96,8 +96,8 @@ TEST(KeyStore, Save) {
     kst_2.save();
 
     kst.reset();
-    EXPECT_TRUE(kst.get("tmp_1"_key) == null);
-    EXPECT_TRUE(kst.get("tmp_2"_key) == null);
+    EXPECT_TRUE(kst.get("tmp_1"_key) == none);
+    EXPECT_TRUE(kst.get("tmp_2"_key) == none);
 }
 
 TEST(KeyStore, IterKeys) {
@@ -175,7 +175,7 @@ TEST(KeyStore, FilesystemIntegration) {
     });
 
     Object test_data = new Directory(r_reg, wd);
-    ASSERT_TRUE(test_data.get("test_db"_key) != null);
+    ASSERT_TRUE(test_data.get("test_db"_key) != none);
     ASSERT_TRUE(test_data.get("test_db"_key).data_source<KeyStore>() != nullptr);
     EXPECT_EQ(test_data.get("test_db"_key).get("tea"_key), "tea");
 }

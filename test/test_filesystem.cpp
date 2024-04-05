@@ -56,7 +56,7 @@ TEST(Filesystem, EnterOnlyDirectories) {
     Object more = test_data.get("more"_key);
     for (const auto& file : test_data.iter_tree_if(is_dir)) {
         Object parent = file.parent();
-        EXPECT_TRUE(parent == null || parent.is(test_data) || parent.is(more));
+        EXPECT_TRUE(parent == none || parent.is(test_data) || parent.is(more));
     }
 }
 
@@ -125,10 +125,10 @@ TEST(Filesystem, CreateDirectory) {
     test_data.save();
 
     Object test_data_2 = new Directory(new DefaultRegistry(), wd);
-    EXPECT_TRUE(test_data_2.get(temp_dir_name) != null);
+    EXPECT_TRUE(test_data_2.get(temp_dir_name) != none);
 
     test_data.reset();
-    EXPECT_TRUE(test_data.get(temp_dir_name) != null);
+    EXPECT_TRUE(test_data.get(temp_dir_name) != none);
 }
 
 TEST(Filesystem, DeleteDirectory) {
@@ -144,14 +144,14 @@ TEST(Filesystem, DeleteDirectory) {
     EXPECT_TRUE(std::filesystem::exists(wd / temp_dir_name));
 
     Object test_data_2 = new Directory(new DefaultRegistry(), wd, Mode::ALL);
-    EXPECT_TRUE(test_data_2.get(temp_dir_name) != null);
+    EXPECT_TRUE(test_data_2.get(temp_dir_name) != none);
     test_data_2.del(temp_dir_name);
 
     test_data_2.save();
     EXPECT_FALSE(std::filesystem::exists(wd / temp_dir_name));
 
     test_data.reset();
-    EXPECT_TRUE(test_data.get(temp_dir_name) == null);
+    EXPECT_TRUE(test_data.get(temp_dir_name) == none);
 }
 
 TEST(Filesystem, CreateJsonFile) {
@@ -235,8 +235,8 @@ TEST(Filesystem, CopyFileToAnotherDirectory) {
 
     test_data.reset();
     temp = test_data.get("temp"_key);
-    EXPECT_FALSE(temp == null);
-    EXPECT_TRUE(temp.get("example.json"_key) != null);
+    EXPECT_FALSE(temp == none);
+    EXPECT_TRUE(temp.get("example.json"_key) != none);
     EXPECT_EQ(temp.get("example.json"_key).get("favorite"_key), "Assam");
 }
 

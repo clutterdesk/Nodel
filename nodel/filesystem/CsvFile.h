@@ -25,7 +25,7 @@ namespace filesystem {
 class CsvFile : public File
 {
   public:
-    CsvFile(Origin origin) : File(Kind::COMPLETE, Mode::INHERIT, Object::LIST_I, origin) {}
+    CsvFile(Origin origin) : File(Kind::COMPLETE, Mode::INHERIT, Object::LIST, origin) {}
     CsvFile()              : CsvFile(Origin::MEMORY) {}
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new CsvFile(origin); }

@@ -57,7 +57,7 @@ struct Parser
     auto operator = (Parser&&) = delete;
     auto operator = (const Parser&) = delete;
 
-    Object::ReprType parse_type();  // quickly determine type without full parse
+    Object::ReprIX parse_type();  // quickly determine type without full parse
     bool parse_object();
     bool parse_object(char term_char);
     bool parse_number();
@@ -70,7 +70,7 @@ struct Parser
 
     void consume_whitespace();
 
-    Object::ReprType get_map_type() const;
+    Object::ReprIX get_map_type() const;
     void create_error(const std::string& message);
 
     Options m_options;
@@ -82,14 +82,14 @@ struct Parser
 };
 
 template <typename StreamType>
-Object::ReprType Parser<StreamType>::parse_type() {
+Object::ReprIX Parser<StreamType>::parse_type() {
     consume_whitespace();
     switch (m_it.peek()) {
         case '{': return get_map_type();
-        case '[': return Object::LIST_I;
-        case 'n': return Object::NULL_I;
+        case '[': return Object::LIST;
+        case 'n': return Object::NONE;
         case 't':
-        case 'f': return Object::BOOL_I;
+        case 'f': return Object::BOOL;
         case '0':
         case '1':
         case '2':
@@ -108,11 +108,11 @@ Object::ReprType Parser<StreamType>::parse_type() {
             break;
         case '"':
         case '\'':
-            return Object::STR_I;
+            return Object::STR;
         default:
             break;
     }
-    return Object::BAD_I;  // TODO: BAD is not supported
+    return Object::BAD;  // TODO: BAD is not supported
 }
 
 template <typename StreamType>
@@ -161,7 +161,7 @@ bool Parser<StreamType>::parse_object(char term_char)
 
             case 't': return expect("true", true);
             case 'f': return expect("false", false);
-            case 'n': return expect("null", null);
+            case 'n': return expect("none", none);
 
             default:
                 return m_it.peek() == term_char;
@@ -374,8 +374,8 @@ void Parser<StreamType>::consume_whitespace()
 }
 
 template <typename StreamType>
-Object::ReprType Parser<StreamType>::get_map_type() const {
-    return m_options.use_sorted_map? Object::MAP_I: Object::OMAP_I;
+Object::ReprIX Parser<StreamType>::get_map_type() const {
+    return m_options.use_sorted_map? Object::MAP: Object::OMAP;
 }
 
 template <typename StreamType>
@@ -406,7 +406,7 @@ Object parse(const Options& options, const std::string_view& str, std::optional<
     impl::Parser parser{options, nodel::impl::StringStreamAdapter{str}};
     if (!parser.parse_object()) {
         error = Error{parser.m_error_offset, std::move(parser.m_error_message)};
-        return null;
+        return none;
     }
     return parser.m_curr;
 }
@@ -422,7 +422,7 @@ Object parse(const Options& options, const std::string_view& str, std::string& e
     Object result = parse(options, str, parse_error);
     if (parse_error) {
         error = parse_error->to_str();
-        return null;
+        return none;
     }
     return result;
 }
@@ -453,13 +453,13 @@ Object parse_file(const Options& options, const std::string& file_name, std::str
         std::stringstream ss;
         ss << "Error opening file: " << file_name;
         error = ss.str();
-        return null;
+        return none;
     } else {
         impl::Parser parser{options, nodel::impl::StreamAdapter{f_in}};
         if (!parser.parse_object()) {
             Error parse_error{parser.m_error_offset, std::move(parser.m_error_message)};
             error = parse_error.to_str();
-            return null;
+            return none;
         }
         return parser.m_curr;
     }

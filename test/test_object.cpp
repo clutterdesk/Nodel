@@ -21,14 +21,14 @@ struct TestObject : public Object
 
 TEST(Object, TypeName) {
     EXPECT_EQ(Object{}.type_name(), "empty");
-    EXPECT_EQ(Object{null}.type_name(), "null");
+    EXPECT_EQ(Object{none}.type_name(), "none");
     EXPECT_EQ(Object{true}.type_name(), "bool");
     EXPECT_EQ(Object{-1}.type_name(), "int");
     EXPECT_EQ(Object{1UL}.type_name(), "uint");
     EXPECT_EQ(Object{"foo"}.type_name(), "string");
-    EXPECT_EQ(Object{Object::LIST_I}.type_name(), "list");
-    EXPECT_EQ(Object{Object::MAP_I}.type_name(), "sorted-map");
-    EXPECT_EQ(Object{Object::OMAP_I}.type_name(), "ordered-map");
+    EXPECT_EQ(Object{Object::LIST}.type_name(), "list");
+    EXPECT_EQ(Object{Object::MAP}.type_name(), "sorted-map");
+    EXPECT_EQ(Object{Object::OMAP}.type_name(), "ordered-map");
 }
 
 TEST(Object, Empty) {
@@ -37,10 +37,10 @@ TEST(Object, Empty) {
 }
 
 TEST(Object, Null) {
-  Object v{null};
-  EXPECT_TRUE(v == null);
-  EXPECT_TRUE(v.is(null));
-  EXPECT_EQ(v.to_json(), "null");
+  Object v{none};
+  EXPECT_TRUE(v == none);
+  EXPECT_TRUE(v.is(none));
+  EXPECT_EQ(v.to_json(), "none");
 }
 
 TEST(Object, Bool) {
@@ -53,7 +53,7 @@ TEST(Object, Bool) {
   EXPECT_TRUE(v.is_type<bool>());
   EXPECT_EQ(v.to_json(), "false");
 
-  v = Object::BOOL_I;
+  v = Object::BOOL;
   EXPECT_TRUE(v.is_type<bool>());
   EXPECT_EQ(v.to_json(), "false");
 }
@@ -64,7 +64,7 @@ TEST(Object, Int64) {
   EXPECT_TRUE(v.is_num());
   EXPECT_EQ(v.to_json(), "-9223372036854775807");
 
-  v = Object::INT_I;
+  v = Object::INT;
   EXPECT_TRUE(v.is_type<Int>());
   EXPECT_EQ(v.to_json(), "0");
 }
@@ -75,7 +75,7 @@ TEST(Object, UInt64) {
   EXPECT_TRUE(v.is_num());
   EXPECT_EQ(v.to_json(), "18446744073709551615");
 
-  v = Object::UINT_I;
+  v = Object::UINT;
   EXPECT_TRUE(v.is_type<UInt>());
   EXPECT_EQ(v.to_json(), "0");
 }
@@ -86,7 +86,7 @@ TEST(Object, Double) {
   EXPECT_TRUE(v.is_num());
   EXPECT_EQ(v.to_json(), "3.141593");
 
-  v = Object::FLOAT_I;
+  v = Object::FLOAT;
   EXPECT_TRUE(v.is_type<Float>());
   EXPECT_EQ(v.to_json(), "0");
 }
@@ -94,7 +94,7 @@ TEST(Object, Double) {
 TEST(Object, String) {
   Object v{"123"};
   EXPECT_TRUE(v.is_type<String>());
-  EXPECT_TRUE(v.parent() == null);
+  EXPECT_TRUE(v.parent() == none);
   EXPECT_EQ(v.to_json(), "\"123\"");
 
   Object quoted{"a\"b"};
@@ -104,7 +104,7 @@ TEST(Object, String) {
 
 TEST(Object, ConstructWithInvalidRepr) {
     try {
-        Object v{Object::DSRC_I};
+        Object v{Object::DSRC};
         FAIL();
     } catch(...) {
     }
@@ -141,7 +141,7 @@ TEST(Object, OrderedMapKeyOrder) {
 }
 
 TEST(Object, Size) {
-    EXPECT_EQ(Object(null).size(), 0);
+    EXPECT_EQ(Object(none).size(), 0);
     EXPECT_EQ(Object(1LL).size(), 0);
     EXPECT_EQ(Object(1ULL).size(), 0);
     EXPECT_EQ(Object(1.0).size(), 0);
@@ -171,7 +171,7 @@ TEST(Object, ToBool) {
     }
 
     try {
-        Object obj{null};
+        Object obj{none};
         obj.to_bool();
         FAIL();
     } catch (...) {
@@ -194,7 +194,7 @@ TEST(Object, ToInt) {
     }
 
     try {
-        Object obj{null};
+        Object obj{none};
         obj.to_int();
         FAIL();
     } catch (...) {
@@ -218,7 +218,7 @@ TEST(Object, ToUInt) {
     }
 
     try {
-        Object obj{null};
+        Object obj{none};
         obj.to_uint();
         FAIL();
     } catch (...) {
@@ -241,7 +241,7 @@ TEST(Object, ToFloat) {
     }
 
     try {
-        Object obj{null};
+        Object obj{none};
         obj.to_float();
         FAIL();
     } catch (...) {
@@ -256,7 +256,7 @@ TEST(Object, StdStreamOperator) {
 }
 
 TEST(Object, ToStr) {
-  EXPECT_EQ(Object{null}.to_str(), "null");
+  EXPECT_EQ(Object{none}.to_str(), "none");
   EXPECT_EQ(Object{false}.to_str(), "false");
   EXPECT_EQ(Object{true}.to_str(), "true");
   EXPECT_EQ(Object{7LL}.to_str(), "7");
@@ -277,7 +277,7 @@ TEST(Object, ToStr) {
   }
 
   try {
-      Object obj{Object::BAD_I};
+      Object obj{Object::BAD};
       obj.to_str();
       FAIL();
   } catch (...) {
@@ -289,7 +289,7 @@ TEST(Object, ToKey) {
     EXPECT_TRUE(obj.is_type<String>());
     EXPECT_EQ(obj.to_key().as<StringView>(), "key");
 
-    EXPECT_EQ(Object{null}.to_key(), Key{null});
+    EXPECT_EQ(Object{none}.to_key(), Key{none});
     EXPECT_EQ(Object{false}.to_key(), Key{false});
     EXPECT_EQ(Object{true}.to_key(), Key{true});
     EXPECT_EQ(Object{-1}.to_key(), Key{-1});
@@ -305,8 +305,8 @@ TEST(Object, ToKey) {
 }
 
 TEST(Object, IntoKey) {
-    Object obj = null;
-    EXPECT_EQ(obj.into_key(), Key{null});
+    Object obj = none;
+    EXPECT_EQ(obj.into_key(), Key{none});
     obj = false;
     EXPECT_EQ(obj.into_key(), Key{false});
     obj = -1;
@@ -325,19 +325,19 @@ TEST(Object, IntoKey) {
 }
 
 TEST(Object, NonDataSourceIsValid) {
-    EXPECT_TRUE(Object{null}.is_valid());
+    EXPECT_TRUE(Object{none}.is_valid());
     EXPECT_TRUE(Object{0}.is_valid());
 }
 
 TEST(Object, GetId) {
-    EXPECT_NE(Object(null).id().to_str(), "");
+    EXPECT_NE(Object(none).id().to_str(), "");
     EXPECT_NE(Object(true).id().to_str(), "");
     EXPECT_NE(Object(-1).id().to_str(), "");
     EXPECT_NE(Object(1UL).id().to_str(), "");
     EXPECT_NE(Object(2.718).id().to_str(), "");
     EXPECT_NE(Object("tea").id().to_str(), "");
-    EXPECT_NE(Object(Object::LIST_I).id().to_str(), "");
-    EXPECT_NE(Object(Object::OMAP_I).id().to_str(), "");
+    EXPECT_NE(Object(Object::LIST).id().to_str(), "");
+    EXPECT_NE(Object(Object::OMAP).id().to_str(), "");
 }
 
 TEST(Object, IdentityComparison) {
@@ -352,14 +352,14 @@ TEST(Object, IdentityComparison) {
 }
 
 TEST(Object, CompareNull) {
-    EXPECT_TRUE(Object{null} == Object{null});
-    EXPECT_EQ(Object{null}.operator <=> (null), std::partial_ordering::equivalent);
+    EXPECT_TRUE(Object{none} == Object{none});
+    EXPECT_EQ(Object{none}.operator <=> (none), std::partial_ordering::equivalent);
 
-    Object a{null};
+    Object a{none};
     EXPECT_FALSE(a == Object{1});
 
     try {
-        Object a{null};
+        Object a{none};
         a <=> Object{1};
         FAIL();
     } catch (...) {
@@ -765,13 +765,13 @@ TEST(Object, CompareListList) {
 }
 
 TEST(Object, CopyBasic) {
-    EXPECT_TRUE(Object{null}.copy() == null);
+    EXPECT_TRUE(Object{none}.copy() == none);
     EXPECT_TRUE(Object{-1}.copy().is_type<Int>());
     EXPECT_TRUE(Object{1UL}.copy().is_type<UInt>());
     EXPECT_TRUE(Object{2.718}.copy().is_type<Float>());
     EXPECT_TRUE(Object{"tea"}.copy().is_type<String>());
 
-    EXPECT_EQ(Object{null}.copy(), null);
+    EXPECT_EQ(Object{none}.copy(), none);
     EXPECT_EQ(Object{-1}.copy(), -1);
     EXPECT_EQ(Object{1UL}.copy(), 1UL);
     EXPECT_EQ(Object{2.718}.copy(), 2.718);
@@ -794,16 +794,16 @@ TEST(Object, ListGet) {
   EXPECT_EQ(obj.get(-1).to_int(), 9);
   EXPECT_EQ(obj.get(-2).to_int(), 8);
   EXPECT_EQ(obj.get(-3).to_int(), 7);
-  EXPECT_TRUE(obj.get(-4) == null);
-  EXPECT_TRUE(obj.get(-5) == null);
-  EXPECT_TRUE(obj.get(3) == null);
-  EXPECT_TRUE(obj.get(4) == null);
+  EXPECT_TRUE(obj.get(-4) == none);
+  EXPECT_TRUE(obj.get(-5) == none);
+  EXPECT_TRUE(obj.get(3) == none);
+  EXPECT_TRUE(obj.get(4) == none);
 }
 
 TEST(Object, ListGetOutOfRange) {
     Object obj = json::parse(R"([])");
     EXPECT_TRUE(obj.is_type<List>());
-    EXPECT_TRUE(obj.get(1) == null);
+    EXPECT_TRUE(obj.get(1) == none);
 }
 
 TEST(Object, ListSet) {
@@ -841,7 +841,7 @@ TEST(Object, OrderedMapGet) {
   EXPECT_EQ(obj.get(1).to_int(), 8);
   EXPECT_EQ(obj.get(2).to_int(), 9);
   EXPECT_EQ(obj.get("name"_key).as<String>(), "Brian");
-  EXPECT_TRUE(obj.get("blah"_key) == null);
+  EXPECT_TRUE(obj.get("blah"_key) == none);
 }
 
 TEST(Object, SortedMapGet) {
@@ -852,32 +852,32 @@ TEST(Object, SortedMapGet) {
   EXPECT_EQ(obj.get(1).to_int(), 8);
   EXPECT_EQ(obj.get(2).to_int(), 9);
   EXPECT_EQ(obj.get("name"_key).as<String>(), "Brian");
-  EXPECT_TRUE(obj.get("blah"_key) == null);
+  EXPECT_TRUE(obj.get("blah"_key) == none);
 }
 
 TEST(Object, OrderedMapGetNotFound) {
     Object obj = json::parse(R"({})");
     EXPECT_TRUE(obj.is_type<OrderedMap>());
-    EXPECT_TRUE(obj.get("x"_key) == null);
+    EXPECT_TRUE(obj.get("x"_key) == none);
 
     obj.set("x"_key, "X");
-    EXPECT_FALSE(obj.get("x"_key) == null);
+    EXPECT_FALSE(obj.get("x"_key) == none);
 
     obj.del("x"_key);
-    EXPECT_TRUE(obj.get("x"_key) == null);
+    EXPECT_TRUE(obj.get("x"_key) == none);
 }
 
 TEST(Object, SortedMapGetNotFound) {
     json::Options options; options.use_sorted_map = true;
     Object obj = json::parse(options, R"({})");
     EXPECT_TRUE(obj.is_type<SortedMap>());
-    EXPECT_TRUE(obj.get("x"_key) == null);
+    EXPECT_TRUE(obj.get("x"_key) == none);
 
     obj.set("x"_key, "X");
-    EXPECT_FALSE(obj.get("x"_key) == null);
+    EXPECT_FALSE(obj.get("x"_key) == none);
 
     obj.del("x"_key);
-    EXPECT_TRUE(obj.get("x"_key) == null);
+    EXPECT_TRUE(obj.get("x"_key) == none);
 }
 
 TEST(Object, MultipleSubscriptOrderedMap) {
@@ -1004,7 +1004,7 @@ TEST(Object, KeyOf) {
             "redun_float": 3.1415926,
             "okay_str": "Assam Tea"
            })");
-    EXPECT_TRUE(Object{null}.key_of(obj) == null);
+    EXPECT_TRUE(Object{none}.key_of(obj) == none);
     EXPECT_EQ(obj.key_of(obj.get("bool"_key)), "bool"_key);
     EXPECT_EQ(obj.key_of(obj.get("int"_key)), "int"_key);
     EXPECT_EQ(obj.key_of(obj.get("uint"_key)), "uint"_key);
@@ -1323,7 +1323,7 @@ TEST(Object, ManuallyCreatePath) {
 
     EXPECT_EQ(path.to_str(), "a[0].b");
     EXPECT_TRUE(obj.get("a"_key).is_type<List>());
-    EXPECT_EQ(obj.get("a"_key).get(0).type(), Object::OMAP_I);
+    EXPECT_EQ(obj.get("a"_key).get(0).type(), Object::OMAP);
     EXPECT_EQ(obj.get("a"_key).get(0).get("b"_key), 100);
 }
 
@@ -1604,7 +1604,7 @@ TEST(Object, MaxNumericIDEquality) {
 }
 
 TEST(Object, ZeroNullPtrIDConflict) {
-  Object obj{null};
+  Object obj{none};
   Object num{0};
   EXPECT_NE(obj.id(), num.id());
 }
@@ -1612,8 +1612,8 @@ TEST(Object, ZeroNullPtrIDConflict) {
 TEST(Object, AssignNull) {
     Object obj{"foo"};
     EXPECT_EQ(obj.ref_count(), 1);
-    obj = null;
-    EXPECT_TRUE(obj == null);
+    obj = none;
+    EXPECT_TRUE(obj == none);
 }
 
 TEST(Object, AssignBool) {
@@ -1666,29 +1666,29 @@ TEST(Object, RedundantAssign) {
 
 TEST(Object, RootParentIsNull) {
     Object root = json::parse(R"({"x": [1], "y": [2]})");
-    EXPECT_TRUE(root.parent() == null);
+    EXPECT_TRUE(root.parent() == none);
 }
 
 TEST(Object, ClearParentOnListUpdate) {
-    Object root{Object::LIST_I};
+    Object root{Object::LIST};
     root.set(0, std::to_string(0));
 
     Object first = root.get(0);
     EXPECT_TRUE(first.parent().is(root));
 
-    root.set(0, null);
-    EXPECT_TRUE(first.parent() == null);
+    root.set(0, none);
+    EXPECT_TRUE(first.parent() == none);
 }
 
 TEST(Object, ClearParentOnMapUpdate) {
-    Object root{Object::OMAP_I};
+    Object root{Object::OMAP};
     root.set("0"_key, std::to_string(0));
 
     Object first = root.get("0"_key);
     EXPECT_TRUE(first.parent().is(root));
 
-    root.set("0"_key, null);
-    EXPECT_TRUE(first.parent() == null);
+    root.set("0"_key, none);
+    EXPECT_TRUE(first.parent() == none);
 }
 
 TEST(Object, CopyChildToAnotherContainer) {
@@ -1721,8 +1721,8 @@ TEST(Object, ParentIntegrityOnDel) {
     EXPECT_TRUE(x1.parent().is_type<OrderedMap>());
     EXPECT_EQ(x2.parent().id(), par.id());
     par.del("x"s);
-    EXPECT_TRUE(x1.parent() == null);
-    EXPECT_TRUE(x2.parent() == null);
+    EXPECT_TRUE(x1.parent() == none);
+    EXPECT_TRUE(x2.parent() == none);
 }
 
 TEST(Object, GetKeys) {
@@ -1882,7 +1882,7 @@ struct TestSimpleSource : public DataSource
         read_meta_called = true;
         std::istringstream in{data.to_json()};
         json::impl::Parser parser{nodel::impl::StreamAdapter{in}};
-        read_set(target, (Object::ReprType)parser.parse_type());
+        read_set(target, (Object::ReprIX)parser.parse_type());
     }
 
     void read(const Object& target) override {
@@ -1909,7 +1909,7 @@ struct TestSimpleSource : public DataSource
 struct TestSparseSource : public DataSource
 {
     TestSparseSource(const std::string& json, Mode mode = Mode::READ | Mode::WRITE | Mode::OVERWRITE)
-      : DataSource(Kind::SPARSE, mode, Object::OMAP_I, Origin::SOURCE), data{json::parse(json)} {}
+      : DataSource(Kind::SPARSE, mode, Object::OMAP, Origin::SOURCE), data{json::parse(json)} {}
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSparseSource(data.to_json()); }
 
@@ -1917,7 +1917,7 @@ struct TestSparseSource : public DataSource
         read_meta_called = true;
         std::istringstream in{data.to_json()};
         json::impl::Parser parser{nodel::impl::StreamAdapter{in}};
-        read_set(target, (Object::ReprType)parser.parse_type());
+        read_set(target, (Object::ReprIX)parser.parse_type());
     }
 
     void read(const Object& target) override                            { read_called = true; read_set(target, data); }
@@ -2092,7 +2092,7 @@ TEST(Object, TestSimpleSource_RefCountMoveAssign) {
 TEST(Object, TestSimpleSource_GetType) {
     Object obj{new TestSimpleSource(R"({"x": 1, "y": 2})")};
     EXPECT_TRUE(obj.is_type<OrderedMap>());
-    EXPECT_EQ(obj.type(), Object::OMAP_I);
+    EXPECT_EQ(obj.type(), Object::OMAP);
 }
 
 TEST(Object, TestSimpleSource_Compare) {
@@ -2231,7 +2231,7 @@ TEST(Object, TestSimpleSource_DeleteAndSave) {
     EXPECT_TRUE(dsrc->read_called);
     obj.del("tea"_key);
     obj.save();
-    EXPECT_TRUE(obj.get("tea"_key) == null);
+    EXPECT_TRUE(obj.get("tea"_key) == none);
     EXPECT_TRUE(dsrc->write_called);
 }
 
