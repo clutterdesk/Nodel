@@ -17,6 +17,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <map>
 #include <tsl/ordered_map.h>
 #include <unordered_set>
 #include <stack>
@@ -132,7 +133,7 @@ class Object
         BAD_I = 31
     };
 
-  private:
+  public:
       union Repr {
           Repr()                : z{nullptr} {}
           Repr(bool v)          : b{v} {}
@@ -202,7 +203,7 @@ class Object
 
   private:
     struct NoParent {};
-    Object(NoParent&&)      : m_repr{}, m_fields{NULL_I} {}  // initialize reference count
+    Object(NoParent&&) : m_repr{}, m_fields{NULL_I} {}  // initialize reference count
 
   public:
     static std::string_view type_name(uint8_t repr_ix) {

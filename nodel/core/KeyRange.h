@@ -37,11 +37,11 @@ class KeyIterator
     };
 
   public:
-    KeyIterator()                  : m_repr_ix{ReprType::NULL_I}, m_repr{} {}
-    KeyIterator(size_t pos)        : m_repr_ix{ReprType::LIST_I}, m_repr{pos} {}
+    KeyIterator()                        : m_repr_ix{ReprType::NULL_I}, m_repr{} {}
+    KeyIterator(UInt pos)                : m_repr_ix{ReprType::LIST_I}, m_repr{pos} {}
     KeyIterator(SortedMap::iterator it)  : m_repr_ix{ReprType::MAP_I}, m_repr{it} {}
     KeyIterator(OrderedMap::iterator it) : m_repr_ix{ReprType::OMAP_I}, m_repr{it} {}
-    KeyIterator(DsIterPtr&& p_it)  : m_repr_ix{ReprType::DSRC_I}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
+    KeyIterator(DsIterPtr&& p_it)        : m_repr_ix{ReprType::DSRC_I}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
     ~KeyIterator();
 
     KeyIterator(const KeyIterator& other) = delete;

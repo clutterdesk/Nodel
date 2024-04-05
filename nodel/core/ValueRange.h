@@ -44,11 +44,11 @@ class ValueIterator
     };
 
   public:
-    ValueIterator()                  : m_repr_ix{ReprType::NULL_I}, m_repr{} {}
-    ValueIterator(List::iterator it) : m_repr_ix{ReprType::LIST_I}, m_repr{it} {}
+    ValueIterator()                        : m_repr_ix{ReprType::NULL_I}, m_repr{} {}
+    ValueIterator(List::iterator it)       : m_repr_ix{ReprType::LIST_I}, m_repr{it} {}
     ValueIterator(SortedMap::iterator it)  : m_repr_ix{ReprType::MAP_I}, m_repr{it} {}
     ValueIterator(OrderedMap::iterator it) : m_repr_ix{ReprType::OMAP_I}, m_repr{it} {}
-    ValueIterator(DsIterPtr&& p_it)  : m_repr_ix{ReprType::DSRC_I}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
+    ValueIterator(DsIterPtr&& p_it)        : m_repr_ix{ReprType::DSRC_I}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
     ~ValueIterator();
 
     ValueIterator(const ValueIterator& other) = delete;
