@@ -61,6 +61,11 @@ struct ClobberProtect : public NodelException
     ClobberProtect() : NodelException("Data-source is clobber protected"s) {}
 };
 
+struct DataSourceError : public NodelException
+{
+    DataSourceError(std::string&& error) : NodelException(std::forward<std::string>(error)) {}
+};
+
 struct InvalidPath : public NodelException
 {
     InvalidPath() : NodelException("Invalid object path"s) {}
@@ -218,7 +223,7 @@ class Object
           case DSRC:  return "data-source";
           case DEL:   return "deleted";
           case BAD:   return "error";
-          default:      return "<undefined>";
+          default:    return "<undefined>";
       }
     }
 
@@ -379,7 +384,7 @@ class Object
     template <class DataSourceType>
     DataSourceType* data_source() const;
 
-    void save(bool quiet = false);
+    void save();
     void reset();
     void reset_key(const Key&);
     void refresh();
@@ -698,40 +703,46 @@ class DataSource
     };
 
     struct Options {
+        Options() = default;
+        Options(Mode mode) : mode{mode} {}
         Mode mode = Mode::READ | Mode::WRITE;
+        bool quiet_read = false;       // Logging control during read operations
+        bool quiet_write = false;      // Logging control during write operations
+        bool throw_read_error = true;  // Throw exception when read operation fails
+        bool throw_write_error = true; // Throw exception when write operation fails
     };
 
-    DataSource(Kind kind, Mode mode, Origin origin)
+    DataSource(Kind kind, Options options, Origin origin)
       : m_parent{Object::NONE}
       , m_cache{Object::EMPTY}
-      , m_mode{mode}
-      , m_fully_cached{(kind == Kind::COMPLETE) && origin == Origin::MEMORY}
-      , m_unsaved{origin == Origin::MEMORY}
       , m_kind{kind}
       , m_repr_ix{Object::EMPTY}
-    {}
-
-    DataSource(Kind kind, Mode mode, ReprIX repr_ix, Origin origin)
-      : m_parent{Object::NONE}
-      , m_cache{repr_ix}
-      , m_mode{mode}
       , m_fully_cached{(kind == Kind::COMPLETE) && origin == Origin::MEMORY}
       , m_unsaved{origin == Origin::MEMORY}
+      , m_options{options}
+    {}
+
+    DataSource(Kind kind, Options options, ReprIX repr_ix, Origin origin)
+      : m_parent{Object::NONE}
+      , m_cache{repr_ix}
       , m_kind{kind}
       , m_repr_ix{repr_ix}
+      , m_fully_cached{(kind == Kind::COMPLETE) && origin == Origin::MEMORY}
+      , m_unsaved{origin == Origin::MEMORY}
+      , m_options{options}
     {}
 
     virtual ~DataSource() {}
 
   protected:
     virtual DataSource* new_instance(const Object& target, Origin origin) const = 0;
-    virtual void read_type(const Object& target)                                  {}  // define type/id of object
+    virtual void read_type(const Object& target)                             {}  // define type/id of object
     virtual void read(const Object& target) = 0;
-    virtual Object read_key(const Object& target, const Key&)                      { return {}; }  // sparse
-    virtual void write(const Object& target, const Object&, bool)                  {}  // both
-    virtual void write_key(const Object& target, const Key&, const Object&, bool)  {}  // sparse
-    virtual void delete_key(const Object& target, const Key&, bool)                {}  // sparse
-    virtual void commit(const Object& target, const KeyList& del_keys, bool quiet) {}  // sparse
+    virtual Object read_key(const Object& target, const Key&)                { return {}; }  // sparse
+    virtual void write(const Object& target, const Object&)                  {}  // both
+    virtual void write_key(const Object& target, const Key&, const Object&)  {}  // sparse
+    virtual void delete_key(const Object& target, const Key&)                {}  // sparse
+    virtual void commit(const Object& target, const KeyList& del_keys)       {}  // sparse
 
     // interface to use from virtual read methods
     void read_set(const Object& target, const Object& value);
@@ -759,14 +770,18 @@ class DataSource
     size_t size(const Object& target);
     Object get(const Object& target, const Key& key);
 
-    Mode mode() const        { return m_mode; }
-    void set_mode(Mode mode) { m_mode = mode; }
+    Options options() const           { return m_options; }
+    void set_options(Options options) { m_options = options; }
+
+    Mode mode() const        { return m_options.mode; }
+    void set_mode(Mode mode) { m_options.mode = mode; }
     Mode resolve_mode() const;
 
     bool is_fully_cached() const { return m_fully_cached; }
     bool is_sparse() const { return m_kind == Kind::SPARSE; }
 
-    void set_failed(bool failed) { m_failed = failed; }
+    void report_read_error(std::string&& error);
+    void report_write_error(std::string&& error);
     bool is_valid(const Object& target);
 
   private:
@@ -776,7 +791,7 @@ class DataSource
     Object set(const Object& target, Key&& key, const Object& in_val);
     void del(const Object& target, const Key& key);
 
-    void save(const Object& target, bool quiet);
+    void save(const Object& target);
 
     void reset();
     void reset_key(const Key& key);
@@ -797,12 +812,13 @@ class DataSource
   private:
     Object m_parent;
     Object m_cache;
-    Mode m_mode;
-    bool m_fully_cached = false;
-    bool m_unsaved = false;
-    bool m_failed = false;
     Kind m_kind;
     ReprIX m_repr_ix;
+    bool m_fully_cached = false;
+    bool m_unsaved = false;
+    bool m_read_failed = false;
+    bool m_write_failed = false;
+    Options m_options;
 
   friend class Object;
   friend class KeyRange;
@@ -2361,20 +2377,33 @@ Object::TreeRange<Object, Predicate, Predicate> Object::iter_tree_if(VisitPred&&
 }
 
 inline
-void Object::save(bool quiet) {
+void Object::save() {
     auto tree_range = iter_tree_if(has_data_source, is_fully_cached);
     for (const auto& obj : tree_range)
-        obj.m_repr.ds->save(obj, quiet);
+        obj.m_repr.ds->save(obj);
+}
+
+inline
+void DataSource::report_read_error(std::string&& error) {
+    if (m_options.throw_read_error) throw DataSourceError{std::forward<std::string>(error)};
+    m_read_failed = true;
+    if (!m_options.quiet_read) WARN(error);
+}
+
+inline
+void DataSource::report_write_error(std::string&& error) {
+    if (m_options.throw_write_error) throw DataSourceError{std::forward<std::string>(error)};
+    if (!m_options.quiet_write) WARN(error);
 }
 
 inline
 bool DataSource::is_valid(const Object& target) {
     if (is_sparse()) {
         if (m_cache.is_empty()) read_type(target);
-        return !m_failed;
+        return !m_read_failed;
     } else {
         insure_fully_cached(target);
-        return !m_failed;
+        return !m_read_failed;
     }
 }
 
@@ -2472,7 +2501,7 @@ Object DataSource::get(const Object& target, const Key& key) {
 
 inline
 DataSource::Mode DataSource::resolve_mode() const {
-    Mode mode = m_mode;
+    Mode mode = m_options.mode;
     if (mode & Mode::INHERIT && m_parent.m_fields.repr_ix == Object::DSRC) {
         mode = m_parent.m_repr.ds->resolve_mode();
     }
@@ -2544,25 +2573,25 @@ void DataSource::del(const Object& target, const Key& key) {
 }
 
 inline
-void DataSource::save(const Object& target, bool quiet) {
+void DataSource::save(const Object& target) {
     if (!(resolve_mode() & Mode::WRITE)) throw WriteProtect();
     if (m_cache.m_fields.repr_ix == Object::EMPTY) return;
 
     if (m_unsaved) {
-        m_unsaved = false;
+        m_write_failed = false;
 
         if (m_fully_cached) {
-            write(target, m_cache, quiet);
+            write(target, m_cache);
         }
         else if (is_sparse()) {
             KeyList deleted_keys;
 
             for (auto& [key, value] : m_cache.items()) {
                 if (value.m_fields.repr_ix == Object::DEL) {
-                    delete_key(target, key, quiet);
+                    delete_key(target, key);
                     deleted_keys.push_back(key);
                 } else {
-                    write_key(target, key, value, quiet);
+                    write_key(target, key, value);
                 }
             }
 
@@ -2571,15 +2600,19 @@ void DataSource::save(const Object& target, bool quiet) {
                 m_cache.del(del_key);
 
             // final save notification to support batching
-            commit(target, deleted_keys, quiet);
+            commit(target, deleted_keys);
         }
+
+        if (!m_write_failed)
+            m_unsaved = false;
     }
 }
 
 inline
 void DataSource::reset() {
     m_fully_cached = false;
-    m_failed = false;
+    m_read_failed = false;
+    m_write_failed = false;
     m_cache = Object{m_repr_ix};
 }
 

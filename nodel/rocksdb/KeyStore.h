@@ -33,10 +33,10 @@ namespace nodel::rocksdb {
 class KeyStore : public nodel::DataSource
 {
   public:
-    KeyStore(const std::filesystem::path& path, Origin origin);
-    KeyStore(const std::filesystem::path& path) : KeyStore{path, Origin::MEMORY} {}
-    KeyStore(Origin origin)                     : KeyStore{{}, origin} {}
-    KeyStore()                                  : KeyStore{{}, Origin::MEMORY} {}
+    KeyStore(const std::filesystem::path& path, Options options, Origin origin);
+    KeyStore(const std::filesystem::path& path, Options options) : KeyStore{path, options, Origin::MEMORY} {}
+    KeyStore(const std::filesystem::path& path)                  : KeyStore{path, Options{}, Origin::MEMORY} {}
+    KeyStore(Origin origin)                                      : KeyStore{{}, Options{}, origin} {}
 
     ~KeyStore();
 
@@ -45,16 +45,16 @@ class KeyStore : public nodel::DataSource
     void set_write_options(::rocksdb::WriteOptions options) { m_write_options = options; }
 
     DataSource* new_instance(const Object& target, Origin origin) const override {
-        return new KeyStore(std::filesystem::path{}, origin);
+        return new KeyStore(std::filesystem::path{}, options(), origin);
     }
 
     void read_type(const Object& target) override { ASSERT(false); }
     void read(const Object& target) override {}  // TODO: implement
-    void write(const Object&, const Object& cache, bool quiet) override {} // TODO: implement
+    void write(const Object&, const Object& cache) override {} // TODO: implement
 
     Object read_key(const Object&, const Key& k) override;
-    void write_key(const Object&, const Key& k, const Object& v, bool quiet) override;
-    void commit(const Object& target, const KeyList& del_keys, bool quiet) override;
+    void write_key(const Object&, const Key& k, const Object& v) override;
+    void commit(const Object& target, const KeyList& del_keys) override;
 
     class KeyIterator : public nodel::DataSource::KeyIterator
     {
@@ -112,8 +112,8 @@ class KeyStore : public nodel::DataSource
 
 
 inline
-KeyStore::KeyStore(const std::filesystem::path& path, Origin origin)
-  : nodel::DataSource(Kind::SPARSE, Mode::READ | Mode::WRITE, Object::OMAP, origin)
+KeyStore::KeyStore(const std::filesystem::path& path, Options options, Origin origin)
+  : nodel::DataSource(Kind::SPARSE, options, Object::OMAP, origin)
   , m_path{path} {
     m_options.error_if_exists = false;
     if (!path.empty()) {
@@ -283,12 +283,12 @@ Object KeyStore::read_key(const Object& target, const Key& key) {
 }
 
 inline
-void KeyStore::write_key(const Object& target, const Key& key, const Object& value, bool quiet) {
+void KeyStore::write_key(const Object& target, const Key& key, const Object& value) {
     updates.push_back(std::make_pair(key, value));
 }
 
 inline
-void KeyStore::commit(const Object& target, const KeyList& del_keys, bool quiet) {
+void KeyStore::commit(const Object& target, const KeyList& del_keys) {
     if (mp_db == nullptr) {
         open(m_path.empty()? nodel::filesystem::path(target): m_path, true);
     }

@@ -22,7 +22,8 @@ template <class T>
 class Ref
 {
   public:
-    Ref(T* ptr) : m_ptr(ptr) { ASSERT(m_ptr != nullptr); inc_ref_count(); }
+    Ref() : m_ptr{nullptr} {}
+    Ref(T* ptr) : m_ptr(ptr) { inc_ref_count(); }
     ~Ref() { if (m_ptr != nullptr) dec_ref_count(); }
 
     Ref(const Ref& other) {
@@ -39,14 +40,16 @@ class Ref
         if (m_ptr != other.m_ptr) {
             dec_ref_count();
             m_ptr = other.m_ptr;
-            inc_ref_count();
+            if (m_ptr != nullptr)
+                inc_ref_count();
         }
         return *this;
     }
 
     Ref& operator = (Ref&& other) {
         if (m_ptr != other.m_ptr) {
-            dec_ref_count();
+            if (m_ptr != nullptr)
+                dec_ref_count();
             m_ptr = other.m_ptr;
             other.m_ptr = nullptr;
         }
@@ -59,8 +62,8 @@ class Ref
     const T* operator -> () const { return m_ptr; }
     T* operator -> ()             { return m_ptr; }
 
-    const T* get() const          { return m_ptr; }
-    T* get()                      { return m_ptr; }
+    const T* get() const { return m_ptr; }
+    T* get()             { return m_ptr; }
 
     refcnt_t ref_count() const { return m_ptr->m_ref_count; }
 

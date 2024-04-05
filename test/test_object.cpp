@@ -1872,11 +1872,13 @@ TEST(Object, IterListKeyClosedClosedIntInterval) {
 
 struct TestSimpleSource : public DataSource
 {
-    TestSimpleSource(const std::string& json, Mode mode = Mode::READ | Mode::WRITE)
-      : DataSource(Kind::COMPLETE, mode, Origin::SOURCE), data{json::parse(json)} {
-      }
+    TestSimpleSource(const std::string& json, Options options)
+      : DataSource(Kind::COMPLETE, options, Origin::SOURCE), data{json::parse(json)} {}
 
-    DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSimpleSource(data.to_json()); }
+    TestSimpleSource(const std::string& json)
+      : TestSimpleSource(json, {}) {}
+
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSimpleSource(data.to_json(), {}); }
 
     void read_type(const Object& target) override {
         read_meta_called = true;
@@ -1888,13 +1890,13 @@ struct TestSimpleSource : public DataSource
     void read(const Object& target) override {
         read_called = true;
         if (data.is_type<Int>() && data == 0xbad) {
-            set_failed(true);
+            report_read_error("Oops!");
         } else {
             read_set(target, data);
         }
     }
 
-    void write(const Object&, const Object& cache, bool quiet) override {
+    void write(const Object&, const Object& cache) override {
         write_called = true;
         data = cache;
     }
@@ -1908,10 +1910,14 @@ struct TestSimpleSource : public DataSource
 
 struct TestSparseSource : public DataSource
 {
-    TestSparseSource(const std::string& json, Mode mode = Mode::READ | Mode::WRITE | Mode::CLOBBER)
-      : DataSource(Kind::SPARSE, mode, Object::OMAP, Origin::SOURCE), data{json::parse(json)} {}
+    TestSparseSource(const std::string& json, Options options)
+      : DataSource(Kind::SPARSE, options, Object::OMAP, Origin::SOURCE), data{json::parse(json)} {
+          set_mode(Mode::READ | Mode::WRITE | Mode::CLOBBER);
+    }
 
-    DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSparseSource(data.to_json()); }
+    TestSparseSource(const std::string& json) : TestSparseSource(json, {}) {}
+
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSparseSource(data.to_json(), {}); }
 
     void read_type(const Object& target) override {
         read_meta_called = true;
@@ -1920,17 +1926,17 @@ struct TestSparseSource : public DataSource
         read_set(target, (Object::ReprIX)parser.parse_type());
     }
 
-    void read(const Object& target) override                            { read_called = true; read_set(target, data); }
-    void write(const Object&, const Object& cache, bool quiet) override { write_called = true; data = cache; }
+    void read(const Object& target) override                { read_called = true; read_set(target, data); }
+    void write(const Object&, const Object& cache) override { write_called = true; data = cache; }
 
-    Object read_key(const Object&, const Key& k) override               { read_key_called = true; return data.get(k); }
+    Object read_key(const Object&, const Key& k) override   { read_key_called = true; return data.get(k); }
 
-    void write_key(const Object&, const Key& k, const Object& v, bool quiet) override {
+    void write_key(const Object&, const Key& k, const Object& v) override {
         write_key_called = true;
         data.set(k, v);
     }
 
-    void delete_key(const Object&, const Key& k, bool quiet) override {
+    void delete_key(const Object&, const Key& k) override {
         delete_key_called = true;
         data.del(k);
     }
@@ -2021,7 +2027,9 @@ struct TestSparseSource : public DataSource
 
 
 TEST(Object, TestSimpleSource_Invalid) {
-    Object obj{new TestSimpleSource(std::to_string(0xbad))};
+    DataSource::Options options;
+    options.throw_read_error = false;
+    Object obj{new TestSimpleSource(std::to_string(0xbad), options)};
     EXPECT_FALSE(obj.is_valid());
 }
 

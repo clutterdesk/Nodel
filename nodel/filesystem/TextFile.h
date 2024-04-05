@@ -23,13 +23,15 @@ namespace filesystem {
 class TextFile : public File
 {
   public:
-    TextFile(Origin origin) : File(Kind::COMPLETE, Mode::INHERIT, Object::STR, origin) {}
-    TextFile()              : TextFile(Origin::MEMORY) {}
+    TextFile(Options options, Origin origin)   : File(Kind::COMPLETE, options, Object::STR, origin) { set_mode(mode() | Mode::INHERIT); }
+    TextFile(Origin origin)                    : TextFile(Options{}, origin) {}
+    TextFile(Options options)                  : TextFile(options, Origin::MEMORY) {}
+    TextFile()                                 : TextFile(Options{}, Origin::MEMORY) {}
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new TextFile(origin); }
 
     void read(const Object& target) override;
-    void write(const Object& target, const Object& cache, bool quiet) override;
+    void write(const Object& target, const Object& cache) override;
 };
 
 inline
@@ -41,18 +43,21 @@ void TextFile::read(const Object& target) {
     str.resize(size);
     f_in.read(str.data(), size);
     read_set(target, std::move(str));
-    if (f_in.fail() || f_in.bad()) set_failed(true);
+
+    if (f_in.bad()) report_read_error(fpath, strerror(errno));
+    if (f_in.fail()) report_read_error(fpath, "ostream::fail");
 }
 
 inline
-void TextFile::write(const Object& target, const Object& cache, bool quiet) {
+void TextFile::write(const Object& target, const Object& cache) {
     auto fpath = path(target).string();
     auto& str = cache.as<String>();
     std::ofstream f_out{fpath, std::ios::out};
     f_out.exceptions(std::ifstream::failbit);
     f_out.write(&str[0], str.size());
-    if (f_out.fail() || f_out.bad()) set_failed(true);
-    // TODO: quiet
+
+    if (f_out.bad()) report_write_error(fpath, strerror(errno));
+    if (f_out.fail()) report_write_error(fpath, "ostream::fail");
 }
 
 } // namespace filesystem

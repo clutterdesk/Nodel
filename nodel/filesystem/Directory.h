@@ -29,28 +29,22 @@ using namespace std::ranges;
 namespace nodel {
 namespace filesystem {
 
-struct FailedDeletes : std::exception
-{
-    FailedDeletes(const std::vector<std::filesystem::path>& paths) {
-        std::stringstream ss;
-        ss << "Error removing path(s): " << std::endl;
-        for (auto& path : paths)
-            ss << path << std::endl;
-        m_msg = ss.str();
-    }
-
-    const char* what() const noexcept override { return m_msg.data(); }
-
-    std::string m_msg;
-};
-
-
 // Base class for all files
 //
 class File : public DataSource
 {
   public:
-    using DataSource::DataSource;
+    File(Kind kind, Options options, Origin origin) : DataSource(kind, options, origin) {
+        set_mode(mode() | Mode::INHERIT);
+    }
+
+    File(Kind kind, Options options, ReprIX repr_ix, Origin origin) : DataSource(kind, options, repr_ix, origin) {
+        set_mode(mode() | Mode::INHERIT);
+    }
+
+  protected:
+    void report_read_error(const std::string& path, const std::string& error);
+    void report_write_error(const std::string& path, const std::string& error);
 };
 
 
@@ -59,14 +53,15 @@ class File : public DataSource
 class SubDirectory : public DataSource
 {
   public:
-    SubDirectory(Mode mode = Mode::READ | Mode::WRITE) : DataSource(Kind::COMPLETE, mode, Object::OMAP, Origin::MEMORY) {}
-    SubDirectory(Mode mode, Origin origin) : DataSource(Kind::COMPLETE, mode, Object::OMAP, origin) {}
+    SubDirectory(Options options, Origin origin) : DataSource(Kind::COMPLETE, options, Object::OMAP, origin) {}
+    SubDirectory(Options options) : DataSource(Kind::COMPLETE, options, Object::OMAP, Origin::MEMORY) {}
+    SubDirectory() : SubDirectory(Options{}) {}
 
-    DataSource* new_instance(const Object& target, Origin origin) const override { return new SubDirectory(mode(), origin); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new SubDirectory(options(), origin); }
 
     void read_type(const Object&) override { assert (false); } // TODO: remove, later
     void read(const Object& target) override;
-    void write(const Object& target, const Object&, bool) override;
+    void write(const Object& target, const Object&) override;
 };
 
 
@@ -77,12 +72,15 @@ class SubDirectory : public DataSource
 class Directory : public SubDirectory
 {
   public:
-    Directory(Ref<Registry> r_registry, const std::filesystem::path& path, Mode mode = Mode::READ | Mode::WRITE)
-      : SubDirectory(mode, Origin::SOURCE) , mr_registry(r_registry) , m_path(path) {}
+    Directory(Ref<Registry> r_registry, const std::filesystem::path& path, Options options)
+      : SubDirectory(options, Origin::SOURCE) , mr_registry(r_registry) , m_path(path) {}
+
+    Directory(Ref<Registry> r_registry, const std::filesystem::path& path)
+      : Directory(r_registry, path, Options{}) {}
 
     DataSource* new_instance(const Object& target, Origin origin) const override {
         assert (origin == Origin::SOURCE);
-        return new Directory(mr_registry, m_path);
+        return new Directory(mr_registry, m_path, options());
     }
 
     Ref<Registry> registry() const { return mr_registry; }
@@ -138,6 +136,7 @@ void SubDirectory::read(const Object& target) {
     assert (!head_anc.is_empty());
     auto opath = target.path(head_anc.parent());
     auto fpath = path(target);
+    // TODO: handle directory_iterator failure
     for (const auto& entry : std::filesystem::directory_iterator(fpath)) {
         auto fname = entry.path().filename().string();
         auto& head_ds = *(head_anc.data_source<Directory>());
@@ -145,13 +144,15 @@ void SubDirectory::read(const Object& target) {
         if (entry.is_directory()) {
             auto p_ds = r_reg->new_directory(target, entry.path());
             if (p_ds == nullptr) {
-                p_ds = new SubDirectory(mode(), Origin::SOURCE);
+                p_ds = new SubDirectory(options(), Origin::SOURCE);
+            } else {
+                p_ds->set_options(options());
             }
             read_set(target, fname, p_ds);
         } else {
             auto p_ds = r_reg->new_file(target, entry.path());
             if (p_ds != nullptr) {
-                p_ds->set_mode(mode());
+                p_ds->set_options(options());
                 read_set(target, fname, p_ds);
             }
         }
@@ -159,7 +160,7 @@ void SubDirectory::read(const Object& target) {
 }
 
 inline
-void SubDirectory::write(const Object& target, const Object& cache, bool quiet) {
+void SubDirectory::write(const Object& target, const Object& cache) {
     auto head_anc = find_fs_root(target);
     auto opath = target.path(head_anc.parent());
     auto fpath = path(target);
@@ -184,12 +185,18 @@ void SubDirectory::write(const Object& target, const Object& cache, bool quiet) 
         DEBUG("Removing directory: {}", deleted.string());
         std::error_code err;
         std::filesystem::remove_all(deleted, err);
-        if (!quiet && err)
-            failed_deletes.push_back(err.message());
+        if (err) report_write_error(err.message());
     }
+}
 
-    if (!failed_deletes.empty())
-        throw FailedDeletes(failed_deletes);
+inline
+void File::report_read_error(const std::string& path, const std::string& error) {
+    DataSource::report_read_error(fmt::format("{} ({})", error, path));
+}
+
+inline
+void File::report_write_error(const std::string& path, const std::string& error) {
+    DataSource::report_write_error(fmt::format("{} ({})", error, path));
 }
 
 } // namespace filesystem

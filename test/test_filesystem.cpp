@@ -138,12 +138,12 @@ TEST(Filesystem, DeleteDirectory) {
 
     Finally cleanup{ [&wd, &temp_dir_name] () { std::filesystem::remove(wd / temp_dir_name); } };
 
-    Object test_data = new Directory(new DefaultRegistry(), wd, Mode::ALL);
+    Object test_data = new Directory(new DefaultRegistry(), wd, DataSource::Options{Mode::ALL});
     test_data.set(temp_dir_name, new SubDirectory());
     test_data.save();
     EXPECT_TRUE(std::filesystem::exists(wd / temp_dir_name));
 
-    Object test_data_2 = new Directory(new DefaultRegistry(), wd, Mode::ALL);
+    Object test_data_2 = new Directory(new DefaultRegistry(), wd, DataSource::Options{Mode::ALL});
     EXPECT_TRUE(test_data_2.get(temp_dir_name) != none);
     test_data_2.del(temp_dir_name);
 
@@ -160,7 +160,7 @@ TEST(Filesystem, CreateJsonFile) {
 
     Finally cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
 
-    Object test_data = new Directory(new DefaultRegistry(), wd, DataSource::Mode::ALL);
+    Object test_data = new Directory(new DefaultRegistry(), wd);
     Object new_file = new JsonFile();
     new_file.set(json::parse("{'tea': 'Assam, please'}"));
     test_data.set(new_file_name, new_file);
@@ -179,7 +179,7 @@ TEST(Filesystem, CreateCsvFile) {
 
     Finally cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
 
-    Object test_data = new Directory(new DefaultRegistry(), wd, DataSource::Mode::ALL);
+    Object test_data = new Directory(new DefaultRegistry(), wd);
     Object new_file = new CsvFile();
     new_file.set(0, json::parse("['a', 'b']"));
     new_file.set(1, json::parse("[0, 1]"));
@@ -200,7 +200,7 @@ TEST(Filesystem, UpdateJsonFile) {
 
     Finally cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
 
-    Object test_data = new Directory(new DefaultRegistry(), wd, DataSource::Mode::ALL);
+    Object test_data = new Directory(new DefaultRegistry(), wd);
     Object new_file = new JsonFile();
     new_file.set(json::parse("{'tea': 'Assam, please'}"));
     test_data.set(new_file_name, new_file);
@@ -223,11 +223,11 @@ TEST(Filesystem, CopyFileToAnotherDirectory) {
         std::filesystem::remove(wd / "temp");
     }};
 
-    Object test_data = new Directory(new DefaultRegistry(), wd, DataSource::Mode::ALL);
+    Object test_data = new Directory(new DefaultRegistry(), wd);
     test_data.set("temp"_key, new SubDirectory());
     test_data.save();
 
-    Object test_data_2 = new Directory(new DefaultRegistry(), wd, DataSource::Mode::ALL);
+    Object test_data_2 = new Directory(new DefaultRegistry(), wd);
     auto temp = test_data_2.get("temp"_key);
     temp.set("example.json"_key, test_data.get("example.json"_key));
     EXPECT_TRUE(temp.get("example.json"_key).parent().is(temp));
@@ -242,7 +242,10 @@ TEST(Filesystem, CopyFileToAnotherDirectory) {
 
 void test_invalid_file(const std::string& file_name) {
     auto wd = std::filesystem::current_path() / "test_data";
-    Object test_data = new Directory(new DefaultRegistry(), wd);
+    DataSource::Options options;
+    options.throw_read_error = false;
+    options.throw_write_error = false;
+    Object test_data = new Directory(new DefaultRegistry(), wd, options);
     Object fs_obj = test_data.get(file_name);
     EXPECT_TRUE(fs_obj.is_valid());
 
