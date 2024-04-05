@@ -51,14 +51,14 @@ struct EmptyReference : public NodelException
     EmptyReference() : NodelException("uninitialized object"s) {}
 };
 
-struct WriteProtected : public NodelException
+struct WriteProtect : public NodelException
 {
-    WriteProtected() : NodelException("Data-source is write protected"s) {}
+    WriteProtect() : NodelException("Data-source is write protected"s) {}
 };
 
-struct OverwriteProtected : public NodelException
+struct ClobberProtect : public NodelException
 {
-    OverwriteProtected() : NodelException("Data-source is over-write protected"s) {}
+    ClobberProtect() : NodelException("Data-source is clobber protected"s) {}
 };
 
 struct InvalidPath : public NodelException
@@ -690,11 +690,15 @@ class DataSource
     struct Mode : public Flags<uint8_t> {
         FLAG8 READ = 1;
         FLAG8 WRITE = 2;
-        FLAG8 OVERWRITE = 4;
+        FLAG8 CLOBBER = 4;
         FLAG8 ALL = 7;
         FLAG8 INHERIT = 8;
         Mode(Flags<uint8_t> flags) : Flags<uint8_t>(flags) {}
         operator int () const { return m_value; }
+    };
+
+    struct Options {
+        Mode mode = Mode::READ | Mode::WRITE;
     };
 
     DataSource(Kind kind, Mode mode, Origin origin)
@@ -704,7 +708,7 @@ class DataSource
       , m_fully_cached{(kind == Kind::COMPLETE) && origin == Origin::MEMORY}
       , m_unsaved{origin == Origin::MEMORY}
       , m_kind{kind}
-      , m_default_repr_ix{Object::EMPTY}
+      , m_repr_ix{Object::EMPTY}
     {}
 
     DataSource(Kind kind, Mode mode, ReprIX repr_ix, Origin origin)
@@ -714,7 +718,7 @@ class DataSource
       , m_fully_cached{(kind == Kind::COMPLETE) && origin == Origin::MEMORY}
       , m_unsaved{origin == Origin::MEMORY}
       , m_kind{kind}
-      , m_default_repr_ix{repr_ix}
+      , m_repr_ix{repr_ix}
     {}
 
     virtual ~DataSource() {}
@@ -727,7 +731,7 @@ class DataSource
     virtual void write(const Object& target, const Object&, bool)                  {}  // both
     virtual void write_key(const Object& target, const Key&, const Object&, bool)  {}  // sparse
     virtual void delete_key(const Object& target, const Key&, bool)                {}  // sparse
-    virtual void commit(const Object& target, const KeyList& del_keys, bool quiet) {} // sparse
+    virtual void commit(const Object& target, const KeyList& del_keys, bool quiet) {}  // sparse
 
     // interface to use from virtual read methods
     void read_set(const Object& target, const Object& value);
@@ -798,7 +802,7 @@ class DataSource
     bool m_unsaved = false;
     bool m_failed = false;
     Kind m_kind;
-    ReprIX m_default_repr_ix;
+    ReprIX m_repr_ix;
 
   friend class Object;
   friend class KeyRange;
@@ -2486,8 +2490,8 @@ inline
 void DataSource::set(const Object& target, const Object& value) {
     // target is guaranteed not to have a parent
     Mode mode = resolve_mode();
-    if (!(mode & Mode::WRITE)) throw WriteProtected();
-    if (!(mode & Mode::OVERWRITE)) throw OverwriteProtected();
+    if (!(mode & Mode::WRITE)) throw WriteProtect();
+    if (is_sparse() && !(mode & Mode::CLOBBER)) throw ClobberProtect();
 
     set_unsaved(true);
     m_cache = value;
@@ -2541,7 +2545,7 @@ void DataSource::del(const Object& target, const Key& key) {
 
 inline
 void DataSource::save(const Object& target, bool quiet) {
-    if (!(resolve_mode() & Mode::WRITE)) throw WriteProtected();
+    if (!(resolve_mode() & Mode::WRITE)) throw WriteProtect();
     if (m_cache.m_fields.repr_ix == Object::EMPTY) return;
 
     if (m_unsaved) {
@@ -2576,7 +2580,7 @@ inline
 void DataSource::reset() {
     m_fully_cached = false;
     m_failed = false;
-    m_cache = Object{m_default_repr_ix};
+    m_cache = Object{m_repr_ix};
 }
 
 inline

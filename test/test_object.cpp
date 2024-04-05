@@ -1872,7 +1872,7 @@ TEST(Object, IterListKeyClosedClosedIntInterval) {
 
 struct TestSimpleSource : public DataSource
 {
-    TestSimpleSource(const std::string& json, Mode mode = Mode::READ | Mode::WRITE | Mode::OVERWRITE)
+    TestSimpleSource(const std::string& json, Mode mode = Mode::READ | Mode::WRITE)
       : DataSource(Kind::COMPLETE, mode, Origin::SOURCE), data{json::parse(json)} {
       }
 
@@ -1908,7 +1908,7 @@ struct TestSimpleSource : public DataSource
 
 struct TestSparseSource : public DataSource
 {
-    TestSparseSource(const std::string& json, Mode mode = Mode::READ | Mode::WRITE | Mode::OVERWRITE)
+    TestSparseSource(const std::string& json, Mode mode = Mode::READ | Mode::WRITE | Mode::CLOBBER)
       : DataSource(Kind::SPARSE, mode, Object::OMAP, Origin::SOURCE), data{json::parse(json)} {}
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSparseSource(data.to_json()); }

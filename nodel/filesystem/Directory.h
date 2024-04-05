@@ -151,7 +151,7 @@ void SubDirectory::read(const Object& target) {
         } else {
             auto p_ds = r_reg->new_file(target, entry.path());
             if (p_ds != nullptr) {
-                p_ds->set_mode((mode() & Mode::WRITE)? mode() | Mode::OVERWRITE: mode());
+                p_ds->set_mode(mode());
                 read_set(target, fname, p_ds);
             }
         }
