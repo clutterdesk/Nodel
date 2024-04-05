@@ -21,10 +21,10 @@ namespace log {
 
 enum Level
 {
-    DEBUG,
-    WARNING,
-    ERROR,
     FATAL,
+    ERROR,
+    WARNING,
+    DEBUG,
 };
 
 constexpr static int level = DEBUG;

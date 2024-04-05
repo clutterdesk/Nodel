@@ -36,7 +36,9 @@ class KeyStore : public nodel::DataSource
     KeyStore(const std::filesystem::path& path, Options options, Origin origin);
     KeyStore(const std::filesystem::path& path, Options options) : KeyStore{path, options, Origin::MEMORY} {}
     KeyStore(const std::filesystem::path& path)                  : KeyStore{path, Options{}, Origin::MEMORY} {}
-    KeyStore(Origin origin)                                      : KeyStore{{}, Options{}, origin} {}
+
+    // Filesystem integration ctor
+    KeyStore(Origin origin) : KeyStore{{}, Options{}, origin} {}
 
     ~KeyStore();
 
