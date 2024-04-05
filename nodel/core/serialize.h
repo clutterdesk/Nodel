@@ -25,7 +25,7 @@ namespace nodel {
 inline
 std::string serialize(const Key& key) {
     switch (key.type()) {
-        case Key::NONE:  return "0";
+        case Key::NIL:  return "0";
         case Key::BOOL:  return key.as<bool>()? "2": "1";
         case Key::INT:   return "3" + key.to_str();
         case Key::UINT:  return "4" + key.to_str();
@@ -39,7 +39,7 @@ inline
 bool deserialize(const std::string_view& data, Key& key) {
     if (data.size() < 1) return false;
     switch (data[0]) {
-        case '0': key = none; break;
+        case '0': key = nil; break;
         case '1': key = false; break;
         case '2': key = true; break;
         case '3': key = str_to_int(data.substr(1)); break;
@@ -54,7 +54,7 @@ bool deserialize(const std::string_view& data, Key& key) {
 inline
 std::string serialize(const Object& value) {
     switch (value.type()) {
-        case Object::NONE:  return "0";
+        case Object::NIL:  return "0";
         case Object::BOOL:  return value.as<bool>()? "2": "1";
         case Object::INT:   return '3' + value.to_str();
         case Object::UINT:  return '4' + value.to_str();
@@ -70,7 +70,7 @@ inline
 bool deserialize(const std::string_view& data, Object& value) {
     if (data.size() < 1) return false;
     switch (data[0]) {
-        case '0': value = none; break;
+        case '0': value = nil; break;
         case '1': value = false; break;
         case '2': value = true; break;
         case '3': value = str_to_int(data.substr(1)); break;

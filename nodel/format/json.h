@@ -87,7 +87,7 @@ Object::ReprIX Parser<StreamType>::parse_type() {
     switch (m_it.peek()) {
         case '{': return get_map_type();
         case '[': return Object::LIST;
-        case 'n': return Object::NONE;
+        case 'n': return Object::NIL;
         case 't':
         case 'f': return Object::BOOL;
         case '0':
@@ -161,7 +161,7 @@ bool Parser<StreamType>::parse_object(char term_char)
 
             case 't': return expect("true", true);
             case 'f': return expect("false", false);
-            case 'n': return expect("none", none);
+            case 'n': return expect("nil", nil);
 
             default:
                 return m_it.peek() == term_char;
@@ -406,7 +406,7 @@ Object parse(const Options& options, const std::string_view& str, std::optional<
     impl::Parser parser{options, nodel::impl::StringStreamAdapter{str}};
     if (!parser.parse_object()) {
         error = Error{parser.m_error_offset, std::move(parser.m_error_message)};
-        return none;
+        return nil;
     }
     return parser.m_curr;
 }
@@ -422,7 +422,7 @@ Object parse(const Options& options, const std::string_view& str, std::string& e
     Object result = parse(options, str, parse_error);
     if (parse_error) {
         error = parse_error->to_str();
-        return none;
+        return nil;
     }
     return result;
 }
@@ -453,13 +453,13 @@ Object parse_file(const Options& options, const std::string& file_name, std::str
         std::stringstream ss;
         ss << "Error opening file: " << file_name;
         error = ss.str();
-        return none;
+        return nil;
     } else {
         impl::Parser parser{options, nodel::impl::StreamAdapter{f_in}};
         if (!parser.parse_object()) {
             Error parse_error{parser.m_error_offset, std::move(parser.m_error_message)};
             error = parse_error.to_str();
-            return none;
+            return nil;
         }
         return parser.m_curr;
     }

@@ -52,7 +52,7 @@ Object Parser<StreamType>::parse() {
     List table;
     while (!m_it.done())
         if (!parse_row(table))
-            return none;
+            return nil;
     return table;
 }
 
@@ -186,7 +186,7 @@ Object parse(std::string&& str, std::optional<ParseError>& error) {
     std::istringstream in{std::forward<std::string>(str)};
     impl::Parser parser{in};
     Object result = parser.parse();
-    if (result == none) {
+    if (result == nil) {
         error = ParseError{parser.pos(), std::move(parser.error())};
     }
     return result;
@@ -216,11 +216,11 @@ Object parse_file(const std::string& file_name, std::string& error) {
         std::stringstream ss;
         ss << "Error opening file: " << file_name;
         error = ss.str();
-        return none;
+        return nil;
     } else {
         impl::Parser parser{f_in};
         Object result = parser.parse();
-        if (result == none) {
+        if (result == nil) {
             ParseError parse_error{parser.pos(), std::move(parser.error())};
             error = parse_error.to_str();
         }

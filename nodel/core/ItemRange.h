@@ -39,7 +39,7 @@ class ItemIterator
     };
 
   public:
-    ItemIterator()                            : m_repr_ix{ReprIX::NONE} {}
+    ItemIterator()                            : m_repr_ix{ReprIX::NIL} {}
     ItemIterator(UInt pos, List::iterator it) : m_repr_ix{ReprIX::LIST}, m_repr{pos, it} {}
     ItemIterator(SortedMap::iterator it)      : m_repr_ix{ReprIX::MAP}, m_repr{it} {}
     ItemIterator(OrderedMap::iterator it)     : m_repr_ix{ReprIX::OMAP}, m_repr{it} {}
@@ -97,7 +97,7 @@ ItemIterator::~ItemIterator() {
 inline
 ItemIterator::ItemIterator(ItemIterator&& other) : m_repr_ix{other.m_repr_ix} {
     switch (m_repr_ix) {
-        case ReprIX::NONE: break;
+        case ReprIX::NIL: break;
         case ReprIX::LIST: m_repr.li = other.m_repr.li; break;
         case ReprIX::MAP:  m_repr.smi = other.m_repr.smi; break;
         case ReprIX::OMAP: m_repr.omi = other.m_repr.omi; break;
@@ -110,7 +110,7 @@ inline
 auto& ItemIterator::operator = (ItemIterator&& other) {
     m_repr_ix = other.m_repr_ix;
     switch (m_repr_ix) {
-        case ReprIX::NONE: break;
+        case ReprIX::NIL: break;
         case ReprIX::LIST: m_repr.li = other.m_repr.li; break;
         case ReprIX::MAP:  m_repr.smi = other.m_repr.smi; break;
         case ReprIX::OMAP: m_repr.omi = other.m_repr.omi; break;
@@ -153,7 +153,7 @@ const Item& ItemIterator::operator * () {
 inline
 bool ItemIterator::operator == (const ItemIterator& other) const {
     switch (m_repr_ix) {
-        case ReprIX::NONE: return other.m_repr_ix == ReprIX::NONE || other == *this;
+        case ReprIX::NIL: return other.m_repr_ix == ReprIX::NIL || other == *this;
         case ReprIX::LIST: return std::get<0>(m_repr.li) == std::get<0>(other.m_repr.li);
         case ReprIX::MAP:  return m_repr.smi == other.m_repr.smi;
         case ReprIX::OMAP: return m_repr.omi == other.m_repr.omi;
@@ -168,7 +168,7 @@ ItemIterator ItemRange::begin() {
     switch (repr_ix) {
         case ReprIX::LIST: {
             auto& list = std::get<0>(*m_obj.m_repr.pl);
-            if (m_itvl.min().value() == none) {
+            if (m_itvl.min().value() == nil) {
                 return ItemIterator{0UL, list.begin()};
             } else {
                 auto indices = m_itvl.to_indices(list.size());
@@ -178,7 +178,7 @@ ItemIterator ItemRange::begin() {
         case ReprIX::MAP: {
             auto& map = std::get<0>(*m_obj.m_repr.psm);
             auto& min_key = m_itvl.min().value();
-            if (min_key == none) {
+            if (min_key == nil) {
                 return ItemIterator{map.begin()};
             } else {
                 auto it = map.lower_bound(min_key);
@@ -215,7 +215,7 @@ ItemIterator ItemRange::end() {
         case ReprIX::MAP: {
             auto& map = std::get<0>(*m_obj.m_repr.psm);
             auto& max_key = m_itvl.max().value();
-            if (max_key == none) {
+            if (max_key == nil) {
                 return ItemIterator{map.end()};
             } else {
                 auto it = map.upper_bound(max_key);

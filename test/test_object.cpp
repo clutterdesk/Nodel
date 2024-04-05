@@ -21,7 +21,7 @@ struct TestObject : public Object
 
 TEST(Object, TypeName) {
     EXPECT_EQ(Object{}.type_name(), "empty");
-    EXPECT_EQ(Object{none}.type_name(), "none");
+    EXPECT_EQ(Object{nil}.type_name(), "nil");
     EXPECT_EQ(Object{true}.type_name(), "bool");
     EXPECT_EQ(Object{-1}.type_name(), "int");
     EXPECT_EQ(Object{1UL}.type_name(), "uint");
@@ -37,10 +37,10 @@ TEST(Object, Empty) {
 }
 
 TEST(Object, Null) {
-  Object v{none};
-  EXPECT_TRUE(v == none);
-  EXPECT_TRUE(v.is(none));
-  EXPECT_EQ(v.to_json(), "none");
+  Object v{nil};
+  EXPECT_TRUE(v == nil);
+  EXPECT_TRUE(v.is(nil));
+  EXPECT_EQ(v.to_json(), "nil");
 }
 
 TEST(Object, Bool) {
@@ -94,7 +94,7 @@ TEST(Object, Double) {
 TEST(Object, String) {
   Object v{"123"};
   EXPECT_TRUE(v.is_type<String>());
-  EXPECT_TRUE(v.parent() == none);
+  EXPECT_TRUE(v.parent() == nil);
   EXPECT_EQ(v.to_json(), "\"123\"");
 
   Object quoted{"a\"b"};
@@ -141,7 +141,7 @@ TEST(Object, OrderedMapKeyOrder) {
 }
 
 TEST(Object, Size) {
-    EXPECT_EQ(Object(none).size(), 0);
+    EXPECT_EQ(Object(nil).size(), 0);
     EXPECT_EQ(Object(1LL).size(), 0);
     EXPECT_EQ(Object(1ULL).size(), 0);
     EXPECT_EQ(Object(1.0).size(), 0);
@@ -171,7 +171,7 @@ TEST(Object, ToBool) {
     }
 
     try {
-        Object obj{none};
+        Object obj{nil};
         obj.to_bool();
         FAIL();
     } catch (...) {
@@ -194,7 +194,7 @@ TEST(Object, ToInt) {
     }
 
     try {
-        Object obj{none};
+        Object obj{nil};
         obj.to_int();
         FAIL();
     } catch (...) {
@@ -218,7 +218,7 @@ TEST(Object, ToUInt) {
     }
 
     try {
-        Object obj{none};
+        Object obj{nil};
         obj.to_uint();
         FAIL();
     } catch (...) {
@@ -241,7 +241,7 @@ TEST(Object, ToFloat) {
     }
 
     try {
-        Object obj{none};
+        Object obj{nil};
         obj.to_float();
         FAIL();
     } catch (...) {
@@ -256,7 +256,7 @@ TEST(Object, StdStreamOperator) {
 }
 
 TEST(Object, ToStr) {
-  EXPECT_EQ(Object{none}.to_str(), "none");
+  EXPECT_EQ(Object{nil}.to_str(), "nil");
   EXPECT_EQ(Object{false}.to_str(), "false");
   EXPECT_EQ(Object{true}.to_str(), "true");
   EXPECT_EQ(Object{7LL}.to_str(), "7");
@@ -289,7 +289,7 @@ TEST(Object, ToKey) {
     EXPECT_TRUE(obj.is_type<String>());
     EXPECT_EQ(obj.to_key().as<StringView>(), "key");
 
-    EXPECT_EQ(Object{none}.to_key(), Key{none});
+    EXPECT_EQ(Object{nil}.to_key(), Key{nil});
     EXPECT_EQ(Object{false}.to_key(), Key{false});
     EXPECT_EQ(Object{true}.to_key(), Key{true});
     EXPECT_EQ(Object{-1}.to_key(), Key{-1});
@@ -305,8 +305,8 @@ TEST(Object, ToKey) {
 }
 
 TEST(Object, IntoKey) {
-    Object obj = none;
-    EXPECT_EQ(obj.into_key(), Key{none});
+    Object obj = nil;
+    EXPECT_EQ(obj.into_key(), Key{nil});
     obj = false;
     EXPECT_EQ(obj.into_key(), Key{false});
     obj = -1;
@@ -325,12 +325,12 @@ TEST(Object, IntoKey) {
 }
 
 TEST(Object, NonDataSourceIsValid) {
-    EXPECT_TRUE(Object{none}.is_valid());
+    EXPECT_TRUE(Object{nil}.is_valid());
     EXPECT_TRUE(Object{0}.is_valid());
 }
 
 TEST(Object, GetId) {
-    EXPECT_NE(Object(none).id().to_str(), "");
+    EXPECT_NE(Object(nil).id().to_str(), "");
     EXPECT_NE(Object(true).id().to_str(), "");
     EXPECT_NE(Object(-1).id().to_str(), "");
     EXPECT_NE(Object(1UL).id().to_str(), "");
@@ -352,14 +352,14 @@ TEST(Object, IdentityComparison) {
 }
 
 TEST(Object, CompareNull) {
-    EXPECT_TRUE(Object{none} == Object{none});
-    EXPECT_EQ(Object{none}.operator <=> (none), std::partial_ordering::equivalent);
+    EXPECT_TRUE(Object{nil} == Object{nil});
+    EXPECT_EQ(Object{nil}.operator <=> (nil), std::partial_ordering::equivalent);
 
-    Object a{none};
+    Object a{nil};
     EXPECT_FALSE(a == Object{1});
 
     try {
-        Object a{none};
+        Object a{nil};
         a <=> Object{1};
         FAIL();
     } catch (...) {
@@ -765,13 +765,13 @@ TEST(Object, CompareListList) {
 }
 
 TEST(Object, CopyBasic) {
-    EXPECT_TRUE(Object{none}.copy() == none);
+    EXPECT_TRUE(Object{nil}.copy() == nil);
     EXPECT_TRUE(Object{-1}.copy().is_type<Int>());
     EXPECT_TRUE(Object{1UL}.copy().is_type<UInt>());
     EXPECT_TRUE(Object{2.718}.copy().is_type<Float>());
     EXPECT_TRUE(Object{"tea"}.copy().is_type<String>());
 
-    EXPECT_EQ(Object{none}.copy(), none);
+    EXPECT_EQ(Object{nil}.copy(), nil);
     EXPECT_EQ(Object{-1}.copy(), -1);
     EXPECT_EQ(Object{1UL}.copy(), 1UL);
     EXPECT_EQ(Object{2.718}.copy(), 2.718);
@@ -794,16 +794,16 @@ TEST(Object, ListGet) {
   EXPECT_EQ(obj.get(-1).to_int(), 9);
   EXPECT_EQ(obj.get(-2).to_int(), 8);
   EXPECT_EQ(obj.get(-3).to_int(), 7);
-  EXPECT_TRUE(obj.get(-4) == none);
-  EXPECT_TRUE(obj.get(-5) == none);
-  EXPECT_TRUE(obj.get(3) == none);
-  EXPECT_TRUE(obj.get(4) == none);
+  EXPECT_TRUE(obj.get(-4) == nil);
+  EXPECT_TRUE(obj.get(-5) == nil);
+  EXPECT_TRUE(obj.get(3) == nil);
+  EXPECT_TRUE(obj.get(4) == nil);
 }
 
 TEST(Object, ListGetOutOfRange) {
     Object obj = json::parse(R"([])");
     EXPECT_TRUE(obj.is_type<List>());
-    EXPECT_TRUE(obj.get(1) == none);
+    EXPECT_TRUE(obj.get(1) == nil);
 }
 
 TEST(Object, ListSet) {
@@ -841,7 +841,7 @@ TEST(Object, OrderedMapGet) {
   EXPECT_EQ(obj.get(1).to_int(), 8);
   EXPECT_EQ(obj.get(2).to_int(), 9);
   EXPECT_EQ(obj.get("name"_key).as<String>(), "Brian");
-  EXPECT_TRUE(obj.get("blah"_key) == none);
+  EXPECT_TRUE(obj.get("blah"_key) == nil);
 }
 
 TEST(Object, SortedMapGet) {
@@ -852,32 +852,32 @@ TEST(Object, SortedMapGet) {
   EXPECT_EQ(obj.get(1).to_int(), 8);
   EXPECT_EQ(obj.get(2).to_int(), 9);
   EXPECT_EQ(obj.get("name"_key).as<String>(), "Brian");
-  EXPECT_TRUE(obj.get("blah"_key) == none);
+  EXPECT_TRUE(obj.get("blah"_key) == nil);
 }
 
 TEST(Object, OrderedMapGetNotFound) {
     Object obj = json::parse(R"({})");
     EXPECT_TRUE(obj.is_type<OrderedMap>());
-    EXPECT_TRUE(obj.get("x"_key) == none);
+    EXPECT_TRUE(obj.get("x"_key) == nil);
 
     obj.set("x"_key, "X");
-    EXPECT_FALSE(obj.get("x"_key) == none);
+    EXPECT_FALSE(obj.get("x"_key) == nil);
 
     obj.del("x"_key);
-    EXPECT_TRUE(obj.get("x"_key) == none);
+    EXPECT_TRUE(obj.get("x"_key) == nil);
 }
 
 TEST(Object, SortedMapGetNotFound) {
     json::Options options; options.use_sorted_map = true;
     Object obj = json::parse(options, R"({})");
     EXPECT_TRUE(obj.is_type<SortedMap>());
-    EXPECT_TRUE(obj.get("x"_key) == none);
+    EXPECT_TRUE(obj.get("x"_key) == nil);
 
     obj.set("x"_key, "X");
-    EXPECT_FALSE(obj.get("x"_key) == none);
+    EXPECT_FALSE(obj.get("x"_key) == nil);
 
     obj.del("x"_key);
-    EXPECT_TRUE(obj.get("x"_key) == none);
+    EXPECT_TRUE(obj.get("x"_key) == nil);
 }
 
 TEST(Object, MultipleSubscriptOrderedMap) {
@@ -1004,7 +1004,7 @@ TEST(Object, KeyOf) {
             "redun_float": 3.1415926,
             "okay_str": "Assam Tea"
            })");
-    EXPECT_TRUE(Object{none}.key_of(obj) == none);
+    EXPECT_TRUE(Object{nil}.key_of(obj) == nil);
     EXPECT_EQ(obj.key_of(obj.get("bool"_key)), "bool"_key);
     EXPECT_EQ(obj.key_of(obj.get("int"_key)), "int"_key);
     EXPECT_EQ(obj.key_of(obj.get("uint"_key)), "uint"_key);
@@ -1604,7 +1604,7 @@ TEST(Object, MaxNumericIDEquality) {
 }
 
 TEST(Object, ZeroNullPtrIDConflict) {
-  Object obj{none};
+  Object obj{nil};
   Object num{0};
   EXPECT_NE(obj.id(), num.id());
 }
@@ -1612,8 +1612,8 @@ TEST(Object, ZeroNullPtrIDConflict) {
 TEST(Object, AssignNull) {
     Object obj{"foo"};
     EXPECT_EQ(obj.ref_count(), 1);
-    obj = none;
-    EXPECT_TRUE(obj == none);
+    obj = nil;
+    EXPECT_TRUE(obj == nil);
 }
 
 TEST(Object, AssignBool) {
@@ -1666,7 +1666,7 @@ TEST(Object, RedundantAssign) {
 
 TEST(Object, RootParentIsNull) {
     Object root = json::parse(R"({"x": [1], "y": [2]})");
-    EXPECT_TRUE(root.parent() == none);
+    EXPECT_TRUE(root.parent() == nil);
 }
 
 TEST(Object, ClearParentOnListUpdate) {
@@ -1676,8 +1676,8 @@ TEST(Object, ClearParentOnListUpdate) {
     Object first = root.get(0);
     EXPECT_TRUE(first.parent().is(root));
 
-    root.set(0, none);
-    EXPECT_TRUE(first.parent() == none);
+    root.set(0, nil);
+    EXPECT_TRUE(first.parent() == nil);
 }
 
 TEST(Object, ClearParentOnMapUpdate) {
@@ -1687,8 +1687,8 @@ TEST(Object, ClearParentOnMapUpdate) {
     Object first = root.get("0"_key);
     EXPECT_TRUE(first.parent().is(root));
 
-    root.set("0"_key, none);
-    EXPECT_TRUE(first.parent() == none);
+    root.set("0"_key, nil);
+    EXPECT_TRUE(first.parent() == nil);
 }
 
 TEST(Object, CopyChildToAnotherContainer) {
@@ -1721,8 +1721,8 @@ TEST(Object, ParentIntegrityOnDel) {
     EXPECT_TRUE(x1.parent().is_type<OrderedMap>());
     EXPECT_EQ(x2.parent().id(), par.id());
     par.del("x"s);
-    EXPECT_TRUE(x1.parent() == none);
-    EXPECT_TRUE(x2.parent() == none);
+    EXPECT_TRUE(x1.parent() == nil);
+    EXPECT_TRUE(x2.parent() == nil);
 }
 
 TEST(Object, GetKeys) {
@@ -2239,7 +2239,7 @@ TEST(Object, TestSimpleSource_DeleteAndSave) {
     EXPECT_TRUE(dsrc->read_called);
     obj.del("tea"_key);
     obj.save();
-    EXPECT_TRUE(obj.get("tea"_key) == none);
+    EXPECT_TRUE(obj.get("tea"_key) == nil);
     EXPECT_TRUE(dsrc->write_called);
 }
 

@@ -9,16 +9,16 @@ using namespace nodel::json;
 using namespace nodel::json::impl;
 
 TEST(Json, ParseNull) {
-    std::stringstream stream{"none"};
+    std::stringstream stream{"nil"};
     Parser parser{nodel::impl::StreamAdapter{stream}};
     ASSERT_TRUE(parser.parse_object());
-    EXPECT_TRUE(parser.m_curr == none);
+    EXPECT_TRUE(parser.m_curr == nil);
 }
 
 TEST(Json, ParseTypeNull) {
-    std::stringstream stream{"none"};
+    std::stringstream stream{"nil"};
     Parser parser{nodel::impl::StreamAdapter{stream}};
-    EXPECT_EQ(parser.parse_type(), Object::NONE);
+    EXPECT_EQ(parser.parse_type(), Object::NIL);
 }
 
 TEST(Json, ParseTypeBoolFalse) {
@@ -142,7 +142,7 @@ TEST(Json, ParseSingleQuotedString) {
 
 TEST(Json, ParseUnterminatedString) {
     std::string err;
-    EXPECT_TRUE(parse("'tea", err) == none);
+    EXPECT_TRUE(parse("'tea", err) == nil);
     EXPECT_TRUE(err.size());
 }
 

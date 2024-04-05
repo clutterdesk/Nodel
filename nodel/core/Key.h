@@ -56,7 +56,7 @@ class Key
 {
   public:
     enum ReprIX {
-        NONE,   // json null
+        NIL,   // json null
         BOOL,
         INT,
         UINT,
@@ -85,7 +85,7 @@ class Key
   public:
     static std::string_view type_name(ReprIX repr_ix) {
         switch (repr_ix) {
-            case NONE:  return "none";
+            case NIL:  return "nil";
             case BOOL:  return "bool";
             case INT:   return "int";
             case UINT:  return "uint";
@@ -96,8 +96,8 @@ class Key
     }
 
   public:
-    Key()                     : m_repr{}, m_repr_ix{NONE} {}
-    Key(null_t)               : m_repr{}, m_repr_ix{NONE} {}
+    Key()                     : m_repr{}, m_repr_ix{NIL} {}
+    Key(nil_t)                : m_repr{}, m_repr_ix{NIL} {}
     Key(is_bool auto v)       : m_repr{v}, m_repr_ix{BOOL} {}
     Key(is_like_Float auto v) : m_repr{v}, m_repr_ix{FLOAT} {}
     Key(is_like_Int auto v)   : m_repr{(Int)v}, m_repr_ix{INT} {}
@@ -111,7 +111,7 @@ class Key
     Key(const Key& key) {
         m_repr_ix = key.m_repr_ix;
         switch (m_repr_ix) {
-            case NONE:  m_repr.z = key.m_repr.z; break;
+            case NIL:  m_repr.z = key.m_repr.z; break;
             case BOOL:  m_repr.b = key.m_repr.b; break;
             case INT:   m_repr.i = key.m_repr.i; break;
             case UINT:  m_repr.u = key.m_repr.u; break;
@@ -124,7 +124,7 @@ class Key
         release();
         m_repr_ix = key.m_repr_ix;
         switch (m_repr_ix) {
-            case NONE:  m_repr.z = key.m_repr.z; break;
+            case NIL:  m_repr.z = key.m_repr.z; break;
             case BOOL:  m_repr.b = key.m_repr.b; break;
             case INT:   m_repr.i = key.m_repr.i; break;
             case UINT:  m_repr.u = key.m_repr.u; break;
@@ -134,7 +134,7 @@ class Key
         return *this;
     }
 
-    Key& operator = (null_t)               { release(); m_repr.z = nullptr; m_repr_ix = NONE; return *this; }
+    Key& operator = (nil_t)               { release(); m_repr.z = nullptr; m_repr_ix = NIL; return *this; }
     Key& operator = (is_bool auto v)       { release(); m_repr.b = v; m_repr_ix = BOOL; return *this; }
     Key& operator = (is_like_Int auto v)   { release(); m_repr.i = v; m_repr_ix = INT; return *this; }
     Key& operator = (is_like_UInt auto v)  { release(); m_repr.u = v; m_repr_ix = UINT; return *this; }
@@ -156,7 +156,7 @@ class Key
 
     bool operator == (const Key& other) const {
         switch (m_repr_ix) {
-            case NONE:  return other == none;
+            case NIL:  return other == nil;
             case BOOL:  return other == m_repr.b;
             case INT:   return other == m_repr.i;
             case UINT:  return other == m_repr.u;
@@ -167,8 +167,8 @@ class Key
         return false;
     }
 
-    bool operator == (null_t) const {
-        return m_repr_ix == NONE;
+    bool operator == (nil_t) const {
+        return m_repr_ix == NIL;
     }
 
     bool operator == (intern_t s) const {
@@ -341,7 +341,7 @@ class Key
 
     void to_str(std::ostream& stream) const {
         switch (m_repr_ix) {
-            case NONE:  stream << "none"; break;
+            case NIL:  stream << "nil"; break;
             case BOOL:  stream << (m_repr.b? "true": "false"); break;
             case INT:   stream << nodel::int_to_str(m_repr.i); break;
             case UINT:  stream << nodel::int_to_str(m_repr.u); break;
@@ -359,7 +359,7 @@ class Key
 
     String to_json() const {
         switch (m_repr_ix) {
-            case NONE:  return "none";
+            case NIL:  return "nil";
             case BOOL:  return m_repr.b? "true": "false";
             case INT:   return nodel::int_to_str(m_repr.i);
             case UINT:  return nodel::int_to_str(m_repr.u);
@@ -384,7 +384,7 @@ class Key
     size_t hash() const {
         static std::hash<Float> float_hash;
         switch (m_repr_ix) {
-            case NONE:  return 0;
+            case NIL:  return 0;
             case BOOL:  return (size_t)m_repr.b;
             case INT:   return (size_t)m_repr.i;
             case UINT:  return (size_t)m_repr.u;
@@ -401,7 +401,7 @@ class Key
   private:
     void release() {
         m_repr.z = nullptr;
-        m_repr_ix = NONE;
+        m_repr_ix = NIL;
     }
 
     template <typename T> ReprIX get_repr_ix() const;
@@ -431,7 +431,7 @@ Key operator ""_key (const char* str, size_t size) {
 inline
 std::ostream& operator<< (std::ostream& ostream, const Key& key) {
     switch (key.m_repr_ix) {
-        case Key::NONE:  return ostream << "none";
+        case Key::NIL:  return ostream << "nil";
         case Key::BOOL:  return ostream << key.m_repr.b;
         case Key::INT:   return ostream << key.m_repr.i;
         case Key::UINT:  return ostream << key.m_repr.u;

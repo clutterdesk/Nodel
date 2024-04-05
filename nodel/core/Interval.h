@@ -42,7 +42,7 @@ struct Interval
         if (m_max.m_kind == Endpoint::Kind::DEFAULT) m_max.m_kind = Endpoint::Kind::OPEN;
     }
 
-    bool is_empty() const { return m_min.m_value == none && m_max.m_value == none; }
+    bool is_empty() const { return m_min.m_value == nil && m_max.m_value == nil; }
 
     bool contains(const Key& key) const;
 
@@ -85,7 +85,7 @@ std::pair<UInt, UInt> Interval::to_indices(size_t list_size) const {
     UInt max_i;
 
     switch (m_min.m_value.type()) {
-        case Key::NONE: {
+        case Key::NIL: {
             min_i = 0;
             assert (m_max.m_kind == Endpoint::Kind::CLOSED);
             break;
@@ -107,7 +107,7 @@ std::pair<UInt, UInt> Interval::to_indices(size_t list_size) const {
     }
 
     switch (m_max.m_value.type()) {
-        case Key::NONE: {
+        case Key::NIL: {
             max_i = list_size;
             assert (m_max.m_kind == Endpoint::Kind::OPEN);
             break;

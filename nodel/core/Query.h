@@ -94,7 +94,7 @@ struct Step
 //        BACK
 //    };
 
-    Step(Axis axis)                 : m_axis{axis}, m_key{none} {}
+    Step(Axis axis)                 : m_axis{axis}, m_key{nil} {}
     Step(Axis axis, const Key& key) : m_axis{axis}, m_key{key} {}
 
     Axis m_axis;
@@ -163,14 +163,14 @@ Object StackItem::peek() {
         if (it != m_repr.m_bundle.m_end)
             return *it;
     }
-    return none;
+    return nil;
 }
 
 inline
 Object StackItem::next() {
     if (m_repr_ix == OBJECT) {
         Object next_obj = m_repr.m_obj;
-        m_repr.m_obj = none;
+        m_repr.m_obj = nil;
         return next_obj;
     } else {
         auto& it = m_repr.m_bundle.m_it;
@@ -179,7 +179,7 @@ Object StackItem::next() {
             ++it;
             return next_obj;
         }
-        return none;
+        return nil;
     }
 }
 
@@ -244,7 +244,7 @@ Object QueryEval::next() {
 
         if (curr_step_i == m_query.m_steps.size()) {
             m_fifo.pop_front();
-            if (curr_obj != none) return curr_obj;
+            if (curr_obj != nil) return curr_obj;
             continue;
         }
 
@@ -260,13 +260,13 @@ Object QueryEval::next() {
         switch (step_axis) {
             case Step::Axis::ANCESTOR: {
                 const auto& next_obj = curr_obj.parent();
-                if (next_obj != none) {
+                if (next_obj != nil) {
                     // continue current step
                     m_fifo.push_front({curr_step_i, next_obj});
                 }
 
                 // proceed to next step, or return obj if last step
-                if (step_key == none || step_key == curr_obj.key()) {
+                if (step_key == nil || step_key == curr_obj.key()) {
                     if (next_step_i < m_query.m_steps.size()) {
                         m_fifo.push_front({next_step_i, curr_obj});
                     } else {
@@ -279,12 +279,12 @@ Object QueryEval::next() {
 
             case Step::Axis::PARENT: {
                 const auto& next_obj = curr_obj.parent();
-                if (next_obj != none) {
-                    if (step_key == none || step_key == next_obj.key()) {
+                if (next_obj != nil) {
+                    if (step_key == nil || step_key == next_obj.key()) {
                         // proceed to next step, or return obj if last step
                         if (next_step_i < m_query.m_steps.size()) {
                             m_fifo.push_front({next_step_i, next_obj});
-                        } else if (step_key == none || step_key == next_obj.key()) {
+                        } else if (step_key == nil || step_key == next_obj.key()) {
                             return next_obj;
                         }
                     }
@@ -293,7 +293,7 @@ Object QueryEval::next() {
             }
 
             case Step::Axis::SELF: {
-                if (step_key == none || step_key == curr_obj.key()) {
+                if (step_key == nil || step_key == curr_obj.key()) {
                     // proceed to next step, or return obj if last step
                     if (next_step_i < m_query.m_steps.size()) {
                         m_fifo.push_front({next_step_i, curr_obj});
@@ -306,13 +306,13 @@ Object QueryEval::next() {
 
             case Step::Axis::CHILD: {
                 if (curr_obj.is_container()) {
-                    if (step_key == none) {
+                    if (step_key == nil) {
                         // NOTE: size of sparse data-source may be unknown, so always create iterator
                         m_fifo.push_front({next_step_i, curr_obj.iter_values()});
                         if (m_fifo.front().done()) m_fifo.pop_front();
                     } else {
                         const auto& next_obj = curr_obj.get(step_key);
-                        if (next_obj != none) {
+                        if (next_obj != nil) {
                             // proceed to next step, or return obj if last step
                             if (next_step_i < m_query.m_steps.size()) {
                                 m_fifo.push_front({next_step_i, next_obj});
@@ -333,7 +333,7 @@ Object QueryEval::next() {
                     if (m_fifo.front().done()) m_fifo.pop_front();
                 }
 
-                if (step_key == none || step_key == curr_obj.key()) {
+                if (step_key == nil || step_key == curr_obj.key()) {
                     // proceed to next step, or return obj if last step
                     if (next_step_i < m_query.m_steps.size()) {
                         m_fifo.push_front({next_step_i, curr_obj});
@@ -347,7 +347,7 @@ Object QueryEval::next() {
         }
     }
 
-    return none;
+    return nil;
 }
 
 } // nodel namespace

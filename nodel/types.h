@@ -45,8 +45,8 @@ using Float = double;
 using String = std::string;
 using StringView = std::string_view;
 
-struct null_t {};
-constexpr static null_t none;
+struct nil_t {};
+constexpr static nil_t nil;
 
 template <typename T>
 concept is_bool = std::is_same<T, bool>::value;

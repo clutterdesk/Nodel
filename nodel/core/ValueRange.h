@@ -44,7 +44,7 @@ class ValueIterator
     };
 
   public:
-    ValueIterator()                        : m_repr_ix{ReprIX::NONE}, m_repr{} {}
+    ValueIterator()                        : m_repr_ix{ReprIX::NIL}, m_repr{} {}
     ValueIterator(List::iterator it)       : m_repr_ix{ReprIX::LIST}, m_repr{it} {}
     ValueIterator(SortedMap::iterator it)  : m_repr_ix{ReprIX::MAP}, m_repr{it} {}
     ValueIterator(OrderedMap::iterator it) : m_repr_ix{ReprIX::OMAP}, m_repr{it} {}
@@ -97,7 +97,7 @@ ValueIterator::~ValueIterator() {
 inline
 ValueIterator::ValueIterator(ValueIterator&& other) : m_repr_ix{other.m_repr_ix} {
     switch (m_repr_ix) {
-        case ReprIX::NONE: break;
+        case ReprIX::NIL: break;
         case ReprIX::LIST: m_repr.li = other.m_repr.li; break;
         case ReprIX::MAP:  m_repr.smi = other.m_repr.smi; break;
         case ReprIX::OMAP: m_repr.omi = other.m_repr.omi; break;
@@ -110,7 +110,7 @@ inline
 auto& ValueIterator::operator = (ValueIterator&& other) {
     m_repr_ix = other.m_repr_ix;
     switch (m_repr_ix) {
-        case ReprIX::NONE: break;
+        case ReprIX::NIL: break;
         case ReprIX::LIST: m_repr.li = other.m_repr.li; break;
         case ReprIX::MAP:  m_repr.smi = other.m_repr.smi; break;
         case ReprIX::OMAP: m_repr.omi = other.m_repr.omi; break;
@@ -146,11 +146,11 @@ const Object& ValueIterator::operator * () const {
 inline
 bool ValueIterator::operator == (const ValueIterator& other) const {
     switch (m_repr_ix) {
-        case ReprIX::NONE: return other.m_repr_ix == ReprIX::NONE || other == *this;
+        case ReprIX::NIL: return other.m_repr_ix == ReprIX::NIL || other == *this;
         case ReprIX::LIST: return m_repr.li == other.m_repr.li;
         case ReprIX::MAP:  return m_repr.smi == other.m_repr.smi;
         case ReprIX::OMAP: return m_repr.omi == other.m_repr.omi;
-        case ReprIX::DSRC: return m_repr.pdi->done() && other.m_repr_ix == ReprIX::NONE;
+        case ReprIX::DSRC: return m_repr.pdi->done() && other.m_repr_ix == ReprIX::NIL;
         default:               throw Object::wrong_type(m_repr_ix);
     }
 }
@@ -161,7 +161,7 @@ ValueIterator ValueRange::begin() {
     switch (repr_ix) {
         case ReprIX::LIST: {
             auto& list = std::get<0>(*m_obj.m_repr.pl);
-            if (m_itvl.min().value() == none) {
+            if (m_itvl.min().value() == nil) {
                 return ValueIterator{list.begin()};
             } else {
                 auto indices = m_itvl.to_indices(list.size());
@@ -171,7 +171,7 @@ ValueIterator ValueRange::begin() {
         case ReprIX::MAP: {
             auto& map = std::get<0>(*m_obj.m_repr.psm);
             auto& min_key = m_itvl.min().value();
-            if (min_key == none) {
+            if (min_key == nil) {
                 return ValueIterator{map.begin()};
             } else {
                 auto it = map.lower_bound(min_key);
@@ -198,7 +198,7 @@ ValueIterator ValueRange::end() {
     switch (repr_ix) {
         case ReprIX::LIST: {
             auto& list = std::get<0>(*m_obj.m_repr.pl);
-            if (m_itvl.max().value() == none) {
+            if (m_itvl.max().value() == nil) {
                 return ValueIterator{list.end()};
             } else {
                 auto indices = m_itvl.to_indices(list.size());
@@ -208,7 +208,7 @@ ValueIterator ValueRange::end() {
         case ReprIX::MAP: {
             auto& map = std::get<0>(*m_obj.m_repr.psm);
             auto& max_key = m_itvl.max().value();
-            if (max_key == none) {
+            if (max_key == nil) {
                 return ValueIterator{map.end()};
             } else {
                 auto it = map.upper_bound(max_key);
