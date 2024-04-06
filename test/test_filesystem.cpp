@@ -1,12 +1,12 @@
 #include <gtest/gtest.h>
 #include <fmt/format.h>
+#include <nodel/core.h>
 #include <filesystem>
 
 #include <nodel/filesystem/Directory.h>
 #include <nodel/filesystem/DefaultRegistry.h>
 #include <nodel/filesystem/JsonFile.h>
 #include <nodel/support/Finally.h>
-#include <nodel/nodel.h>
 
 using namespace nodel;
 using namespace nodel::filesystem;

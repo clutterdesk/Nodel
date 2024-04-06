@@ -16,7 +16,7 @@
 #include <rocksdb/db.h>
 #include <unordered_map>
 #include <filesystem>
-#include <nodel/types.h>
+#include <nodel/support/types.h>
 
 namespace db = rocksdb;
 using namespace nodel;

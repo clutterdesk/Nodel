@@ -41,7 +41,7 @@
 #include <nodel/support/string.h>
 #include <nodel/support/exception.h>
 #include <nodel/support/parse.h>
-#include <nodel/types.h>
+#include <nodel/support/types.h>
 
 
 namespace nodel {

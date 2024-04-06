@@ -15,7 +15,7 @@
 
 #include <unordered_set>
 #include <string_view>
-#include <nodel/types.h>
+#include <nodel/support/types.h>
 
 // Since this library is header-only, the following macro must be invoked before any
 // any other library facilities are used.

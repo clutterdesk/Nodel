@@ -17,7 +17,7 @@
 #include <charconv>
 #include <iomanip>
 
-#include <nodel/types.h>
+#include <nodel/support/types.h>
 #include <nodel/support/exception.h>
 
 namespace nodel {

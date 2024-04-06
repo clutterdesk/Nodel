@@ -23,7 +23,7 @@
 #include <nodel/support/string.h>
 #include <nodel/support/intern.h>
 #include <nodel/support/exception.h>
-#include <nodel/types.h>
+#include <nodel/support/types.h>
 
 using namespace std::literals::string_literals;
 using namespace std::literals::string_view_literals;

@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 #include <fmt/format.h>
-#include <nodel/nodel.h>
 #include <algorithm>
 
 #include <nodel/core/Object.h>
+#include <nodel/core.h>
 #include <nodel/format/json.h>
 
 using namespace nodel;
