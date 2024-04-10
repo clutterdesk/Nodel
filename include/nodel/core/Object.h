@@ -132,7 +132,7 @@ class Object
         OMAP,    // ordered map
         DSRC,    // DataSource
         DEL,     // indicates deleted key in sparse data-store
-        BAD = 31
+        INVALID = 31
     };
 
   public:
@@ -222,7 +222,7 @@ class Object
           case OMAP:  return "ordered-map";
           case DSRC:  return "data-source";
           case DEL:   return "deleted";
-          case BAD:   return "error";
+          case INVALID: return "invalid";
           default:    return "<undefined>";
       }
     }
@@ -232,9 +232,9 @@ class Object
 
     Object()                           : m_repr{}, m_fields{EMPTY} {}
     Object(nil_t)                      : m_repr{}, m_fields{NIL} {}
-    Object(const std::string& str)     : m_repr{new IRCString{str, NoParent()}}, m_fields{STR} {}
-    Object(std::string&& str)          : m_repr{new IRCString(std::forward<std::string>(str), NoParent())}, m_fields{STR} {}
-    Object(const std::string_view& sv) : m_repr{new IRCString{{sv.data(), sv.size()}, NoParent()}}, m_fields{STR} {}
+    Object(const String& str)          : m_repr{new IRCString{str, NoParent()}}, m_fields{STR} {}
+    Object(String&& str)               : m_repr{new IRCString(std::forward<String>(str), NoParent())}, m_fields{STR} {}
+    Object(const StringView& sv)       : m_repr{new IRCString{{sv.data(), sv.size()}, NoParent()}}, m_fields{STR} {}
     Object(const char* v)              : m_repr{new IRCString{v, NoParent()}}, m_fields{STR} { ASSERT(v != nullptr); }
     Object(bool v)                     : m_repr{v}, m_fields{BOOL} {}
     Object(is_like_Float auto v)       : m_repr{(Float)v}, m_fields{FLOAT} {}
@@ -346,10 +346,11 @@ class Object
     Int to_int() const;
     UInt to_uint() const;
     Float to_float() const;
-    std::string to_str() const;
+    String to_str() const;
+
     Key to_key() const;
     Key into_key();
-    std::string to_json() const;
+    String to_json() const;
     void to_json(std::ostream&) const;
 
     Object get(is_integral auto v) const;
@@ -414,6 +415,7 @@ class Object
   friend class KeyRange;
   friend class ValueRange;
   friend class ItemRange;
+  friend struct PythonSupport;
 
   friend class WalkDF;
   friend class WalkBF;
@@ -431,7 +433,7 @@ class OPath
     using ConstIterator = KeyList::const_iterator;
 
     OPath() {}
-    OPath(const std::string_view& spec);
+    OPath(const StringView& spec);
 
     OPath(const KeyList& keys) : m_keys{keys} {}
     OPath(KeyList&& keys)      : m_keys{std::forward<KeyList>(keys)} {}
@@ -487,9 +489,9 @@ class OPath
         }
     }
 
-    std::string to_str() const {
+    String to_str() const {
         if (m_keys.size() == 0) return ".";
-        std::stringstream ss;
+        StringStream ss;
         auto it = begin();
         if (it != end()) {
             it->to_step(ss, true);
@@ -529,7 +531,7 @@ class OPath
 
 
 inline
-OPath::OPath(const std::string_view& spec) {
+OPath::OPath(const StringView& spec) {
     assert (spec.size() > 0);
     auto it = spec.cbegin();
     consume_whitespace(spec, it);
@@ -568,7 +570,7 @@ Key OPath::parse_brace_key(const StringView& spec, StringView::const_iterator& i
     } else {
         for (; it != spec.cend() && c != ']'; ++it, c = *it);
         if (it == spec.cend()) throw SyntaxError{spec, key_start - spec.cbegin(), "Missing closing ']':"};
-        std::string_view key{key_start, it};
+        StringView key{key_start, it};
         if (it != spec.cend()) ++it;
         return str_to_int(key);  // TODO: error handling
     }
@@ -750,11 +752,6 @@ class DataSource
     void read_set(const Object& target, Key&& key, const Object& value);
     void read_del(const Object& target, const Key& key);
 
-    virtual std::string to_str(const Object& target) {
-        insure_fully_cached(target);
-        return m_cache.to_str();
-    }
-
     virtual std::unique_ptr<KeyIterator> key_iter()     { return nullptr; }
     virtual std::unique_ptr<ValueIterator> value_iter() { return nullptr; }
     virtual std::unique_ptr<ItemIterator> item_iter()   { return nullptr; }
@@ -778,7 +775,7 @@ class DataSource
     Mode resolve_mode() const;
 
     bool is_fully_cached() const { return m_fully_cached; }
-    bool is_sparse() const { return m_kind == Kind::SPARSE; }
+    bool is_sparse() const       { return m_kind == Kind::SPARSE; }
 
     void report_read_error(std::string&& error);
     void report_write_error(std::string&& error);
@@ -798,8 +795,13 @@ class DataSource
     void refresh();
     void refresh_key(const Key& key);
 
+    String to_str(const Object& target) {
+        insure_fully_cached(target);
+        return m_cache.to_str();
+    }
+
     const Key key_of(const Object& obj) { return m_cache.key_of(obj); }
-    ReprIX type(const Object& target) { if (m_cache.is_empty()) read_type(target); return m_cache.type(); }
+    ReprIX type(const Object& target)   { if (m_cache.is_empty()) read_type(target); return m_cache.type(); }
     Oid id(const Object& target)        { if (m_cache.is_empty()) read_type(target); return m_cache.id(); }
 
     void insure_fully_cached(const Object& target);
@@ -824,6 +826,7 @@ class DataSource
   friend class KeyRange;
   friend class ValueRange;
   friend class ItemRange;
+  friend struct PythonSupport;
   friend class ::nodel::test::DataSourceTestInterface;
 };
 
@@ -1189,36 +1192,38 @@ T Object::value_cast() const {
 }
 
 inline
-std::string Object::to_str() const {
+String Object::to_str() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case NIL:  return "nil";
+        case NIL:   return "nil";
         case BOOL:  return m_repr.b? "true": "false";
         case INT:   return int_to_str(m_repr.i);
         case UINT:  return int_to_str(m_repr.u);
-        case FLOAT: return nodel::float_to_str(m_repr.f);
+        case FLOAT: return float_to_str(m_repr.f);
         case STR:   return std::get<0>(*m_repr.ps);
         case LIST:  [[fallthrough]];
         case MAP:   [[fallthrough]];
         case OMAP:  return to_json();
         case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->to_str(*this);
-        default:
-            throw wrong_type(m_fields.repr_ix);
+        default:    throw wrong_type(m_fields.repr_ix);
     }
 }
 
 inline
 bool Object::is_valid() const {
-    if (m_fields.repr_ix == DSRC)
+    if (m_fields.repr_ix == INVALID)
+        return false;
+    else if (m_fields.repr_ix == DSRC)
         return m_repr.ds->is_valid(*this);
-    return true;
+    else
+        return true;
 }
 
 inline
 bool Object::to_bool() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case NIL:  throw wrong_type(m_fields.repr_ix, BOOL);
+        case NIL:   throw wrong_type(m_fields.repr_ix, BOOL);
         case BOOL:  return m_repr.b;
         case INT:   return m_repr.i;
         case UINT:  return m_repr.u;
@@ -1233,7 +1238,7 @@ inline
 Int Object::to_int() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case NIL:  throw wrong_type(m_fields.repr_ix, INT);
+        case NIL:   throw wrong_type(m_fields.repr_ix, INT);
         case BOOL:  return m_repr.b;
         case INT:   return m_repr.i;
         case UINT:  return m_repr.u;
@@ -1340,7 +1345,7 @@ Object Object::get(const Key& key) const {
             auto& list = std::get<0>(*m_repr.pl);
             Int index = key.to_int();
             if (index < 0) index += list.size();
-            if (index < 0 || index >= list.size()) return nil;
+            if (index < 0 || index >= (Int)list.size()) return nil;
             return list[index];
         }
         case MAP: {
@@ -1397,7 +1402,7 @@ Object Object::set(const Key& key, const Object& in_val) {
             Int index = key.to_int();
             auto size = list.size();
             if (index < 0) index += size;
-            if (index >= size) {
+            if (index >= (Int)size) {
                 list.push_back(out_val);
             } else {
                 auto it = list.begin() + index;
@@ -1446,7 +1451,7 @@ Object Object::set(Key&& key, const Object& in_val) {
             Int index = key.to_int();
             auto size = list.size();
             if (index < 0) index += size;
-            if (index >= size) {
+            if (index >= (Int)size) {
                 list.push_back(out_val);
             } else {
                 auto it = list.begin() + index;
@@ -1500,7 +1505,7 @@ void Object::del(const Key& key) {
             auto size = list.size();
             if (index < 0) index += size;
             if (index >= 0) {
-                if (index > size) index = size;
+                if (index > (Int)size) index = size;
                 auto it = list.begin() + index;
                 Object value = *it;
                 list.erase(it);
@@ -1683,7 +1688,7 @@ bool Object::operator == (const Object& obj) const {
                 case INT:   return m_repr.b == obj.m_repr.i;
                 case UINT:  return m_repr.b == obj.m_repr.u;
                 case FLOAT: return m_repr.b == obj.m_repr.f;
-                default:      return false;
+                default:    return false;
             }
         }
         case INT: {
@@ -1691,19 +1696,19 @@ bool Object::operator == (const Object& obj) const {
             {
                 case BOOL:  return m_repr.i == obj.m_repr.b;
                 case INT:   return m_repr.i == obj.m_repr.i;
-                case UINT:  return m_repr.i == obj.m_repr.u;
+                case UINT:  return equal(obj.m_repr.u, m_repr.i);
                 case FLOAT: return m_repr.i == obj.m_repr.f;
-                default:      return false;
+                default:    return false;
             }
         }
         case UINT: {
             switch (obj.m_fields.repr_ix)
             {
                 case BOOL:  return m_repr.u == obj.m_repr.b;
-                case INT:   return m_repr.u == obj.m_repr.i;
+                case INT:   return equal(m_repr.u, obj.m_repr.i);
                 case UINT:  return m_repr.u == obj.m_repr.u;
                 case FLOAT: return m_repr.u == obj.m_repr.f;
-                default:      return false;
+                default:    return false;
             }
         }
         case FLOAT: {
@@ -1713,7 +1718,7 @@ bool Object::operator == (const Object& obj) const {
                 case INT:   return m_repr.f == obj.m_repr.i;
                 case UINT:  return m_repr.f == obj.m_repr.u;
                 case FLOAT: return m_repr.f == obj.m_repr.f;
-                default:      return false;
+                default:    return false;
             }
         }
         case STR: {
@@ -1772,9 +1777,7 @@ std::partial_ordering Object::operator <=> (const Object& obj) const {
         case INT: {
             switch (obj.m_fields.repr_ix) {
                 case INT:   return m_repr.i <=> obj.m_repr.i;
-                case UINT:
-                    if (obj.m_repr.u > std::numeric_limits<Int>::max()) return ordering::less;
-                    return m_repr.i <=> (Int)obj.m_repr.u;
+                case UINT:  return compare(m_repr.i, obj.m_repr.u);
                 case FLOAT: return m_repr.i <=> obj.m_repr.f;
                 default:
                     throw wrong_type(m_fields.repr_ix);
@@ -1783,9 +1786,7 @@ std::partial_ordering Object::operator <=> (const Object& obj) const {
         }
         case UINT: {
             switch (obj.m_fields.repr_ix) {
-                case INT:
-                    if (m_repr.u > std::numeric_limits<Int>::max()) return ordering::greater;
-                    return (Int)m_repr.u <=> obj.m_repr.i;
+                case INT:   return compare(m_repr.u, obj.m_repr.i);
                 case UINT:  return m_repr.u <=> obj.m_repr.u;
                 case FLOAT: return m_repr.u <=> obj.m_repr.f;
                 default:
@@ -1968,8 +1969,8 @@ private:
 
 
 inline
-std::string Object::to_json() const {
-    std::stringstream ss;
+String Object::to_json() const {
+    StringStream ss;
     to_json(ss);
     return ss.str();
 }
@@ -1987,7 +1988,7 @@ void Object::to_json(std::ostream& os) const {
 
         switch (object.m_fields.repr_ix) {
             case EMPTY: throw empty_reference();
-            case NIL:  os << "nil"; break;
+            case NIL:   os << "nil"; break;
             case BOOL:  os << (object.m_repr.b? "true": "false"); break;
             case INT:   os << int_to_str(object.m_repr.i); break;
             case UINT:  os << int_to_str(object.m_repr.u); break;

@@ -86,7 +86,7 @@ struct SyntaxError : public NodelException
         ss << message << std::endl;
         ss << "'";
         auto it = spec.cbegin();
-        for (size_t i=0; i<offset && it != spec.cend(); ++i, ++it) {
+        for (std::ptrdiff_t i=0; i<offset && it != spec.cend(); ++i, ++it) {
             ss << *it;
             annot << '-';
         }

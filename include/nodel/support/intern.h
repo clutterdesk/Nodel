@@ -19,8 +19,7 @@
 
 // Since this library is header-only, the following macro must be invoked before any
 // any other library facilities are used.
-#define NODELNTERN_STATIC_INIT \
-thread_local std::unordered_set<nodel::StringView> thread_interns;
+#define NODEL_INTERN_STATIC_INIT thread_local std::unordered_set<nodel::StringView> thread_interns
 
 extern thread_local std::unordered_set<nodel::StringView> thread_interns;
 

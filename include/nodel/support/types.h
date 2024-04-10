@@ -44,6 +44,7 @@ using UInt = uint64_t;
 using Float = double;
 using String = std::string;
 using StringView = std::string_view;
+using StringStream = std::stringstream;
 
 struct nil_t {};
 constexpr static nil_t nil;

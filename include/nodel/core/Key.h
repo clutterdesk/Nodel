@@ -21,6 +21,7 @@
 
 #include <nodel/support/logging.h>
 #include <nodel/support/string.h>
+#include <nodel/support/integer.h>
 #include <nodel/support/intern.h>
 #include <nodel/support/exception.h>
 #include <nodel/support/types.h>
@@ -98,20 +99,20 @@ class Key
   public:
     Key()                     : m_repr{}, m_repr_ix{NIL} {}
     Key(nil_t)                : m_repr{}, m_repr_ix{NIL} {}
+    Key(const String& s)      : m_repr{intern_string(s)}, m_repr_ix{STR} {}
+    Key(const StringView& s)  : m_repr{intern_string(s)}, m_repr_ix{STR} {}
     Key(is_bool auto v)       : m_repr{v}, m_repr_ix{BOOL} {}
     Key(is_like_Float auto v) : m_repr{v}, m_repr_ix{FLOAT} {}
     Key(is_like_Int auto v)   : m_repr{(Int)v}, m_repr_ix{INT} {}
     Key(is_like_UInt auto v)  : m_repr{(UInt)v}, m_repr_ix{UINT} {}
     Key(intern_t s)           : m_repr{s}, m_repr_ix{STR} {}
-    Key(const String& s)      : m_repr{intern_string(s)}, m_repr_ix{STR} {}
-    Key(const StringView& s)  : m_repr{intern_string(s)}, m_repr_ix{STR} {}
 
     ~Key() { release(); }
 
     Key(const Key& key) {
         m_repr_ix = key.m_repr_ix;
         switch (m_repr_ix) {
-            case NIL:  m_repr.z = key.m_repr.z; break;
+            case NIL:    m_repr.z = key.m_repr.z; break;
             case BOOL:  m_repr.b = key.m_repr.b; break;
             case INT:   m_repr.i = key.m_repr.i; break;
             case UINT:  m_repr.u = key.m_repr.u; break;
@@ -124,7 +125,7 @@ class Key
         release();
         m_repr_ix = key.m_repr_ix;
         switch (m_repr_ix) {
-            case NIL:  m_repr.z = key.m_repr.z; break;
+            case NIL:   m_repr.z = key.m_repr.z; break;
             case BOOL:  m_repr.b = key.m_repr.b; break;
             case INT:   m_repr.i = key.m_repr.i; break;
             case UINT:  m_repr.u = key.m_repr.u; break;
@@ -134,7 +135,7 @@ class Key
         return *this;
     }
 
-    Key& operator = (nil_t)               { release(); m_repr.z = nullptr; m_repr_ix = NIL; return *this; }
+    Key& operator = (nil_t)                { release(); m_repr.z = nullptr; m_repr_ix = NIL; return *this; }
     Key& operator = (is_bool auto v)       { release(); m_repr.b = v; m_repr_ix = BOOL; return *this; }
     Key& operator = (is_like_Int auto v)   { release(); m_repr.i = v; m_repr_ix = INT; return *this; }
     Key& operator = (is_like_UInt auto v)  { release(); m_repr.u = v; m_repr_ix = UINT; return *this; }
@@ -180,13 +181,23 @@ class Key
         return (m_repr_ix == STR)? (m_repr.s == other): false;
     }
 
+    bool operator == (UInt other) const {
+        switch (m_repr_ix) {
+            case BOOL:  return m_repr.b == other;
+            case INT:   return equal(other, m_repr.i);
+            case UINT:  return m_repr.u == other;
+            case FLOAT: return m_repr.f == other;
+            default:    return false;
+        }
+    }
+
     bool operator == (is_number auto other) const {
         switch (m_repr_ix) {
             case BOOL:  return m_repr.b == other;
             case INT:   return m_repr.i == other;
-            case UINT:  return m_repr.u == other;
+            case UINT:  return equal(m_repr.u, other);
             case FLOAT: return m_repr.f == other;
-            default:      return false;
+            default:    return false;
         }
     }
 
@@ -206,11 +217,7 @@ class Key
                 switch (other.m_repr_ix) {
                     case BOOL:  return to_bool() <=> other.m_repr.b;
                     case INT:   return m_repr.i <=> other.m_repr.i;
-                    case UINT:  {
-                        return (other.m_repr.u > std::numeric_limits<Int>::max())?
-                               std::partial_ordering::less:
-                               m_repr.i <=> other.to_int();
-                    }
+                    case UINT:  return compare(m_repr.i, other.m_repr.u);
                     case FLOAT: return m_repr.i <=> other.m_repr.f;
                     case STR:   return to_str() <=> other.m_repr.s.data();
                     default:      return std::partial_ordering::unordered;
@@ -219,11 +226,7 @@ class Key
             case UINT: {
                 switch (other.m_repr_ix) {
                     case BOOL:  return to_bool() <=> other.m_repr.b;
-                    case INT:   {
-                        return (m_repr.u > std::numeric_limits<Int>::max())?
-                               std::partial_ordering::greater:
-                               to_int() <=> other.m_repr.i;
-                    }
+                    case INT:   return compare(m_repr.u, other.m_repr.i);
                     case UINT:  return m_repr.u <=> other.m_repr.u;
                     case FLOAT: return m_repr.u <=> other.m_repr.f;
                     case STR:   return to_str() <=> other.m_repr.s.data();
@@ -341,20 +344,29 @@ class Key
 
     void to_str(std::ostream& stream) const {
         switch (m_repr_ix) {
-            case NIL:  stream << "nil"; break;
+            case NIL:   stream << "nil"; break;
             case BOOL:  stream << (m_repr.b? "true": "false"); break;
             case INT:   stream << nodel::int_to_str(m_repr.i); break;
             case UINT:  stream << nodel::int_to_str(m_repr.u); break;
             case FLOAT: stream << nodel::float_to_str(m_repr.f); break;
             case STR:   stream << m_repr.s.data(); break;
-            default:      throw wrong_type(m_repr_ix);
+            default:    throw wrong_type(m_repr_ix);
         }
     }
 
     String to_str() const {
-        std::stringstream ss;
-        to_str(ss);
-        return ss.str();
+        switch (m_repr_ix) {
+            case NIL:   return "nil";
+            case BOOL:  return (m_repr.b? "true": "false");
+            case INT:   return nodel::int_to_str(m_repr.i);
+            case UINT:  return nodel::int_to_str(m_repr.u);
+            case FLOAT: return nodel::float_to_str(m_repr.f);
+            case STR: {
+                auto& str = m_repr.s.data();
+                return {str.data(), str.size()};
+            }
+            default:    throw wrong_type(m_repr_ix);
+        }
     }
 
     String to_json() const {
@@ -363,16 +375,9 @@ class Key
             case BOOL:  return m_repr.b? "true": "false";
             case INT:   return nodel::int_to_str(m_repr.i);
             case UINT:  return nodel::int_to_str(m_repr.u);
-            case FLOAT: {
-                // IEEE 754-1985 - max digits=24
-                std::string str(24, ' ');
-                auto [ptr, err] = std::to_chars(str.data(), str.data() + str.size(), m_repr.f);
-                ASSERT(err == std::errc());
-                str.resize(ptr - str.data());
-                return str;
-            }
+            case FLOAT: return nodel::float_to_str(m_repr.f);
             case STR: {
-                std::stringstream ss;
+                StringStream ss;
                 ss << std::quoted(m_repr.s.data());
                 return ss.str();
             }
@@ -419,6 +424,7 @@ class Key
   friend std::ostream& operator<< (std::ostream& ostream, const Key& key);
   friend class Object;
   friend class KeyIterator;
+  friend struct PythonSupport;
   friend Key operator ""_key (const char*);
 };
 
@@ -487,12 +493,14 @@ struct hash<nodel::Key>
 
 #ifdef FMT_FORMAT_H_
 
+#include <fmt/std.h>
+
 namespace fmt {
 template <>
-struct formatter<nodel::Key> : formatter<const char*> {
+struct formatter<nodel::Key> : formatter<nodel::String> {
     auto format(const nodel::Key& key, format_context& ctx) {
-        std::string str = key.to_str();
-        return fmt::formatter<const char*>::format((const char*)str.c_str(), ctx);
+        nodel::String str = key.to_str();
+        return fmt::formatter<nodel::String>::format(str, ctx);
     }
 };
 } // namespace fmt

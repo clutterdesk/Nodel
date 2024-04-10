@@ -112,7 +112,7 @@ Object::ReprIX Parser<StreamType>::parse_type() {
         default:
             break;
     }
-    return Object::BAD;  // TODO: BAD is not supported
+    return Object::INVALID;  // TODO: BAD is not supported
 }
 
 template <typename StreamType>

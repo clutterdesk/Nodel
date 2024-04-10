@@ -14,6 +14,7 @@
 #pragma once
 
 #include <string>
+#include <sstream>
 #include <charconv>
 #include <iomanip>
 
@@ -31,23 +32,43 @@ std::string quoted(const std::string& str) {
 }
 
 inline
-std::string int_to_str(auto v) {
-    // max digits=20
-    std::string str(20, ' ');
-    auto [ptr, err] = std::to_chars(str.data(), str.data() + str.size(), v);
-    ASSERT(err == std::errc());
-    str.resize(ptr - str.data());
-    return str;
+std::string int_to_str(int32_t v) {
+    char buf[12];
+    auto len = std::snprintf(buf, 11, "%d", v);
+    assert (len > 0);
+    return {buf, (size_t)len};
+}
+
+inline
+std::string int_to_str(int64_t v) {
+    char buf[24];
+    auto len = std::snprintf(buf, 23, "%lld", v);
+    assert (len > 0);
+    return {buf, (size_t)len};
+}
+
+inline
+std::string int_to_str(uint32_t v) {
+    char buf[12];
+    auto len = std::snprintf(buf, 11, "%u", v);
+    assert (len > 0);
+    return {buf, (size_t)len};
+}
+
+inline
+std::string int_to_str(uint64_t v) {
+    char buf[24];
+    auto len = std::snprintf(buf, 23, "%llu", v);
+    assert (len > 0);
+    return {buf, (size_t)len};
 }
 
 inline
 std::string float_to_str(double v) {
-    // IEEE 754-1985 - max digits=24
-    std::string str(24, ' ');
-    auto [ptr, ec] = std::to_chars(str.data(), str.data() + str.size(), v);
-    ASSERT(ec == std::errc());
-    str.resize(ptr - str.data());
-    return str;
+    char buf[26];
+    auto len = std::snprintf(buf, 25, "%.17g", v);
+    assert (len > 0);
+    return {buf, (size_t)len};
 }
 
 inline
@@ -61,8 +82,8 @@ Int str_to_int(const StringView& str) {
     Int value;
     const char* beg = str.data();
     const char* end = beg + str.size();
-    auto [ptr, ec] = std::from_chars(beg, end, value);
-    assert (ec == std::errc());
+    auto result = std::from_chars(beg, end, value);
+    assert (result.ec == std::errc());
     return value;
 }
 
@@ -72,8 +93,8 @@ UInt str_to_uint(const StringView& str) {
     UInt value;
     const char* beg = str.data();
     const char* end = beg + str.size();
-    auto [ptr, ec] = std::from_chars(beg, end, value);
-    assert (ec == std::errc());
+    auto result = std::from_chars(beg, end, value);
+    assert (result.ec == std::errc());
     return value;
 }
 

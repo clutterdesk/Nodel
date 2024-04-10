@@ -14,7 +14,7 @@
 #pragma once
 
 #include <cstring>
-#include <fmt/core.h>
+#include <sstream>
 
 namespace nodel {
 
@@ -32,7 +32,11 @@ class Oid
 
     bool operator == (const Oid& other) const { return m_b == other.m_b && m_a == other.m_a; }
 
-    std::string to_str() { return fmt::format("{:x}/{:016x}", m_a, m_b); }
+    std::string to_str() {
+        std::stringstream ss;
+        ss << std::hex << m_a << std::setw(16) << std::setfill('0') << m_b;
+        return ss.str();
+    }
 
     size_t hash() const { return m_b ^ (((uint64_t)m_a) << 56); }
 

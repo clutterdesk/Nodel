@@ -277,7 +277,7 @@ TEST(Object, ToStr) {
   }
 
   try {
-      Object obj{Object::BAD};
+      Object obj{Object::INVALID};
       obj.to_str();
       FAIL();
   } catch (...) {
