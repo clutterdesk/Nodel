@@ -13,6 +13,9 @@
 // limitations under the License.
 
 #include <Python.h>
+
+#include <nodel/pyext/module.h>
+#include <nodel/pyext/NodelObject.h>
 #include <nodel/pyext/NodelKeyIter.h>
 #include <nodel/pyext/support.h>
 
@@ -20,18 +23,18 @@ extern "C" {
 
 using namespace nodel;
 
-static PythonSupport support;
+static python::Support support;
 
 //-----------------------------------------------------------------------------
 // Type slots
 //-----------------------------------------------------------------------------
 
 static int NodelKeyIter_init(PyObject* self, PyObject* args, PyObject* kwds) {
-    NodelKeyIter* nself = (NodelKeyIter*)self;
+    NodelKeyIter* nd_self = (NodelKeyIter*)self;
 
-    std::construct_at<KeyRange>(&nself->range);
-    std::construct_at<KeyIterator>(&nself->it);
-    std::construct_at<KeyIterator>(&nself->end);
+    std::construct_at<KeyRange>(&nd_self->range);
+    std::construct_at<KeyIterator>(&nd_self->it);
+    std::construct_at<KeyIterator>(&nd_self->end);
 
     return 0;
 }
@@ -45,10 +48,10 @@ static PyObject* NodelKeyIter_repr(PyObject* arg) {
 }
 
 static PyObject* NodelKeyIter_call(PyObject *self, PyObject *args, PyObject *kwargs) {
-    NodelKeyIter* nself = (NodelKeyIter*)self;
-    if (nself->it == nself->end) return self;  // self is the sentinel
-    PyObject* next = support.to_str(*nself->it);
-    ++nself->it;
+    NodelKeyIter* nd_self = (NodelKeyIter*)self;
+    if (nd_self->it == nd_self->end) { Py_INCREF(nodel_sentinel); return nodel_sentinel; }
+    PyObject* next = support.to_py(*nd_self->it);
+    ++nd_self->it;
     return next;
 }
 

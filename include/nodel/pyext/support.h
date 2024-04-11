@@ -22,6 +22,21 @@ namespace nodel {
 
 namespace python {
 
+class RefMgr
+{
+  public:
+    RefMgr(PyObject* ref) : m_ref{ref} {}
+    ~RefMgr() { Py_XDECREF(m_ref); }
+
+    void clear()          { m_ref = nullptr; }
+    PyObject* get() const { return m_ref; }
+    PyObject* get_clear() { PyObject* ref = get(); clear(); return ref; }
+    operator PyObject* () const { return m_ref; }  // implicit cast
+
+  private:
+    PyObject* m_ref;
+};
+
 inline
 PyObject* to_str(int32_t value) {
     auto py_int = PyLong_FromLong(value);
@@ -72,14 +87,28 @@ PyObject* to_str(bool value) {
     return PyUnicode_FromString(value? "true": "false");
 }
 
-}  //  namespace python
+inline
+void raise_error(PyObject* err, const StringView& msg) {
+    PyErr_SetString(err, msg.data());
+}
 
+inline
+void raise_type_error(const Key& key) {
+    raise_error(PyExc_TypeError, fmt::format("Invalid nodel::Key type: {}", key.type_name()));
+}
 
-struct PythonSupport
+inline
+void raise_type_error(const Object& obj) {
+    raise_error(PyExc_TypeError, fmt::format("Invalid nodel::Object type: {}", obj.type_name()));
+}
+
+struct Support
 {
     static PyObject* to_str(const Key& key);
     static PyObject* to_str(const Object& obj);
     static PyObject* to_str(const std::pair<Key, Object>& item);
+
+    static PyObject* to_py(const Key& key);
 
     static Key to_key(PyObject* po);
     static Object to_object(PyObject* po);
@@ -87,7 +116,7 @@ struct PythonSupport
 
 
 inline
-PyObject* PythonSupport::to_str(const Key& key) {
+PyObject* Support::to_str(const Key& key) {
     switch (key.m_repr_ix) {
         case Key::NIL:   return PyUnicode_FromString("nil");
         case Key::BOOL:  return python::to_str(key.m_repr.b);
@@ -99,14 +128,14 @@ PyObject* PythonSupport::to_str(const Key& key) {
             return python::to_str(str);
         }
         default: {
-            PyErr_SetString(PyExc_ValueError, "Invalid key type");
+            PyErr_SetString(PyExc_ValueError, "Invalid nodel::Key type");
             return NULL;
         }
     }
 }
 
 inline
-PyObject* PythonSupport::to_str(const Object& obj) {
+PyObject* Support::to_str(const Object& obj) {
     switch (obj.m_fields.repr_ix) {
         case Object::NIL:   return PyUnicode_FromString("nil");
         case Object::BOOL:  return python::to_str(obj.m_repr.b);
@@ -122,14 +151,33 @@ PyObject* PythonSupport::to_str(const Object& obj) {
         case Object::OMAP:  return python::to_str(obj.to_json());
         case Object::DSRC:  return python::to_str(const_cast<DataSourcePtr>(obj.m_repr.ds)->to_str(obj));
         default: {
-            PyErr_SetString(PyExc_ValueError, "Invalid object type");
+            PyErr_SetString(PyExc_ValueError, "Invalid nodel::Object type");
             return NULL;
         }
     }
 }
 
 inline
-Key PythonSupport::to_key(PyObject* po) {
+PyObject* Support::to_py(const Key& key) {
+    switch (key.m_repr_ix) {
+        case Key::NIL:   Py_RETURN_NONE;
+        case Key::BOOL:  if (key.m_repr.b) Py_RETURN_TRUE; else Py_RETURN_FALSE;
+        case Key::INT:   return PyLong_FromLongLong(key.m_repr.i);
+        case Key::UINT:  return PyLong_FromUnsignedLongLong(key.m_repr.u);
+        case Key::FLOAT: return PyFloat_FromDouble(key.m_repr.f);
+        case Key::STR: {
+            auto& str = key.m_repr.s.data();
+            return python::to_str(str);
+        }
+        default: {
+            PyErr_SetString(PyExc_ValueError, "Invalid nodel::Key type");
+            return NULL;
+        }
+    }
+}
+
+inline
+Key Support::to_key(PyObject* po) {
     if (po == Py_None) {
         return nil;
     } else if (PyUnicode_Check(po)) {
@@ -150,12 +198,15 @@ Key PythonSupport::to_key(PyObject* po) {
     } else if (PyBool_Check(po)) {
         return po == Py_True;
     } else {
-        PyErr_SetString(PyExc_ValueError, "Invalid key type");
+        RefMgr val_type = (PyObject*)PyObject_Type(po);
+        RefMgr type_str = PyObject_Str(val_type);
+        PyErr_Format(PyExc_TypeError, "%S", (PyObject*)type_str);
+        return {};
     }
 }
 
 inline
-Object PythonSupport::to_object(PyObject* po) {
+Object Support::to_object(PyObject* po) {
     if (po == Py_None) {
         return nil;
     } else if (PyUnicode_Check(po)) {
@@ -192,12 +243,20 @@ Object PythonSupport::to_object(PyObject* po) {
         PyObject* key, *val;
         Py_ssize_t pos = 0;
         while (PyDict_Next(po, &pos, &key, &val)) {  // borrowed references
-            map.set(to_key(key), to_object(val));
+            auto nd_key = to_key(key);
+            if (PyErr_Occurred()) return nil;
+            Object nd_val = to_object(val);
+            if (PyErr_Occurred()) return nil;
+            map.set(nd_key, nd_val);
         }
         return map;
     } else {
+        RefMgr val_type = (PyObject*)PyObject_Type(po);
+        RefMgr type_str = PyObject_Str(val_type);
+        PyErr_Format(PyExc_TypeError, "%S", (PyObject*)type_str);
         return {};
     }
 }
 
+} // namespace python
 } // namespace nodel

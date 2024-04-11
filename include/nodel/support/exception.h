@@ -21,6 +21,7 @@ class NoTraceException : public std::exception
 {
   public:
     NoTraceException(std::string&& msg) : m_msg{msg} {}
+    const char* what() const noexcept override { return m_msg.data(); }
   private:
     std::string m_msg;
 };

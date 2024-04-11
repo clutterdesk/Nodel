@@ -45,12 +45,14 @@ template <typename Arg>
 void log(const char* file, int line, const char* level_name, Arg&& arg) {
     std::cout << HEADING << level_name << SOURCE << trim_file_name(file) << ':' << line << MESSAGE <<
         std::forward<Arg>(arg) << RESTORE << std::endl;
+    std::cout.flush();
 }
 
 template <typename ... Args>
 void log(const char* file, int line, const char* level_name, const char *format, Args&& ... args) {
     std::cout << HEADING << level_name << SOURCE << trim_file_name(file) << ':' << line << MESSAGE <<
         fmt::format(fmt::runtime(format), std::forward<Args>(args)...) << RESTORE << std::endl;
+    std::cout.flush();
 }
 
 #define DEBUG(...) { if (::nodel::log::level >= ::nodel::log::Level::DEBUG)   ::nodel::log::log(__FILE__, __LINE__, "[DEBUG] ",   __VA_ARGS__); }

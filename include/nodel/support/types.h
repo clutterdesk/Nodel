@@ -46,6 +46,10 @@ using String = std::string;
 using StringView = std::string_view;
 using StringStream = std::stringstream;
 
+namespace python {
+struct Support;
+}  // namespace python
+
 struct nil_t {};
 constexpr static nil_t nil;
 

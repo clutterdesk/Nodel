@@ -18,33 +18,56 @@
 #include <nodel/pyext/NodelKeyIter.h>
 #include <nodel/pyext/NodelValueIter.h>
 #include <nodel/pyext/NodelItemIter.h>
+#include <nodel/pyext/NodelTreeIter.h>
+#include <nodel/pyext/support.h>
 #include <nodel/support/intern.h>
 #include <nodel/format/json.h>
 
 NODEL_INTERN_STATIC_INIT;
 
 using namespace nodel;
+using RefMgr = python::RefMgr;
 
 extern "C" {
+
+PyObject* nodel_sentinel = nullptr;
+
+//-----------------------------------------------------------------------------
+// Module methods
+//-----------------------------------------------------------------------------
 
 static PyObject* mod_from_json(PyObject* mod, PyObject* arg) {
     Py_ssize_t size;
     auto c_str = PyUnicode_AsUTF8AndSize(arg, &size);
     if (c_str == NULL) return NULL;
 
-    PyObject* po = PyObject_CallMethodObjArgs(mod, PyUnicode_InternFromString("Object"), NULL);
+    RefMgr po = PyObject_CallMethodObjArgs(mod, PyUnicode_InternFromString("Object"), NULL);
     if (po == NULL) return NULL;
 
-    NodelObject* node = (NodelObject*)po;
-    node->obj = json::parse(std::string_view{c_str, (std::string_view::size_type)size});
+    NodelObject* obj = (NodelObject*)po.get();
+    std::string_view spec{c_str, (std::string_view::size_type)size};
+    std::optional<json::Error> err;
+    obj->obj = json::parse(spec, err);
 
-    return po;
+    if (err) {
+        std::string msg = SyntaxError::make_message(spec, err->error_offset, err->error_message);
+        PyErr_SetString(PyExc_ValueError, msg.data());
+        return NULL;
+    }
+
+    return po.get_clear();
 }
+
 
 static PyMethodDef NodelMethods[] = {
     {"from_json", (PyCFunction)mod_from_json, METH_O, PyDoc_STR("Parse json and return object")},
     {NULL, NULL, 0, NULL}
 };
+
+
+//-----------------------------------------------------------------------------
+// Module definition
+//-----------------------------------------------------------------------------
 
 PyDoc_STRVAR(module_doc, "Nodel Python Extension");
 
@@ -67,10 +90,10 @@ PyInit_nodel(void)
     if (PyType_Ready(&NodelKeyIterType) < 0) return NULL;
     if (PyType_Ready(&NodelValueIterType) < 0) return NULL;
     if (PyType_Ready(&NodelItemIterType) < 0) return NULL;
+    if (PyType_Ready(&NodelTreeIterType) < 0) return NULL;
 
     PyObject* module = PyModule_Create(&nodel_module_def);
-    if (module == NULL)
-        return NULL;
+    if (module == NULL) return NULL;
 
     Py_INCREF(&NodelObjectType);
     if (PyModule_AddObject(module, "Object", (PyObject*)&NodelObjectType) < 0) {
@@ -79,26 +102,35 @@ PyInit_nodel(void)
         return NULL;
     }
 
-    Py_INCREF(&NodelKeyIterType);
-    if (PyModule_AddObject(module, "_KeyIter", (PyObject*)&NodelKeyIterType) < 0) {
-        Py_DECREF(&NodelKeyIterType);
-        Py_DECREF(module);
-        return NULL;
-    }
+//    Py_INCREF(&NodelKeyIterType);
+//    if (PyModule_AddObject(module, "_KeyIter", (PyObject*)&NodelKeyIterType) < 0) {
+//        Py_DECREF(&NodelKeyIterType);
+//        Py_DECREF(module);
+//        return NULL;
+//    }
+//
+//    Py_INCREF(&NodelValueIterType);
+//    if (PyModule_AddObject(module, "_ValueIter", (PyObject*)&NodelValueIterType) < 0) {
+//        Py_DECREF(&NodelValueIterType);
+//        Py_DECREF(module);
+//        return NULL;
+//    }
+//
+//    Py_INCREF(&NodelItemIterType);
+//    if (PyModule_AddObject(module, "_ItemIter", (PyObject*)&NodelItemIterType) < 0) {
+//        Py_DECREF(&NodelItemIterType);
+//        Py_DECREF(module);
+//        return NULL;
+//    }
+//
+//    Py_INCREF(&NodelTreeIterType);
+//    if (PyModule_AddObject(module, "_TreeIter", (PyObject*)&NodelTreeIterType) < 0) {
+//        Py_DECREF(&NodelTreeIterType);
+//        Py_DECREF(module);
+//        return NULL;
+//    }
 
-    Py_INCREF(&NodelValueIterType);
-    if (PyModule_AddObject(module, "_ValueIter", (PyObject*)&NodelValueIterType) < 0) {
-        Py_DECREF(&NodelValueIterType);
-        Py_DECREF(module);
-        return NULL;
-    }
-
-    Py_INCREF(&NodelItemIterType);
-    if (PyModule_AddObject(module, "_ItemIter", (PyObject*)&NodelItemIterType) < 0) {
-        Py_DECREF(&NodelItemIterType);
-        Py_DECREF(module);
-        return NULL;
-    }
+    nodel_sentinel = PyObject_CallMethodOneArg(module, PyUnicode_InternFromString("Object"), PyUnicode_InternFromString("sentinel"));
 
     return module;
 }

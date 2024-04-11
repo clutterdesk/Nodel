@@ -22,7 +22,8 @@ setup(
                 'NodelObject.cpp', 
                 'NodelKeyIter.cpp',
                 'NodelValueIter.cpp',
-                'NodelItemIter.cpp'
+                'NodelItemIter.cpp',
+                'NodelTreeIter.cpp'
             ],
             include_dirs=[
                 os.path.join(nodel_root, 'include'),

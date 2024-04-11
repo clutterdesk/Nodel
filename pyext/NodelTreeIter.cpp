@@ -16,38 +16,36 @@
 
 #include <nodel/pyext/module.h>
 #include <nodel/pyext/NodelObject.h>
-#include <nodel/pyext/NodelValueIter.h>
+#include <nodel/pyext/NodelTreeIter.h>
 #include <nodel/pyext/support.h>
 #include <nodel/support/logging.h>
 
 extern "C" {
 
-using namespace nodel;
-
 //-----------------------------------------------------------------------------
 // Type slots
 //-----------------------------------------------------------------------------
 
-static int NodelValueIter_init(PyObject* self, PyObject* args, PyObject* kwds) {
-    NodelValueIter* nd_self = (NodelValueIter*)self;
+static int NodelTreeIter_init(PyObject* self, PyObject* args, PyObject* kwds) {
+    NodelTreeIter* nd_self = (NodelTreeIter*)self;
 
-    std::construct_at<ValueRange>(&nd_self->range);
-    std::construct_at<ValueIterator>(&nd_self->it);
-    std::construct_at<ValueIterator>(&nd_self->end);
+    std::construct_at<TreeRange>(&nd_self->range);
+    std::construct_at<TreeIterator>(&nd_self->it);
+    std::construct_at<TreeIterator>(&nd_self->end);
 
     return 0;
 }
 
-static PyObject* NodelValueIter_str(PyObject* self) {
-    return PyUnicode_FromString("ValueIterator");
+static PyObject* NodelTreeIter_str(PyObject* self) {
+    return PyUnicode_FromString("TreeIterator");
 }
 
-static PyObject* NodelValueIter_repr(PyObject* arg) {
-    return NodelValueIter_str(arg);
+static PyObject* NodelTreeIter_repr(PyObject* arg) {
+    return NodelTreeIter_str(arg);
 }
 
-static PyObject* NodelValueIter_call(PyObject *self, PyObject *args, PyObject *kwargs) {
-    NodelValueIter* nd_self = (NodelValueIter*)self;
+static PyObject* NodelTreeIter_call(PyObject *self, PyObject *args, PyObject *kwargs) {
+    NodelTreeIter* nd_self = (NodelTreeIter*)self;
     if (nd_self->it == nd_self->end) { Py_INCREF(nodel_sentinel); return nodel_sentinel; }
     PyObject* next = (PyObject*)NodelObject_wrap(*nd_self->it);
     ++nd_self->it;
@@ -58,15 +56,15 @@ static PyObject* NodelValueIter_call(PyObject *self, PyObject *args, PyObject *k
 // Type definition
 //-----------------------------------------------------------------------------
 
-PyTypeObject NodelValueIterType = {
+PyTypeObject NodelTreeIterType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name        = "nodel.ValueIter",
-    .tp_basicsize   = sizeof(NodelValueIter),
-    .tp_doc         = PyDoc_STR("Nodel value iterator"),
-    .tp_init        = NodelValueIter_init,
-    .tp_repr        = (reprfunc)NodelValueIter_repr,
-    .tp_str         = (reprfunc)NodelValueIter_str,
-    .tp_call        = (ternaryfunc)NodelValueIter_call,
+    .tp_name        = "nodel.TreeIter",
+    .tp_basicsize   = sizeof(NodelTreeIter),
+    .tp_doc         = PyDoc_STR("Nodel tree iterator"),
+    .tp_init        = NodelTreeIter_init,
+    .tp_repr        = (reprfunc)NodelTreeIter_repr,
+    .tp_str         = (reprfunc)NodelTreeIter_str,
+    .tp_call        = (ternaryfunc)NodelTreeIter_call,
 };
 
 } // extern C

@@ -13,6 +13,8 @@
 // limitations under the License.
 #pragma once
 
+#include <algorithm>
+
 namespace nodel {
 namespace impl {
 
@@ -78,21 +80,21 @@ class StringStreamAdapter
 } // namespace impl
 
 
+constexpr int syntax_context = 72;
+
 struct SyntaxError : public NodelException
 {
     static std::string make_message(const std::string_view& spec, std::ptrdiff_t offset, const std::string& message) {
+        std::ptrdiff_t ctx_end = std::min(offset + syntax_context, (std::ptrdiff_t)spec.size());
+        std::ptrdiff_t ctx_begin = std::max(ctx_end - syntax_context, (std::ptrdiff_t)0);
         std::stringstream ss;
-        std::stringstream annot;
-        ss << message << std::endl;
-        ss << "'";
+        ss << message << " at offset " << offset << std::endl;
         auto it = spec.cbegin();
-        for (std::ptrdiff_t i=0; i<offset && it != spec.cend(); ++i, ++it) {
-            ss << *it;
-            annot << '-';
-        }
-        ss << '\'';
-        annot << '^';
-        ss << '\n' << annot.str();
+        auto end = it + ctx_end;
+        it += ctx_begin;
+        for (; it != end; ++it) ss << *it;
+        ss << std::endl;
+        ss << std::setfill('-') << std::setw(offset - ctx_begin + 1) << '^';
         return ss.str();
     }
 

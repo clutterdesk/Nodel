@@ -44,7 +44,7 @@ TEST(Key, Float) {
 
   Key k2 = -2.2250738585072020e-308;
   EXPECT_TRUE(k2.is_type<Float>());
-  EXPECT_EQ(k2.to_str(), "-2.225073858507202e-308");
+  EXPECT_EQ(k2.to_str(), "-2.2250738585072e-308");
 }
 
 TEST(Key, StringLiteral) {
@@ -100,7 +100,7 @@ TEST(Key, AssignFloat) {
   EXPECT_TRUE(k == nil);
   k = -2.2250738585072020e-308;
   EXPECT_TRUE(k.is_type<Float>());
-  EXPECT_EQ(k.to_str(), "-2.225073858507202e-308");
+  EXPECT_EQ(k.to_str(), "-2.2250738585072e-308");
 }
 
 TEST(Key, AssignStringLiteral) {

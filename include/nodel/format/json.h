@@ -26,17 +26,6 @@
 namespace nodel {
 namespace json {
 
-class JsonException : public NodelException
-{
-  public:
-    JsonException(const std::string& msg) : msg(msg) {}
-    const char* what() const throw() override { return msg.c_str(); }
-
-  private:
-    const std::string msg;
-};
-
-
 struct Options
 {
     bool use_sorted_map = false;
@@ -161,7 +150,7 @@ bool Parser<StreamType>::parse_object(char term_char)
 
             case 't': return expect("true", true);
             case 'f': return expect("false", false);
-            case 'n': return expect("nil", nil);
+            case 'n': return expect("null", nil);
 
             default:
                 return m_it.peek() == term_char;

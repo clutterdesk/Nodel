@@ -337,6 +337,7 @@ class Object
     bool is_deleted() const { return m_fields.repr_ix == DEL; }
 
     bool is_num() const       { auto type = resolve_repr_ix(); return type == INT || type == UINT || type == FLOAT; }
+    bool is_any_int() const   { auto type = resolve_repr_ix(); return type == INT || type == UINT; }
     bool is_map() const       { auto type = resolve_repr_ix(); return type == MAP || type == OMAP; }
     bool is_container() const { auto type = resolve_repr_ix(); return type == LIST || type == OMAP || type == MAP; }
 
@@ -396,6 +397,8 @@ class Object
     static EmptyReference empty_reference()                       { return {}; }
 
   protected:
+    Object list_set(const Key& key, const Object& in_val);
+
     int resolve_repr_ix() const;
     Object dsrc_read() const;
 
@@ -415,7 +418,7 @@ class Object
   friend class KeyRange;
   friend class ValueRange;
   friend class ItemRange;
-  friend struct PythonSupport;
+  friend struct python::Support;
 
   friend class WalkDF;
   friend class WalkBF;
@@ -826,7 +829,7 @@ class DataSource
   friend class KeyRange;
   friend class ValueRange;
   friend class ItemRange;
-  friend struct PythonSupport;
+  friend struct python::Support;
   friend class ::nodel::test::DataSourceTestInterface;
 };
 
@@ -1223,14 +1226,17 @@ inline
 bool Object::to_bool() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case NIL:   throw wrong_type(m_fields.repr_ix, BOOL);
+        case NIL:   return false;
         case BOOL:  return m_repr.b;
         case INT:   return m_repr.i;
         case UINT:  return m_repr.u;
         case FLOAT: return m_repr.f;
         case STR:   return str_to_bool(std::get<0>(*m_repr.ps));
+        case LIST:  [[fallthrough]];
+        case MAP:   [[fallthrough]];
+        case OMAP:  return size() > 0;
         case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).to_bool();
-        default:      throw wrong_type(m_fields.repr_ix, BOOL);
+        default:    throw wrong_type(m_fields.repr_ix, BOOL);
     }
 }
 
@@ -1245,7 +1251,7 @@ Int Object::to_int() const {
         case FLOAT: return m_repr.f;
         case STR:   return str_to_int(std::get<0>(*m_repr.ps));
         case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).to_int();
-        default:      throw wrong_type(m_fields.repr_ix, INT);
+        default:    throw wrong_type(m_fields.repr_ix, INT);
     }
 }
 
@@ -1253,7 +1259,7 @@ inline
 UInt Object::to_uint() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case NIL:  throw wrong_type(m_fields.repr_ix, UINT);
+        case NIL:   throw wrong_type(m_fields.repr_ix, UINT);
         case BOOL:  return m_repr.b;
         case INT:   return m_repr.i;
         case UINT:  return m_repr.u;
@@ -1341,7 +1347,7 @@ Object Object::get(const Key& key) const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
         case LIST: {
-            if (!key.is_any_int()) return nil;
+            if (!key.is_any_int()) throw Key::wrong_type(key.type());
             auto& list = std::get<0>(*m_repr.pl);
             Int index = key.to_int();
             if (index < 0) index += list.size();
@@ -1393,25 +1399,29 @@ Object Object::set(const Object& value) {
 }
 
 inline
+Object Object::list_set(const Key& key, const Object& in_val) {
+    Object out_val = (in_val.parent() == nil)? in_val: in_val.copy();
+    auto& list = std::get<0>(*m_repr.pl);
+    if (!key.is_any_int()) throw Key::wrong_type(key.type());
+    Int index = key.to_int();
+    auto size = list.size();
+    if (index < 0) index += size;
+    if (index >= (Int)size) {
+        list.push_back(out_val);
+    } else {
+        auto it = list.begin() + index;
+        it->set_parent(nil);
+        *it = out_val;
+    }
+    out_val.set_parent(*this);
+    return out_val;
+}
+
+inline
 Object Object::set(const Key& key, const Object& in_val) {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case LIST: {
-            Object out_val = (in_val.parent() == nil)? in_val: in_val.copy();
-            auto& list = std::get<0>(*m_repr.pl);
-            Int index = key.to_int();
-            auto size = list.size();
-            if (index < 0) index += size;
-            if (index >= (Int)size) {
-                list.push_back(out_val);
-            } else {
-                auto it = list.begin() + index;
-                it->set_parent(nil);
-                *it = out_val;
-            }
-            out_val.set_parent(*this);
-            return out_val;
-        }
+        case LIST: return list_set(key, in_val);
         case MAP: {
             Object out_val = (in_val.parent() == nil)? in_val: in_val.copy();
             auto& map = std::get<0>(*m_repr.psm);
@@ -1445,22 +1455,7 @@ inline
 Object Object::set(Key&& key, const Object& in_val) {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case LIST: {
-            Object out_val = (in_val.parent() == nil)? in_val: in_val.copy();
-            auto& list = std::get<0>(*m_repr.pl);
-            Int index = key.to_int();
-            auto size = list.size();
-            if (index < 0) index += size;
-            if (index >= (Int)size) {
-                list.push_back(out_val);
-            } else {
-                auto it = list.begin() + index;
-                it->set_parent(nil);
-                *it = out_val;
-            }
-            out_val.set_parent(*this);
-            return out_val;
-        }
+        case LIST: return list_set(key, in_val);
         case MAP: {
             Object out_val = (in_val.parent() == nil)? in_val: in_val.copy();
             auto& map = std::get<0>(*m_repr.psm);
@@ -2267,20 +2262,22 @@ class TreeIterator
     using TreeRange = Object::TreeRange<ValueType, VisitPred, EnterPred>;
 
   public:
-    TreeIterator(TreeRange& range) : m_range{range} {}
+    TreeIterator() = default;  // python creates, then assigns
 
-    TreeIterator(TreeRange& range, List& list)
-      : m_range{range}
+    TreeIterator(TreeRange* p_range) : mp_range{p_range} {}
+
+    TreeIterator(TreeRange* p_range, List& list)
+      : mp_range{p_range}
       , m_it{list.begin()}
       , m_end{list.end()}
     {
-        m_range.fifo().push_back(Object{nil});  // dummy
+        mp_range->fifo().push_back(Object{nil});  // dummy
         enter(list[0]);
         if (!visit(*m_it)) ++(*this);
     }
 
     TreeIterator& operator ++ () {
-        auto& fifo = m_range.fifo();
+        auto& fifo = mp_range->fifo();
 
         while (1) {
             ++m_it;
@@ -2302,12 +2299,12 @@ class TreeIterator
     }
 
     Object operator * () const { return *m_it; }
-    bool operator == (const TreeIterator& other) const { return m_range.fifo().empty(); }
+    bool operator == (const TreeIterator& other) const { return mp_range->fifo().empty(); }
 
   private:
     bool visit(const Object& obj) {
         if constexpr (std::is_invocable<VisitPred, const Object&>::value) {
-            return m_range.should_visit(obj);
+            return mp_range->should_visit(obj);
         } else {
             return true;
         }
@@ -2315,16 +2312,16 @@ class TreeIterator
 
     void enter(const Object& obj) {
         if constexpr (std::is_invocable<EnterPred, const Object&>::value) {
-            if (obj.is_container() && m_range.should_enter(obj))
-                m_range.fifo().push_back(obj);
+            if (obj.is_container() && mp_range->should_enter(obj))
+                mp_range->fifo().push_back(obj);
         } else {
             if (obj.is_container())
-                m_range.fifo().push_back(obj);
+                mp_range->fifo().push_back(obj);
         }
     }
 
   private:
-    TreeRange& m_range;
+    TreeRange* mp_range;
     ValueIterator m_it;
     ValueIterator m_end;
 };
@@ -2336,6 +2333,8 @@ class Object::TreeRange
     using TreeIterator = TreeIterator<ValueType, VisitPred, EnterPred>;
 
   public:
+    TreeRange() = default;  // python creates, then assigns
+
     TreeRange(const Object& object, VisitPred&& visit_pred, EnterPred&& enter_pred)
       : m_visit_pred{visit_pred}
       , m_enter_pred{enter_pred}
@@ -2343,8 +2342,8 @@ class Object::TreeRange
         m_list.push_back(object);
     }
 
-    TreeIterator begin() { return TreeIterator{*this, m_list}; }
-    TreeIterator end()   { return TreeIterator{*this}; }
+    TreeIterator begin() { return TreeIterator{this, m_list}; }
+    TreeIterator end()   { return TreeIterator{this}; }
 
     bool should_visit(const Object& obj) const { return !m_visit_pred || m_visit_pred(obj); }
     bool should_enter(const Object& obj) const { return !m_enter_pred || m_enter_pred(obj); }

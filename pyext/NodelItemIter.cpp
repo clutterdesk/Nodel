@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include <Python.h>
+
+#include <nodel/pyext/module.h>
 #include <nodel/pyext/NodelObject.h>
 #include <nodel/pyext/NodelItemIter.h>
 #include <nodel/pyext/support.h>
@@ -20,19 +22,20 @@
 extern "C" {
 
 using namespace nodel;
+using RefMgr = python::RefMgr;
 
-static PythonSupport support;
+static python::Support support;
 
 //-----------------------------------------------------------------------------
 // Type slots
 //-----------------------------------------------------------------------------
 
 static int NodelItemIter_init(PyObject* self, PyObject* args, PyObject* kwds) {
-    NodelItemIter* nself = (NodelItemIter*)self;
+    NodelItemIter* nd_self = (NodelItemIter*)self;
 
-    std::construct_at<ItemRange>(&nself->range);
-    std::construct_at<ItemIterator>(&nself->it);
-    std::construct_at<ItemIterator>(&nself->end);
+    std::construct_at<ItemRange>(&nd_self->range);
+    std::construct_at<ItemIterator>(&nd_self->it);
+    std::construct_at<ItemIterator>(&nd_self->end);
 
     return 0;
 }
@@ -46,11 +49,13 @@ static PyObject* NodelItemIter_repr(PyObject* arg) {
 }
 
 static PyObject* NodelItemIter_call(PyObject *self, PyObject *args, PyObject *kwargs) {
-    NodelItemIter* nself = (NodelItemIter*)self;
-    if (nself->it == nself->end) return self;  // self is the sentinel
-    auto item = *nself->it;
-    PyObject* next = PyTuple_Pack(2, support.to_str(item.first), NodelObject_wrap(item.second));
-    ++nself->it;
+    NodelItemIter* nd_self = (NodelItemIter*)self;
+    if (nd_self->it == nd_self->end) { Py_INCREF(nodel_sentinel); return nodel_sentinel; }
+    auto item = *nd_self->it;
+    RefMgr key = support.to_py(item.first);
+    RefMgr val = (PyObject*)NodelObject_wrap(item.second);
+    PyObject* next = PyTuple_Pack(2, (PyObject*)key, (PyObject*)val);
+    ++nd_self->it;
     return next;
 }
 

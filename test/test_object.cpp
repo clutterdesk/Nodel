@@ -153,6 +153,7 @@ TEST(Object, Size) {
 }
 
 TEST(Object, ToBool) {
+    EXPECT_EQ(Object{nil}.to_bool(), false);
     EXPECT_EQ(Object{true}.to_bool(), true);
     EXPECT_EQ(Object{0}.to_bool(), false);
     EXPECT_EQ(Object{1}.to_bool(), true);
@@ -165,13 +166,6 @@ TEST(Object, ToBool) {
 
     try {
         Object obj;
-        obj.to_bool();
-        FAIL();
-    } catch (...) {
-    }
-
-    try {
-        Object obj{nil};
         obj.to_bool();
         FAIL();
     } catch (...) {

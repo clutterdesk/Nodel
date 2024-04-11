@@ -9,7 +9,7 @@ using namespace nodel::json;
 using namespace nodel::json::impl;
 
 TEST(Json, ParseNull) {
-    std::stringstream stream{"nil"};
+    std::stringstream stream{"null"};
     Parser parser{nodel::impl::StreamAdapter{stream}};
     ASSERT_TRUE(parser.parse_object());
     EXPECT_TRUE(parser.m_curr == nil);
