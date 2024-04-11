@@ -431,6 +431,8 @@ static PyObject* NodelObject_subscript(PyObject* self, PyObject* key) {
 }
 
 static int NodelObject_ass_sub(PyObject* self, PyObject* key, PyObject* value) {
+    // TODO: Write/Clobber exceptions
+
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
     if (!require_container(self_obj)) return -1;
@@ -635,6 +637,8 @@ static PyObject* NodelObject_getattro(PyObject* self, PyObject* name) {
 }
 
 static int NodelObject_setattro(PyObject* self, PyObject* name, PyObject* val) {
+    // TODO: Write/Clobber exceptions
+
     NodelObject* nd_self = (NodelObject*)self;
     Object& self_obj = nd_self->obj;
     auto nd_key = support.to_key(name);

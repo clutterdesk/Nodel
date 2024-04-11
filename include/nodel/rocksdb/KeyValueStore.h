@@ -30,24 +30,24 @@ namespace nodel::rocksdb {
 //   been made to the DB.
 // - Updates and deletes are batched together when Object::save is called, providing
 //   atomicity.
-class KeyStore : public nodel::DataSource
+class KeyValueStore : public nodel::DataSource
 {
   public:
-    KeyStore(const std::filesystem::path& path, Options options, Origin origin);
-    KeyStore(const std::filesystem::path& path, Options options) : KeyStore{path, options, Origin::MEMORY} {}
-    KeyStore(const std::filesystem::path& path)                  : KeyStore{path, Options{}, Origin::MEMORY} {}
+    KeyValueStore(const std::filesystem::path& path, Options options, Origin origin);
+    KeyValueStore(const std::filesystem::path& path, Options options) : KeyValueStore{path, options, Origin::MEMORY} {}
+    KeyValueStore(const std::filesystem::path& path)                  : KeyValueStore{path, Options{}, Origin::MEMORY} {}
 
     // Filesystem integration ctor
-    KeyStore(Origin origin) : KeyStore{{}, Options{}, origin} {}
+    KeyValueStore(Origin origin) : KeyValueStore{{}, Options{}, origin} {}
 
-    ~KeyStore();
+    ~KeyValueStore();
 
     void set_db_options(::rocksdb::Options options)         { m_options = options; }
     void set_read_options(::rocksdb::ReadOptions options)   { m_read_options = options; }
     void set_write_options(::rocksdb::WriteOptions options) { m_write_options = options; }
 
     DataSource* new_instance(const Object& target, Origin origin) const override {
-        return new KeyStore(std::filesystem::path{}, options(), origin);
+        return new KeyValueStore(std::filesystem::path{}, options(), origin);
     }
 
     void read_type(const Object& target) override { ASSERT(false); }
@@ -114,7 +114,7 @@ class KeyStore : public nodel::DataSource
 
 
 inline
-KeyStore::KeyStore(const std::filesystem::path& path, Options options, Origin origin)
+KeyValueStore::KeyValueStore(const std::filesystem::path& path, Options options, Origin origin)
   : nodel::DataSource(Kind::SPARSE, options, Object::OMAP, origin)
   , m_path{path} {
     m_options.error_if_exists = false;
@@ -124,7 +124,7 @@ KeyStore::KeyStore(const std::filesystem::path& path, Options options, Origin or
 }
 
 inline
-KeyStore::~KeyStore() {
+KeyValueStore::~KeyValueStore() {
     if (mp_db != nullptr) {
         DBManager::get_instance().close(m_open_path);
         mp_db = nullptr;
@@ -133,16 +133,16 @@ KeyStore::~KeyStore() {
 
 
 inline
-KeyStore::KeyIterator::KeyIterator(::rocksdb::Iterator* p_iter, const Interval& itvl) : mp_iter{p_iter}, m_itvl{itvl} {
+KeyValueStore::KeyIterator::KeyIterator(::rocksdb::Iterator* p_iter, const Interval& itvl) : mp_iter{p_iter}, m_itvl{itvl} {
     ASSERT(deserialize(p_iter->key().ToStringView(), m_key));
 }
 
 inline
-KeyStore::KeyIterator::KeyIterator(::rocksdb::Iterator* p_iter) : KeyIterator(p_iter, {}) {
+KeyValueStore::KeyIterator::KeyIterator(::rocksdb::Iterator* p_iter) : KeyIterator(p_iter, {}) {
 }
 
 inline
-bool KeyStore::KeyIterator::next_impl() {
+bool KeyValueStore::KeyIterator::next_impl() {
     mp_iter->Next();
     if (mp_iter->Valid()) {
         ASSERT(deserialize(mp_iter->key().ToStringView(), m_key));
@@ -155,16 +155,16 @@ bool KeyStore::KeyIterator::next_impl() {
 }
 
 inline
-KeyStore::ValueIterator::ValueIterator(::rocksdb::Iterator* p_iter, const Interval& itvl) : mp_iter{p_iter}, m_itvl{itvl} {
+KeyValueStore::ValueIterator::ValueIterator(::rocksdb::Iterator* p_iter, const Interval& itvl) : mp_iter{p_iter}, m_itvl{itvl} {
     ASSERT(deserialize(p_iter->value().ToStringView(), m_value));
 }
 
 inline
-KeyStore::ValueIterator::ValueIterator(::rocksdb::Iterator* p_iter) : ValueIterator(p_iter, {}) {
+KeyValueStore::ValueIterator::ValueIterator(::rocksdb::Iterator* p_iter) : ValueIterator(p_iter, {}) {
 }
 
 inline
-bool KeyStore::ValueIterator::next_impl() {
+bool KeyValueStore::ValueIterator::next_impl() {
     mp_iter->Next();
     if (mp_iter->Valid()) {
         Key key;
@@ -179,7 +179,7 @@ bool KeyStore::ValueIterator::next_impl() {
 }
 
 inline
-KeyStore::ItemIterator::ItemIterator(::rocksdb::Iterator* p_iter, const Interval& itvl) : mp_iter{p_iter}, m_itvl{itvl} {
+KeyValueStore::ItemIterator::ItemIterator(::rocksdb::Iterator* p_iter, const Interval& itvl) : mp_iter{p_iter}, m_itvl{itvl} {
     Key key;
     ASSERT(deserialize(p_iter->key().ToStringView(), key));
     Object value;
@@ -188,11 +188,11 @@ KeyStore::ItemIterator::ItemIterator(::rocksdb::Iterator* p_iter, const Interval
 }
 
 inline
-KeyStore::ItemIterator::ItemIterator(::rocksdb::Iterator* p_iter) : ItemIterator(p_iter, {}) {
+KeyValueStore::ItemIterator::ItemIterator(::rocksdb::Iterator* p_iter) : ItemIterator(p_iter, {}) {
 }
 
 inline
-bool KeyStore::ItemIterator::next_impl() {
+bool KeyValueStore::ItemIterator::next_impl() {
     mp_iter->Next();
     if (mp_iter->Valid()) {
         Key key;
@@ -209,22 +209,22 @@ bool KeyStore::ItemIterator::next_impl() {
 }
 
 inline
-std::unique_ptr<nodel::DataSource::KeyIterator> KeyStore::key_iter() {
+std::unique_ptr<nodel::DataSource::KeyIterator> KeyValueStore::key_iter() {
     return key_iter({});
 }
 
 inline
-std::unique_ptr<nodel::DataSource::ValueIterator> KeyStore::value_iter() {
+std::unique_ptr<nodel::DataSource::ValueIterator> KeyValueStore::value_iter() {
     return value_iter({});
 }
 
 inline
-std::unique_ptr<nodel::DataSource::ItemIterator> KeyStore::item_iter() {
+std::unique_ptr<nodel::DataSource::ItemIterator> KeyValueStore::item_iter() {
     return item_iter({});
 }
 
 inline
-std::unique_ptr<nodel::DataSource::KeyIterator> KeyStore::key_iter(const Interval& itvl) {
+std::unique_ptr<nodel::DataSource::KeyIterator> KeyValueStore::key_iter(const Interval& itvl) {
     auto p_it = mp_db->NewIterator(m_read_options);
     auto& min = itvl.min();
     if (min.value() == nil) {
@@ -236,7 +236,7 @@ std::unique_ptr<nodel::DataSource::KeyIterator> KeyStore::key_iter(const Interva
 }
 
 inline
-std::unique_ptr<nodel::DataSource::ValueIterator> KeyStore::value_iter(const Interval& itvl) {
+std::unique_ptr<nodel::DataSource::ValueIterator> KeyValueStore::value_iter(const Interval& itvl) {
     auto p_it = mp_db->NewIterator(m_read_options);
     auto& min = itvl.min();
     if (min.value() == nil) {
@@ -248,7 +248,7 @@ std::unique_ptr<nodel::DataSource::ValueIterator> KeyStore::value_iter(const Int
 }
 
 inline
-std::unique_ptr<nodel::DataSource::ItemIterator> KeyStore::item_iter(const Interval& itvl) {
+std::unique_ptr<nodel::DataSource::ItemIterator> KeyValueStore::item_iter(const Interval& itvl) {
     auto p_it = mp_db->NewIterator(m_read_options);
     auto& min = itvl.min();
     if (min.value() == nil) {
@@ -260,7 +260,7 @@ std::unique_ptr<nodel::DataSource::ItemIterator> KeyStore::item_iter(const Inter
 }
 
 inline
-void KeyStore::open(const std::filesystem::path& path, bool create_if_missing) {
+void KeyValueStore::open(const std::filesystem::path& path, bool create_if_missing) {
     ASSERT(mp_db == nullptr);
     m_options.create_if_missing = create_if_missing;
     auto status = DBManager::get_instance().open(m_options, path.string(), mp_db);
@@ -269,7 +269,7 @@ void KeyStore::open(const std::filesystem::path& path, bool create_if_missing) {
 }
 
 inline
-Object KeyStore::read_key(const Object& target, const Key& key) {
+Object KeyValueStore::read_key(const Object& target, const Key& key) {
     if (mp_db == nullptr) {
         open(m_path.empty()? nodel::filesystem::path(target): m_path, true);
     }
@@ -285,12 +285,12 @@ Object KeyStore::read_key(const Object& target, const Key& key) {
 }
 
 inline
-void KeyStore::write_key(const Object& target, const Key& key, const Object& value) {
+void KeyValueStore::write_key(const Object& target, const Key& key, const Object& value) {
     updates.push_back(std::make_pair(key, value));
 }
 
 inline
-void KeyStore::commit(const Object& target, const KeyList& del_keys) {
+void KeyValueStore::commit(const Object& target, const KeyList& del_keys) {
     if (mp_db == nullptr) {
         open(m_path.empty()? nodel::filesystem::path(target): m_path, true);
     }
