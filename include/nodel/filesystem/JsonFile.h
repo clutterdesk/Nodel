@@ -13,7 +13,7 @@
 // limitations under the License.
 #pragma once
 
-#include <nodel/format/json.h>
+#include <nodel/parser/json.h>
 #include <nodel/core/Object.h>
 
 #include <fstream>

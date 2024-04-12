@@ -22,7 +22,7 @@
 #include <nodel/pyext/NodelTreeIter.h>
 #include <nodel/pyext/support.h>
 
-#include <nodel/format/json.h>
+#include <nodel/parser/json.h>
 #include <nodel/support/logging.h>
 
 extern "C" {

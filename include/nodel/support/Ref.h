@@ -65,6 +65,8 @@ class Ref
     const T* get() const { return m_ptr; }
     T* get()             { return m_ptr; }
 
+    operator bool () const { return m_ptr != nullptr; }
+
     refcnt_t ref_count() const { return m_ptr->m_ref_count; }
 
   private:

@@ -21,7 +21,7 @@
 #include <nodel/pyext/NodelTreeIter.h>
 #include <nodel/pyext/support.h>
 #include <nodel/support/intern.h>
-#include <nodel/format/json.h>
+#include <nodel/parser/json.h>
 
 NODEL_INTERN_STATIC_INIT;
 
