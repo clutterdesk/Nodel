@@ -36,6 +36,16 @@ static int NodelTreeIter_init(PyObject* self, PyObject* args, PyObject* kwds) {
     return 0;
 }
 
+static void NodelTreeIter_dealloc(PyObject* self) {
+    NodelTreeIter* nd_self = (NodelTreeIter*)self;
+
+    std::destroy_at<TreeRange>(&nd_self->range);
+    std::destroy_at<TreeIterator>(&nd_self->it);
+    std::destroy_at<TreeIterator>(&nd_self->end);
+
+    Py_TYPE(self)->tp_free(self);
+}
+
 static PyObject* NodelTreeIter_str(PyObject* self) {
     return PyUnicode_FromString("TreeIterator");
 }
@@ -62,6 +72,7 @@ PyTypeObject NodelTreeIterType = {
     .tp_basicsize   = sizeof(NodelTreeIter),
     .tp_doc         = PyDoc_STR("Nodel tree iterator"),
     .tp_init        = NodelTreeIter_init,
+    .tp_dealloc     = NodelTreeIter_dealloc,
     .tp_repr        = (reprfunc)NodelTreeIter_repr,
     .tp_str         = (reprfunc)NodelTreeIter_str,
     .tp_call        = (ternaryfunc)NodelTreeIter_call,

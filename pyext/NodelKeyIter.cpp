@@ -39,6 +39,16 @@ static int NodelKeyIter_init(PyObject* self, PyObject* args, PyObject* kwds) {
     return 0;
 }
 
+static void NodelKeyIter_dealloc(PyObject* self) {
+    NodelKeyIter* nd_self = (NodelKeyIter*)self;
+
+    std::destroy_at<KeyRange>(&nd_self->range);
+    std::destroy_at<KeyIterator>(&nd_self->it);
+    std::destroy_at<KeyIterator>(&nd_self->end);
+
+    Py_TYPE(self)->tp_free(self);
+}
+
 static PyObject* NodelKeyIter_str(PyObject* self) {
     return PyUnicode_FromString("KeyIterator");
 }
@@ -65,6 +75,7 @@ PyTypeObject NodelKeyIterType = {
     .tp_basicsize   = sizeof(NodelKeyIter),
     .tp_doc         = PyDoc_STR("Nodel key iterator"),
     .tp_init        = NodelKeyIter_init,
+    .tp_dealloc     = NodelKeyIter_dealloc,
     .tp_repr        = (reprfunc)NodelKeyIter_repr,
     .tp_str         = (reprfunc)NodelKeyIter_str,
     .tp_call        = (ternaryfunc)NodelKeyIter_call,

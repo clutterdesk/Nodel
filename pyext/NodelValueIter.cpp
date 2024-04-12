@@ -38,6 +38,16 @@ static int NodelValueIter_init(PyObject* self, PyObject* args, PyObject* kwds) {
     return 0;
 }
 
+static void NodelValueIter_dealloc(PyObject* self) {
+    NodelValueIter* nd_self = (NodelValueIter*)self;
+
+    std::destroy_at<ValueRange>(&nd_self->range);
+    std::destroy_at<ValueIterator>(&nd_self->it);
+    std::destroy_at<ValueIterator>(&nd_self->end);
+
+    Py_TYPE(self)->tp_free(self);
+}
+
 static PyObject* NodelValueIter_str(PyObject* self) {
     return PyUnicode_FromString("ValueIterator");
 }
@@ -64,6 +74,7 @@ PyTypeObject NodelValueIterType = {
     .tp_basicsize   = sizeof(NodelValueIter),
     .tp_doc         = PyDoc_STR("Nodel value iterator"),
     .tp_init        = NodelValueIter_init,
+    .tp_dealloc     = NodelValueIter_dealloc,
     .tp_repr        = (reprfunc)NodelValueIter_repr,
     .tp_str         = (reprfunc)NodelValueIter_str,
     .tp_call        = (ternaryfunc)NodelValueIter_call,
