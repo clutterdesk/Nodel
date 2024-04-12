@@ -4,12 +4,9 @@
 "Nodel" is a portmanteau of "node" and "model", where "node" refers to a node in a tree data-structure.
 
 Nodel consists of an Object class and a DataSource base class, which can be sub-classed to provide 
-on-demand/lazy loading.  The Nodel Object class is dynamic type implemented in C++ as a union. Due 
-to the stringent performance requirements entailed, std::variant is avoided. Each dynamic method is 
-implemented as a switch statement.  
+on-demand/lazy loading.
 
-Nodel Objects are reference counted, so you don't have to worry about deallocating the objects in
-a tree.
+Nodel Objects are reference counted.
 
 Nodel is header-only library with *no required dependencies*. However, if you link with cpptrace,
 any Nodel exceptions will contain backtraces.
@@ -31,6 +28,9 @@ example, if you are iterating the keys of an Object backed by a [RocksDB](https:
 the iteration is actually performed by the native RocksDB Iterator.
 
 Nodel includes a Python 3.x C-API extension.
+
+## C++ Examples
+### 
 
 Here are a few things you can do with Nodel Objects:
 - 
