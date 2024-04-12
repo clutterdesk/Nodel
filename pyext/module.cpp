@@ -22,6 +22,7 @@
 #include <nodel/pyext/support.h>
 #include <nodel/support/intern.h>
 #include <nodel/parser/json.h>
+#include <nodel/filesystem.h>
 
 NODEL_INTERN_STATIC_INIT;
 
@@ -35,6 +36,13 @@ PyObject* nodel_sentinel = nullptr;
 //-----------------------------------------------------------------------------
 // Module methods
 //-----------------------------------------------------------------------------
+
+static PyObject* mod_bind_dir(PyObject* mod, PyObject* arg) {
+    auto opt_path = python::to_string_view(arg);
+    if (!opt_path) return NULL;
+    std::filesystem::path path = *opt_path;
+    return (PyObject*)NodelObject_wrap(filesystem::bind(path));
+}
 
 static PyObject* mod_from_json(PyObject* mod, PyObject* arg) {
     Py_ssize_t size;
@@ -58,9 +66,11 @@ static PyObject* mod_from_json(PyObject* mod, PyObject* arg) {
     return po.get_clear();
 }
 
-
 static PyMethodDef NodelMethods[] = {
-    {"from_json", (PyCFunction)mod_from_json, METH_O, PyDoc_STR("Parse json and return object")},
+    {"bind_dir",  (PyCFunction)mod_bind_dir,  METH_O,
+            PyDoc_STR("Bind a new nodel.Object to a filesystem directory.")},
+    {"from_json", (PyCFunction)mod_from_json, METH_O,
+            PyDoc_STR("Parse json and return object.")},
     {NULL, NULL, 0, NULL}
 };
 

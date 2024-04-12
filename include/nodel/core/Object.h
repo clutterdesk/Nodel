@@ -710,11 +710,23 @@ class DataSource
     struct Options {
         Options() = default;
         Options(Mode mode) : mode{mode} {}
+
+        /// @brief Access control for get/set/del methods
+        /// CLOBBER access controls whether a bound Object may be completely overwritten with
+        /// a single call to Object::set(const Object&).
         Mode mode = Mode::READ | Mode::WRITE;
-        bool quiet_read = false;       // Logging control during read operations
-        bool quiet_write = false;      // Logging control during write operations
-        bool throw_read_error = true;  // Throw exception when read operation fails
-        bool throw_write_error = true; // Throw exception when write operation fails
+
+        /// @brief Logging control during read operations
+        bool quiet_read = false;
+
+        /// @brief Logging control during write operations
+        bool quiet_write = false;
+
+        /// @brief Throw exception when read operation fails
+        bool throw_read_error = true;
+
+        /// @brief Throw exception when write operation fails
+        bool throw_write_error = true;
     };
 
     DataSource(Kind kind, Options options, Origin origin)
@@ -763,9 +775,10 @@ class DataSource
     virtual std::unique_ptr<ValueIterator> value_iter(const Interval&) { return nullptr; }
     virtual std::unique_ptr<ItemIterator> item_iter(const Interval&)   { return nullptr; }
 
+    void bind(Object& obj);
+
   public:
-    const Object& get_cached(const Object& target) const { const_cast<DataSource*>(this)->insure_fully_cached(target); return m_cache; }
-    Object& get_cached(const Object& target)             { insure_fully_cached(target); return m_cache; }
+    const Object& get_cached(const Object& target) const;
 
     size_t size(const Object& target);
     Object get(const Object& target, const Key& key);
@@ -1314,11 +1327,6 @@ Key Object::into_key() {
         case FLOAT: return m_repr.f;
         case STR:   {
             Key k{std::move(std::get<0>(*m_repr.ps))};
-            release();
-            return k;
-        }
-        case DSRC: {
-            Key k{m_repr.ds->get_cached(*this).into_key()};
             release();
             return k;
         }
@@ -2445,6 +2453,44 @@ std::ostream& operator<< (std::ostream& ostream, const Object& obj) {
     return ostream;
 }
 
+/**
+ * @brief Bind an object to a DataSource.
+ * @param obj The object to be bound.
+ * - If the object has a parent, the object is first removed from the parent, bound to the DataSource,
+ *   and then added back to the parent.
+ * - The object must not already be bound to another DataSource.
+ * - This is a low-level method that should not be called directly by users.
+ * - The behavior is undefined (probably terrible) if the DataSource is already bound to another object.
+ * - A WrongType exception is thrown if the DataSource requires a specific object type, and the object argument
+ *   has a different type.
+ */
+inline
+void DataSource::bind(Object& obj) {
+    if (m_repr_ix != obj.m_fields.repr_ix)
+        throw Object::wrong_type(obj.m_fields.repr_ix);
+
+    Key key;
+    Object parent = obj.parent();
+    if (parent != nil) {
+        key = parent.key_of(obj);
+        obj.clear_parent();
+    }
+
+    m_cache = obj;
+    m_fully_cached = false;
+    m_unsaved = true;
+
+    obj = this;
+
+    if (parent != nil) {
+        parent.set(key, obj);
+    }
+}
+
+inline
+const Object& DataSource::get_cached(const Object& target) const {
+    const_cast<DataSource*>(this)->insure_fully_cached(target); return m_cache;
+}
 
 inline
 size_t DataSource::size(const Object& target) {

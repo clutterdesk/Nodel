@@ -20,26 +20,26 @@
 namespace nodel {
 namespace filesystem {
 
-class TextFile : public File
+class GenericFile : public File
 {
   public:
-    TextFile(Options options, Origin origin)   : File(Kind::COMPLETE, options, Object::STR, origin) { set_mode(mode() | Mode::INHERIT); }
-    TextFile(Origin origin)                    : TextFile(Options{}, origin) {}
-    TextFile(Options options)                  : TextFile(options, Origin::MEMORY) {}
-    TextFile()                                 : TextFile(Options{}, Origin::MEMORY) {}
+    GenericFile(Options options, Origin origin)   : File(Kind::COMPLETE, options, Object::STR, origin) { set_mode(mode() | Mode::INHERIT); }
+    GenericFile(Origin origin)                    : GenericFile(Options{}, origin) {}
+    GenericFile(Options options)                  : GenericFile(options, Origin::MEMORY) {}
+    GenericFile()                                 : GenericFile(Options{}, Origin::MEMORY) {}
 
-    DataSource* new_instance(const Object& target, Origin origin) const override { return new TextFile(origin); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new GenericFile(origin); }
 
     void read(const Object& target) override;
     void write(const Object& target, const Object& cache) override;
 };
 
 inline
-void TextFile::read(const Object& target) {
+void GenericFile::read(const Object& target) {
     auto fpath = path(target).string();
     auto size = std::filesystem::file_size(fpath);
     std::ifstream f_in{fpath, std::ios::in | std::ios::binary};
-    std::string str;
+    String str;
     str.resize(size);
     f_in.read(str.data(), size);
     read_set(target, std::move(str));
@@ -49,7 +49,7 @@ void TextFile::read(const Object& target) {
 }
 
 inline
-void TextFile::write(const Object& target, const Object& cache) {
+void GenericFile::write(const Object& target, const Object& cache) {
     auto fpath = path(target).string();
     auto& str = cache.as<String>();
     std::ofstream f_out{fpath, std::ios::out};

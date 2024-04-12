@@ -25,8 +25,9 @@ namespace python {
 class RefMgr
 {
   public:
-    RefMgr(PyObject* ref) : m_ref{ref} {}
-    ~RefMgr() { Py_XDECREF(m_ref); }
+    RefMgr()              : m_ref{nullptr} {}
+    RefMgr(PyObject* ref) : m_ref{ref}     {}
+    ~RefMgr()                              { Py_XDECREF(m_ref); }
 
     void clear()          { m_ref = nullptr; }
     PyObject* get() const { return m_ref; }
@@ -36,6 +37,27 @@ class RefMgr
   private:
     PyObject* m_ref;
 };
+
+inline
+std::optional<std::string_view> to_string_view(PyObject* po) {
+    RefMgr unicode;
+    if (!PyUnicode_Check(po)) {
+        unicode = PyObject_Str(po);
+    } else {
+        unicode = po;
+        Py_INCREF(unicode);
+    }
+
+    std::optional<std::string_view> result;
+
+    Py_ssize_t size;
+    const char* str = PyUnicode_AsUTF8AndSize(unicode, &size);
+    if (str != nullptr) {
+        result = {str, (std::string_view::size_type)size};
+    }
+
+    return result;
+}
 
 inline
 PyObject* to_str(int32_t value) {

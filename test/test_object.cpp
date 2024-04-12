@@ -298,26 +298,6 @@ TEST(Object, ToKey) {
     }
 }
 
-TEST(Object, IntoKey) {
-    Object obj = nil;
-    EXPECT_EQ(obj.into_key(), Key{nil});
-    obj = false;
-    EXPECT_EQ(obj.into_key(), Key{false});
-    obj = -1;
-    EXPECT_EQ(obj.into_key(), Key{-1});
-    obj = 1UL;
-    EXPECT_EQ(obj.into_key(), Key{1UL});
-    obj = "tea";
-    EXPECT_EQ(obj.into_key(), "tea"_key);
-
-    try {
-        Object obj;
-        obj.into_key();
-        FAIL();
-    } catch (...) {
-    }
-}
-
 TEST(Object, NonDataSourceIsValid) {
     EXPECT_TRUE(Object{nil}.is_valid());
     EXPECT_TRUE(Object{0}.is_valid());

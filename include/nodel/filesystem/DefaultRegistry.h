@@ -16,7 +16,7 @@
 #include "Registry.h"
 #include "JsonFile.h"
 #include "CsvFile.h"
-#include "TextFile.h"
+#include "GenericFile.h"
 
 namespace nodel {
 namespace filesystem {
@@ -29,9 +29,11 @@ class DefaultRegistry : public Registry
     using Origin = DataSource::Origin;
 
     DefaultRegistry() {
+        set_default_directory([] (const Object&, const fs::path& path) { return new SubDirectory({}, Origin::SOURCE); });
+        set_default_file([] (const Object&, const fs::path& path) { return new GenericFile(Origin::SOURCE); });
+
         add_file(".json", [] (const Object&, const fs::path& path) { return new JsonFile(Origin::SOURCE); });
         add_file(".csv", [] (const Object&, const fs::path& path) { return new CsvFile(Origin::SOURCE); });
-        add_file(".txt", [] (const Object&, const fs::path& path) { return new TextFile(Origin::SOURCE); });
     }
 
   template <typename> friend class ::nodel::Ref;

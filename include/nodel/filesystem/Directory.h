@@ -54,8 +54,7 @@ class SubDirectory : public DataSource
 {
   public:
     SubDirectory(Options options, Origin origin) : DataSource(Kind::COMPLETE, options, Object::OMAP, origin) {}
-    SubDirectory(Options options) : DataSource(Kind::COMPLETE, options, Object::OMAP, Origin::MEMORY) {}
-    SubDirectory() : SubDirectory(Options{}) {}
+    SubDirectory(Options options = {}) : DataSource(Kind::COMPLETE, options, Object::OMAP, Origin::MEMORY) {}
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new SubDirectory(options(), origin); }
 
@@ -72,11 +71,8 @@ class SubDirectory : public DataSource
 class Directory : public SubDirectory
 {
   public:
-    Directory(Ref<Registry> r_registry, const std::filesystem::path& path, Options options)
+    Directory(Ref<Registry> r_registry, const std::filesystem::path& path, Options options = {})
       : SubDirectory(options, Origin::SOURCE) , mr_registry(r_registry) , m_path(path) {}
-
-    Directory(Ref<Registry> r_registry, const std::filesystem::path& path)
-      : Directory(r_registry, path, Options{}) {}
 
     DataSource* new_instance(const Object& target, Origin origin) const override {
         assert (origin == Origin::SOURCE);
@@ -143,12 +139,10 @@ void SubDirectory::read(const Object& target) {
         auto r_reg = head_ds.registry();
         if (entry.is_directory()) {
             auto p_ds = r_reg->new_directory(target, entry.path());
-            if (p_ds == nullptr) {
-                p_ds = new SubDirectory(options(), Origin::SOURCE);
-            } else {
+            if (p_ds != nullptr) {
                 p_ds->set_options(options());
+                read_set(target, fname, p_ds);
             }
-            read_set(target, fname, p_ds);
         } else {
             auto p_ds = r_reg->new_file(target, entry.path());
             if (p_ds != nullptr) {

@@ -17,4 +17,33 @@
 #include <nodel/filesystem/DefaultRegistry.h>
 #include <nodel/filesystem/JsonFile.h>
 #include <nodel/filesystem/CsvFile.h>
-#include <nodel/filesystem/TextFile.h>
+#include <nodel/filesystem/GenericFile.h>
+
+using namespace nodel;
+
+namespace nodel::filesystem {
+
+/**
+ * @brief Bind the directory with the specified path using an instance of DefaultRegistry.
+ * @param path A directory path. Relative paths are resolved to absolute paths immediately.
+ * @param options Options passed to the Directory class.
+ * @return Returns a new Object with a filesystem::Directory DataSource.
+ */
+inline
+Object bind(const std::filesystem::path& path, DataSource::Options options = {}) {
+    return new Directory(new DefaultRegistry(), path, options);
+}
+
+/**
+ * @brief Bind the directory with the specified path.
+ * @param r_registry The registry of file associations.
+ * @param path A directory path. Relative paths are resolved to absolute paths immediately.
+ * @param options Options passed to the Directory class.
+ * @return Returns a new Object with a filesystem::Directory DataSource.
+ */
+inline
+Object bind(Ref<Registry> r_registry, const std::filesystem::path& path, DataSource::Options options = {}) {
+    return new Directory(r_registry, path, options);
+}
+
+} // namespace nodel::filesystem
