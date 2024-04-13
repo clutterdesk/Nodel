@@ -1857,7 +1857,7 @@ struct TestSimpleSource : public DataSource
     void read_type(const Object& target) override {
         read_meta_called = true;
         std::istringstream in{data.to_json()};
-        json::impl::Parser parser{nodel::impl::StreamAdapter{in}};
+        json::impl::Parser parser{parse::StreamAdapter{in}};
         read_set(target, (Object::ReprIX)parser.parse_type());
     }
 
@@ -1896,7 +1896,7 @@ struct TestSparseSource : public DataSource
     void read_type(const Object& target) override {
         read_meta_called = true;
         std::istringstream in{data.to_json()};
-        json::impl::Parser parser{nodel::impl::StreamAdapter{in}};
+        json::impl::Parser parser{parse::StreamAdapter{in}};
         read_set(target, (Object::ReprIX)parser.parse_type());
     }
 

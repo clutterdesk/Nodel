@@ -5,8 +5,7 @@
 #include <stdlib.h>
 #include <string_view>
 
-
-NODEL_INTERN_STATIC_INIT;
+NODEL_THREAD_LOCAL_INTERNS;
 
 int main(int argc, char **argv) {
   cpptrace::register_terminate_handler();

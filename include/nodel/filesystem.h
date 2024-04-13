@@ -25,7 +25,7 @@ namespace nodel::filesystem {
 
 /**
  * @brief Bind the directory with the specified path using an instance of DefaultRegistry.
- * @param path A directory path. Relative paths are resolved to absolute paths immediately.
+ * @param path A directory path.
  * @param options Options passed to the Directory class.
  * @return Returns a new Object with a filesystem::Directory DataSource.
  */
@@ -37,7 +37,7 @@ Object bind(const std::filesystem::path& path, DataSource::Options options = {})
 /**
  * @brief Bind the directory with the specified path.
  * @param r_registry The registry of file associations.
- * @param path A directory path. Relative paths are resolved to absolute paths immediately.
+ * @param path A directory path.
  * @param options Options passed to the Directory class.
  * @return Returns a new Object with a filesystem::Directory DataSource.
  */

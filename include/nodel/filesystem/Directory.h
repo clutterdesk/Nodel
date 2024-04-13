@@ -14,6 +14,7 @@
 #pragma once
 
 #include "Registry.h"
+#include "File.h"
 
 #include <nodel/support/string.h>
 #include <nodel/support/Ref.h>
@@ -21,6 +22,7 @@
 #include <nodel/core/Object.h>
 
 #include <filesystem>
+#include <regex>
 
 #include <fmt/core.h>
 
@@ -29,27 +31,11 @@ using namespace std::ranges;
 namespace nodel {
 namespace filesystem {
 
-// Base class for all files
-//
-class File : public DataSource
-{
-  public:
-    File(Kind kind, Options options, Origin origin) : DataSource(kind, options, origin) {
-        set_mode(mode() | Mode::INHERIT);
-    }
+typedef std::function<bool(const Object&)> Predicate;
 
-    File(Kind kind, Options options, ReprIX repr_ix, Origin origin) : DataSource(kind, options, repr_ix, origin) {
-        set_mode(mode() | Mode::INHERIT);
-    }
-
-  protected:
-    void report_read_error(const std::string& path, const std::string& error);
-    void report_write_error(const std::string& path, const std::string& error);
-};
-
-
-// DataSource for filesystem directories
-//
+/**
+ * @brief DataSource for filesystem directories
+ */
 class SubDirectory : public DataSource
 {
   public:
@@ -64,10 +50,11 @@ class SubDirectory : public DataSource
 };
 
 
-// DataSource to use for filesystem directory
-// Example:
-//     Object o = Directory(<path>);
-//
+/**
+ * @brief DataSource to use for filesystem directory
+ * Example:
+ *     Object o = Directory(<path>);
+ */
 class Directory : public SubDirectory
 {
   public:
@@ -86,6 +73,7 @@ class Directory : public SubDirectory
     Ref<Registry> mr_registry;
     std::filesystem::path m_path;
 };
+
 
 inline
 bool is_dir(const Object& obj) {
@@ -126,6 +114,22 @@ std::filesystem::path path(const Object& obj) {
     return fpath;
 }
 
+
+struct RegexFilter
+{
+    RegexFilter(String&& regex) : m_regex{std::forward<String>(regex)} {}
+    bool operator () (const Object& obj) {
+        return std::regex_match(path(obj).filename().string(), m_regex);
+    }
+    std::regex m_regex;
+};
+
+inline
+Predicate make_regex_filter(String&& regex) {
+    return RegexFilter{std::forward<String>(regex)};
+}
+
+
 inline
 void SubDirectory::read(const Object& target) {
     auto head_anc = find_fs_root(target);
@@ -161,7 +165,7 @@ void SubDirectory::write(const Object& target, const Object& cache) {
 
     // create, if necessary
     if (!std::filesystem::exists(fpath)) {
-        DEBUG("Creating directory: {}", fpath.string());
+//        DEBUG("Creating directory: {}", fpath.string());
         std::filesystem::create_directory(fpath);
     }
 
@@ -176,21 +180,11 @@ void SubDirectory::write(const Object& target, const Object& cache) {
     // perform deletes
     std::vector<std::filesystem::path> failed_deletes;
     for (auto& deleted : deleted) {
-        DEBUG("Removing directory: {}", deleted.string());
+//        DEBUG("Removing directory: {}", deleted.string());
         std::error_code err;
         std::filesystem::remove_all(deleted, err);
         if (err) report_write_error(err.message());
     }
-}
-
-inline
-void File::report_read_error(const std::string& path, const std::string& error) {
-    DataSource::report_read_error(fmt::format("{} ({})", error, path));
-}
-
-inline
-void File::report_write_error(const std::string& path, const std::string& error) {
-    DataSource::report_write_error(fmt::format("{} ({})", error, path));
 }
 
 } // namespace filesystem

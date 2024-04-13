@@ -15,8 +15,7 @@
 
 #include <algorithm>
 
-namespace nodel {
-namespace impl {
+namespace nodel::parse {
 
 template <typename StreamType>
 class StreamAdapter  // TODO: replace with std::stream_iterator?
@@ -77,8 +76,6 @@ class StringStreamAdapter
     size_t m_pos = 0;
 };
 
-} // namespace impl
-
 
 constexpr int syntax_context = 72;
 
@@ -102,4 +99,4 @@ struct SyntaxError : public NodelException
       : NodelException(make_message(spec, offset, message)) {}
 };
 
-} // namespace nodel
+} // namespace nodel::parse

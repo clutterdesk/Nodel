@@ -1,7 +1,8 @@
 # Nodel
-## A high-performance data-source parameterized dynamic object in C++ with Python C-API extension
+## High-performance Dynamic Object with Optional Data Source
 ### Overview
-"Nodel" is a portmanteau of "node" and "model", where "node" refers to a node in a tree data-structure.
+"Nodel" is a portmanteau of "node" and "model", where "node" refers to a node in a tree. The tree
+is similar to other semi-structured data representations: TOML, JSON, XML-DOM, etc....
 
 Nodel consists of an Object class and a DataSource base class, which can be sub-classed to provide 
 on-demand/lazy loading.
@@ -29,8 +30,26 @@ the iteration is actually performed by the native RocksDB Iterator.
 
 Nodel includes a Python 3.x C-API extension.
 
+## Quick Start
+```
+#include <nodel/core.h>
+#include <nodel/filesystem.h>
+#include <iostream>
+
+NODEL_THREAD_LOCAL_INTERNS;  // Required for header-only usage
+using namespace nodel;
+
+int main(int argc, char** argv) {
+    Object dir = filesystem::bind(".");     // Bind an object to the current working directory
+    for (const auto& f: dir.iter_keys())    // Iterate the names of the files
+        std::cout << f << std::endl;
+}
+```
+
 ## C++ Examples
-### 
+### Find Filenames Matching Regular Expression
+
+
 
 Here are a few things you can do with Nodel Objects:
 - 

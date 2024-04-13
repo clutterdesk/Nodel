@@ -383,8 +383,11 @@ struct Error
     std::string error_message;
 
     std::string to_str() const {
-        if (error_message.size() > 0)
-            return fmt::format("JSON parse error at {}: {}", error_offset, error_message);
+        if (error_message.size() > 0) {
+            std::stringstream ss;
+            ss << "JSON parse error at " << error_offset << ": " << error_message;
+            return ss.str();
+        }
         return "";
     }
 };
@@ -392,7 +395,7 @@ struct Error
 
 inline
 Object parse(const Options& options, const std::string_view& str, std::optional<Error>& error) {
-    impl::Parser parser{options, nodel::impl::StringStreamAdapter{str}};
+    impl::Parser parser{options, nodel::parse::StringStreamAdapter{str}};
     if (!parser.parse_object()) {
         error = Error{parser.m_error_offset, std::move(parser.m_error_message)};
         return nil;
@@ -423,9 +426,9 @@ Object parse(const std::string_view& str, std::string& error) {
 
 inline
 Object parse(const Options& options, const std::string_view& str) {
-    impl::Parser parser{options, nodel::impl::StringStreamAdapter{str}};
+    impl::Parser parser{options, nodel::parse::StringStreamAdapter{str}};
     if (!parser.parse_object()) {
-        throw SyntaxError(str, parser.m_error_offset, parser.m_error_message);
+        throw parse::SyntaxError(str, parser.m_error_offset, parser.m_error_message);
     }
     return parser.m_curr;
 }
@@ -444,7 +447,7 @@ Object parse_file(const Options& options, const std::string& file_name, std::str
         error = ss.str();
         return nil;
     } else {
-        impl::Parser parser{options, nodel::impl::StreamAdapter{f_in}};
+        impl::Parser parser{options, nodel::parse::StreamAdapter{f_in}};
         if (!parser.parse_object()) {
             Error parse_error{parser.m_error_offset, std::move(parser.m_error_message)};
             error = parse_error.to_str();

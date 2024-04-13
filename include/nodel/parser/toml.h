@@ -18,7 +18,8 @@
 
 #include <fstream>
 
-namespace nodel::csv {
+namespace nodel {
+namespace toml {
 namespace impl {
 
 template <typename StreamType>
@@ -33,15 +34,12 @@ class Parser
     const std::string& error() const { return m_error; }
 
   private:
-    bool parse_row(List&);
-    bool parse_column(List&);
-    Object parse_quoted();
-    Object parse_unquoted();
+    bool parse_simple_key(List&);
     void consume_whitespace();
     void set_error(const std::string&);
 
   private:
-    nodel::parse::StreamAdapter<StreamType> m_it;
+    nodel::impl::StreamAdapter<StreamType> m_it;
     std::string m_error;
 };
 
@@ -173,11 +171,8 @@ struct ParseError
     std::string error_message;
 
     std::string to_str() const {
-        if (error_message.size() > 0) {
-            std::stringstream ss;
-            ss << "CSV parse error at " << error_offset << ": " << error_message;
-            return ss.str();
-        }
+        if (error_message.size() > 0)
+            return fmt::format("CSV parse error at {}: {}", error_offset, error_message);
         return "";
     }
 };
@@ -230,4 +225,5 @@ Object parse_file(const std::string& file_name, std::string& error) {
     }
 }
 
-} // namespace nodel::csv
+} // namespace toml
+} // namespace nodel

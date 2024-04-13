@@ -24,7 +24,7 @@
 #include <nodel/parser/json.h>
 #include <nodel/filesystem.h>
 
-NODEL_INTERN_STATIC_INIT;
+NODEL_THREAD_LOCAL_INTERNS;
 
 using namespace nodel;
 using RefMgr = python::RefMgr;

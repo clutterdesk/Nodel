@@ -554,7 +554,7 @@ OPath::OPath(const StringView& spec) {
                 append(parse_brace_key(spec, it));
             }
         } else {
-            throw SyntaxError{spec, it - spec.cbegin(), "Expected '.' or '[':"};
+            throw parse::SyntaxError{spec, it - spec.cbegin(), "Expected '.' or '[':"};
         }
     }
 }
@@ -565,14 +565,14 @@ Key OPath::parse_brace_key(const StringView& spec, StringView::const_iterator& i
     char c = *it;
     if (c == '\'' || c == '"') {
         auto key = parse_quoted(spec, it);
-        if (key.size() == 0) throw SyntaxError{spec, key_start - spec.cbegin(), "Expected key:"};
+        if (key.size() == 0) throw parse::SyntaxError{spec, key_start - spec.cbegin(), "Expected key:"};
         consume_whitespace(spec, it);
-        if (*it != ']') throw SyntaxError{spec, key_start - spec.cbegin(), "Missing closing ']':"};
+        if (*it != ']') throw parse::SyntaxError{spec, key_start - spec.cbegin(), "Missing closing ']':"};
         ++it;
         return key;
     } else {
         for (; it != spec.cend() && c != ']'; ++it, c = *it);
-        if (it == spec.cend()) throw SyntaxError{spec, key_start - spec.cbegin(), "Missing closing ']':"};
+        if (it == spec.cend()) throw parse::SyntaxError{spec, key_start - spec.cbegin(), "Missing closing ']':"};
         StringView key{key_start, it};
         if (it != spec.cend()) ++it;
         return str_to_int(key);  // TODO: error handling
@@ -605,7 +605,7 @@ StringView OPath::parse_quoted(const StringView& spec, StringView::const_iterato
             return {start_it, it++};
         }
     }
-    throw SyntaxError(spec, spec.size() - 1, "Missing closing quote:");
+    throw parse::SyntaxError(spec, spec.size() - 1, "Missing closing quote:");
 }
 
 inline
@@ -2685,8 +2685,7 @@ void DataSource::refresh_key(const Key& key) {
 inline
 void DataSource::insure_fully_cached(const Object& target) {
     if (!m_fully_cached) {
-        DEBUG("Loading: {}", target.path().to_str());
-
+//        DEBUG("Loading: {}", target.path().to_str());
         read(target);
 
         m_fully_cached = true;
