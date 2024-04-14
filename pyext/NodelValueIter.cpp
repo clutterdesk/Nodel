@@ -56,9 +56,13 @@ static PyObject* NodelValueIter_repr(PyObject* arg) {
     return NodelValueIter_str(arg);
 }
 
-static PyObject* NodelValueIter_call(PyObject *self, PyObject *args, PyObject *kwargs) {
+static PyObject* NodelValueIter_iter(PyObject* self) {
+    return self;
+}
+
+static PyObject* NodelValueIter_iter_next(PyObject* self) {
     NodelValueIter* nd_self = (NodelValueIter*)self;
-    if (nd_self->it == nd_self->end) { Py_INCREF(nodel_sentinel); return nodel_sentinel; }
+    if (nd_self->it == nd_self->end) return NULL;  // StopIteration implied
     PyObject* next = (PyObject*)NodelObject_wrap(*nd_self->it);
     ++nd_self->it;
     return next;
@@ -77,7 +81,8 @@ PyTypeObject NodelValueIterType = {
     .tp_dealloc     = NodelValueIter_dealloc,
     .tp_repr        = (reprfunc)NodelValueIter_repr,
     .tp_str         = (reprfunc)NodelValueIter_str,
-    .tp_call        = (ternaryfunc)NodelValueIter_call,
+    .tp_iter        = NodelValueIter_iter,
+    .tp_iternext    = NodelValueIter_iter_next
 };
 
 } // extern C

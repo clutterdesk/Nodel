@@ -54,9 +54,13 @@ static PyObject* NodelTreeIter_repr(PyObject* arg) {
     return NodelTreeIter_str(arg);
 }
 
-static PyObject* NodelTreeIter_call(PyObject *self, PyObject *args, PyObject *kwargs) {
+static PyObject* NodelTreeIter_iter(PyObject* self) {
+    return self;
+}
+
+static PyObject* NodelTreeIter_iter_next(PyObject* self) {
     NodelTreeIter* nd_self = (NodelTreeIter*)self;
-    if (nd_self->it == nd_self->end) { Py_INCREF(nodel_sentinel); return nodel_sentinel; }
+    if (nd_self->it == nd_self->end) return NULL;  // StopIteration implied
     PyObject* next = (PyObject*)NodelObject_wrap(*nd_self->it);
     ++nd_self->it;
     return next;
@@ -75,7 +79,8 @@ PyTypeObject NodelTreeIterType = {
     .tp_dealloc     = NodelTreeIter_dealloc,
     .tp_repr        = (reprfunc)NodelTreeIter_repr,
     .tp_str         = (reprfunc)NodelTreeIter_str,
-    .tp_call        = (ternaryfunc)NodelTreeIter_call,
+    .tp_iter        = NodelTreeIter_iter,
+    .tp_iternext    = NodelTreeIter_iter_next
 };
 
 } // extern C

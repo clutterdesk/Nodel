@@ -96,8 +96,16 @@ bool is_fs_root(const Object& obj) {
 }
 
 inline
-Object find_fs_root(const Object& target) {
-    return find_first(target.iter_line(), is_fs_root);
+Object find_fs_root(const Object& obj) {
+    return find_first(obj.iter_line(), is_fs_root);
+}
+
+inline
+Ref<Registry> get_registry(const Object& obj) {
+    auto head_anc = find_fs_root(obj);
+    if (head_anc != nil) return {};
+    auto& head_ds = *(head_anc.data_source<Directory>());
+    return head_ds.registry();
 }
 
 inline
@@ -133,7 +141,7 @@ Predicate make_regex_filter(String&& regex) {
 inline
 void SubDirectory::read(const Object& target) {
     auto head_anc = find_fs_root(target);
-    assert (!head_anc.is_empty());
+    assert (head_anc != nil);
     auto opath = target.path(head_anc.parent());
     auto fpath = path(target);
     // TODO: handle directory_iterator failure

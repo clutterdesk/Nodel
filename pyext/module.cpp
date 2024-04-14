@@ -58,7 +58,7 @@ static PyObject* mod_from_json(PyObject* mod, PyObject* arg) {
     obj->obj = json::parse(spec, err);
 
     if (err) {
-        std::string msg = SyntaxError::make_message(spec, err->error_offset, err->error_message);
+        std::string msg = parse::SyntaxError::make_message(spec, err->error_offset, err->error_message);
         PyErr_SetString(PyExc_ValueError, msg.data());
         return NULL;
     }

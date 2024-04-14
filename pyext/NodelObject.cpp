@@ -414,14 +414,14 @@ static PyNumberMethods NodelObject_as_number = {
 // NodelObject Mapping Protocol
 //-----------------------------------------------------------------------------
 
-static Py_ssize_t NodelObject_length(PyObject* self) {
+static Py_ssize_t NodelObject_mp_length(PyObject* self) {
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
     if (!require_container(self_obj)) return NULL;
-    return (Py_ssize_t)nd_self->obj.size();
+    return (Py_ssize_t)self_obj.size();
 }
 
-static PyObject* NodelObject_subscript(PyObject* self, PyObject* key) {
+static PyObject* NodelObject_mp_subscript(PyObject* self, PyObject* key) {
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
     if (!require_container(self_obj)) return NULL;
@@ -430,7 +430,7 @@ static PyObject* NodelObject_subscript(PyObject* self, PyObject* key) {
     return (PyObject*)NodelObject_wrap(self_obj.get(nd_key));
 }
 
-static int NodelObject_ass_sub(PyObject* self, PyObject* key, PyObject* value) {
+static int NodelObject_mp_ass_sub(PyObject* self, PyObject* key, PyObject* value) {
     // TODO: Write/Clobber exceptions
 
     NodelObject* nd_self = (NodelObject*)self;
@@ -454,10 +454,79 @@ static int NodelObject_ass_sub(PyObject* self, PyObject* key, PyObject* value) {
 }
 
 static PyMappingMethods NodelObject_as_mapping = {
-    .mp_length = (lenfunc)NodelObject_length,
-    .mp_subscript = (binaryfunc)NodelObject_subscript,
-    .mp_ass_subscript = (objobjargproc)NodelObject_ass_sub
+    .mp_length = (lenfunc)NodelObject_mp_length,
+    .mp_subscript = (binaryfunc)NodelObject_mp_subscript,
+    .mp_ass_subscript = (objobjargproc)NodelObject_mp_ass_sub
 };
+
+
+//-----------------------------------------------------------------------------
+// NodelObject Sequence Protocol
+//-----------------------------------------------------------------------------
+
+//static Py_ssize_t NodelObject_sq_length(PyObject* self) {
+//    NodelObject* nd_self = (NodelObject*)self;
+//    auto& self_obj = nd_self->obj;
+//    if (!require_container(self_obj)) return 0;
+//    return (Py_ssize_t)self_obj.size();
+//}
+//
+//static PyObject* NodelObject_sq_concat(PyObject* self, PyObject* arg) {
+//    NodelObject* nd_self = (NodelObject*)self;
+//    auto& self_obj = nd_self->obj;
+//    return NULL;
+//}
+//
+//static PyObject* NodelObject_sq_repeat(PyObject* self, Py_ssize_t count) {
+//    NodelObject* nd_self = (NodelObject*)self;
+//    auto& self_obj = nd_self->obj;
+//    return NULL;
+//}
+//
+//static PyObject* NodelObject_sq_item(PyObject* self, Py_ssize_t index) {
+//    NodelObject* nd_self = (NodelObject*)self;
+//    auto& self_obj = nd_self->obj;
+//    if (index >= self_obj.size()) return NULL;
+//    return (PyObject*)NodelObject_wrap(self_obj.get(index));
+//}
+//
+//static int NodelObject_sq_ass_item(PyObject* self, Py_ssize_t index, PyObject* arg) {
+//    NodelObject* nd_self = (NodelObject*)self;
+//    Object value = support.to_object(arg);
+//    if (value.is_empty()) return -1;
+//    nd_self->obj.set(index, value);
+//    return 0;
+//}
+//
+//static int NodelObject_sq_contains(PyObject* self, PyObject* arg) {
+//    NodelObject* nd_self = (NodelObject*)self;
+//    auto& self_obj = nd_self->obj;
+//    return -1;
+//}
+//
+//static PyObject* NodelObject_sq_inplace_concat(PyObject* self, PyObject* arg) {
+//    NodelObject* nd_self = (NodelObject*)self;
+//    auto& self_obj = nd_self->obj;
+//    return NULL;
+//}
+//
+//static PyObject* NodelObject_sq_inplace_repeat(PyObject* self, Py_ssize_t count) {
+//    NodelObject* nd_self = (NodelObject*)self;
+//    auto& self_obj = nd_self->obj;
+//    return NULL;
+//}
+//
+//static PySequenceMethods NodelObject_as_sequence = {
+//    .sq_length = NodelObject_sq_length,
+//    .sq_concat = NodelObject_sq_concat,
+//    .sq_repeat = NodelObject_sq_repeat,
+//    .sq_item = NodelObject_sq_item,
+//    .sq_ass_item = NodelObject_sq_ass_item,
+//    .sq_contains = NodelObject_sq_contains,
+//    .sq_inplace_concat = NodelObject_sq_inplace_concat,
+//    .sq_inplace_repeat = NodelObject_sq_inplace_repeat,
+//};
+
 
 //-----------------------------------------------------------------------------
 // NodelObject Methods
@@ -490,7 +559,9 @@ static PyObject* NodelObject_iter_keys(PyObject* self, PyObject*) {
     nit->it = nit->range.begin();
     nit->end = nit->range.end();
 
-    return PyCallIter_New((PyObject*)nit, nodel_sentinel);
+    Py_INCREF(nit);
+    return (PyObject*)nit;
+//    return PyCallIter_New((PyObject*)nit, nodel_sentinel);
 }
 
 static PyObject* NodelObject_iter_values(PyObject* self, PyObject*) {
@@ -503,7 +574,8 @@ static PyObject* NodelObject_iter_values(PyObject* self, PyObject*) {
     nit->it = nit->range.begin();
     nit->end = nit->range.end();
 
-    return PyCallIter_New((PyObject*)nit, nodel_sentinel);
+    Py_INCREF(nit);
+    return (PyObject*)nit;
 }
 
 static PyObject* NodelObject_iter_items(PyObject* self, PyObject*) {
@@ -516,7 +588,8 @@ static PyObject* NodelObject_iter_items(PyObject* self, PyObject*) {
     nit->it = nit->range.begin();
     nit->end = nit->range.end();
 
-    return PyCallIter_New((PyObject*)nit, nodel_sentinel);
+    Py_INCREF(nit);
+    return (PyObject*)nit;
 }
 
 static PyObject* NodelObject_iter_tree(PyObject* self, PyObject* args) {
@@ -529,7 +602,8 @@ static PyObject* NodelObject_iter_tree(PyObject* self, PyObject* args) {
     nit->it = nit->range.begin();
     nit->end = nit->range.end();
 
-    return PyCallIter_New((PyObject*)nit, nodel_sentinel);
+    Py_INCREF(nit);
+    return (PyObject*)nit;
 }
 
 static PyObject* NodelObject_key(PyObject* self, PyObject* args) {
@@ -659,6 +733,11 @@ static int NodelObject_setattro(PyObject* self, PyObject* name, PyObject* val) {
     return -1;
 }
 
+static PyObject* NodelObject_iter(PyObject* self) {
+    return NodelObject_iter_keys(self, NULL);
+}
+
+
 
 //-----------------------------------------------------------------------------
 // Type definition
@@ -674,7 +753,9 @@ PyTypeObject NodelObjectType = {
     .tp_dealloc     = (destructor)NodelObject_dealloc,
     .tp_as_number   = &NodelObject_as_number,
     .tp_as_mapping  = &NodelObject_as_mapping,
+//    .tp_as_sequence = &NodelObject_as_sequence,
     .tp_richcompare = &NodelObject_richcompare,
+    .tp_iter        = &NodelObject_iter,
     .tp_methods     = NodelObject_methods,
     .tp_repr        = (reprfunc)NodelObject_repr,
     .tp_str         = (reprfunc)NodelObject_str,

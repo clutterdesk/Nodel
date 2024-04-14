@@ -58,9 +58,13 @@ static PyObject* NodelItemIter_repr(PyObject* arg) {
     return NodelItemIter_str(arg);
 }
 
-static PyObject* NodelItemIter_call(PyObject *self, PyObject *args, PyObject *kwargs) {
+static PyObject* NodelItemIter_iter(PyObject* self) {
+    return self;
+}
+
+static PyObject* NodelItemIter_iter_next(PyObject* self) {
     NodelItemIter* nd_self = (NodelItemIter*)self;
-    if (nd_self->it == nd_self->end) { Py_INCREF(nodel_sentinel); return nodel_sentinel; }
+    if (nd_self->it == nd_self->end) return NULL;  // StopIteration implied
     auto item = *nd_self->it;
     RefMgr key = support.to_py(item.first);
     RefMgr val = (PyObject*)NodelObject_wrap(item.second);
@@ -82,7 +86,8 @@ PyTypeObject NodelItemIterType = {
     .tp_dealloc     = NodelItemIter_dealloc,
     .tp_repr        = (reprfunc)NodelItemIter_repr,
     .tp_str         = (reprfunc)NodelItemIter_str,
-    .tp_call        = (ternaryfunc)NodelItemIter_call,
+    .tp_iter        = NodelItemIter_iter,
+    .tp_iternext    = NodelItemIter_iter_next
 };
 
 } // extern C

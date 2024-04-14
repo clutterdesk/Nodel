@@ -65,6 +65,18 @@ static PyObject* NodelKeyIter_call(PyObject *self, PyObject *args, PyObject *kwa
     return next;
 }
 
+static PyObject* NodelKeyIter_iter(PyObject* self) {
+    return self;
+}
+
+static PyObject* NodelKeyIter_iter_next(PyObject* self) {
+    NodelKeyIter* nd_self = (NodelKeyIter*)self;
+    if (nd_self->it == nd_self->end) return NULL;  // StopIteration implied
+    PyObject* next = support.to_py(*nd_self->it);
+    ++nd_self->it;
+    return next;
+}
+
 //-----------------------------------------------------------------------------
 // Type definition
 //-----------------------------------------------------------------------------
@@ -76,9 +88,10 @@ PyTypeObject NodelKeyIterType = {
     .tp_doc         = PyDoc_STR("Nodel key iterator"),
     .tp_init        = NodelKeyIter_init,
     .tp_dealloc     = NodelKeyIter_dealloc,
-    .tp_repr        = (reprfunc)NodelKeyIter_repr,
-    .tp_str         = (reprfunc)NodelKeyIter_str,
-    .tp_call        = (ternaryfunc)NodelKeyIter_call,
+    .tp_repr        = NodelKeyIter_repr,
+    .tp_str         = NodelKeyIter_str,
+    .tp_iter        = NodelKeyIter_iter,
+    .tp_iternext    = NodelKeyIter_iter_next
 };
 
 } // extern C

@@ -5,13 +5,13 @@
 #include <rocksdb/db.h>
 #include <fmt/core.h>
 
-#include <nodel/rocksdb/KeyValueStore.h>
+#include <nodel/rocksdb/DB.h>
 #include <nodel/support/Finally.h>
 #include <nodel/filesystem/DefaultRegistry.h>
 
 using namespace nodel;
 namespace db = ::rocksdb;
-using KeyValueStore = nodel::rocksdb::KeyValueStore;
+using DB = nodel::rocksdb::DB;
 
 namespace {
 
@@ -63,11 +63,11 @@ void delete_db() {
     }
 }
 
-TEST(KeyValueStore, Values) {
+TEST(DB, Values) {
     build_db();
     Finally finally{ []() { delete_db(); } };
 
-    Object kst = new KeyValueStore("test_data/test_db");
+    Object kst = new DB("test_data/test_db");
     EXPECT_EQ(kst.get(nil), Object{nil});
     EXPECT_EQ(kst.get(true), Object{true});
     EXPECT_EQ(kst.get(-7), Object{-7});
@@ -78,16 +78,16 @@ TEST(KeyValueStore, Values) {
     EXPECT_EQ(kst.get("map"_key).to_json(), json::parse("{'x': [1], 'y': [2]}").to_json());
 }
 
-TEST(KeyValueStore, Save) {
+TEST(DB, Save) {
     build_db();
     Finally finally{ []() { delete_db(); } };
 
-    Object kst = new KeyValueStore("test_data/test_db");
+    Object kst = new DB("test_data/test_db");
     kst.set("tmp_1"_key, "tmp_1");
     kst.set("tmp_2"_key, json::parse("[1, 2]"));
     kst.save();
 
-    Object kst_2 = new KeyValueStore("test_data/test_db");
+    Object kst_2 = new DB("test_data/test_db");
     EXPECT_EQ(kst_2.get("tmp_1"_key), "tmp_1");
     EXPECT_EQ(kst_2.get("tmp_2"_key).to_json(), "[1, 2]");
 
@@ -100,11 +100,11 @@ TEST(KeyValueStore, Save) {
     EXPECT_TRUE(kst.get("tmp_2"_key) == nil);
 }
 
-TEST(KeyValueStore, IterKeys) {
+TEST(DB, IterKeys) {
     build_db();
     Finally finally{ []() { delete_db(); } };
 
-    Object kst = new KeyValueStore("test_data/test_db");
+    Object kst = new DB("test_data/test_db");
     KeyList keys;
     for (auto& key : kst.iter_keys()) {
         keys.push_back(key);
@@ -121,11 +121,11 @@ TEST(KeyValueStore, IterKeys) {
     EXPECT_EQ(keys[7], "tea");
 }
 
-TEST(KeyValueStore, IterValues) {
+TEST(DB, IterValues) {
     build_db();
     Finally finally{ []() { delete_db(); } };
 
-    Object kst = new KeyValueStore("test_data/test_db");
+    Object kst = new DB("test_data/test_db");
     List values;
     for (auto& value : kst.iter_values()) {
         values.push_back(value);
@@ -142,11 +142,11 @@ TEST(KeyValueStore, IterValues) {
     EXPECT_EQ(values[7], "tea");
 }
 
-TEST(KeyValueStore, IterItems) {
+TEST(DB, IterItems) {
     build_db();
     Finally finally{ []() { delete_db(); } };
 
-    Object kst = new KeyValueStore("test_data/test_db");
+    Object kst = new DB("test_data/test_db");
     ItemList items;
     for (auto& item : kst.iter_items()) {
         items.push_back(item);
@@ -161,7 +161,7 @@ TEST(KeyValueStore, IterItems) {
     EXPECT_EQ(items[5].second.to_str(), "[1, 2, 3]");
 }
 
-TEST(KeyValueStore, FilesystemIntegration) {
+TEST(DB, FilesystemIntegration) {
     build_db();
     Finally finally{ []() { delete_db(); } };
 
@@ -171,12 +171,12 @@ TEST(KeyValueStore, FilesystemIntegration) {
     Ref<Registry> r_reg = new nodel::filesystem::DefaultRegistry();
     auto regex = std::regex("test_data/test_db");
     r_reg->add_directory(regex, [] (const Object& target, const std::filesystem::path& path) {
-        return new KeyValueStore(DataSource::Origin::SOURCE);
+        return new DB(DataSource::Origin::SOURCE);
     });
 
     Object test_data = new Directory(r_reg, wd);
     ASSERT_TRUE(test_data.get("test_db"_key) != nil);
-    ASSERT_TRUE(test_data.get("test_db"_key).data_source<KeyValueStore>() != nullptr);
+    ASSERT_TRUE(test_data.get("test_db"_key).data_source<DB>() != nullptr);
     EXPECT_EQ(test_data.get("test_db"_key).get("tea"_key), "tea");
 }
 
