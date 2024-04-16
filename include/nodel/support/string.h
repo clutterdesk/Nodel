@@ -109,5 +109,49 @@ Float str_to_float(const StringView& str) {
     return value;
 }
 
+inline
+StringView substr(const StringView& str, int start) {
+    if (start < 0) start += str.size();
+    return str.substr(start);
+}
+
+inline
+StringView substr(const StringView& str, int start, int end) {
+    if (start < 0) start += str.size();
+    if (end < 0) end += str.size();
+    return str.substr(start, end);
+}
+
+inline
+StringView ltrim(const StringView& str) {
+    auto it = str.cbegin();
+    auto end = str.cend();
+    while (std::isspace(*it) && it != end) ++it;
+    return str.substr(std::distance(str.cbegin(), it));
+}
+
+inline
+StringView rtrim(const StringView& str) {
+    auto it = str.crbegin();
+    auto end = str.crend();
+    while (std::isspace(*it) && it != end) ++it;
+    return str.substr(0, str.size() - std::distance(str.crbegin(), it));
+}
+
+inline
+StringView trim(const StringView& str) {
+    // ltrim
+    auto lit = str.cbegin();
+    auto lend = str.cend();
+    while (std::isspace(*lit) && lit != lend) ++lit;
+
+    // rtrim
+    auto rit = str.crbegin();
+    auto rend = str.crend();
+    while (std::isspace(*rit) && rit != rend) ++rit;
+
+    return str.substr(std::distance(str.cbegin(), lit), str.size() - std::distance(str.crbegin(), rit));
+}
+
 } // nodel namespace
 

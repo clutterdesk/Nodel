@@ -61,43 +61,43 @@ class DB : public nodel::DataSource
     class KeyIterator : public nodel::DataSource::KeyIterator
     {
       public:
-        KeyIterator(::rocksdb::Iterator* p_iter, const Interval& itvl);
+        KeyIterator(::rocksdb::Iterator* p_iter, const Slice& slice);
         KeyIterator(::rocksdb::Iterator* p_iter);
         bool next_impl() override;
       private:
         ::rocksdb::Iterator* mp_iter;
-        Interval m_itvl;
+        Slice m_slice;
     };
 
     class ValueIterator : public nodel::DataSource::ValueIterator
     {
       public:
-        ValueIterator(::rocksdb::Iterator* p_iter, const Interval& itvl);
+        ValueIterator(::rocksdb::Iterator* p_iter, const Slice& slice);
         ValueIterator(::rocksdb::Iterator* p_iter);
         bool next_impl() override;
       private:
         ::rocksdb::Iterator* mp_iter;
-        Interval m_itvl;
+        Slice m_slice;
     };
 
     class ItemIterator : public nodel::DataSource::ItemIterator
     {
       public:
-        ItemIterator(::rocksdb::Iterator* p_iter, const Interval& itvl);
+        ItemIterator(::rocksdb::Iterator* p_iter, const Slice& slice);
         ItemIterator(::rocksdb::Iterator* p_iter);
         bool next_impl() override;
       private:
         ::rocksdb::Iterator* mp_iter;
-        Interval m_itvl;
+        Slice m_slice;
     };
 
     std::unique_ptr<nodel::DataSource::KeyIterator> key_iter() override;
     std::unique_ptr<nodel::DataSource::ValueIterator> value_iter() override;
     std::unique_ptr<nodel::DataSource::ItemIterator> item_iter() override;
 
-    std::unique_ptr<nodel::DataSource::KeyIterator> key_iter(const Interval&) override;
-    std::unique_ptr<nodel::DataSource::ValueIterator> value_iter(const Interval&) override;
-    std::unique_ptr<nodel::DataSource::ItemIterator> item_iter(const Interval&) override;
+    std::unique_ptr<nodel::DataSource::KeyIterator> key_iter(const Slice&) override;
+    std::unique_ptr<nodel::DataSource::ValueIterator> value_iter(const Slice&) override;
+    std::unique_ptr<nodel::DataSource::ItemIterator> item_iter(const Slice&) override;
 
   private:
     void open(const std::filesystem::path& path, bool create_if_missing);
@@ -133,7 +133,7 @@ DB::~DB() {
 
 
 inline
-DB::KeyIterator::KeyIterator(::rocksdb::Iterator* p_iter, const Interval& itvl) : mp_iter{p_iter}, m_itvl{itvl} {
+DB::KeyIterator::KeyIterator(::rocksdb::Iterator* p_iter, const Slice& slice) : mp_iter{p_iter}, m_slice{slice} {
     ASSERT(deserialize(p_iter->key().ToStringView(), m_key));
 }
 
@@ -146,7 +146,7 @@ bool DB::KeyIterator::next_impl() {
     mp_iter->Next();
     if (mp_iter->Valid()) {
         ASSERT(deserialize(mp_iter->key().ToStringView(), m_key));
-        if (!m_itvl.is_empty() && m_itvl.contains(m_key))
+        if (!m_slice.is_empty() && m_slice.contains(m_key))
             return false;
         return true;
     }
@@ -155,7 +155,7 @@ bool DB::KeyIterator::next_impl() {
 }
 
 inline
-DB::ValueIterator::ValueIterator(::rocksdb::Iterator* p_iter, const Interval& itvl) : mp_iter{p_iter}, m_itvl{itvl} {
+DB::ValueIterator::ValueIterator(::rocksdb::Iterator* p_iter, const Slice& slice) : mp_iter{p_iter}, m_slice{slice} {
     ASSERT(deserialize(p_iter->value().ToStringView(), m_value));
 }
 
@@ -169,7 +169,7 @@ bool DB::ValueIterator::next_impl() {
     if (mp_iter->Valid()) {
         Key key;
         ASSERT(deserialize(mp_iter->key().ToStringView(), key));
-        if (!m_itvl.is_empty() && m_itvl.contains(key))
+        if (!m_slice.is_empty() && m_slice.contains(key))
             return false;
         ASSERT(deserialize(mp_iter->value().ToStringView(), m_value));
         return true;
@@ -179,7 +179,7 @@ bool DB::ValueIterator::next_impl() {
 }
 
 inline
-DB::ItemIterator::ItemIterator(::rocksdb::Iterator* p_iter, const Interval& itvl) : mp_iter{p_iter}, m_itvl{itvl} {
+DB::ItemIterator::ItemIterator(::rocksdb::Iterator* p_iter, const Slice& slice) : mp_iter{p_iter}, m_slice{slice} {
     Key key;
     ASSERT(deserialize(p_iter->key().ToStringView(), key));
     Object value;
@@ -197,7 +197,7 @@ bool DB::ItemIterator::next_impl() {
     if (mp_iter->Valid()) {
         Key key;
         ASSERT(deserialize(mp_iter->key().ToStringView(), key));
-        if (!m_itvl.is_empty() && m_itvl.contains(key))
+        if (!m_slice.is_empty() && m_slice.contains(key))
             return false;
         Object value;
         ASSERT(deserialize(mp_iter->value().ToStringView(), value));
@@ -224,39 +224,39 @@ std::unique_ptr<nodel::DataSource::ItemIterator> DB::item_iter() {
 }
 
 inline
-std::unique_ptr<nodel::DataSource::KeyIterator> DB::key_iter(const Interval& itvl) {
+std::unique_ptr<nodel::DataSource::KeyIterator> DB::key_iter(const Slice& slice) {
     auto p_it = mp_db->NewIterator(m_read_options);
-    auto& min = itvl.min();
+    auto& min = slice.min();
     if (min.value() == nil) {
         p_it->SeekToFirst();
     } else {
         p_it->Seek(serialize(min.value()));
     }
-    return std::make_unique<KeyIterator>(p_it, itvl);
+    return std::make_unique<KeyIterator>(p_it, slice);
 }
 
 inline
-std::unique_ptr<nodel::DataSource::ValueIterator> DB::value_iter(const Interval& itvl) {
+std::unique_ptr<nodel::DataSource::ValueIterator> DB::value_iter(const Slice& slice) {
     auto p_it = mp_db->NewIterator(m_read_options);
-    auto& min = itvl.min();
+    auto& min = slice.min();
     if (min.value() == nil) {
         p_it->SeekToFirst();
     } else {
         p_it->Seek(serialize(min.value()));
     }
-    return std::make_unique<ValueIterator>(p_it, itvl);
+    return std::make_unique<ValueIterator>(p_it, slice);
 }
 
 inline
-std::unique_ptr<nodel::DataSource::ItemIterator> DB::item_iter(const Interval& itvl) {
+std::unique_ptr<nodel::DataSource::ItemIterator> DB::item_iter(const Slice& slice) {
     auto p_it = mp_db->NewIterator(m_read_options);
-    auto& min = itvl.min();
+    auto& min = slice.min();
     if (min.value() == nil) {
         p_it->SeekToFirst();
     } else {
         p_it->Seek(serialize(min.value()));
     }
-    return std::make_unique<ItemIterator>(p_it, itvl);
+    return std::make_unique<ItemIterator>(p_it, slice);
 }
 
 inline

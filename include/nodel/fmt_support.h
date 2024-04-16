@@ -14,26 +14,26 @@
 #pragma once
 
 #include <fmt/format.h>
-#include <nodel/core/Key.h"
-#include <nodel/core/Object.h"
+#include <nodel/core/Key.h>
+#include <nodel/core/Object.h>
 
 template <>
-struct fmt::formatter<Key> : formatter<std::string> {
-  auto format(const Key& key, format_context& ctx) {
+struct fmt::formatter<nodel::Key> : formatter<std::string> {
+  auto format(const nodel::Key& key, format_context& ctx) {
     return formatter<std::string>::format(key.to_str(), ctx);
   }
 };
 
 template <>
-struct fmt::formatter<Object> : formatter<std::string> {
-  auto format(const Object& obj, format_context& ctx) {
+struct fmt::formatter<nodel::Object> : formatter<std::string> {
+  auto format(const nodel::Object& obj, format_context& ctx) {
     return formatter<std::string>::format(obj.to_str(), ctx);
   }
 };
 
 template <>
-struct fmt::formatter<OPath> : formatter<std::string> {
-  auto format(const OPath& path, format_context& ctx) {
+struct fmt::formatter<nodel::OPath> : formatter<std::string> {
+  auto format(const nodel::OPath& path, format_context& ctx) {
     return formatter<std::string>::format(path.to_str(), ctx);
   }
 };

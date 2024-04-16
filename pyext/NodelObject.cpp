@@ -61,14 +61,18 @@ static bool require_container(const Object& obj) {
     return true;
 }
 
-static bool require_list_index(const Object& obj, const Key& key) {
-    if (obj.is_type<List>() && !key.is_any_int()) {
-        python::raise_type_error(key);
+static bool require_subscript(const Object& obj, const Key& key) {
+    if (obj.is_type<List>() || obj.is_type<String>()) {
+        if (!key.is_any_int()) {
+            python::raise_type_error(key);
+            return false;
+        }
+    } else if (!obj.is_map()) {
+        python::raise_type_error(obj);
         return false;
     }
     return true;
 }
-
 
 //-----------------------------------------------------------------------------
 // NodelObject Number Protocol
@@ -424,9 +428,8 @@ static Py_ssize_t NodelObject_mp_length(PyObject* self) {
 static PyObject* NodelObject_mp_subscript(PyObject* self, PyObject* key) {
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
-    if (!require_container(self_obj)) return NULL;
     auto nd_key = support.to_key(key);
-    if (!require_list_index(self_obj, nd_key)) return NULL;
+    if (!require_subscript(self_obj, nd_key)) return NULL;
     return (PyObject*)NodelObject_wrap(self_obj.get(nd_key));
 }
 
@@ -435,9 +438,8 @@ static int NodelObject_mp_ass_sub(PyObject* self, PyObject* key, PyObject* value
 
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
-    if (!require_container(self_obj)) return -1;
     auto nd_key = support.to_key(key);
-    if (!require_list_index(self_obj, nd_key)) return -1;
+    if (!require_subscript(self_obj, nd_key)) return -1;
     if (value == NULL) {
         self_obj.del(nd_key);
     } else {

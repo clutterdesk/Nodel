@@ -34,7 +34,7 @@
 
 #include "Oid.h"
 #include "Key.h"
-#include "Interval.h"
+#include "Slice.h"
 
 #include <nodel/support/Flags.h>
 #include <nodel/support/logging.h>
@@ -270,9 +270,9 @@ class Object
     ValueRange iter_values() const;
     LineRange iter_line() const;
 
-    KeyRange iter_keys(const Interval&) const;
-    ItemRange iter_items(const Interval&) const;
-    ValueRange iter_values(const Interval&) const;
+    KeyRange iter_keys(const Slice&) const;
+    ItemRange iter_items(const Slice&) const;
+    ValueRange iter_values(const Slice&) const;
 
     TreeRange<Object, NoPredicate, NoPredicate> iter_tree() const;
 
@@ -354,17 +354,20 @@ class Object
     String to_json() const;
     void to_json(std::ostream&) const;
 
-    Object get(is_integral auto v) const;
+    Object get(is_like_Int auto v) const;
     Object get(const Key& key) const;
     Object get(const OPath& path) const;
+    Object get(const Slice& interval) const;
 
     Object set(const Object&);
     Object set(const Key&, const Object&);
     Object set(Key&&, const Object&);
     Object set(const OPath&, const Object&);
+    void set(const Slice&, const Object&);
 
     void del(const Key& key);
     void del(const OPath& path);
+    void del(const Slice& interval);
     void del_from_parent();
 
     bool operator == (const Object&) const;
@@ -397,6 +400,8 @@ class Object
     static EmptyReference empty_reference()                       { return {}; }
 
   protected:
+    static bool norm_index(is_like_Int auto& index, UInt size);
+    void map_set_slice(SortedMap& map, is_integral auto start, const Object& in_vals);
     Object list_set(const Key& key, const Object& in_val);
 
     int resolve_repr_ix() const;
@@ -771,9 +776,9 @@ class DataSource
     virtual std::unique_ptr<ValueIterator> value_iter() { return nullptr; }
     virtual std::unique_ptr<ItemIterator> item_iter()   { return nullptr; }
 
-    virtual std::unique_ptr<KeyIterator> key_iter(const Interval&)     { return nullptr; }
-    virtual std::unique_ptr<ValueIterator> value_iter(const Interval&) { return nullptr; }
-    virtual std::unique_ptr<ItemIterator> item_iter(const Interval&)   { return nullptr; }
+    virtual std::unique_ptr<KeyIterator> key_iter(const Slice&)     { return nullptr; }
+    virtual std::unique_ptr<ValueIterator> value_iter(const Slice&) { return nullptr; }
+    virtual std::unique_ptr<ItemIterator> item_iter(const Slice&)   { return nullptr; }
 
     void bind(Object& obj);
 
@@ -802,7 +807,9 @@ class DataSource
     void set(const Object& target, const Object& in_val);
     Object set(const Object& target, const Key& key, const Object& in_val);
     Object set(const Object& target, Key&& key, const Object& in_val);
+    void set(const Object& target, const Slice& key, const Object& in_vals);
     void del(const Object& target, const Key& key);
+    void del(const Object& target, const Slice& slice);
 
     void save(const Object& target);
 
@@ -1336,13 +1343,24 @@ Key Object::into_key() {
 }
 
 inline
-Object Object::get(is_integral auto index) const {
+bool Object::norm_index(is_like_Int auto& index, UInt size) {
+    if (index < 0) index += size;
+    if (index < 0 || index >= size) return false;
+    return true;
+}
+
+inline
+Object Object::get(is_like_Int auto index) const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
+        case STR: {
+            auto& str = std::get<0>(*m_repr.ps);
+            if (!norm_index(index, str.size())) return nil;
+            return str[index];
+        }
         case LIST: {
             auto& list = std::get<0>(*m_repr.pl);
-            if (index < 0) index += list.size();
-            if (index < 0 || index >= list.size()) return nil;
+            if (!norm_index(index, list.size())) return nil;
             return list[index];
         }
         case DSRC:  return m_repr.ds->get(*this, index);
@@ -1354,12 +1372,18 @@ inline
 Object Object::get(const Key& key) const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case LIST: {
+        case STR: {
+            auto& str = std::get<0>(*m_repr.ps);
             if (!key.is_any_int()) throw Key::wrong_type(key.type());
-            auto& list = std::get<0>(*m_repr.pl);
             Int index = key.to_int();
-            if (index < 0) index += list.size();
-            if (index < 0 || index >= (Int)list.size()) return nil;
+            if (!norm_index(index, str.size())) return nil;
+            return str[index];
+        }
+        case LIST: {
+            auto& list = std::get<0>(*m_repr.pl);
+            if (!key.is_any_int()) throw Key::wrong_type(key.type());
+            Int index = key.to_int();
+            if (!norm_index(index, list.size())) return nil;
             return list[index];
         }
         case MAP: {
@@ -1429,6 +1453,14 @@ inline
 Object Object::set(const Key& key, const Object& in_val) {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
+        case STR: {
+            auto& str = std::get<0>(*m_repr.ps);
+            if (!key.is_any_int()) throw Key::wrong_type(key.type());
+            auto index = key.to_int();
+            if (!norm_index(index, str.size())) return nil;
+            str.insert(index, in_val.to_str());
+            return in_val;
+        }
         case LIST: return list_set(key, in_val);
         case MAP: {
             Object out_val = (in_val.parent() == nil)? in_val: in_val.copy();
@@ -1537,7 +1569,7 @@ void Object::del(const Key& key) {
             break;
         }
         case DSRC: m_repr.ds->del(*this, key); break;
-        default:     throw wrong_type(m_fields.repr_ix);
+        default:   throw wrong_type(m_fields.repr_ix);
     }
 }
 
@@ -1588,16 +1620,116 @@ inline ValueRange Object::iter_values() const {
     return *this;
 }
 
-inline KeyRange Object::iter_keys(const Interval& itvl) const {
-    return {*this, itvl};
+inline KeyRange Object::iter_keys(const Slice& slice) const {
+    return {*this, slice};
 }
 
-inline ItemRange Object::iter_items(const Interval& itvl) const {
-    return {*this, itvl};
+inline ItemRange Object::iter_items(const Slice& slice) const {
+    return {*this, slice};
 }
 
-inline ValueRange Object::iter_values(const Interval& itvl) const {
-    return {*this, itvl};
+inline ValueRange Object::iter_values(const Slice& slice) const {
+    return {*this, slice};
+}
+
+// intended for small intervals - use iter_values
+// TODO: consider whether slicing a map should slice keys are slice the list of map items
+//       currently it slices keys, which is useful when a map is used to represent a sparse list
+inline
+Object Object::get(const Slice& slice) const {
+    if (m_fields.repr_ix == STR) {
+        auto& str = std::get<0>(*m_repr.ps);
+        auto indices = slice.to_indices(str.size());
+        return str.substr(indices.first, indices.second);
+    } else {
+        List result;
+        for (auto value : iter_values(slice))
+            result.push_back(value);
+        return result;
+    }
+}
+
+inline
+void Object::map_set_slice(SortedMap& map, is_integral auto start, const Object& in_vals) {
+    for (auto val : in_vals.iter_values()) {
+        map.insert({start, val});
+        map[start].set_parent(*this);
+        ++start;
+    }
+}
+
+inline
+void Object::set(const Slice& slice, const Object& in_vals) {
+    if (in_vals.size() == 0) return;
+
+    switch (m_fields.repr_ix) {
+        case EMPTY: throw empty_reference();
+        case STR: {
+            if (in_vals.type() == STR) {
+                auto& str = std::get<0>(*m_repr.ps);
+                auto indices = slice.to_indices(str.size());
+                auto& repl = in_vals.as<String>();
+                str.replace(str.begin() + indices.first, str.begin() + indices.second, repl.begin(), repl.end());
+            } else {
+                throw wrong_type(in_vals.type());
+            }
+            break;
+        }
+        case LIST: {
+            auto& list = std::get<0>(*m_repr.pl);
+            auto indices = slice.to_indices(list.size());
+            list.erase(list.begin() + indices.first, list.begin() + indices.second);
+            auto val_list = in_vals.values();
+            list.insert(list.begin() + indices.first, val_list.begin(), val_list.end());
+            auto it = list.cbegin() + indices.first;
+            auto end = list.cbegin() + indices.first + val_list.size();
+            for (; it != end; ++it)
+                it->set_parent(*this);
+            break;
+        }
+        case MAP: {
+            auto& map = std::get<0>(*m_repr.psm);
+            del(slice);
+            auto start = slice.min().value();
+            switch (start.type()) {
+                case Key::INT:  map_set_slice(map, start.to_int(), in_vals); break;
+                case Key::UINT: map_set_slice(map, start.to_uint(), in_vals); break;
+                default:        throw wrong_type(start.type());
+            }
+            break;
+        }
+        case DSRC: m_repr.ds->set(*this, slice, in_vals); break;
+        default:   throw wrong_type(m_fields.repr_ix);
+    }
+}
+
+inline
+void Object::del(const Slice& slice) {
+    switch (m_fields.repr_ix) {
+        case EMPTY: throw empty_reference();
+        case STR: {
+            auto& str = std::get<0>(*m_repr.ps);
+            auto indices = slice.to_indices(str.size());
+            str.erase(str.begin() + indices.first, str.begin() + indices.second);
+            break;
+        }
+        case LIST: {
+            auto& list = std::get<0>(*m_repr.pl);
+            auto indices = slice.to_indices(list.size());
+            list.erase(list.begin() + indices.first, list.begin() + indices.second);
+            break;
+        }
+        case MAP: {
+            KeyList keys;
+            for (auto key : iter_keys(slice))
+                keys.push_back(key);
+            for (auto key : keys)
+                del(key);
+            break;
+        }
+        case DSRC: m_repr.ds->del(*this, slice); break;
+        default:   throw wrong_type(m_fields.repr_ix);
+    }
 }
 
 inline
@@ -2606,6 +2738,19 @@ Object DataSource::set(const Object& target, Key&& key, const Object& in_val) {
 }
 
 inline
+void DataSource::set(const Object& target, const Slice& slice, const Object& in_vals) {
+    set_unsaved(true);
+    if (is_sparse()) {
+        if (m_cache.is_empty()) read_type(target);
+    } else {
+        insure_fully_cached(target);
+    }
+    m_cache.set(slice, in_vals);
+    for (auto val : m_cache.get(slice).iter_values())
+        val.set_parent(target);
+}
+
+inline
 void DataSource::del(const Object& target, const Key& key) {
     set_unsaved(true);
     if (is_sparse()) {
@@ -2615,6 +2760,23 @@ void DataSource::del(const Object& target, const Key& key) {
     } else {
         insure_fully_cached(target);
         m_cache.del(key);
+    }
+}
+
+// TODO: allow DataSource to optimize slice deletes
+inline
+void DataSource::del(const Object& target, const Slice& slice) {
+    set_unsaved(true);
+    if (is_sparse()) {
+        if (m_cache.is_empty()) read_type(target);
+        for (auto& obj : m_cache.get(slice).values())
+            obj.clear_parent();
+        // TODO: memory overhead does not scale for large intervals
+        for (auto key : m_cache.iter_keys(slice))
+            m_cache.set(key, Object::DEL);
+    } else {
+        insure_fully_cached(target);
+        m_cache.del(slice);
     }
 }
 

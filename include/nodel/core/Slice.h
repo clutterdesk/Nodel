@@ -14,6 +14,7 @@
 #pragma once
 
 #include <nodel/support/types.h>
+#include <nodel/support/string.h>
 
 namespace nodel {
 
@@ -33,11 +34,11 @@ struct Endpoint
 };
 
 
-struct Interval
+struct Slice
 {
-    Interval() = default;
+    Slice() = default;
 
-    Interval(Endpoint min, Endpoint max) : m_min{min}, m_max{max} {
+    Slice(Endpoint min, Endpoint max) : m_min{min}, m_max{max} {
         if (m_min.m_kind == Endpoint::Kind::DEFAULT) m_min.m_kind = Endpoint::Kind::CLOSED;
         if (m_max.m_kind == Endpoint::Kind::DEFAULT) m_max.m_kind = Endpoint::Kind::OPEN;
     }
@@ -46,7 +47,8 @@ struct Interval
 
     bool contains(const Key& key) const;
 
-    std::pair<UInt, UInt> to_indices(size_t list_size) const;
+    std::pair<Int, Int> to_indices(UInt size) const;
+    Slice normalize(UInt size) const;
 
     std::string to_str() const;
 
@@ -59,7 +61,7 @@ struct Interval
 
 
 inline
-bool Interval::contains(const Key& key) const {
+bool Slice::contains(const Key& key) const {
     if (m_min.m_kind == Endpoint::Kind::OPEN) {
         if (key <= m_min.m_value)
             return false;
@@ -80,9 +82,9 @@ bool Interval::contains(const Key& key) const {
 }
 
 inline
-std::pair<UInt, UInt> Interval::to_indices(size_t list_size) const {
-    UInt min_i;
-    UInt max_i;
+std::pair<Int, Int> Slice::to_indices(UInt size) const {
+    Int min_i;
+    Int max_i;
 
     switch (m_min.m_value.type()) {
         case Key::NIL: {
@@ -91,9 +93,9 @@ std::pair<UInt, UInt> Interval::to_indices(size_t list_size) const {
             break;
         }
         case Key::INT: {
-            min_i = (m_min.m_kind == Endpoint::Kind::OPEN)?
-                    (m_min.m_value.to_int() + 1):
-                    m_min.m_value.to_int();
+            min_i = m_min.m_value.to_int();
+            if (min_i < 0) min_i += size;
+            if (m_min.m_kind == Endpoint::Kind::OPEN) ++min_i;
             break;
         }
         case Key::UINT: {
@@ -108,17 +110,16 @@ std::pair<UInt, UInt> Interval::to_indices(size_t list_size) const {
 
     switch (m_max.m_value.type()) {
         case Key::NIL: {
-            max_i = list_size;
+            max_i = size;
             assert (m_max.m_kind == Endpoint::Kind::OPEN);
             break;
         }
         case Key::INT: {
-            max_i = (m_max.m_kind == Endpoint::Kind::OPEN)?
-                    m_max.m_value.to_int():
-                    (m_max.m_value.to_int() + 1);
+            max_i = m_max.m_value.to_int();
+            if (max_i < 0) max_i += size;
+            if (m_max.m_kind == Endpoint::Kind::CLOSED) ++max_i;
             break;
         }
-
         case Key::UINT: {
             max_i = (m_max.m_kind == Endpoint::Kind::OPEN)?
                     m_max.m_value.to_uint():
@@ -133,7 +134,13 @@ std::pair<UInt, UInt> Interval::to_indices(size_t list_size) const {
 }
 
 inline
-std::string Interval::to_str() const {
+Slice Slice::normalize(UInt size) const {
+    auto indices = to_indices(size);
+    return {{indices.first, Endpoint::Kind::CLOSED}, {indices.second, Endpoint::Kind::OPEN}};
+}
+
+inline
+std::string Slice::to_str() const {
     std::stringstream ss;
     ss << ((m_min.m_kind == Endpoint::Kind::OPEN)? '(': '[');
     ss << m_min.m_value.to_str() << ", ";
@@ -141,5 +148,34 @@ std::string Interval::to_str() const {
     ss << ((m_max.m_kind == Endpoint::Kind::OPEN)? ')': ']');
     return ss.str();
 }
+
+inline
+Slice operator ""_slice (const char* str, size_t size) {
+    // TODO: support <num>:<num>:<num> slices
+    // <num>
+    // <num>:<num>
+    StringView sv{str, size};
+    sv = ltrim(rtrim(sv));
+    auto sep_pos = sv.find(':');
+    if (sep_pos == StringView::npos) {
+        auto start = str_to_int(sv);
+        return {{start, Endpoint::Kind::CLOSED}, {start, Endpoint::Kind::CLOSED}};
+    } else if (sep_pos == 0) {
+        if (sep_pos == sv.size() - 1) {
+            return {{0, Endpoint::Kind::CLOSED}, {-1, Endpoint::Kind::CLOSED}};
+        } else {
+            auto end = str_to_int(sv.substr(sep_pos + 1));
+            return {{0, Endpoint::Kind::CLOSED}, {end, Endpoint::Kind::OPEN}};
+        }
+    } else if (sep_pos == sv.size() - 1) {
+        auto start = str_to_int(sv.substr(0, sep_pos));
+        return {{start, Endpoint::Kind::CLOSED}, {-1, Endpoint::Kind::CLOSED}};
+    } else {
+        auto start = str_to_int(sv.substr(0, sep_pos));
+        auto end = str_to_int(sv.substr(sep_pos + 1));
+        return {{start, Endpoint::Kind::CLOSED}, {end, Endpoint::Kind::OPEN}};
+    }
+}
+
 
 } // nodel namespace

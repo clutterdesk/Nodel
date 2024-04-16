@@ -23,11 +23,11 @@ class KeyIterator
 
     union Repr
     {
-        Repr()                  : li{0UL} {}
-        Repr(UInt it)           : li{it} {}
+        Repr()                        : li{0} {}
+        Repr(Int it)                  : li{it} {}
         Repr(SortedMap::iterator it)  : smi{it} {}
         Repr(OrderedMap::iterator it) : omi{it} {}
-        Repr(DsIterPtr&& p_it)  : pdi{std::forward<DsIterPtr>(p_it)} {}
+        Repr(DsIterPtr&& p_it)        : pdi{std::forward<DsIterPtr>(p_it)} {}
         ~Repr() {}
 
         Key li;
@@ -38,7 +38,7 @@ class KeyIterator
 
   public:
     KeyIterator()                        : m_repr_ix{ReprIX::NIL}, m_repr{} {}
-    KeyIterator(UInt pos)                : m_repr_ix{ReprIX::LIST}, m_repr{pos} {}
+    KeyIterator(Int pos)                 : m_repr_ix{ReprIX::LIST}, m_repr{pos} {}
     KeyIterator(SortedMap::iterator it)  : m_repr_ix{ReprIX::MAP}, m_repr{it} {}
     KeyIterator(OrderedMap::iterator it) : m_repr_ix{ReprIX::OMAP}, m_repr{it} {}
     KeyIterator(DsIterPtr&& p_it)        : m_repr_ix{ReprIX::DSRC}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
@@ -66,9 +66,9 @@ class KeyRange
   public:
     KeyRange() = default;
 
-    KeyRange(const Object& obj, const Interval& itvl)
+    KeyRange(const Object& obj, const Slice& slice)
       : m_obj{(obj.m_fields.repr_ix == Object::DSRC && !obj.m_repr.ds->is_sparse())? obj.m_repr.ds->get_cached(obj): obj}
-      , m_itvl{itvl}
+      , m_slice{slice}
     {}
 
     KeyRange(const Object& obj) : KeyRange(obj, {}) {}
@@ -83,7 +83,7 @@ class KeyRange
 
   private:
     Object m_obj;
-    Interval m_itvl;
+    Slice m_slice;
 };
 
 
@@ -163,31 +163,31 @@ KeyIterator KeyRange::begin() {
     switch (repr_ix) {
         case ReprIX::LIST: {
             auto& list = std::get<0>(*m_obj.m_repr.pl);
-            if (m_itvl.min().value() == nil) {
+            if (m_slice.min().value() == nil) {
                 return KeyIterator{0UL};
             } else {
-                auto indices = m_itvl.to_indices(list.size());
+                auto indices = m_slice.to_indices(list.size());
                 return KeyIterator{indices.first};
             }
         }
         case ReprIX::MAP: {
             auto& map = std::get<0>(*m_obj.m_repr.psm);
-            auto& min_key = m_itvl.min().value();
+            auto& min_key = m_slice.min().value();
             if (min_key == nil) {
                 return KeyIterator{map.begin()};
             } else {
                 auto it = map.lower_bound(min_key);
-                if (m_itvl.min().is_open() && it != map.end())
+                if (m_slice.min().is_open() && it != map.end())
                     ++it;
                 return KeyIterator{it};
             }
         }
         case ReprIX::OMAP: {
-            if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
+            if (!m_slice.is_empty()) throw WrongType(Object::type_name(repr_ix));
             return KeyIterator{std::get<0>(*m_obj.m_repr.pom).begin()};
         }
         case ReprIX::DSRC: {
-            auto p_it = m_itvl.is_empty()? m_obj.m_repr.ds->key_iter(): m_obj.m_repr.ds->key_iter(m_itvl);
+            auto p_it = m_slice.is_empty()? m_obj.m_repr.ds->key_iter(): m_obj.m_repr.ds->key_iter(m_slice);
             return (p_it)? KeyIterator{std::move(p_it)}: KeyIterator{};
         }
         default: throw Object::wrong_type(repr_ix);
@@ -200,27 +200,28 @@ KeyIterator KeyRange::end() {
     switch (repr_ix) {
         case ReprIX::LIST: {
             auto& list = std::get<0>(*m_obj.m_repr.pl);
-            if (m_itvl.max().value() == nil) {
-                return KeyIterator{list.size()};
+            if (m_slice.max().value() == nil) {
+                // NOTE: list sizes expected to fit in signed int
+                return KeyIterator{(Int)list.size()};
             } else {
-                auto indices = m_itvl.to_indices(list.size());
+                auto indices = m_slice.to_indices(list.size());
                 return KeyIterator{indices.second};
             }
         }
         case ReprIX::MAP: {
             auto& map = std::get<0>(*m_obj.m_repr.psm);
-            auto& max_key = m_itvl.max().value();
+            auto& max_key = m_slice.max().value();
             if (max_key == nil) {
                 return KeyIterator{map.end()};
             } else {
                 auto it = map.upper_bound(max_key);
-                if (m_itvl.max().is_open())
+                if (m_slice.max().is_open())
                     --it;
                 return KeyIterator{it};
             }
         }
         case ReprIX::OMAP: {
-            if (!m_itvl.is_empty()) throw WrongType(Object::type_name(repr_ix));
+            if (!m_slice.is_empty()) throw WrongType(Object::type_name(repr_ix));
             return KeyIterator{std::get<0>(*m_obj.m_repr.pom).end()};
         }
         case ReprIX::DSRC: return KeyIterator{};

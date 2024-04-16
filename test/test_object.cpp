@@ -774,6 +774,37 @@ TEST(Object, ListGet) {
   EXPECT_TRUE(obj.get(4) == nil);
 }
 
+TEST(Object, ListGetSlice) {
+  Object obj = "[10, 11, 12, 13, 14, 15, 16, 17, 18, 19]"_json;
+  Object list = obj.get("0:2"_slice);
+  ASSERT_EQ(list.size(), 2);
+  EXPECT_EQ(list.get(0), 10);
+  EXPECT_EQ(list.get(1), 11);
+
+  list = obj.get("0:-8"_slice);
+  ASSERT_EQ(list.size(), 2);
+  EXPECT_EQ(list.get(0), 10);
+  EXPECT_EQ(list.get(1), 11);
+
+  list = obj.get("-2"_slice);
+  ASSERT_EQ(list.size(), 1);
+  EXPECT_EQ(list.get(0), 18);
+
+  list = obj.get("-2:"_slice);
+  ASSERT_EQ(list.size(), 2);
+  EXPECT_EQ(list.get(0), 18);
+  EXPECT_EQ(list.get(1), 19);
+
+  list = obj.get(":1"_slice);
+  ASSERT_EQ(list.size(), 1);
+  EXPECT_EQ(list.get(0), 10);
+
+  list = obj.get(":"_slice);
+  ASSERT_EQ(list.size(), 10);
+  EXPECT_EQ(list.get(0), 10);
+  EXPECT_EQ(list.get(9), 19);
+}
+
 TEST(Object, ListGetOutOfRange) {
     Object obj = json::parse(R"([])");
     EXPECT_TRUE(obj.is_type<List>());
@@ -924,6 +955,55 @@ TEST(Object, SortedMapSetOrderedMap) {
     EXPECT_TRUE(obj.is_type<SortedMap>());
     EXPECT_TRUE(obj.get("x"s).is_type<OrderedMap>());
     EXPECT_EQ(obj.get("x"s).get("y"s), 101);
+}
+
+TEST(Object, SortedMapGetSlice) {
+    Object obj = Object::MAP;
+    for (int i=0; i<5; i++)
+        obj.set(i, i + 10);
+
+  Object map = obj.get("0:2"_slice);
+  ASSERT_EQ(map.size(), 2);
+  EXPECT_EQ(map.get(0), 10);
+  EXPECT_EQ(map.get(1), 11);
+
+  map = obj.get(":2"_slice);
+  ASSERT_EQ(map.size(), 2);
+  EXPECT_EQ(map.get(0), 10);
+  EXPECT_EQ(map.get(1), 11);
+
+  map = obj.get("1:3"_slice);
+  ASSERT_EQ(map.size(), 2);
+  EXPECT_EQ(map.get(0), 11);
+  EXPECT_EQ(map.get(1), 12);
+}
+
+TEST(Object, SortedMapSetSlice) {
+    Object obj = Object::MAP;
+    for (int i=0; i<5; i++)
+        obj.set(i, i + 10);
+
+    obj.set("1:3"_slice, "[101, 102]"_json);
+
+    ASSERT_EQ(obj.size(), 5);
+    EXPECT_EQ(obj.get(0), 10);
+    EXPECT_EQ(obj.get(1), 101);
+    EXPECT_EQ(obj.get(2), 102);
+    EXPECT_EQ(obj.get(3), 13);
+    EXPECT_EQ(obj.get(4), 14);
+}
+
+TEST(Object, SortedMapDelSlice) {
+    Object obj = Object::MAP;
+    for (int i=0; i<5; i++)
+        obj.set(i, i + 10);
+
+    obj.del("1:3"_slice);
+
+    ASSERT_EQ(obj.size(), 3);
+    EXPECT_EQ(obj.get(0), 10);
+    EXPECT_EQ(obj.get(3), 13);
+    EXPECT_EQ(obj.get(4), 14);
 }
 
 TEST(Object, GetParentOfEmpty) {
@@ -1815,7 +1895,7 @@ TEST(Object, IterListItems) {
     EXPECT_EQ(actual, expect);
 }
 
-TEST(Object, IterListKeyOpenOpenIntInterval) {
+TEST(Object, IterListKeyOpenOpenIntSlice) {
     Object obj = json::parse(R"([100, 101, 102, 103])");
     KeyList expect = {1, 2};
     KeyList actual;
@@ -1825,7 +1905,7 @@ TEST(Object, IterListKeyOpenOpenIntInterval) {
     EXPECT_EQ(actual, expect);
 }
 
-TEST(Object, IterListKeyOpenClosedIntInterval) {
+TEST(Object, IterListKeyOpenClosedIntSlice) {
     Object obj = json::parse(R"([100, 101, 102, 103])");
     KeyList expect = {1, 2, 3};
     KeyList actual;
@@ -1834,7 +1914,7 @@ TEST(Object, IterListKeyOpenClosedIntInterval) {
     EXPECT_EQ(actual, expect);
 }
 
-TEST(Object, IterListKeyClosedClosedIntInterval) {
+TEST(Object, IterListKeyClosedClosedIntSlice) {
     Object obj = json::parse(R"([100, 101, 102, 103])");
     KeyList expect = {0, 1, 2, 3};
     KeyList actual;
@@ -1864,7 +1944,7 @@ struct TestSimpleSource : public DataSource
     void read(const Object& target) override {
         read_called = true;
         if (data.is_type<Int>() && data == 0xbad) {
-            report_read_error("Oops!");
+            report_read_error("Invalid");
         } else {
             read_set(target, data);
         }
@@ -1918,7 +1998,7 @@ struct TestSparseSource : public DataSource
     class TestKeyIterator : public KeyIterator
     {
       public:
-        TestKeyIterator(TestSparseSource& ds, const Object& data, const Interval& itvl) : m_ds{ds}, m_itvl{itvl} {
+        TestKeyIterator(TestSparseSource& ds, const Object& data, const Slice& slice) : m_ds{ds}, m_slice{slice} {
             auto range = data.iter_keys();
             m_it = range.begin();
             m_end = range.end();
@@ -1934,13 +2014,13 @@ struct TestSparseSource : public DataSource
         TestSparseSource& m_ds;
         nodel::KeyIterator m_it;
         nodel::KeyIterator m_end;
-        Interval m_itvl;
+        Slice m_slice;
     };
 
     class TestValueIterator : public ValueIterator
     {
       public:
-        TestValueIterator(TestSparseSource& ds, const Object& data, const Interval& itvl) : m_ds{ds}, m_itvl{itvl} {
+        TestValueIterator(TestSparseSource& ds, const Object& data, const Slice& slice) : m_ds{ds}, m_slice{slice} {
             auto range = data.iter_values();
             m_it = range.begin();
             m_end = range.end();
@@ -1956,13 +2036,13 @@ struct TestSparseSource : public DataSource
         TestSparseSource& m_ds;
         nodel::ValueIterator m_it;
         nodel::ValueIterator m_end;
-        Interval m_itvl;
+        Slice m_slice;
     };
 
     class TestItemIterator : public ItemIterator
     {
       public:
-        TestItemIterator(TestSparseSource& ds, const Object& data, const Interval& itvl) : m_ds{ds}, m_itvl{itvl} {
+        TestItemIterator(TestSparseSource& ds, const Object& data, const Slice& slice) : m_ds{ds}, m_slice{slice} {
             auto range = data.iter_items();
             m_it = range.begin();
             m_end = range.end();
@@ -1978,16 +2058,16 @@ struct TestSparseSource : public DataSource
         TestSparseSource& m_ds;
         nodel::ItemIterator m_it;
         nodel::ItemIterator m_end;
-        Interval m_itvl;
+        Slice m_slice;
     };
 
     std::unique_ptr<KeyIterator> key_iter() override     { return std::make_unique<TestKeyIterator>(*this, data); }
     std::unique_ptr<ValueIterator> value_iter() override { return std::make_unique<TestValueIterator>(*this, data); }
     std::unique_ptr<ItemIterator> item_iter() override   { return std::make_unique<TestItemIterator>(*this, data); }
 
-    std::unique_ptr<KeyIterator> key_iter(const Interval& itvl) override     { return std::make_unique<TestKeyIterator>(*this, data, itvl); }
-    std::unique_ptr<ValueIterator> value_iter(const Interval& itvl) override { return std::make_unique<TestValueIterator>(*this, data, itvl); }
-    std::unique_ptr<ItemIterator> item_iter(const Interval& itvl) override   { return std::make_unique<TestItemIterator>(*this, data, itvl); }
+    std::unique_ptr<KeyIterator> key_iter(const Slice& slice) override     { return std::make_unique<TestKeyIterator>(*this, data, slice); }
+    std::unique_ptr<ValueIterator> value_iter(const Slice& slice) override { return std::make_unique<TestValueIterator>(*this, data, slice); }
+    std::unique_ptr<ItemIterator> item_iter(const Slice& slice) override   { return std::make_unique<TestItemIterator>(*this, data, slice); }
 
     Object data;
     bool read_meta_called = false;

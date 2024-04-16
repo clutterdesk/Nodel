@@ -86,13 +86,13 @@ class Key
   public:
     static std::string_view type_name(ReprIX repr_ix) {
         switch (repr_ix) {
-            case NIL:  return "nil";
+            case NIL:   return "nil";
             case BOOL:  return "bool";
             case INT:   return "int";
             case UINT:  return "uint";
             case FLOAT: return "float";
             case STR:   return "string";
-            default:      throw std::logic_error("invalid repr_ix");
+            default:    throw std::logic_error("invalid repr_ix");
         }
     }
 
@@ -490,19 +490,3 @@ struct hash<nodel::Key>
 };
 
 } // namespace std
-
-#ifdef FMT_FORMAT_H_
-
-#include <fmt/std.h>
-
-namespace fmt {
-template <>
-struct formatter<nodel::Key> : formatter<nodel::String> {
-    auto format(const nodel::Key& key, format_context& ctx) {
-        nodel::String str = key.to_str();
-        return fmt::formatter<nodel::String>::format(str, ctx);
-    }
-};
-} // namespace fmt
-
-#endif
