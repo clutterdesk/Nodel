@@ -16,6 +16,7 @@
 #include <nodel/support/types.h>
 #include <nodel/support/string.h>
 #include <nodel/support/exception.h>
+#include <regex>
 
 namespace nodel {
 
@@ -96,7 +97,7 @@ std::tuple<Int, Int, Int> Slice::to_indices(UInt size) const {
 
     switch (m_min.m_value.type()) {
         case Key::NIL: {
-            min_i = 0;
+            min_i = (m_step > 0)? 0: size - 1;
             ASSERT(m_min.m_kind == Endpoint::Kind::CLOSED);
             break;
         }
@@ -118,7 +119,7 @@ std::tuple<Int, Int, Int> Slice::to_indices(UInt size) const {
 
     switch (m_max.m_value.type()) {
         case Key::NIL: {
-            max_i = size;
+            max_i = (m_step > 0)? size: -1;
             ASSERT(m_max.m_kind == Endpoint::Kind::OPEN);
             break;
         }
@@ -162,8 +163,13 @@ T get_slice(const T& array, Int start, Int stop, Int step) {
     T result;
     auto it = array.cbegin() + start;
     auto end = array.cbegin() + stop;
-    for (; it < end; it += step)
-        result.push_back(*it);
+    if (step > 0) {
+        for (; it < end; it += step)
+            result.push_back(*it);
+    } else {
+        for (; it > end; it += step)
+            result.push_back(*it);
+    }
     return result;
 }
 
@@ -179,38 +185,50 @@ void set_slice(T& l_arr, Int start, Int stop, Int step, const T& r_arr) {
     for (; l_it < l_end && r_it < r_end; l_it += step, ++r_it)
         *l_it = *r_it;
 
-    auto l_pos = std::distance(l_it, l_end);
+    typename T::size_type l_pos = std::distance(l_it, l_end);
     for (; l_pos < l_arr.size(); l_pos += (step - 1))
         l_arr.erase(l_arr.begin() + l_pos);
 }
 
 inline
 Slice operator ""_slice (const char* str, size_t size) {
-    // TODO: support <num>:<num>:<num> slices
-    // <num>
-    // <num>:<num>
-    StringView sv{str, size};
-    sv = ltrim(rtrim(sv));
-    auto sep_pos = sv.find(':');
-    if (sep_pos == StringView::npos) {
-        auto start = str_to_int(sv);
-        return {{start, Endpoint::Kind::CLOSED}, {start, Endpoint::Kind::CLOSED}};
-    } else if (sep_pos == 0) {
-        if (sep_pos == sv.size() - 1) {
-            return {{nil, Endpoint::Kind::CLOSED}, {nil, Endpoint::Kind::OPEN}};
+    static std::regex slice_re{"([-+]?[0-9]+)?(\\:([-+]?[0-9]+)?)?(\\:([-+]?[0-9]+)?)?"};
+
+    std::cmatch match;
+    if (!std::regex_match(str, match, slice_re))
+        return {};
+
+    auto s_start = match[1];
+    auto s_stop  = match[3];
+    auto s_step  = match[5];
+
+    auto step = (s_step.length() == 0)? (Int)1: str_to_int(s_step.str());
+    if (step == 0) return {};
+
+    if (s_start.length() == 0) {
+        if (s_stop.length() == 0) {
+            if (match[2].length() == 0) {
+                return {};  // invalid
+            } else {
+                return {{nil, Endpoint::Kind::CLOSED}, {nil, Endpoint::Kind::OPEN}, step};
+            }
         } else {
-            auto end = str_to_int(sv.substr(sep_pos + 1));
-            return {{nil, Endpoint::Kind::CLOSED}, {end, Endpoint::Kind::OPEN}};
+            auto stop = str_to_int(s_stop.str());
+            return {{nil, Endpoint::Kind::CLOSED}, {stop, Endpoint::Kind::OPEN}, step};
         }
-    } else if (sep_pos == sv.size() - 1) {
-        auto start = str_to_int(sv.substr(0, sep_pos));
-        return {{start, Endpoint::Kind::CLOSED}, {nil, Endpoint::Kind::OPEN}};
     } else {
-        auto start = str_to_int(sv.substr(0, sep_pos));
-        auto end = str_to_int(sv.substr(sep_pos + 1));
-        return {{start, Endpoint::Kind::CLOSED}, {end, Endpoint::Kind::OPEN}};
+        auto start = str_to_int(s_start.str());
+        if (s_stop.length() == 0) {
+            if (match[2].length() == 0) {
+                return {{start, Endpoint::Kind::CLOSED}, {start, Endpoint::Kind::CLOSED}, step};
+            } else {
+                return {{start, Endpoint::Kind::CLOSED}, {nil, Endpoint::Kind::OPEN}, step};
+            }
+        } else {
+            auto stop = str_to_int(s_stop.str());
+            return {{start, Endpoint::Kind::CLOSED}, {stop, Endpoint::Kind::OPEN}, step};
+        }
     }
 }
-
 
 } // nodel namespace

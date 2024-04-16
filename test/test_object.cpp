@@ -803,6 +803,24 @@ TEST(Object, ListGetSlice) {
   ASSERT_EQ(list.size(), 10);
   EXPECT_EQ(list.get(0), 10);
   EXPECT_EQ(list.get(9), 19);
+
+  list = obj.get("-7::-1"_slice);
+  ASSERT_EQ(list.size(), 4);
+  EXPECT_EQ(list.get(0), 13);
+  EXPECT_EQ(list.get(1), 12);
+  EXPECT_EQ(list.get(2), 11);
+  EXPECT_EQ(list.get(3), 10);
+
+  list = obj.get("::-1"_slice);
+  ASSERT_EQ(list.size(), 10);
+  EXPECT_EQ(list.get(0), 19);
+  EXPECT_EQ(list.get(9), 10);
+
+  list = obj.get("::-4"_slice);
+  ASSERT_EQ(list.size(), 3);
+  EXPECT_EQ(list.get(0), 19);
+  EXPECT_EQ(list.get(1), 15);
+  EXPECT_EQ(list.get(2), 11);
 }
 
 TEST(Object, ListGetOutOfRange) {
@@ -862,6 +880,8 @@ TEST(Object, ListSetSlice) {
   EXPECT_EQ(obj.get(2), 102);
   EXPECT_EQ(obj.get(3), 103);
   EXPECT_EQ(obj.get(4), 104);
+
+
 }
 
 TEST(Object, ListDelete) {

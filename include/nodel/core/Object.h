@@ -1345,7 +1345,7 @@ Key Object::into_key() {
 inline
 bool Object::norm_index(is_like_Int auto& index, UInt size) {
     if (index < 0) index += size;
-    if (index < 0 || index >= size) return false;
+    if (index < 0 || (UInt)index >= size) return false;
     return true;
 }
 
@@ -1644,12 +1644,8 @@ Object Object::get(const Slice& slice) const {
     } else if (m_fields.repr_ix == LIST) {
         auto& list = std::get<0>(*m_repr.pl);
         auto [start, stop, step] = slice.to_indices(list.size());
-        List result;
-        auto it = list.cbegin() + start;
-        auto end = list.cbegin() + stop;
-        for (; it < end; it += step)
-            result.push_back(*it);
-        return result;
+        DEBUG("{} {} {}", start, stop, step);
+        return get_slice(list, start, stop, step);
     } else {
         List result;
         for (auto value : iter_values(slice))

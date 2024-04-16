@@ -133,6 +133,7 @@ struct Support
     static PyObject* to_py(const Key& key);
 
     static Key to_key(PyObject* po);
+    static Slice to_slice(PyObject* po);
     static Object to_object(PyObject* po);
 };
 
@@ -234,6 +235,24 @@ Slice Support::to_slice(PyObject* po) {
         Py_ssize_t stop;
         Py_ssize_t step;
         int rc = PySlice_Unpack(po, &start, &stop, &step);
+        if (rc == -1) return {};
+        if (step > 0) {
+            auto ep_start = (start == std::numeric_limits<Py_ssize_t>::min())?
+                           Endpoint{nil, Endpoint::Kind::CLOSED}:
+                           Endpoint{start, Endpoint::Kind::CLOSED};
+            auto ep_stop = (stop == std::numeric_limits<Py_ssize_t>::max())?
+                          Endpoint{nil, Endpoint::Kind::OPEN}:
+                          Endpoint{stop, Endpoint::Kind::OPEN};
+            return {ep_start, ep_stop, step};
+        } else {
+            auto ep_start = (start == std::numeric_limits<Py_ssize_t>::max())?
+                             Endpoint{nil, Endpoint::Kind::CLOSED}:
+                             Endpoint{start, Endpoint::Kind::CLOSED};
+            auto ep_stop = (stop == std::numeric_limits<Py_ssize_t>::min())?
+                           Endpoint{nil, Endpoint::Kind::OPEN}:
+                           Endpoint{stop, Endpoint::Kind::OPEN};
+            return {ep_start, ep_stop, step};
+        }
     } else {
         return {};
     }

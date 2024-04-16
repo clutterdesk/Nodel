@@ -57,14 +57,6 @@ static PyObject* NodelKeyIter_repr(PyObject* arg) {
     return NodelKeyIter_str(arg);
 }
 
-static PyObject* NodelKeyIter_call(PyObject *self, PyObject *args, PyObject *kwargs) {
-    NodelKeyIter* nd_self = (NodelKeyIter*)self;
-    if (nd_self->it == nd_self->end) { Py_INCREF(nodel_sentinel); return nodel_sentinel; }
-    PyObject* next = support.to_py(*nd_self->it);
-    ++nd_self->it;
-    return next;
-}
-
 static PyObject* NodelKeyIter_iter(PyObject* self) {
     return self;
 }

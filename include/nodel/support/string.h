@@ -85,7 +85,7 @@ Int str_to_int(const StringView& str) {
     const char* beg = str.data();
     const char* end = beg + str.size();
     auto result = std::from_chars(beg, end, value);
-    assert (result.ec == std::errc());
+    ASSERT(result.ec == std::errc());
     return value;
 }
 
@@ -96,7 +96,7 @@ UInt str_to_uint(const StringView& str) {
     const char* beg = str.data();
     const char* end = beg + str.size();
     auto result = std::from_chars(beg, end, value);
-    assert (result.ec == std::errc());
+    ASSERT(result.ec == std::errc());
     return value;
 }
 

@@ -428,29 +428,55 @@ static Py_ssize_t NodelObject_mp_length(PyObject* self) {
 static PyObject* NodelObject_mp_subscript(PyObject* self, PyObject* key) {
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
-    auto nd_key = support.to_key(key);
-    if (!require_subscript(self_obj, nd_key)) return NULL;
-    return (PyObject*)NodelObject_wrap(self_obj.get(nd_key));
+    if (!require_container(self_obj)) return NULL;
+    try {
+        if (PySlice_Check(key)) {
+            auto slice = support.to_slice(key);
+            return (PyObject*)NodelObject_wrap(self_obj.get(slice));
+        } else {
+            auto nd_key = support.to_key(key);
+            if (!require_subscript(self_obj, nd_key)) return NULL;
+            return (PyObject*)NodelObject_wrap(self_obj.get(nd_key));
+        }
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
 }
 
 static int NodelObject_mp_ass_sub(PyObject* self, PyObject* key, PyObject* value) {
-    // TODO: Write/Clobber exceptions
-
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
-    auto nd_key = support.to_key(key);
-    if (!require_subscript(self_obj, nd_key)) return -1;
-    if (value == NULL) {
-        self_obj.del(nd_key);
-    } else {
-        Object nd_val;
-        if (Py_IS_TYPE(value, &NodelObjectType)) {
-            nd_val = ((NodelObject*)value)->obj;
+    if (!require_container(self_obj)) return -1;
+    try
+    {
+        if (PySlice_Check(key)) {
+            auto slice = support.to_slice(key);
+            if (value == NULL) {
+                self_obj.del(slice);
+            } else {
+                Object nd_vals = support.to_object(value);
+                self_obj.set(slice, nd_vals);
+            }
         } else {
-            nd_val = support.to_object(value);
-            if (PyErr_Occurred()) return -1;
+            auto nd_key = support.to_key(key);
+            if (!require_subscript(self_obj, nd_key)) return -1;
+            if (value == NULL) {
+                self_obj.del(nd_key);
+            } else {
+                Object nd_val;
+                if (Py_IS_TYPE(value, &NodelObjectType)) {
+                    nd_val = ((NodelObject*)value)->obj;
+                } else {
+                    nd_val = support.to_object(value);
+                    if (PyErr_Occurred()) return -1;
+                }
+                self_obj.set(nd_key, nd_val);
+            }
         }
-        self_obj.set(nd_key, nd_val);
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return -1;
     }
     return 0;
 }
@@ -556,14 +582,18 @@ static PyObject* NodelObject_iter_keys(PyObject* self, PyObject*) {
     if (nit == NULL) return NULL;
     if (NodelKeyIterType.tp_init((PyObject*)nit, NULL, NULL) == -1) return NULL;
 
-    NodelObject* nd_self = (NodelObject*)self;
-    nit->range = nd_self->obj.iter_keys();
-    nit->it = nit->range.begin();
-    nit->end = nit->range.end();
+    try {
+        NodelObject* nd_self = (NodelObject*)self;
+        nit->range = nd_self->obj.iter_keys();
+        nit->it = nit->range.begin();
+        nit->end = nit->range.end();
 
-    Py_INCREF(nit);
-    return (PyObject*)nit;
-//    return PyCallIter_New((PyObject*)nit, nodel_sentinel);
+        Py_INCREF(nit);
+        return (PyObject*)nit;
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
 }
 
 static PyObject* NodelObject_iter_values(PyObject* self, PyObject*) {
@@ -571,13 +601,18 @@ static PyObject* NodelObject_iter_values(PyObject* self, PyObject*) {
     if (nit == NULL) return NULL;
     if (NodelValueIterType.tp_init((PyObject*)nit, NULL, NULL) == -1) return NULL;
 
-    NodelObject* nd_self = (NodelObject*)self;
-    nit->range = nd_self->obj.iter_values();
-    nit->it = nit->range.begin();
-    nit->end = nit->range.end();
+    try {
+        NodelObject* nd_self = (NodelObject*)self;
+        nit->range = nd_self->obj.iter_values();
+        nit->it = nit->range.begin();
+        nit->end = nit->range.end();
 
-    Py_INCREF(nit);
-    return (PyObject*)nit;
+        Py_INCREF(nit);
+        return (PyObject*)nit;
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
 }
 
 static PyObject* NodelObject_iter_items(PyObject* self, PyObject*) {
@@ -585,13 +620,18 @@ static PyObject* NodelObject_iter_items(PyObject* self, PyObject*) {
     if (nit == NULL) return NULL;
     if (NodelItemIterType.tp_init((PyObject*)nit, NULL, NULL) == -1) return NULL;
 
-    NodelObject* nd_self = (NodelObject*)self;
-    nit->range = nd_self->obj.iter_items();
-    nit->it = nit->range.begin();
-    nit->end = nit->range.end();
+    try {
+        NodelObject* nd_self = (NodelObject*)self;
+        nit->range = nd_self->obj.iter_items();
+        nit->it = nit->range.begin();
+        nit->end = nit->range.end();
 
-    Py_INCREF(nit);
-    return (PyObject*)nit;
+        Py_INCREF(nit);
+        return (PyObject*)nit;
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
 }
 
 static PyObject* NodelObject_iter_tree(PyObject* self, PyObject* args) {
@@ -599,13 +639,18 @@ static PyObject* NodelObject_iter_tree(PyObject* self, PyObject* args) {
     if (nit == NULL) return NULL;
     if (NodelTreeIterType.tp_init((PyObject*)nit, NULL, NULL) == -1) return NULL;
 
-    NodelObject* nd_self = (NodelObject*)self;
-    nit->range = nd_self->obj.iter_tree();
-    nit->it = nit->range.begin();
-    nit->end = nit->range.end();
+    try {
+        NodelObject* nd_self = (NodelObject*)self;
+        nit->range = nd_self->obj.iter_tree();
+        nit->it = nit->range.begin();
+        nit->end = nit->range.end();
 
-    Py_INCREF(nit);
-    return (PyObject*)nit;
+        Py_INCREF(nit);
+        return (PyObject*)nit;
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
 }
 
 static PyObject* NodelObject_key(PyObject* self, PyObject* args) {
