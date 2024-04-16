@@ -14,14 +14,14 @@
 #pragma once
 
 #include "Object.h"
-
 #include <cctype>
+#include <cstdlib>
+#include <algorithm>
 
 namespace nodel {
 
 template<class InRange, class UnaryPredicate>
-Object find_first(InRange range, UnaryPredicate pred)
-{
+Object find_first(InRange range, UnaryPredicate pred) {
     auto it = range.begin();
     auto end = range.end();
     for (; it != end; ++it) {

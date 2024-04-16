@@ -228,6 +228,18 @@ Key Support::to_key(PyObject* po) {
 }
 
 inline
+Slice Support::to_slice(PyObject* po) {
+    if (PySlice_Check(po)) {
+        Py_ssize_t start;
+        Py_ssize_t stop;
+        Py_ssize_t step;
+        int rc = PySlice_Unpack(po, &start, &stop, &step);
+    } else {
+        return {};
+    }
+}
+
+inline
 Object Support::to_object(PyObject* po) {
     if (po == Py_None) {
         return nil;

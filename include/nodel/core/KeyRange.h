@@ -164,10 +164,11 @@ KeyIterator KeyRange::begin() {
         case ReprIX::LIST: {
             auto& list = std::get<0>(*m_obj.m_repr.pl);
             if (m_slice.min().value() == nil) {
-                return KeyIterator{0UL};
+                return KeyIterator{0};
             } else {
                 auto indices = m_slice.to_indices(list.size());
-                return KeyIterator{indices.first};
+                auto start = std::get<0>(indices);
+                return KeyIterator{start};
             }
         }
         case ReprIX::MAP: {
@@ -201,11 +202,11 @@ KeyIterator KeyRange::end() {
         case ReprIX::LIST: {
             auto& list = std::get<0>(*m_obj.m_repr.pl);
             if (m_slice.max().value() == nil) {
-                // NOTE: list sizes expected to fit in signed int
                 return KeyIterator{(Int)list.size()};
             } else {
                 auto indices = m_slice.to_indices(list.size());
-                return KeyIterator{indices.second};
+                auto stop = std::get<1>(indices);
+                return KeyIterator{stop};
             }
         }
         case ReprIX::MAP: {

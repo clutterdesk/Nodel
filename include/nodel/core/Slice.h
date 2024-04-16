@@ -15,6 +15,7 @@
 
 #include <nodel/support/types.h>
 #include <nodel/support/string.h>
+#include <nodel/support/exception.h>
 
 namespace nodel {
 
@@ -23,7 +24,7 @@ struct Endpoint
     enum class Kind { OPEN, CLOSED, DEFAULT};
 
     Endpoint() = default;
-    Endpoint(const Key& value)            : m_value{value}, m_kind{Kind::DEFAULT} {}
+    Endpoint(const Key& value)            : m_value{value} {}
     Endpoint(const Key& value, Kind kind) : m_value{value}, m_kind{kind} {}
 
     bool is_open() const { return m_kind == Kind::OPEN; }
@@ -38,16 +39,16 @@ struct Slice
 {
     Slice() = default;
 
-    Slice(Endpoint min, Endpoint max) : m_min{min}, m_max{max} {
+    Slice(Endpoint min, Endpoint max, Int step=1) : m_min{min}, m_max{max}, m_step{step} {
         if (m_min.m_kind == Endpoint::Kind::DEFAULT) m_min.m_kind = Endpoint::Kind::CLOSED;
         if (m_max.m_kind == Endpoint::Kind::DEFAULT) m_max.m_kind = Endpoint::Kind::OPEN;
     }
 
-    bool is_empty() const { return m_min.m_value == nil && m_max.m_value == nil; }
+    bool is_empty() const { return m_min.m_kind == Endpoint::Kind::DEFAULT; }
 
     bool contains(const Key& key) const;
 
-    std::pair<Int, Int> to_indices(UInt size) const;
+    std::tuple<Int, Int, Int> to_indices(UInt size) const;
     Slice normalize(UInt size) const;
 
     std::string to_str() const;
@@ -57,39 +58,46 @@ struct Slice
 
     Endpoint m_min;
     Endpoint m_max;
+    Int m_step;
 };
 
 
 inline
 bool Slice::contains(const Key& key) const {
-    if (m_min.m_kind == Endpoint::Kind::OPEN) {
-        if (key <= m_min.m_value)
-            return false;
-    } else {
-        if (key < m_min.m_value)
-            return false;
+    // TODO: ideally, the slice would be normalized before being passed to the iterators
+    //       allowing step != 1 to be handled, here
+    if (m_min.m_value != nil) {
+        if (m_min.m_kind == Endpoint::Kind::OPEN) {
+            if (key <= m_min.m_value)
+                return false;
+        } else {
+            if (key < m_min.m_value)
+                return false;
+        }
     }
 
-    if (m_max.m_kind == Endpoint::Kind::OPEN) {
-        if (key >= m_max.m_value)
-            return false;
-    } else {
-        if (key > m_max.m_value)
-            return false;
+    if (m_max.m_value != nil) {
+        if (m_max.m_kind == Endpoint::Kind::OPEN) {
+            if (key >= m_max.m_value)
+                return false;
+        } else {
+            if (key > m_max.m_value)
+                return false;
+        }
     }
 
     return true;
 }
 
 inline
-std::pair<Int, Int> Slice::to_indices(UInt size) const {
+std::tuple<Int, Int, Int> Slice::to_indices(UInt size) const {
     Int min_i;
     Int max_i;
 
     switch (m_min.m_value.type()) {
         case Key::NIL: {
             min_i = 0;
-            assert (m_max.m_kind == Endpoint::Kind::CLOSED);
+            ASSERT(m_min.m_kind == Endpoint::Kind::CLOSED);
             break;
         }
         case Key::INT: {
@@ -111,7 +119,7 @@ std::pair<Int, Int> Slice::to_indices(UInt size) const {
     switch (m_max.m_value.type()) {
         case Key::NIL: {
             max_i = size;
-            assert (m_max.m_kind == Endpoint::Kind::OPEN);
+            ASSERT(m_max.m_kind == Endpoint::Kind::OPEN);
             break;
         }
         case Key::INT: {
@@ -130,13 +138,13 @@ std::pair<Int, Int> Slice::to_indices(UInt size) const {
             throw WrongType(Key::type_name(m_min.m_value.type()));
     }
 
-    return std::make_pair(min_i, max_i);
+    return std::make_tuple(min_i, max_i, m_step);
 }
 
 inline
 Slice Slice::normalize(UInt size) const {
-    auto indices = to_indices(size);
-    return {{indices.first, Endpoint::Kind::CLOSED}, {indices.second, Endpoint::Kind::OPEN}};
+    auto [start, stop, step] = to_indices(size);
+    return {{start, Endpoint::Kind::CLOSED}, {stop, Endpoint::Kind::OPEN}, step};
 }
 
 inline
@@ -147,6 +155,33 @@ std::string Slice::to_str() const {
     ss << m_max.m_value.to_str();
     ss << ((m_max.m_kind == Endpoint::Kind::OPEN)? ')': ']');
     return ss.str();
+}
+
+template <typename T>
+T get_slice(const T& array, Int start, Int stop, Int step) {
+    T result;
+    auto it = array.cbegin() + start;
+    auto end = array.cbegin() + stop;
+    for (; it < end; it += step)
+        result.push_back(*it);
+    return result;
+}
+
+template <class T>
+void set_slice(T& l_arr, Int start, Int stop, Int step, const T& r_arr) {
+    auto [count, tail] = std::div(stop - start, step);
+
+    auto l_it = l_arr.begin() + start;
+    auto l_end = l_arr.end() - tail;
+    auto r_it = r_arr.begin();
+    auto r_end = r_arr.end();
+
+    for (; l_it < l_end && r_it < r_end; l_it += step, ++r_it)
+        *l_it = *r_it;
+
+    auto l_pos = std::distance(l_it, l_end);
+    for (; l_pos < l_arr.size(); l_pos += (step - 1))
+        l_arr.erase(l_arr.begin() + l_pos);
 }
 
 inline
@@ -162,14 +197,14 @@ Slice operator ""_slice (const char* str, size_t size) {
         return {{start, Endpoint::Kind::CLOSED}, {start, Endpoint::Kind::CLOSED}};
     } else if (sep_pos == 0) {
         if (sep_pos == sv.size() - 1) {
-            return {{0, Endpoint::Kind::CLOSED}, {-1, Endpoint::Kind::CLOSED}};
+            return {{nil, Endpoint::Kind::CLOSED}, {nil, Endpoint::Kind::OPEN}};
         } else {
             auto end = str_to_int(sv.substr(sep_pos + 1));
-            return {{0, Endpoint::Kind::CLOSED}, {end, Endpoint::Kind::OPEN}};
+            return {{nil, Endpoint::Kind::CLOSED}, {end, Endpoint::Kind::OPEN}};
         }
     } else if (sep_pos == sv.size() - 1) {
         auto start = str_to_int(sv.substr(0, sep_pos));
-        return {{start, Endpoint::Kind::CLOSED}, {-1, Endpoint::Kind::CLOSED}};
+        return {{start, Endpoint::Kind::CLOSED}, {nil, Endpoint::Kind::OPEN}};
     } else {
         auto start = str_to_int(sv.substr(0, sep_pos));
         auto end = str_to_int(sv.substr(sep_pos + 1));

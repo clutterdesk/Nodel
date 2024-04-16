@@ -1639,8 +1639,17 @@ inline
 Object Object::get(const Slice& slice) const {
     if (m_fields.repr_ix == STR) {
         auto& str = std::get<0>(*m_repr.ps);
-        auto indices = slice.to_indices(str.size());
-        return str.substr(indices.first, indices.second);
+        auto [start, stop, step] = slice.to_indices(str.size());
+        return get_slice(str, start, stop, step);
+    } else if (m_fields.repr_ix == LIST) {
+        auto& list = std::get<0>(*m_repr.pl);
+        auto [start, stop, step] = slice.to_indices(list.size());
+        List result;
+        auto it = list.cbegin() + start;
+        auto end = list.cbegin() + stop;
+        for (; it < end; it += step)
+            result.push_back(*it);
+        return result;
     } else {
         List result;
         for (auto value : iter_values(slice))
@@ -1651,11 +1660,8 @@ Object Object::get(const Slice& slice) const {
 
 inline
 void Object::map_set_slice(SortedMap& map, is_integral auto start, const Object& in_vals) {
-    for (auto val : in_vals.iter_values()) {
-        map.insert({start, val});
-        map[start].set_parent(*this);
-        ++start;
-    }
+    for (auto val : in_vals.iter_values())
+        set(start++, val);
 }
 
 inline
@@ -1667,9 +1673,14 @@ void Object::set(const Slice& slice, const Object& in_vals) {
         case STR: {
             if (in_vals.type() == STR) {
                 auto& str = std::get<0>(*m_repr.ps);
-                auto indices = slice.to_indices(str.size());
-                auto& repl = in_vals.as<String>();
-                str.replace(str.begin() + indices.first, str.begin() + indices.second, repl.begin(), repl.end());
+                if (!in_vals.is_type<String>()) throw wrong_type(in_vals.type());
+                const auto& repl = in_vals.as<String>();
+                auto [start, stop, step] = slice.to_indices(str.size());
+                if (step == 1) {
+                    str.replace(str.begin() + start, str.begin() + stop, repl.begin(), repl.end());
+                } else {
+                    set_slice(str, start, stop, step, repl);
+                }
             } else {
                 throw wrong_type(in_vals.type());
             }
@@ -1677,14 +1688,18 @@ void Object::set(const Slice& slice, const Object& in_vals) {
         }
         case LIST: {
             auto& list = std::get<0>(*m_repr.pl);
-            auto indices = slice.to_indices(list.size());
-            list.erase(list.begin() + indices.first, list.begin() + indices.second);
+            auto [start, stop, step] = slice.to_indices(list.size());
             auto val_list = in_vals.values();
-            list.insert(list.begin() + indices.first, val_list.begin(), val_list.end());
-            auto it = list.cbegin() + indices.first;
-            auto end = list.cbegin() + indices.first + val_list.size();
-            for (; it != end; ++it)
-                it->set_parent(*this);
+            if (step == 1) {
+                list.erase(list.begin() + start, list.begin() + stop);
+                list.insert(list.begin() + start, val_list.begin(), val_list.end());
+                auto it = list.cbegin() + start;
+                auto end = list.cbegin() + start + val_list.size();
+                for (; it != end; ++it)
+                    it->set_parent(*this);
+            } else {
+                set_slice(list, start, stop, step, val_list);
+            }
             break;
         }
         case MAP: {
@@ -1709,14 +1724,16 @@ void Object::del(const Slice& slice) {
         case EMPTY: throw empty_reference();
         case STR: {
             auto& str = std::get<0>(*m_repr.ps);
-            auto indices = slice.to_indices(str.size());
-            str.erase(str.begin() + indices.first, str.begin() + indices.second);
+            auto [start, stop, step] = slice.to_indices(str.size());
+            // TODO: handle step
+            str.erase(str.begin() + start, str.begin() + stop);
             break;
         }
         case LIST: {
             auto& list = std::get<0>(*m_repr.pl);
-            auto indices = slice.to_indices(list.size());
-            list.erase(list.begin() + indices.first, list.begin() + indices.second);
+            auto [start, stop, step] = slice.to_indices(list.size());
+            // TODO: handle step
+            list.erase(list.begin() + start, list.begin() + stop);
             break;
         }
         case MAP: {

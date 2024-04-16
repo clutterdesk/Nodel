@@ -828,6 +828,42 @@ TEST(Object, ListSet) {
     EXPECT_EQ(obj.get(2), 103);
 }
 
+TEST(Object, ListSetSlice) {
+  Object obj = "[10, 11, 12, 13, 14]"_json;
+
+  obj.set("1:3"_slice, "[101, 102]"_json);
+  ASSERT_EQ(obj.size(), 5);
+  EXPECT_EQ(obj.get(0), 10);
+  EXPECT_EQ(obj.get(1), 101);
+  EXPECT_EQ(obj.get(2), 102);
+  EXPECT_EQ(obj.get(3), 13);
+  EXPECT_EQ(obj.get(4), 14);
+
+  obj.set("1:4"_slice, "[1001, 1002]"_json);
+  ASSERT_EQ(obj.size(), 4);
+  EXPECT_EQ(obj.get(0), 10);
+  EXPECT_EQ(obj.get(1), 1001);
+  EXPECT_EQ(obj.get(2), 1002);
+  EXPECT_EQ(obj.get(3), 14);
+
+  obj.set("1:2"_slice, "[10001, 10002]"_json);
+  ASSERT_EQ(obj.size(), 5);
+  EXPECT_EQ(obj.get(0), 10);
+  EXPECT_EQ(obj.get(1), 10001);
+  EXPECT_EQ(obj.get(2), 10002);
+  EXPECT_EQ(obj.get(3), 1002);
+  EXPECT_EQ(obj.get(4), 14);
+
+  obj = "[10, 11, 12, 13, 14]"_json;
+  obj.set(":"_slice, "[100, 101, 102, 103, 104]"_json);
+  ASSERT_EQ(obj.size(), 5);
+  EXPECT_EQ(obj.get(0), 100);
+  EXPECT_EQ(obj.get(1), 101);
+  EXPECT_EQ(obj.get(2), 102);
+  EXPECT_EQ(obj.get(3), 103);
+  EXPECT_EQ(obj.get(4), 104);
+}
+
 TEST(Object, ListDelete) {
     Object obj = "[1, 2, 3]"_json;
     obj.del(0);
@@ -978,7 +1014,7 @@ TEST(Object, SortedMapGetSlice) {
   EXPECT_EQ(map.get(1), 12);
 }
 
-TEST(Object, SortedMapSetSlice) {
+TEST(Object, SortedMapSetSliceSameLen) {
     Object obj = Object::MAP;
     for (int i=0; i<5; i++)
         obj.set(i, i + 10);
@@ -990,6 +1026,37 @@ TEST(Object, SortedMapSetSlice) {
     EXPECT_EQ(obj.get(1), 101);
     EXPECT_EQ(obj.get(2), 102);
     EXPECT_EQ(obj.get(3), 13);
+    EXPECT_EQ(obj.get(4), 14);
+}
+
+TEST(Object, SortedMapSetSliceShorter) {
+    Object obj = Object::MAP;
+    for (int i=0; i<5; i++)
+        obj.set(i, i + 10);
+
+    obj.set("1:4"_slice, "[101, 102]"_json);
+
+    ASSERT_EQ(obj.size(), 4);
+    EXPECT_EQ(obj.get(0), 10);
+    EXPECT_EQ(obj.get(1), 101);
+    EXPECT_EQ(obj.get(2), 102);
+    EXPECT_EQ(obj.get(4), 14);
+}
+
+TEST(Object, SortedMapSetSliceLonger) {
+    Object obj = Object::MAP;
+    for (int i=0; i<5; i++)
+        obj.set(i, i + 10);
+
+    obj.set("1:3"_slice, "[101, 102, 103]"_json);
+
+    DEBUG("{}", obj.to_str());
+
+    ASSERT_EQ(obj.size(), 5);
+    EXPECT_EQ(obj.get(0), 10);
+    EXPECT_EQ(obj.get(1), 101);
+    EXPECT_EQ(obj.get(2), 102);
+    EXPECT_EQ(obj.get(3), 103);
     EXPECT_EQ(obj.get(4), 14);
 }
 

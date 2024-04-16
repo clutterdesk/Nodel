@@ -15,7 +15,7 @@
 
 #include <exception>
 
-#define ASSERT(cond) { if (!(cond)) throw Assert{#cond}; }
+#define ASSERT(cond) { if (!(cond)) throw ::nodel::Assert{#cond}; }
 
 class NoTraceException : public std::exception
 {

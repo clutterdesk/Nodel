@@ -169,10 +169,11 @@ ItemIterator ItemRange::begin() {
         case ReprIX::LIST: {
             auto& list = std::get<0>(*m_obj.m_repr.pl);
             if (m_slice.min().value() == nil) {
-                return ItemIterator{0UL, list.begin()};
+                return ItemIterator{0, list.begin()};
             } else {
                 auto indices = m_slice.to_indices(list.size());
-                return ItemIterator{indices.first, list.begin() + indices.first};
+                auto start = std::get<0>(indices);
+                return ItemIterator{start, list.begin() + start};
             }
         }
         case ReprIX::MAP: {
@@ -205,12 +206,12 @@ ItemIterator ItemRange::end() {
     switch (repr_ix) {
         case ReprIX::LIST: {
             auto& list = std::get<0>(*m_obj.m_repr.pl);
-            if (m_slice.is_empty()) {
-                // NOTE: list sizes expected to fit in signed int
+            if (m_slice.max().value() == nil) {
                 return ItemIterator{(Int)list.size(), list.end()};
             } else {
                 auto indices = m_slice.to_indices(list.size());
-                return ItemIterator{indices.second, list.begin() + indices.second};
+                auto stop = std::get<1>(indices);
+                return ItemIterator{stop, list.begin() + stop};
             }
         }
         case ReprIX::MAP: {

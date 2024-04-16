@@ -165,7 +165,8 @@ ValueIterator ValueRange::begin() {
                 return ValueIterator{list.begin()};
             } else {
                 auto indices = m_slice.to_indices(list.size());
-                return ValueIterator{list.begin() + indices.first};
+                auto start = std::get<0>(indices);
+                return ValueIterator{list.begin() + start};
             }
         }
         case ReprIX::MAP: {
@@ -202,7 +203,8 @@ ValueIterator ValueRange::end() {
                 return ValueIterator{list.end()};
             } else {
                 auto indices = m_slice.to_indices(list.size());
-                return ValueIterator{list.begin() + indices.second};
+                auto stop = std::get<1>(indices);
+                return ValueIterator{list.begin() + stop};
             }
         }
         case ReprIX::MAP: {
