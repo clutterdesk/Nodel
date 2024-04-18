@@ -37,3 +37,17 @@ struct fmt::formatter<nodel::OPath> : formatter<std::string> {
     return formatter<std::string>::format(path.to_str(), ctx);
   }
 };
+
+template <>
+struct fmt::formatter<nodel::Object::Subscript<nodel::Key>> : formatter<std::string> {
+  auto format(const nodel::Object::Subscript<nodel::Key>& obj, format_context& ctx) {
+    return formatter<std::string>::format(obj.to_str(), ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<nodel::Object::Subscript<nodel::OPath>> : formatter<std::string> {
+  auto format(const nodel::Object::Subscript<nodel::OPath>& obj, format_context& ctx) {
+    return formatter<std::string>::format(obj.to_str(), ctx);
+  }
+};

@@ -114,10 +114,13 @@ namespace test { class DataSourceTestInterface; }
 constexpr size_t min_key_chunk_size = 128;
 
 
-// NOTE: use by-value semantics
+//////////////////////////////////////////////////////////////////////////////
+/// @brief Nodel dynamic object.
+//////////////////////////////////////////////////////////////////////////////
 class Object
 {
   public:
+    template <class T> class Subscript;
     template <class ValueType, typename VisitPred, typename EnterPred> class TreeRange;
 
     enum ReprIX {
@@ -371,6 +374,9 @@ class Object
     void del(const Slice& interval);
     void del_from_parent();
 
+    Subscript<Key> operator [] (const Key& key);
+    Subscript<OPath> operator [] (const OPath& path);
+
     bool operator == (const Object&) const;
     bool operator == (nil_t) const;
     std::partial_ordering operator <=> (const Object&) const;
@@ -435,6 +441,12 @@ class Object
 };
 
 
+//////////////////////////////////////////////////////////////////////////////
+/// @brief A simple path consisting of a list of keys.
+/// Path literals can be created using ""_path literal operator.
+/// @see nodel::Object::get(const OPath&)
+/// @see nodel::Query
+//////////////////////////////////////////////////////////////////////////////
 class OPath
 {
   public:
@@ -655,6 +667,9 @@ OPath Object::path(const Object& root) const {
 }
 
 
+//////////////////////////////////////////////////////////////////////////////
+/// @brief Base class for objects implementing external data access.
+//////////////////////////////////////////////////////////////////////////////
 class DataSource
 {
   public:
@@ -2373,6 +2388,11 @@ DataSourceType* Object::data_source() const {
 }
 
 
+//////////////////////////////////////////////////////////////////////////////
+/// @brief An iterator over the ancestors of an Object.
+/// The first object returned by this iterator is always the object, itself.
+/// So, this iterator is like the XML ancestors-or-self axis.
+//////////////////////////////////////////////////////////////////////////////
 class LineIterator
 {
   public:
@@ -2397,6 +2417,10 @@ class LineIterator
     Object m_object;
 };
 
+
+//////////////////////////////////////////////////////////////////////////////
+/// @brief A range-like object for LineIterator.
+//////////////////////////////////////////////////////////////////////////////
 class LineRange
 {
   public:
@@ -2413,6 +2437,10 @@ LineRange Object::iter_line() const {
 }
 
 
+//////////////////////////////////////////////////////////////////////////////
+/// @brief An iterator over all descendants of an Object.
+/// This iterator is like the XML descendants-or-self axis.
+//////////////////////////////////////////////////////////////////////////////
 template <class ValueType, typename VisitPred, typename EnterPred>
 class TreeIterator
 {
@@ -2484,6 +2512,10 @@ class TreeIterator
     ValueIterator m_end;
 };
 
+
+//////////////////////////////////////////////////////////////////////////////
+/// @brief A range-like object for TreeIterator.
+//////////////////////////////////////////////////////////////////////////////
 template <class ValueType, typename VisitPred, typename EnterPred>
 class Object::TreeRange
 {
@@ -2926,10 +2958,44 @@ void DataSource::read_del(const Object& target, const Key& key) {
     m_cache.del(key);
 }
 
+
+//////////////////////////////////////////////////////////////////////////////
+/// @brief This class implements the Object subscript operator.
+//////////////////////////////////////////////////////////////////////////////
+template <class T>
+class Object::Subscript : private Object
+{
+  public:
+    Subscript(const Object& obj, const T& sub) : Object{obj}, m_sub{sub} {}
+
+    Subscript<Key> operator [] (const Key& key);
+    Subscript<OPath> operator [] (const OPath& path);
+
+    Object operator = (const Object& obj) { return Object::set(m_sub, obj); }
+    String to_str() const { return Object::get(m_sub).to_str(); }
+
+  private:
+    T m_sub;
+};
+
+inline
+Object::Subscript<Key> Object::operator [] (const Key& key) { return {*this, key}; }
+
+inline
+Object::Subscript<OPath> Object::operator [] (const OPath& path) { return {*this, path}; }
+
+template <class T>
+Object::Subscript<Key> Object::Subscript<T>::operator [] (const Key& key) { return {get(m_sub), key}; }
+
+template <class T>
+Object::Subscript<OPath> Object::Subscript<T>::operator [] (const OPath& path) { return {get(m_sub), path}; }
+
+
 namespace test {
 
-// Test interface for examining the private DataSource cache.
-//
+//////////////////////////////////////////////////////////////////////////////
+/// @brief Test interface for examining the private DataSource cache.
+//////////////////////////////////////////////////////////////////////////////
 class DataSourceTestInterface
 {
   public:
@@ -2942,11 +3008,12 @@ class DataSourceTestInterface
 } // test namespace
 } // nodel namespace
 
+
 namespace std {
 
-//----------------------------------------------------------------------------------
-// std::hash
-//----------------------------------------------------------------------------------
+//////////////////////////////////////////////////////////////////////////////
+/// @brief OPath hash function
+//////////////////////////////////////////////////////////////////////////////
 template<>
 struct hash<nodel::OPath>
 {
