@@ -77,3 +77,11 @@ TEST(Ref, MoveAssignRefCountIntegrity) {
     delete p1;
     delete p2;
 }
+
+TEST(Ref, AssignToEmpty) {
+    Ref<Thing> r1;
+    Ref<Thing> r2{new Thing{1}};
+    EXPECT_TRUE((bool)r2);
+    r1 = r2;
+    EXPECT_TRUE((bool)r1);
+}

@@ -1,11 +1,14 @@
 #include <gtest/gtest.h>
+
 #include <cpptrace/cpptrace.hpp>
-#include <nodel/support/logging.h>
-#include <nodel/support/intern.h>
 #include <stdlib.h>
 #include <string_view>
 
-NODEL_THREAD_LOCAL_INTERNS;
+#include <nodel/core.h>
+#include <nodel/filesystem.h>
+
+NODEL_INIT_CORE;
+NODEL_INIT_FILESYSTEM;
 
 int main(int argc, char **argv) {
   cpptrace::register_terminate_handler();

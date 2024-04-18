@@ -19,7 +19,7 @@
 
 namespace nodel {
 
-#define NODEL_THREAD_LOCAL_INTERNS namespace nodel { thread_local std::unordered_set<nodel::StringView> thread_interns; }
+#define NODEL_INIT_INTERNS namespace nodel { thread_local std::unordered_set<nodel::StringView> thread_interns; }
 extern thread_local std::unordered_set<nodel::StringView> thread_interns;
 
 class intern_t

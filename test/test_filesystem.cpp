@@ -3,17 +3,15 @@
 #include <nodel/core.h>
 #include <filesystem>
 
-#include <nodel/filesystem/Directory.h>
-#include <nodel/filesystem/DefaultRegistry.h>
-#include <nodel/filesystem/JsonFile.h>
 #include <nodel/support/Finally.h>
+#include <nodel/filesystem.h>
 
 using namespace nodel;
 using namespace nodel::filesystem;
 
 TEST(Filesystem, IsFsobj) {
     auto wd = std::filesystem::current_path() / "test_data";
-    Object test_data = new Directory(new DefaultRegistry(), wd);
+    Object test_data = new Directory(new Registry{default_registry()}, wd);
     EXPECT_TRUE(is_fs(test_data));
     EXPECT_TRUE(is_fs(test_data.get("more"_key)));
     EXPECT_TRUE(is_fs(test_data.get("example.json"_key)));
@@ -23,7 +21,7 @@ TEST(Filesystem, IsFsobj) {
 
 TEST(Filesystem, IsDir) {
     auto wd = std::filesystem::current_path() / "test_data";
-    Object test_data = new Directory(new DefaultRegistry(), wd);
+    Object test_data = new Directory(new Registry{default_registry()}, wd);
     EXPECT_TRUE(is_dir(test_data));
     EXPECT_TRUE(is_dir(test_data.get("more"_key)));
     EXPECT_FALSE(is_dir(test_data.get("example.json"_key)));
@@ -33,7 +31,7 @@ TEST(Filesystem, IsDir) {
 
 TEST(Filesystem, IsFile) {
     auto wd = std::filesystem::current_path() / "test_data";
-    Object test_data = new Directory(new DefaultRegistry(), wd);
+    Object test_data = new Directory(new Registry{default_registry()}, wd);
     EXPECT_FALSE(is_file(test_data));
     EXPECT_FALSE(is_file(test_data.get("more"_key)));
     EXPECT_TRUE(is_file(test_data.get("example.json"_key)));
@@ -43,7 +41,7 @@ TEST(Filesystem, IsFile) {
 
 TEST(Filesystem, VisitOnlyFiles) {
     auto wd = std::filesystem::current_path() / "test_data";
-    Object test_data = new Directory(new DefaultRegistry(), wd);
+    Object test_data = new Directory(new Registry{default_registry()}, wd);
     List found;
     for (const auto& file : test_data.iter_tree(is_file)) {
         EXPECT_TRUE(is_file(file));
@@ -52,7 +50,7 @@ TEST(Filesystem, VisitOnlyFiles) {
 
 TEST(Filesystem, EnterOnlyDirectories) {
     auto wd = std::filesystem::current_path() / "test_data";
-    Object test_data = new Directory(new DefaultRegistry(), wd);
+    Object test_data = new Directory(new Registry{default_registry()}, wd);
     Object more = test_data.get("more"_key);
     for (const auto& file : test_data.iter_tree_if(is_dir)) {
         Object parent = file.parent();
@@ -62,7 +60,7 @@ TEST(Filesystem, EnterOnlyDirectories) {
 
 TEST(Filesystem, Directory) {
     auto wd = std::filesystem::current_path() / "test_data";
-    Object obj = new Directory(new DefaultRegistry(), wd);
+    Object obj = new Directory(new Registry{default_registry()}, wd);
     EXPECT_TRUE(obj.is_map());
     EXPECT_FALSE(obj.data_source<DataSource>()->is_fully_cached());
     EXPECT_TRUE(obj.size() > 0);
@@ -70,7 +68,7 @@ TEST(Filesystem, Directory) {
 
 TEST(Filesystem, DirectoryFiles) {
     auto wd = std::filesystem::current_path() / "test_data";
-    Object obj = new Directory(new DefaultRegistry(), wd);
+    Object obj = new Directory(new Registry{default_registry()}, wd);
     EXPECT_TRUE(obj.is_map());
     EXPECT_FALSE(obj.data_source<DataSource>()->is_fully_cached());
     EXPECT_TRUE(obj.size() > 0);
@@ -107,7 +105,7 @@ TEST(Filesystem, DirectoryFiles) {
 
 TEST(Filesystem, Subdirectory) {
     auto wd = std::filesystem::current_path() / "test_data";
-    Object test_data = new Directory(new DefaultRegistry(), wd);
+    Object test_data = new Directory(new Registry{default_registry()}, wd);
     EXPECT_TRUE(test_data.get("more"_key).is_map());
     EXPECT_TRUE(test_data.get("more"_key).get("example.csv"_key).is_type<List>());
     EXPECT_TRUE(test_data.get("more"_key).get("example.csv"_key).get(-1).is_type<List>());
@@ -120,11 +118,11 @@ TEST(Filesystem, CreateDirectory) {
 
     Finally cleanup{ [&wd, &temp_dir_name] () { std::filesystem::remove(wd / temp_dir_name); } };
 
-    Object test_data = new Directory(new DefaultRegistry(), wd);
+    Object test_data = new Directory(new Registry{default_registry()}, wd);
     test_data.set(temp_dir_name, new SubDirectory());
     test_data.save();
 
-    Object test_data_2 = new Directory(new DefaultRegistry(), wd);
+    Object test_data_2 = new Directory(new Registry{default_registry()}, wd);
     EXPECT_TRUE(test_data_2.get(temp_dir_name) != nil);
 
     test_data.reset();
@@ -138,12 +136,12 @@ TEST(Filesystem, DeleteDirectory) {
 
     Finally cleanup{ [&wd, &temp_dir_name] () { std::filesystem::remove(wd / temp_dir_name); } };
 
-    Object test_data = new Directory(new DefaultRegistry(), wd, DataSource::Options{Mode::ALL});
+    Object test_data = new Directory(new Registry{default_registry()}, wd, DataSource::Options{Mode::ALL});
     test_data.set(temp_dir_name, new SubDirectory());
     test_data.save();
     EXPECT_TRUE(std::filesystem::exists(wd / temp_dir_name));
 
-    Object test_data_2 = new Directory(new DefaultRegistry(), wd, DataSource::Options{Mode::ALL});
+    Object test_data_2 = new Directory(new Registry{default_registry()}, wd, DataSource::Options{Mode::ALL});
     EXPECT_TRUE(test_data_2.get(temp_dir_name) != nil);
     test_data_2.del(temp_dir_name);
 
@@ -160,13 +158,13 @@ TEST(Filesystem, CreateJsonFile) {
 
     Finally cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
 
-    Object test_data = new Directory(new DefaultRegistry(), wd);
+    Object test_data = new Directory(new Registry{default_registry()}, wd);
     Object new_file = new JsonFile();
     new_file.set(json::parse("{'tea': 'Assam, please'}"));
     test_data.set(new_file_name, new_file);
     test_data.save();
 
-    Object test_data_2 = new Directory(new DefaultRegistry(), wd);
+    Object test_data_2 = new Directory(new Registry{default_registry()}, wd);
     EXPECT_EQ(test_data_2.get(new_file_name).get("tea"_key), "Assam, please");
 
     test_data.reset();
@@ -179,7 +177,7 @@ TEST(Filesystem, CreateCsvFile) {
 
     Finally cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
 
-    Object test_data = new Directory(new DefaultRegistry(), wd);
+    Object test_data = new Directory(new Registry{default_registry()}, wd);
     Object new_file = new CsvFile();
     new_file.set(0, json::parse("['a', 'b']"));
     new_file.set(1, json::parse("[0, 1]"));
@@ -187,7 +185,7 @@ TEST(Filesystem, CreateCsvFile) {
     test_data.set(new_file_name, new_file);
     test_data.save();
 
-    Object test_data_2 = new Directory(new DefaultRegistry(), wd);
+    Object test_data_2 = new Directory(new Registry{default_registry()}, wd);
     auto csv = test_data_2.get(new_file_name);
     EXPECT_EQ(csv.get(0).to_json(), R"(["a", "b"])");
     EXPECT_EQ(csv.get(1).to_json(), R"([0, 1])");
@@ -200,7 +198,7 @@ TEST(Filesystem, UpdateJsonFile) {
 
     Finally cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
 
-    Object test_data = new Directory(new DefaultRegistry(), wd);
+    Object test_data = new Directory(new Registry{default_registry()}, wd);
     Object new_file = new JsonFile();
     new_file.set(json::parse("{'tea': 'Assam, please'}"));
     test_data.set(new_file_name, new_file);
@@ -223,11 +221,11 @@ TEST(Filesystem, CopyFileToAnotherDirectory) {
         std::filesystem::remove(wd / "temp");
     }};
 
-    Object test_data = new Directory(new DefaultRegistry(), wd);
+    Object test_data = new Directory(new Registry{default_registry()}, wd);
     test_data.set("temp"_key, new SubDirectory());
     test_data.save();
 
-    Object test_data_2 = new Directory(new DefaultRegistry(), wd);
+    Object test_data_2 = new Directory(new Registry{default_registry()}, wd);
     auto temp = test_data_2.get("temp"_key);
     temp.set("example.json"_key, test_data.get("example.json"_key));
     EXPECT_TRUE(temp.get("example.json"_key).parent().is(temp));
@@ -240,12 +238,18 @@ TEST(Filesystem, CopyFileToAnotherDirectory) {
     EXPECT_EQ(temp.get("example.json"_key).get("favorite"_key), "Assam");
 }
 
+TEST(Filesystem, Bind) {
+    filesystem::configure();
+    Object cwd = bind("file://"_uri);
+    EXPECT_TRUE(cwd.get("test_data"_key) != nil);
+}
+
 void test_invalid_file(const std::string& file_name) {
     auto wd = std::filesystem::current_path() / "test_data";
     DataSource::Options options;
     options.throw_read_error = false;
     options.throw_write_error = false;
-    Object test_data = new Directory(new DefaultRegistry(), wd, options);
+    Object test_data = new Directory(new Registry{default_registry()}, wd, options);
     Object fs_obj = test_data.get(file_name);
     EXPECT_TRUE(fs_obj.is_valid());
 

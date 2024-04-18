@@ -20,18 +20,20 @@
 #include <nodel/support/Ref.h>
 #include <nodel/core/algo.h>
 #include <nodel/core/Object.h>
+#include <nodel/core/uri.h>
 
 #include <filesystem>
 #include <regex>
 
 #include <fmt/core.h>
 
-using namespace std::ranges;
+//using namespace std::ranges;
 
 namespace nodel {
 namespace filesystem {
 
 typedef std::function<bool(const Object&)> Predicate;
+
 
 /**
  * @brief DataSource for filesystem directories
@@ -40,13 +42,20 @@ class SubDirectory : public DataSource
 {
   public:
     SubDirectory(Options options, Origin origin) : DataSource(Kind::COMPLETE, options, Object::OMAP, origin) {}
-    SubDirectory(Options options = {}) : DataSource(Kind::COMPLETE, options, Object::OMAP, Origin::MEMORY) {}
+    SubDirectory(Options options = {})           : DataSource(Kind::COMPLETE, options, Object::OMAP, Origin::MEMORY) {}
+    SubDirectory(Origin origin)                  : SubDirectory({}, origin) {}
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new SubDirectory(options(), origin); }
 
     void read_type(const Object&) override { assert (false); } // TODO: remove, later
     void read(const Object& target) override;
     void write(const Object& target, const Object&) override;
+
+    void set_registry(Ref<Registry> r_reg) { mr_registry = r_reg; }
+    Ref<Registry> registry() const         { return mr_registry; }
+
+  protected:
+    Ref<Registry> mr_registry;
 };
 
 
@@ -59,18 +68,18 @@ class Directory : public SubDirectory
 {
   public:
     Directory(Ref<Registry> r_registry, const std::filesystem::path& path, Options options = {})
-      : SubDirectory(options, Origin::SOURCE) , mr_registry(r_registry) , m_path(path) {}
+      : SubDirectory(options, Origin::SOURCE), m_path(path) {
+        mr_registry = r_registry;
+    }
 
     DataSource* new_instance(const Object& target, Origin origin) const override {
         assert (origin == Origin::SOURCE);
         return new Directory(mr_registry, m_path, options());
     }
 
-    Ref<Registry> registry() const { return mr_registry; }
     std::filesystem::path path() const { return m_path; }
 
   private:
-    Ref<Registry> mr_registry;
     std::filesystem::path m_path;
 };
 
@@ -122,7 +131,7 @@ std::filesystem::path path(const Object& obj) {
     return fpath;
 }
 
-
+// TODO: move to predicate.h?
 struct RegexFilter
 {
     RegexFilter(String&& regex) : m_regex{std::forward<String>(regex)} {}
@@ -149,18 +158,10 @@ void SubDirectory::read(const Object& target) {
         auto fname = entry.path().filename().string();
         auto& head_ds = *(head_anc.data_source<Directory>());
         auto r_reg = head_ds.registry();
-        if (entry.is_directory()) {
-            auto p_ds = r_reg->new_directory(target, entry.path());
-            if (p_ds != nullptr) {
-                p_ds->set_options(options());
-                read_set(target, fname, p_ds);
-            }
-        } else {
-            auto p_ds = r_reg->new_file(target, entry.path());
-            if (p_ds != nullptr) {
-                p_ds->set_options(options());
-                read_set(target, fname, p_ds);
-            }
+        auto p_ds = r_reg->create(target, entry.path(), entry.is_directory());
+        if (p_ds != nullptr) {
+            p_ds->set_options(options());
+            read_set(target, fname, p_ds);
         }
     }
 }

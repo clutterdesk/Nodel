@@ -72,6 +72,7 @@ struct InvalidPath : public NodelException
 };
 
 
+class URI;
 class Object;
 class OPath;
 class DataSource;
@@ -716,6 +717,9 @@ class DataSource
         Options() = default;
         Options(Mode mode) : mode{mode} {}
 
+        /// @brief Configure options from the specified URI query.
+        void configure(const Object& uri);
+
         /// @brief Access control for get/set/del methods
         /// CLOBBER access controls whether a bound Object may be completely overwritten with
         /// a single call to Object::set(const Object&).
@@ -758,6 +762,7 @@ class DataSource
 
   protected:
     virtual DataSource* new_instance(const Object& target, Origin origin) const = 0;
+    virtual void configure(const Object& uri)                                {}
     virtual void read_type(const Object& target)                             {}  // define type/id of object
     virtual void read(const Object& target) = 0;
     virtual Object read_key(const Object& target, const Key&)                { return {}; }  // sparse
@@ -851,6 +856,7 @@ class DataSource
   friend class ItemRange;
   friend struct python::Support;
   friend class ::nodel::test::DataSourceTestInterface;
+  friend Object bind(const URI&, const DataSource::Options&, Object);
 };
 
 inline
@@ -1644,7 +1650,6 @@ Object Object::get(const Slice& slice) const {
     } else if (m_fields.repr_ix == LIST) {
         auto& list = std::get<0>(*m_repr.pl);
         auto [start, stop, step] = slice.to_indices(list.size());
-        DEBUG("{} {} {}", start, stop, step);
         return get_slice(list, start, stop, step);
     } else {
         List result;
@@ -2596,6 +2601,18 @@ inline
 std::ostream& operator<< (std::ostream& ostream, const Object& obj) {
     ostream << obj.to_str();
     return ostream;
+}
+
+inline
+void DataSource::Options::configure(const Object& uri) {
+    mode = Mode::READ;
+    auto query_mode = uri.get("query.mode"_path);
+    if (query_mode != nil) {
+        auto mode_s = query_mode.as<String>();
+        if (mode_s.find_first_of("rR") != mode_s.npos) mode |= Mode::READ;
+        if (mode_s.find_first_of("wW") != mode_s.npos) mode |= Mode::WRITE;
+        if (mode_s.find_first_of("cC") != mode_s.npos) mode |= Mode::CLOBBER;
+    }
 }
 
 /**

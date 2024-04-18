@@ -2021,6 +2021,10 @@ struct TestSimpleSource : public DataSource
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSimpleSource(data.to_json(), {}); }
 
+    void configure(const Object& uri) override {
+        config = uri;
+    }
+
     void read_type(const Object& target) override {
         read_meta_called = true;
         std::istringstream in{data.to_json()};
@@ -2043,6 +2047,7 @@ struct TestSimpleSource : public DataSource
     }
 
     Object data;
+    Object config;
     bool read_meta_called = false;
     bool read_called = false;
     bool write_called = false;
@@ -2382,6 +2387,18 @@ TEST(Object, TestSimpleSource_DeleteAndSave) {
     obj.save();
     EXPECT_TRUE(obj.get("tea"_key) == nil);
     EXPECT_TRUE(dsrc->write_called);
+}
+
+TEST(Object, TestSimpleSource_RegisterURIScheme) {
+    register_uri_scheme("simple", [] (const Object& uri) {
+        return new TestSimpleSource("{'x': 1, 'y': 2}");
+    });
+
+    Object obj = bind("simple://dude@place:1234/a/b/c"_uri);
+    auto p_ds = obj.data_source<TestSimpleSource>();
+    EXPECT_TRUE(p_ds != nullptr);
+    EXPECT_EQ(p_ds->config.get("port"_key), 1234);
+    EXPECT_EQ(p_ds->config.get("path"_key), "/a/b/c");
 }
 
 TEST(Object, TestSparseSource_KeyIterator) {

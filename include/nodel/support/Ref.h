@@ -38,7 +38,8 @@ class Ref
 
     Ref& operator = (const Ref& other) {
         if (m_ptr != other.m_ptr) {
-            dec_ref_count();
+            if (m_ptr != nullptr)
+                dec_ref_count();
             m_ptr = other.m_ptr;
             if (m_ptr != nullptr)
                 inc_ref_count();

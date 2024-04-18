@@ -259,7 +259,7 @@ Slice Support::to_slice(PyObject* po) {
 }
 
 inline
-Object Support::to_object(PyObject* po) {
+Object Support::to_object(PyObject* po, const Object& proto) {
     if (po == Py_None) {
         return nil;
     } else if (PyUnicode_Check(po)) {
@@ -292,7 +292,7 @@ Object Support::to_object(PyObject* po) {
         }
         return list;
     } else if (PyDict_Check(po)) {
-        Object map = Object::OMAP;
+        Object map = (proto != nil)? proto.type(): Object::OMAP;
         PyObject* key, *val;
         Py_ssize_t pos = 0;
         while (PyDict_Next(po, &pos, &key, &val)) {  // borrowed references
