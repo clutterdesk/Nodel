@@ -1,16 +1,3 @@
-// Copyright 2024 Robert A. Dunnagan
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 #pragma once
 
 #include <limits>
@@ -396,6 +383,7 @@ class Object
     template <class DataSourceType>
     DataSourceType* data_source() const;
 
+    void needs_saving();
     void save();
     void reset();
     void reset_key(const Key&);
@@ -2564,6 +2552,12 @@ Object::TreeRange<Object, NoPredicate, Predicate> Object::iter_tree_if(EnterPred
 template <typename VisitPred, typename EnterPred>
 Object::TreeRange<Object, Predicate, Predicate> Object::iter_tree_if(VisitPred&& visit_pred, EnterPred&& enter_pred) const {
     return {*this, std::forward<Predicate>(visit_pred), std::forward<Predicate>(enter_pred)};
+}
+
+inline
+void Object::needs_saving() {
+    auto p_ds = data_source<DataSource>();
+    p_ds->m_unsaved = true;
 }
 
 inline
