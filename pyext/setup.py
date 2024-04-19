@@ -32,7 +32,8 @@ setup(
                 cpp_trace_install
             ],
             extra_compile_args=[
-                '--std=c++20'
+                '--std=c++20',
+                '-Wno-c99-designator'
             ],
             library_dirs=[
                 '/Users/bdunnagan/git/fmt',

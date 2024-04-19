@@ -34,6 +34,15 @@ class URI : public Object
 {
   public:
     URI(const String& s) : Object{nil} { parse(s); }
+    URI(const char* s)   : URI(String{s}) {}
+
+    URI(const Object& obj) : Object{nil} {
+        if (obj.type() == Object::STR) {
+            parse(obj.as<String>());
+        } else if (obj.is_map()) {
+            (*this) = obj;
+        }
+    }
 
   private:
     void parse(const String&);

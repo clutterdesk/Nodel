@@ -67,13 +67,13 @@ PyTypeObject NodelItemIterType = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name        = "nodel.ItemIter",
     .tp_basicsize   = sizeof(NodelItemIter),
-    .tp_doc         = PyDoc_STR("Nodel item iterator"),
-    .tp_init        = NodelItemIter_init,
     .tp_dealloc     = NodelItemIter_dealloc,
     .tp_repr        = (reprfunc)NodelItemIter_repr,
     .tp_str         = (reprfunc)NodelItemIter_str,
+    .tp_doc         = PyDoc_STR("Nodel item iterator"),
     .tp_iter        = NodelItemIter_iter,
-    .tp_iternext    = NodelItemIter_iter_next
+    .tp_iternext    = NodelItemIter_iter_next,
+    .tp_init        = NodelItemIter_init,
 };
 
 } // extern C

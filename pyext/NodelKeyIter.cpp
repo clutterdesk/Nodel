@@ -63,13 +63,13 @@ PyTypeObject NodelKeyIterType = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name        = "nodel.KeyIter",
     .tp_basicsize   = sizeof(NodelKeyIter),
-    .tp_doc         = PyDoc_STR("Nodel key iterator"),
-    .tp_init        = NodelKeyIter_init,
     .tp_dealloc     = NodelKeyIter_dealloc,
     .tp_repr        = NodelKeyIter_repr,
     .tp_str         = NodelKeyIter_str,
+    .tp_doc         = PyDoc_STR("Nodel key iterator"),
     .tp_iter        = NodelKeyIter_iter,
-    .tp_iternext    = NodelKeyIter_iter_next
+    .tp_iternext    = NodelKeyIter_iter_next,
+    .tp_init        = NodelKeyIter_init,
 };
 
 } // extern C

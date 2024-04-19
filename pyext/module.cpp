@@ -9,9 +9,15 @@
 #include <nodel/pyext/support.h>
 #include <nodel/support/intern.h>
 #include <nodel/parser/json.h>
+#include <nodel/core.h>
 #include <nodel/filesystem.h>
 
-NODEL_THREAD_LOCAL_INTERNS;
+#ifdef PYNODEL_ROCKSDB
+#include <nodel/rocksdb.h>
+#endif
+
+NODEL_INIT_CORE;
+NODEL_INIT_FILESYSTEM;
 
 using namespace nodel;
 using RefMgr = python::RefMgr;
@@ -20,15 +26,15 @@ extern "C" {
 
 PyObject* nodel_sentinel = nullptr;
 
+static python::Support support;
+
 //-----------------------------------------------------------------------------
 // Module methods
 //-----------------------------------------------------------------------------
 
-static PyObject* mod_bind_dir(PyObject* mod, PyObject* arg) {
-    auto opt_path = python::to_string_view(arg);
-    if (!opt_path) return NULL;
-    std::filesystem::path path = *opt_path;
-    return (PyObject*)NodelObject_wrap(filesystem::bind(path));
+static PyObject* mod_bind(PyObject* mod, PyObject* arg) {
+    URI uri{support.to_object(arg)};
+    return (PyObject*)NodelObject_wrap(bind(uri));
 }
 
 static PyObject* mod_from_json(PyObject* mod, PyObject* arg) {
@@ -54,8 +60,8 @@ static PyObject* mod_from_json(PyObject* mod, PyObject* arg) {
 }
 
 static PyMethodDef NodelMethods[] = {
-    {"bind_dir",  (PyCFunction)mod_bind_dir,  METH_O,
-            PyDoc_STR("Bind a new nodel.Object to a filesystem directory.")},
+    {"bind",  (PyCFunction)mod_bind,  METH_O,
+            PyDoc_STR("Bind object with URI string/dict")},
     {"from_json", (PyCFunction)mod_from_json, METH_O,
             PyDoc_STR("Parse json and return object.")},
     {NULL, NULL, 0, NULL}
@@ -83,6 +89,12 @@ PyModuleDef nodel_module_def = {
 PyMODINIT_FUNC
 PyInit_nodel(void)
 {
+    filesystem::configure();
+
+#ifdef PYNODEL_ROCKSDB
+    rocksdb::configure();
+#endif
+
     if (PyType_Ready(&NodelObjectType) < 0) return NULL;
     if (PyType_Ready(&NodelKeyIterType) < 0) return NULL;
     if (PyType_Ready(&NodelValueIterType) < 0) return NULL;

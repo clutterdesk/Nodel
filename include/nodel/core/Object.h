@@ -966,15 +966,15 @@ Object::Object(OrderedMap&& map) : m_repr{new IRCOMap(std::forward<OrderedMap>(m
 
 inline
 Object::Object(const Key& key) : m_fields{EMPTY} {
-    switch (key.m_repr_ix) {
+    switch (key.type()) {
         case Key::NIL:  m_fields.repr_ix = NIL; m_repr.z = nullptr; break;
-        case Key::BOOL:  m_fields.repr_ix = BOOL; m_repr.b = key.m_repr.b; break;
-        case Key::INT:   m_fields.repr_ix = INT; m_repr.i = key.m_repr.i; break;
-        case Key::UINT:  m_fields.repr_ix = UINT; m_repr.u = key.m_repr.u; break;
-        case Key::FLOAT: m_fields.repr_ix = FLOAT; m_repr.f = key.m_repr.f; break;
+        case Key::BOOL:  m_fields.repr_ix = BOOL; m_repr.b = key.as<bool>(); break;
+        case Key::INT:   m_fields.repr_ix = INT; m_repr.i = key.as<Int>(); break;
+        case Key::UINT:  m_fields.repr_ix = UINT; m_repr.u = key.as<UInt>(); break;
+        case Key::FLOAT: m_fields.repr_ix = FLOAT; m_repr.f = key.as<Float>(); break;
         case Key::STR: {
             m_fields.repr_ix = STR;
-            m_repr.ps = new IRCString{String{key.m_repr.s.data()}, {}};
+            m_repr.ps = new IRCString{String{key.as<StringView>().data()}, {}};
             break;
         }
         default: throw std::invalid_argument("key");
@@ -983,15 +983,15 @@ Object::Object(const Key& key) : m_fields{EMPTY} {
 
 inline
 Object::Object(Key&& key) : m_fields{EMPTY} {
-    switch (key.m_repr_ix) {
+    switch (key.type()) {
         case Key::NIL:  m_fields.repr_ix = NIL; m_repr.z = nullptr; break;
-        case Key::BOOL:  m_fields.repr_ix = BOOL; m_repr.b = key.m_repr.b; break;
-        case Key::INT:   m_fields.repr_ix = INT; m_repr.i = key.m_repr.i; break;
-        case Key::UINT:  m_fields.repr_ix = UINT; m_repr.u = key.m_repr.u; break;
-        case Key::FLOAT: m_fields.repr_ix = FLOAT; m_repr.f = key.m_repr.f; break;
+        case Key::BOOL:  m_fields.repr_ix = BOOL; m_repr.b = key.as<bool>(); break;
+        case Key::INT:   m_fields.repr_ix = INT; m_repr.i = key.as<Int>(); break;
+        case Key::UINT:  m_fields.repr_ix = UINT; m_repr.u = key.as<UInt>(); break;
+        case Key::FLOAT: m_fields.repr_ix = FLOAT; m_repr.f = key.as<Float>(); break;
         case Key::STR: {
             m_fields.repr_ix = STR;
-            m_repr.ps = new IRCString{String{key.m_repr.s.data()}, {}};
+            m_repr.ps = new IRCString{String{key.as<StringView>().data()}, {}};
             break;
         }
         default: throw std::invalid_argument("key");
@@ -2210,7 +2210,7 @@ Object Object::copy() const {
         case UINT:  return m_repr.u;
         case FLOAT: return m_repr.f;
         case STR:   return std::get<0>(*m_repr.ps);
-        case LIST:  return std::get<0>(*m_repr.pl);  // TODO: long-hand deep-copy, instead of using stack
+        case LIST:  return std::get<0>(*m_repr.pl);   // TODO: long-hand deep-copy, instead of using stack
         case MAP:   return std::get<0>(*m_repr.psm);  // TODO: long-hand deep-copy, instead of using stack
         case OMAP:  return std::get<0>(*m_repr.pom);  // TODO: long-hand deep-copy, instead of using stack
         case DSRC:  return m_repr.ds->copy(*this, DataSource::Origin::MEMORY);
@@ -2632,7 +2632,7 @@ std::ostream& operator<< (std::ostream& ostream, const Object& obj) {
 inline
 void DataSource::Options::configure(const Object& uri) {
     mode = Mode::READ;
-    auto query_mode = uri.get("query.mode"_path);
+    auto query_mode = uri.get("query.perm"_path);
     if (query_mode != nil) {
         auto mode_s = query_mode.as<String>();
         if (mode_s.find_first_of("rR") != mode_s.npos) mode |= Mode::READ;

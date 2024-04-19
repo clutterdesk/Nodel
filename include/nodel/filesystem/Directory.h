@@ -93,7 +93,7 @@ bool is_fs_root(const Object& obj) {
 
 inline
 Object find_fs_root(const Object& obj) {
-    return find_first(obj.iter_line(), is_fs_root);
+    return algo::find_first(obj.iter_line(), is_fs_root);
 }
 
 inline

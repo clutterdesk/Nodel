@@ -5,6 +5,7 @@
 #include <nodel/support/logging.h>
 
 using namespace nodel;
+using Registry = filesystem::Registry;
 
 namespace nodel::rocksdb {
 
@@ -18,7 +19,7 @@ struct Options
     DataSource::Options base;
     ::rocksdb::Options db;
     ::rocksdb::ReadOptions db_read;
-    ::rocksdb::ReadOptions db_write;
+    ::rocksdb::WriteOptions db_write;
     std::string db_ext = ".rocksdb";
 };
 
@@ -30,16 +31,16 @@ struct Options
  */
 inline
 void configure(Options options={}) {
-    register_uri_scheme("rocksdb", [&options] (const Object& uri) -> DataSource* {
+    register_uri_scheme("rocksdb", [&options] (const URI& uri) -> DataSource* {
         options.configure(uri);
         auto p_ds = new rocksdb::DB(uri.get("path"_key).to_str(), options.base, DataSource::Origin::SOURCE);
         p_ds->set_db_options(options.db);
-        p_ds->set_db_read_options(options.db_read);
-        p_ds->set_db_write_options(options.db_write);
+        p_ds->set_read_options(options.db_read);
+        p_ds->set_write_options(options.db_write);
         return p_ds;
     });
 
-    default_registry().associate<rocksdb::DB>(options.db_ext);
+    filesystem::default_registry().associate<rocksdb::DB>(options.db_ext);
 }
 
 /**
@@ -52,7 +53,7 @@ void configure(Options options={}) {
  */
 inline
 void register_directory_extension(const Object& fs_obj, const std::string& ext = ".rocksdb") {
-    Ref<Registry> r_reg = filesystem::get_registry(dir);
+    Ref<Registry> r_reg = filesystem::get_registry(fs_obj);
     if (!r_reg) {
         WARN("Argument must be a filesystem directory object.");
         return;

@@ -16,29 +16,7 @@
 using namespace std::literals::string_literals;
 using namespace std::literals::string_view_literals;
 
-
 namespace nodel {
-
-struct WrongType : public NodelException
-{
-    static std::string make_message(const std::string_view& actual) {
-        std::stringstream ss;
-        ss << "type=" << actual;
-        return ss.str();
-    }
-
-    static std::string make_message(const std::string_view& actual, const std::string_view& expected) {
-        std::stringstream ss;
-        ss << "type=" << actual << ", expected=" << expected;
-        return ss.str();
-    }
-
-    WrongType(const std::string_view& actual) : NodelException(make_message(actual)) {}
-    WrongType(const std::string_view& actual, const std::string_view& expected) : NodelException(make_message(actual, expected)) {}
-};
-
-
-class KeyIterator;
 
 class Key
 {
@@ -409,8 +387,6 @@ class Key
     ReprIX m_repr_ix;
 
   friend std::ostream& operator<< (std::ostream& ostream, const Key& key);
-  friend class Object;
-  friend class KeyIterator;
   friend struct python::Support;
   friend Key operator ""_key (const char*);
 };

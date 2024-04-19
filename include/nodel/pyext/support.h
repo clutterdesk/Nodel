@@ -246,7 +246,7 @@ Slice Support::to_slice(PyObject* po) {
 }
 
 inline
-Object Support::to_object(PyObject* po, const Object& proto) {
+Object Support::to_object(PyObject* po) {
     if (po == Py_None) {
         return nil;
     } else if (PyUnicode_Check(po)) {
@@ -279,7 +279,7 @@ Object Support::to_object(PyObject* po, const Object& proto) {
         }
         return list;
     } else if (PyDict_Check(po)) {
-        Object map = (proto != nil)? proto.type(): Object::OMAP;
+        Object map = Object::OMAP;
         PyObject* key, *val;
         Py_ssize_t pos = 0;
         while (PyDict_Next(po, &pos, &key, &val)) {  // borrowed references
@@ -290,6 +290,8 @@ Object Support::to_object(PyObject* po, const Object& proto) {
             map.set(nd_key, nd_val);
         }
         return map;
+    } else if (NodelObject_CheckExact(po)) {
+        return ((NodelObject*)po)->obj;
     } else {
         RefMgr val_type = (PyObject*)PyObject_Type(po);
         RefMgr type_str = PyObject_Str(val_type);

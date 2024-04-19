@@ -60,13 +60,13 @@ PyTypeObject NodelTreeIterType = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name        = "nodel.TreeIter",
     .tp_basicsize   = sizeof(NodelTreeIter),
-    .tp_doc         = PyDoc_STR("Nodel tree iterator"),
-    .tp_init        = NodelTreeIter_init,
     .tp_dealloc     = NodelTreeIter_dealloc,
     .tp_repr        = (reprfunc)NodelTreeIter_repr,
     .tp_str         = (reprfunc)NodelTreeIter_str,
+    .tp_doc         = PyDoc_STR("Nodel tree iterator"),
     .tp_iter        = NodelTreeIter_iter,
-    .tp_iternext    = NodelTreeIter_iter_next
+    .tp_iternext    = NodelTreeIter_iter_next,
+    .tp_init        = NodelTreeIter_init,
 };
 
 } // extern C

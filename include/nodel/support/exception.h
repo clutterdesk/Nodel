@@ -29,10 +29,30 @@ class NodelException : public BASE_EXCEPTION
     NodelException() : NodelException{""} {}
 };
 
+
 class Assert : public BASE_EXCEPTION
 {
   public:
     Assert(std::string&& msg) : BASE_EXCEPTION(std::forward<std::string>(msg)) {}
+};
+
+
+struct WrongType : public NodelException
+{
+    static std::string make_message(const std::string_view& actual) {
+        std::stringstream ss;
+        ss << "type=" << actual;
+        return ss.str();
+    }
+
+    static std::string make_message(const std::string_view& actual, const std::string_view& expected) {
+        std::stringstream ss;
+        ss << "type=" << actual << ", expected=" << expected;
+        return ss.str();
+    }
+
+    WrongType(const std::string_view& actual) : NodelException(make_message(actual)) {}
+    WrongType(const std::string_view& actual, const std::string_view& expected) : NodelException(make_message(actual, expected)) {}
 };
 
 } // nodel namespace
