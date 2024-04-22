@@ -2,7 +2,6 @@
 
 #include <nodel/core/Object.h>
 #include <nodel/support/types.h>
-#include <nodel/support/exception.h>
 #include <regex>
 #include <sstream>
 #include <unordered_map>
@@ -24,11 +23,6 @@ using URIMap = std::unordered_map<String, DataSourceFactory>;
 extern std::mutex global_uri_map_mutex;
 extern URIMap global_uri_map;
 extern thread_local URIMap local_uri_map;
-
-struct BindError : public NodelException
-{
-    BindError(std::string&& err) : NodelException{std::forward<std::string>(err)} {}
-};
 
 class URI : public Object
 {
@@ -132,25 +126,6 @@ DataSourceFactory lookup_uri_scheme(const String& scheme) {
     return {};
 }
 
-inline
-Object bind(const URI& uri, const DataSource::Options& options, Object obj) {
-    auto scheme = uri.get("scheme"_key).as<String>();
-    auto factory = lookup_uri_scheme(scheme);
-    if (factory) {
-        auto p_ds = factory(uri);
-        if (obj == nil) obj = p_ds; else p_ds->bind(obj);
-        p_ds->configure(uri);
-        return obj;
-    } else {
-        std::stringstream ss;
-        ss << "URI scheme not found: " << scheme;
-        throw BindError(ss.str());
-    }
-}
-
-inline Object bind(const URI& uri)                                     { return bind(uri, {}, nil); }
-inline Object bind(const URI& uri, Object obj)                         { return bind(uri, {}, obj); }
-inline Object bind(const URI& uri, const DataSource::Options& options) { return bind(uri, options, nil); }
 
 inline
 URI operator ""_uri(const char* str, size_t size) {

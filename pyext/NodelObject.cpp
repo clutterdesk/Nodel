@@ -707,7 +707,12 @@ constexpr auto key_method_doc =
 
 static PyObject* NodelObject_key(PyObject* self, PyObject* args) {
     NodelObject* nd_self = (NodelObject*)self;
-    return support.to_py(nd_self->obj.key());
+    try {
+        return support.to_py(nd_self->obj.key());
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
 }
 
 constexpr auto reset_method_doc = \
@@ -721,8 +726,29 @@ constexpr auto reset_method_doc = \
 
 static PyObject* NodelObject_reset(PyObject* self, PyObject* args) {
     NodelObject* nd_self = (NodelObject*)self;
-    nd_self->obj.reset();
-    Py_RETURN_NONE;
+    try {
+        nd_self->obj.reset();
+        Py_RETURN_NONE;
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
+}
+
+constexpr auto save_method_doc = \
+"Commit all updates to bound objects in the subtree whose root is this object.\n"
+"Object.save() -> None\n"
+"Objects that are not bound (do not have a data-source) are ignored.";
+
+static PyObject* NodelObject_save(PyObject* self, PyObject* args) {
+    NodelObject* nd_self = (NodelObject*)self;
+    try {
+        nd_self->obj.save();
+        Py_RETURN_NONE;
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
 }
 
 static PyMethodDef NodelObject_methods[] = {
@@ -735,6 +761,7 @@ static PyMethodDef NodelObject_methods[] = {
     {"iter_tree",   (PyCFunction)NodelObject_iter_tree,   METH_NOARGS, PyDoc_STR(iter_tree_method_doc)},
     {"key",         (PyCFunction)NodelObject_key,         METH_NOARGS, PyDoc_STR(key_method_doc)},
     {"reset",       (PyCFunction)NodelObject_reset,       METH_NOARGS, PyDoc_STR(reset_method_doc)},
+    {"save",        (PyCFunction)NodelObject_save,        METH_NOARGS, PyDoc_STR(save_method_doc)},
     {NULL, NULL}
 };
 

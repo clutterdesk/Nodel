@@ -828,8 +828,6 @@ class DataSource
     virtual std::unique_ptr<ValueIterator> value_iter(const Slice&) { return nullptr; }
     virtual std::unique_ptr<ItemIterator> item_iter(const Slice&)   { return nullptr; }
 
-    void bind(Object& obj);
-
   public:
     const Object& get_cached(const Object& target) const;
 
@@ -849,6 +847,8 @@ class DataSource
     void report_read_error(std::string&& error);
     void report_write_error(std::string&& error);
     bool is_valid(const Object& target);
+
+    void bind(Object& obj);
 
   private:
     DataSource* copy(const Object& target, Origin origin) const;
@@ -899,7 +899,7 @@ class DataSource
   friend class ItemRange;
   friend struct python::Support;
   friend class ::nodel::test::DataSourceTestInterface;
-  friend Object bind(const URI&, const DataSource::Options&, Object);
+  friend Object bind(const URI&, const Object&);
 };
 
 inline
@@ -2694,7 +2694,7 @@ void DataSource::Options::configure(const Object& uri) {
  */
 inline
 void DataSource::bind(Object& obj) {
-    if (m_repr_ix != obj.m_fields.repr_ix)
+    if (m_repr_ix != Object::EMPTY && m_repr_ix != obj.m_fields.repr_ix)
         throw Object::wrong_type(obj.m_fields.repr_ix);
 
     Key key;
@@ -2705,7 +2705,7 @@ void DataSource::bind(Object& obj) {
     }
 
     m_cache = obj;
-    m_fully_cached = false;
+    m_fully_cached = true;
     m_unsaved = true;
 
     obj = this;

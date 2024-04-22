@@ -216,7 +216,7 @@ TEST(Filesystem, UpdateJsonFile) {
 TEST(Filesystem, CopyFileToAnotherDirectory) {
     auto wd = std::filesystem::current_path() / "test_data";
 
-    Finally cleanup{ [&wd] () {
+    Finally cleanup{[&wd] () {
         std::filesystem::remove(wd / "temp" / "example.json");
         std::filesystem::remove(wd / "temp");
     }};
@@ -239,8 +239,38 @@ TEST(Filesystem, CopyFileToAnotherDirectory) {
 }
 
 TEST(Filesystem, Bind) {
-    Object cwd = bind("file://"_uri);
-    EXPECT_TRUE(cwd.get("test_data"_key) != nil);
+    Object wd = bind("file://"_uri);
+    EXPECT_TRUE(wd.get("test_data"_key) != nil);
+}
+
+TEST(Filesystem, BindWithDataSourceType) {
+    Object wd = bind("file://?perm=rw"_uri);
+    auto path = filesystem::path(wd);
+
+    Finally cleanup{[&path] () {
+        std::filesystem::remove(path / "test_data" / "dummy.txt");
+    }};
+
+    wd["test_data['dummy.txt']"_path] = bind<JsonFile>("tea");
+    wd.save();
+
+    wd.reset();
+    EXPECT_EQ(wd["test_data['dummy.txt']"_path], "\"tea\"");
+}
+
+TEST(Filesystem, LookupDataSourceForNewFile) {
+    Object wd = bind("file://?perm=rw"_uri);
+    auto path = filesystem::path(wd);
+
+    Finally cleanup{[&path] () {
+        std::filesystem::remove(path / "test_data" / "dummy.txt");
+    }};
+
+    wd["test_data['dummy.txt']"_path] = "tea";
+    wd.save();
+
+    wd.reset();
+    EXPECT_EQ(wd["test_data['dummy.txt']"_path], "tea");
 }
 
 void test_invalid_file(const std::string& file_name) {

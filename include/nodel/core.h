@@ -3,6 +3,7 @@
 #include <nodel/core/Object.h>
 #include <nodel/parser/json.h>
 #include <nodel/core/uri.h>
+#include <nodel/core/bind.h>
 #include <nodel/support/logging.h>
 
 /**

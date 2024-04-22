@@ -4,7 +4,8 @@
 
 #include <nodel/core/Object.h>
 #include <nodel/core/Query.h>
-#include <nodel/parser/json.h>
+#include <nodel/core/Query.h>
+#include <nodel/core/bind.h>
 #include <nodel/filesystem.h>
 #include <nodel/fmt_support.h>
 

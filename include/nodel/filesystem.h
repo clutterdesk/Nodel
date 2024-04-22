@@ -23,6 +23,7 @@ void init_default_registry() {
     default_registry.set_file_default<GenericFile>();
     default_registry.associate<JsonFile>(".json");
     default_registry.associate<CsvFile>(".csv");
+    default_registry.associate<GenericFile>(".txt");
 }
 
 } // namespace impl

@@ -26,8 +26,8 @@ typedef std::function<bool(const Object&)> Predicate;
 class SubDirectory : public DataSource
 {
   public:
-    SubDirectory(Options options, Origin origin) : DataSource(Kind::COMPLETE, options, Object::OMAP, origin) {}
-    SubDirectory(Options options = {})           : DataSource(Kind::COMPLETE, options, Object::OMAP, Origin::MEMORY) {}
+    SubDirectory(Options options, Origin origin) : DataSource(Kind::SPARSE, options, Object::OMAP, origin) {}
+    SubDirectory(Options options = {})           : DataSource(Kind::SPARSE, options, Object::OMAP, Origin::MEMORY) {}
     SubDirectory(Origin origin)                  : SubDirectory({}, origin) {}
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new SubDirectory(options(), origin); }
@@ -35,6 +35,9 @@ class SubDirectory : public DataSource
     void read_type(const Object&) override { assert (false); } // TODO: remove, later
     void read(const Object& target) override;
     void write(const Object& target, const Object&) override;
+
+    Object read_key(const Object&, const Key& k) override;
+    void write_key(const Object&, const Key& k, const Object& v) override;
 
     void set_registry(Ref<Registry> r_reg) { mr_registry = r_reg; }
     Ref<Registry> registry() const         { return mr_registry; }
@@ -139,7 +142,7 @@ void SubDirectory::read(const Object& target) {
     // TODO: handle directory_iterator failure
     for (const auto& entry : std::filesystem::directory_iterator(fpath)) {
         auto fname = entry.path().filename().string();
-        auto p_ds = r_reg->create(target, entry.path(), DataSource::Origin::SOURCE, entry.is_directory());
+        auto p_ds = r_reg->create(target, entry.path(), entry.is_directory());
         if (p_ds != nullptr) {
             p_ds->set_options(options());
             read_set(target, fname, p_ds);
@@ -148,47 +151,13 @@ void SubDirectory::read(const Object& target) {
 }
 
 inline
-bool looks_like_directory(const Ref<Registry>& r_reg, const std::filesystem::path& parent_path, const Object& obj) {
-    if (!obj.is_map()) return false;
-    for (auto& key : obj.iter_keys()) {
-        auto path = parent_path / key.to_str();
-        return (bool)r_reg->get_association(path);
-    }
-    return parent_path.extension().string() == "";
-}
-
-inline
 void SubDirectory::write(const Object& target, const Object& cache) {
-    auto r_reg = get_registry(target);
     auto fpath = path(target);
 
     // create, if necessary
     if (!std::filesystem::exists(fpath)) {
 //        DEBUG("Creating directory: {}", fpath.string());
         std::filesystem::create_directory(fpath);
-    }
-
-    // apply correct data-source to new files/directories
-    for (auto& item: cache.iter_items()) {
-        if (!has_data_source(item.second)) {
-            auto& key = item.first;
-            auto obj = item.second;
-            auto item_path = fpath / key.to_str();
-            auto p_ds = r_reg->create(target, item_path, DataSource::Origin::MEMORY);
-            if (p_ds == nullptr && looks_like_directory(r_reg, item_path, obj))
-                p_ds = r_reg->create(target, item_path, DataSource::Origin::MEMORY, true);
-
-            if (p_ds == nullptr) {
-                std::stringstream ss;
-                ss << "No association for object with path: " << item_path.string();
-                report_write_error(ss.str());
-                return;
-            }
-
-            p_ds->set_options(options());
-            p_ds->bind(obj);
-            obj.needs_saving();
-        }
     }
 
     // find deleted files and directories
@@ -206,6 +175,70 @@ void SubDirectory::write(const Object& target, const Object& cache) {
         std::error_code ec;
         std::filesystem::remove_all(deleted, ec);
         if (ec) report_write_error(ec.message());
+    }
+}
+
+inline
+Object SubDirectory::read_key(const Object& target, const Key& key) {
+    auto r_reg = get_registry(target);
+    auto fpath = path(target) / key.to_str();
+
+    std::error_code ec;
+    auto stat = std::filesystem::status(fpath, ec);
+    if (ec) report_read_error(ec.message());
+
+    if (stat.type() == std::filesystem::file_type::not_found) {
+        report_read_error(ec.message());
+        return nil;
+    }
+
+    auto p_ds = r_reg->create(target, fpath, stat.type() == std::filesystem::file_type::directory);
+    if (p_ds != nullptr) {
+        p_ds->set_options(options());
+        return p_ds;
+    }
+
+    std::stringstream ss;
+    ss << "No association for object with path: " << fpath.string();
+    report_read_error(ss.str());
+    return nil;
+}
+
+inline
+bool looks_like_directory(const Ref<Registry>& r_reg, const std::filesystem::path& parent_path, const Object& obj) {
+    for (auto& key : obj.iter_keys()) {
+        auto path = parent_path / key.to_str();
+        return (bool)r_reg->get_association(path);
+    }
+    return parent_path.extension().string() == "";
+}
+
+inline
+void SubDirectory::write_key(const Object& target, const Key& key, const Object& value) {
+    // NOTE: No writes are actually performed, here, because save() is recursive.
+    //       This function only insures that the value argument has a data-source.
+    return;
+
+    auto r_reg = get_registry(target);
+    auto fpath = path(target) / key.to_str();
+
+    auto p_ds = value.data_source<DataSource>();
+    if (p_ds == nullptr) {
+        p_ds = r_reg->create(target, fpath);
+        if (p_ds == nullptr && looks_like_directory(r_reg, fpath, value)) {
+            p_ds = r_reg->create(target, fpath, true);
+        }
+
+        if (p_ds == nullptr) {
+            std::stringstream ss;
+            ss << "No association for object with path: " << fpath.string();
+            report_write_error(ss.str());
+            return;
+        }
+
+        p_ds->set_options(options());
+        Object bound_value = value;
+        p_ds->bind(bound_value);
     }
 }
 

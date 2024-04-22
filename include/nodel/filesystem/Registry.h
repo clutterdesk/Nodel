@@ -23,7 +23,7 @@ class Registry
 {
   public:
     using Origin = DataSource::Origin;
-    using Factory = std::function<DataSource*(const Object&, const std::filesystem::path&)>;
+    using Factory = std::function<DataSource*(const Object&, const std::filesystem::path&, Origin)>;
 
     void set_file_default(const Factory& factory);
     void set_directory_default(const Factory& factory);
@@ -33,7 +33,10 @@ class Registry
     template <class T> void set_directory_default();
     template <class T> void associate(const String& extension);
 
-    DataSource* create(const Object& target, const std::filesystem::path& path, bool is_directory) const;
+    Factory get_association(const std::filesystem::path& path) const;
+
+    DataSource* create(const Object&, const std::filesystem::path&, Origin) const;
+    DataSource* create(const Object&, const std::filesystem::path&, Origin, bool is_directory) const;
 
     bool is_empty() const;
 
@@ -66,26 +69,44 @@ void Registry::associate(const String& ext, const Factory& factory) {
 
 template <class T>
 void Registry::set_file_default() {
-    m_file_default = [] (const Object&, const std::filesystem::path&) { return new T(Origin::SOURCE); };
+    m_file_default = [] (const Object&, const std::filesystem::path&, Origin origin) { return new T(origin); };
 }
 
 template <class T>
 void Registry::set_directory_default() {
-    m_dir_default = [] (const Object&, const std::filesystem::path&) { return new T(Origin::SOURCE); };
+    m_dir_default = [] (const Object&, const std::filesystem::path&, Origin origin) { return new T(origin); };
 }
 
 template <class T>
 void Registry::associate(const String& ext) {
-    m_ext_map[ext] = [] (const Object&, const std::filesystem::path&) { return new T(Origin::SOURCE); };
+    m_ext_map[ext] = [] (const Object&, const std::filesystem::path&, Origin origin) { return new T(origin); };
 }
 
 inline
-DataSource* Registry::create(const Object& target, const std::filesystem::path& path, bool is_directory) const {
+Registry::Factory Registry::get_association(const std::filesystem::path& path) const {
     auto ext = path.extension().string();
     if (auto it = m_ext_map.find(ext); it != m_ext_map.end()) {
-        return it->second(target, path);
+        return it->second;
     }
-    return is_directory? m_dir_default(target, path): m_file_default(target, path);
+    return {};
+}
+
+inline
+DataSource* Registry::create(const Object& target, const std::filesystem::path& path, Origin origin) const {
+    auto ext = path.extension().string();
+    if (auto it = m_ext_map.find(ext); it != m_ext_map.end()) {
+        return it->second(target, path, origin);
+    }
+    return nullptr;
+}
+
+inline
+DataSource* Registry::create(const Object& target, const std::filesystem::path& path, Origin origin, bool is_directory) const {
+    auto ext = path.extension().string();
+    if (auto it = m_ext_map.find(ext); it != m_ext_map.end()) {
+        return it->second(target, path, origin);
+    }
+    return is_directory? m_dir_default(target, path, origin): m_file_default(target, path, origin);
 }
 
 inline
