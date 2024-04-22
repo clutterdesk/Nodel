@@ -32,10 +32,17 @@ static python::Support support;
 // Module methods
 //-----------------------------------------------------------------------------
 
+constexpr auto mod_bind_doc = "Bind object with URI string/dict\n"
+                              "bind(uri) -> Object\n"
+                              "uri - A URI string with a registered scheme";
+
 static PyObject* mod_bind(PyObject* mod, PyObject* arg) {
     URI uri{support.to_object(arg)};
     return (PyObject*)NodelObject_wrap(bind(uri));
 }
+
+constexpr auto mod_from_json_doc = "Parse JSON into an Object\n"
+                                   "from_json(json) -> Object";
 
 static PyObject* mod_from_json(PyObject* mod, PyObject* arg) {
     Py_ssize_t size;
@@ -59,11 +66,9 @@ static PyObject* mod_from_json(PyObject* mod, PyObject* arg) {
     return po.get_clear();
 }
 
-static PyMethodDef NodelMethods[] = {
-    {"bind",  (PyCFunction)mod_bind,  METH_O,
-            PyDoc_STR("Bind object with URI string/dict")},
-    {"from_json", (PyCFunction)mod_from_json, METH_O,
-            PyDoc_STR("Parse json and return object.")},
+static PyMethodDef nodel_methods[] = {
+    {"bind",      (PyCFunction)mod_bind,      METH_O, PyDoc_STR(mod_bind_doc)},
+    {"from_json", (PyCFunction)mod_from_json, METH_O, PyDoc_STR(mod_from_json_doc)},
     {NULL, NULL, 0, NULL}
 };
 
@@ -79,7 +84,7 @@ PyModuleDef nodel_module_def = {
     .m_name = "nodel",
     .m_doc = module_doc,
     .m_size = -1,
-    .m_methods = NodelMethods,
+    .m_methods = nodel_methods,
     .m_slots = NULL,
     .m_traverse = NULL,
     .m_clear = NULL,

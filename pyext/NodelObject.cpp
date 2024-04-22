@@ -546,7 +546,13 @@ static PyMappingMethods NodelObject_as_mapping = {
 // NodelObject Methods
 //-----------------------------------------------------------------------------
 
-constexpr auto is_same_method_doc = "Returns true if argument is the same object";
+constexpr auto is_same_method_doc =
+"Returns true if `other` is the same object as this object.\n"
+"Object.is_same(other) -> bool\n"
+"Since Object instances are flyweight wrappers around the nodel.Object C++ class, you\n"
+"cannot use the Python `is` keyword to test that two objects are identical.\n"
+"other - The Object to test.\n"
+"Returns True if other is the same object as self.";
 
 static PyObject* NodelObject_is_same(PyObject* self, PyObject* arg) {
     if (!NodelObject_CheckExact(arg)) Py_RETURN_FALSE;
@@ -555,21 +561,36 @@ static PyObject* NodelObject_is_same(PyObject* self, PyObject* arg) {
     if (nd_self->obj.is(nd_arg->obj)) Py_RETURN_TRUE; else Py_RETURN_FALSE;
 }
 
-constexpr auto root_method_doc = "Returns the root of the tree";
+constexpr auto root_method_doc =
+"Returns the root of the tree containing this object.\n"
+"Object.root() -> Object\n"
+"Returns the root of the tree, which may be this object.";
 
 static PyObject* NodelObject_root(PyObject* self, PyObject*) {
     NodelObject* nd_self = (NodelObject*)self;
     return (PyObject*)NodelObject_wrap(nd_self->obj.root());
 }
 
-constexpr auto parent_method_doc = "Returns the parent object";
+constexpr auto parent_method_doc =
+"Returns the parent of this object.\n"
+"Object.parent() -> Object\n"
+"If this object is the root of the tree, then nil is returned.\n"
+"Returns the parent of this object, which may be nil.";
 
 static PyObject* NodelObject_parent(PyObject* self, PyObject*) {
     NodelObject* nd_self = (NodelObject*)self;
     return (PyObject*)NodelObject_wrap(nd_self->obj.parent());
 }
 
-constexpr auto iter_keys_method_doc = "Returns an iterator over the keys";
+constexpr auto iter_keys_method_doc =
+"Returns an iterator over the keys of this object.\n"
+"Object.iter_keys() -> iterator\n"
+"If this object is any kind of map, then this method returns an iterator over\n"
+"keys in the map.\n"
+"If this object is a list, then this method returns an iterator over the\n"
+"indices of the list - similar to the `enumerate` builtin function.\n"
+"Otherwise, a RuntimeError exception is raised.\n"
+"Returns an iterator over the keys of this container Object.";
 
 static PyObject* NodelObject_iter_keys(PyObject* self, PyObject*) {
     NodelKeyIter* nit = (NodelKeyIter*)NodelKeyIterType.tp_alloc(&NodelKeyIterType, 0);
@@ -590,7 +611,15 @@ static PyObject* NodelObject_iter_keys(PyObject* self, PyObject*) {
     }
 }
 
-constexpr auto iter_values_method_doc = "Returns an iterator over the values";
+constexpr auto iter_values_method_doc =
+"Returns an iterator over the values (Object instances) of this object.\n"
+"Object.iter_values() -> iterator\n"
+"If this object is any kind of map, then this method returns an iterator over\n"
+"values in the map.\n"
+"If this object is a list, then this method returns an iterator over the\n"
+"elements in the list.\n"
+"Otherwise, a RuntimeError exception is raised.\n"
+"Returns an iterator over the values of this container Object.";
 
 static PyObject* NodelObject_iter_values(PyObject* self, PyObject*) {
     NodelValueIter* nit = (NodelValueIter*)NodelValueIterType.tp_alloc(&NodelValueIterType, 0);
@@ -611,7 +640,15 @@ static PyObject* NodelObject_iter_values(PyObject* self, PyObject*) {
     }
 }
 
-constexpr auto iter_items_method_doc = "Returns an iterator over the items";
+constexpr auto iter_items_method_doc =
+"Returns an iterator over the items of this object.\n"
+"Object.iter_items() -> iterator\n"
+"If this object is any kind of map, then this method returns an iterator over\n"
+"key/value pairs in the map.\n"
+"If this object is a list, then this method returns an iterator over the\n"
+"index/value pairs in the list, similar to the `enumerate` builtin function.\n"
+"Otherwise, a RuntimeError exception is raised.\n"
+"Returns an iterator over the items of this container Object.";
 
 static PyObject* NodelObject_iter_items(PyObject* self, PyObject*) {
     NodelItemIter* nit = (NodelItemIter*)NodelItemIterType.tp_alloc(&NodelItemIterType, 0);
@@ -632,7 +669,15 @@ static PyObject* NodelObject_iter_items(PyObject* self, PyObject*) {
     }
 }
 
-constexpr auto iter_tree_method_doc = "Returns a tree iterator";
+constexpr auto iter_tree_method_doc =
+"Returns an iterator of the sub-tree whose root is this object.\n"
+"Object.iter_tree() -> iterator\n"
+"A tree iterator iterates over the values (instances of Object) throughout\n"
+"the entire tree whose root is this object.  BE CAREFUL using this method\n"
+"since it can result in loading every bound object in the sub-tree.\n"
+"This method traverses both map and list containers - for example, a list\n"
+"whose elements are lists or maps.\n"
+"Returns an iterator over every Object in the sub-tree.";
 
 static PyObject* NodelObject_iter_tree(PyObject* self, PyObject* args) {
     NodelTreeIter* nit = (NodelTreeIter*)NodelTreeIterType.tp_alloc(&NodelTreeIterType, 0);
@@ -653,7 +698,12 @@ static PyObject* NodelObject_iter_tree(PyObject* self, PyObject* args) {
     }
 }
 
-constexpr auto key_method_doc = "Returns the key/index of this object";
+constexpr auto key_method_doc =
+"Returns the key/index of this object within its parent.\n"
+"Object.key() -> any\n"
+"Note that the type of object returned depends on the type of the Key under\n"
+"which this object is stored in its parent container.\n"
+"Returns nil or the key/index of this object.";
 
 static PyObject* NodelObject_key(PyObject* self, PyObject* args) {
     NodelObject* nd_self = (NodelObject*)self;
@@ -661,10 +711,13 @@ static PyObject* NodelObject_key(PyObject* self, PyObject* args) {
 }
 
 constexpr auto reset_method_doc = \
-"If object is bound (has data-source), then it's cleared and the data-source "
-"will re-load on the next data access. Any references to descendants will be "
-"orphaned, and cannot be re-loaded, themselves.  In general, the refresh "
-"method is preferred for this reason.";
+"Reset a bound object, clearing it and releasing memory resources.\n"
+"Object.reset() -> None\n"
+"If object is bound (has data-source), then it's cleared and the data-source\n"
+"will re-load on the next data access. Any references to descendants will be\n"
+"orphaned, and cannot be re-loaded, themselves. In general, the `refresh`\n"
+"method is preferred for this reason. However, as of the writing of this\n"
+"doc-string, the `refresh` method is not yet implemented.";
 
 static PyObject* NodelObject_reset(PyObject* self, PyObject* args) {
     NodelObject* nd_self = (NodelObject*)self;
@@ -805,6 +858,18 @@ static PyObject* NodelObject_iter(PyObject* self) {
 // Type definition
 //-----------------------------------------------------------------------------
 
+constexpr auto NodelObject_doc = \
+"Flyweight wrapper around the nodel::Object class.\n"
+"Object instances can be created, or assigned, from any of the following Python\n"
+"objects:\n"
+"- None\n"
+"- True|False\n"
+"- int|float|str\n"
+"- dict|list\n"
+"- nodel.Object\n"
+"Object instances can also be created by calling the module function, `bind`.\n"
+"See `nodel.bind` for details.";
+
 PyTypeObject NodelObjectType = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name        = "nodel.Object",
@@ -817,7 +882,7 @@ PyTypeObject NodelObjectType = {
     .tp_str         = (reprfunc)NodelObject_str,
     .tp_getattro    = &NodelObject_getattro,
     .tp_setattro    = &NodelObject_setattro,
-    .tp_doc         = PyDoc_STR("Nodel object"),
+    .tp_doc         = PyDoc_STR(NodelObject_doc),
     .tp_richcompare = &NodelObject_richcompare,
     .tp_iter        = &NodelObject_iter,
     .tp_methods     = NodelObject_methods,
