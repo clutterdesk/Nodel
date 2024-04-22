@@ -13,6 +13,8 @@ NODEL_INIT_FILESYSTEM;
 int main(int argc, char **argv) {
   cpptrace::register_terminate_handler();
 
+  nodel::filesystem::configure();
+
   // build new arg list
   std::vector<char*> args;
   for (int i=0; i<argc; i++)

@@ -5,9 +5,10 @@
 #include <nodel/core/Object.h>
 #include <nodel/core/Query.h>
 #include <nodel/parser/json.h>
+#include <nodel/filesystem.h>
+#include <nodel/fmt_support.h>
 
 using namespace nodel;
-using Axis = Step::Axis;
 
 
 TEST(Query, ChildStep) {
@@ -15,7 +16,7 @@ TEST(Query, ChildStep) {
     query.add_steps({Axis::CHILD, "x"_key});
 
     Object obj = json::parse("{'x': 'tea'}");
-    auto it = query.eval(obj);
+    auto it = query.iter_eval(obj);
 
     Object it_obj = it.next();
     EXPECT_TRUE(it_obj != nil);
@@ -30,7 +31,7 @@ TEST(Query, ChildAnyStep) {
     query.add_steps({Axis::CHILD, nil});
 
     Object obj = json::parse("{'x': 'tea'}");
-    auto it = query.eval(obj);
+    auto it = query.iter_eval(obj);
 
     Object it_obj = it.next();
     EXPECT_TRUE(it_obj != nil);
@@ -45,7 +46,7 @@ TEST(Query, ParentStep) {
     query.add_steps({Axis::PARENT, "x"_key});
 
     Object obj = json::parse("{'x': {'y': 'tea'}}");
-    auto it = query.eval(obj.get("x"_key).get("y"_key));
+    auto it = query.iter_eval(obj.get("x"_key).get("y"_key));
 
     Object it_obj = it.next();
     EXPECT_TRUE(it_obj != nil);
@@ -60,7 +61,7 @@ TEST(Query, ParentAnyStep) {
     query.add_steps({Axis::PARENT, nil});
 
     Object obj = json::parse("{'x': 'tea'}");
-    auto it = query.eval(obj.get("x"_key));
+    auto it = query.iter_eval(obj.get("x"_key));
 
     Object it_obj = it.next();
     EXPECT_TRUE(it_obj != nil);
@@ -78,7 +79,7 @@ TEST(Query, AncestorAnyStep) {
     Object x = obj.get("x"_key);
     Object y = x.get("y"_key);
 
-    auto it = query.eval(y);
+    auto it = query.iter_eval(y);
 
     EXPECT_TRUE(it.next().is(y));
     EXPECT_TRUE(it.next().is(x));
@@ -95,7 +96,7 @@ TEST(Query, AncestorStep) {
     Object y = x.get("y"_key);
     Object yy = y.get("y"_key);
 
-    auto it = query.eval(yy);
+    auto it = query.iter_eval(yy);
 
     EXPECT_TRUE(it.next().is(yy));
     EXPECT_TRUE(it.next().is(y));
@@ -111,7 +112,7 @@ TEST(Query, SubtreeAnyStep) {
     std::unordered_set<Oid> expect;
     for (auto obj : root.iter_tree()) { expect.insert(obj.id()); }
 
-    auto it = query.eval(root);
+    auto it = query.iter_eval(root);
     auto count = 0;
     for (auto it_obj = it.next(); it_obj != nil; it_obj = it.next(), ++count) {
         EXPECT_TRUE(expect.contains(it_obj.id()));
@@ -123,11 +124,11 @@ TEST(Query, SubtreeAnyStep) {
 TEST(Query, AncestorChild) {
     Object root = json::parse("{'u': {'z': 'uz'}, 'y': {'u': 'yu', 'z': 'yz'}}");
 
-    Query query{Step{Step::Axis::ANCESTOR},
-                Step{Step::Axis::CHILD, "u"_key}};
+    Query query{Step{Axis::ANCESTOR},
+                Step{Axis::CHILD, "u"_key}};
 
     List actual;
-    auto it = query.eval(root.get("y.z"_path));
+    auto it = query.iter_eval(root.get("y.z"_path));
     for (auto it_obj = it.next(); it_obj != nil; it_obj = it.next()) {
         actual.push_back(it_obj);
     }
@@ -137,4 +138,14 @@ TEST(Query, AncestorChild) {
     EXPECT_EQ(actual[1].to_str(), R"({"z": "uz"})");
 }
 
+TEST(Query, FindFiles) {
+    Object wd = bind("file://"_uri);
 
+    auto is_txt_file = [] (const Object& obj) { return obj.key().to_str().ends_with(".txt"); };
+    Query query;
+    query.add_steps({Axis::SUBTREE, nil, is_txt_file});
+    List result = query.eval(wd["test_data"_key]);
+    for (auto& obj : result) {
+        DEBUG("{}", obj.path());
+    }
+}

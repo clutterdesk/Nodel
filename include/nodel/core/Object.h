@@ -245,6 +245,9 @@ class Object
 
     Object(ReprIX type);
 
+    Object(const Subscript<Key>& sub);
+    Object(const Subscript<OPath>& sub);
+
     Object(const Object& other);
     Object(Object&& other);
 
@@ -345,10 +348,10 @@ class Object
     String to_json() const;
     void to_json(std::ostream&) const;
 
-    Object get(is_like_Int auto v) const;
-    Object get(const Key& key) const;
-    Object get(const OPath& path) const;
-    Object get(const Slice& interval) const;
+    Object get(is_like_Int auto) const;
+    Object get(const Key&) const;
+    Object get(const OPath&) const;
+    Object get(const Slice&) const;
 
     Object set(const Object&);
     Object set(const Key&, const Object&);
@@ -356,9 +359,9 @@ class Object
     Object set(const OPath&, const Object&);
     void set(const Slice&, const Object&);
 
-    void del(const Key& key);
-    void del(const OPath& path);
-    void del(const Slice& interval);
+    void del(const Key&);
+    void del(const OPath&);
+    void del(const Slice&);
     void del_from_parent();
 
     Subscript<Key> operator [] (const Key& key);
@@ -444,6 +447,12 @@ class OPath
     OPath() {}
     OPath(const StringView& spec);
 
+    // helpers for Subscript class
+    OPath(const Key& l_key, const Key& r_key);
+    OPath(const Key& l_key, const OPath& r_path);
+    OPath(const OPath& l_path, const Key& r_key);
+    OPath(const OPath& l_path, const OPath& r_path);
+
     OPath(const KeyList& keys) : m_keys{keys} {}
     OPath(KeyList&& keys)      : m_keys{std::forward<KeyList>(keys)} {}
 
@@ -520,6 +529,7 @@ class OPath
 
     void reverse() { std::reverse(m_keys.begin(), m_keys.end()); }
     KeyList keys() { return m_keys; }
+    Key tail()     { return m_keys[m_keys.size() - 1]; }
 
     Iterator begin() { return m_keys.begin(); }
     Iterator end() { return m_keys.end(); }
@@ -538,6 +548,36 @@ class OPath
   friend class Object;
 };
 
+
+inline
+OPath::OPath(const Key& l_key, const Key& r_key) {
+    m_keys.reserve(2);
+    append(l_key);
+    append(r_key);
+}
+
+inline
+OPath::OPath(const Key& l_key, const OPath& r_path) {
+    m_keys.reserve(r_path.m_keys.size() + 1);
+    append(l_key);
+    for (auto& r_key : r_path)
+        append(r_key);
+}
+
+inline
+OPath::OPath(const OPath& l_path, const Key& r_key) {
+    m_keys = l_path.m_keys;
+    append(r_key);
+}
+
+inline
+OPath::OPath(const OPath& l_path, const OPath& r_path) {
+    m_keys.reserve(l_path.m_keys.size() + r_path.m_keys.size());
+    for (auto& l_key : l_path)
+        append(l_key);
+    for (auto& r_key : r_path)
+        append(r_key);
+}
 
 inline
 OPath::OPath(const StringView& spec) {
@@ -2883,8 +2923,10 @@ void DataSource::reset() {
 inline
 void DataSource::reset_key(const Key& key) {
     if (is_sparse()) {
-        if (!m_cache.is_empty())
+        // TODO: this is not right
+        if (!m_cache.is_empty()) {
             m_cache.del(key);
+        }
     } else {
         reset();
     }
@@ -2892,7 +2934,12 @@ void DataSource::reset_key(const Key& key) {
 
 inline
 void DataSource::refresh() {
-    // TODO: implement refresh
+    // - If not cached, noop
+    if (!m_fully_cached) return;
+    // - Reload data for this level
+    // - Insert new keys
+    // - Update matching keys without data-sources
+    // - Enqueue for refresh matching keys with data-sources
 }
 
 inline
@@ -2932,6 +2979,8 @@ void DataSource::insure_fully_cached(const Object& target) {
 
 inline
 void DataSource::read_set(const Object& target, const Object& value) {
+    // TODO: Have data-source return all keys at once, so we know whether we're performing
+    // a fresh load, or a refresh.
     m_cache.set(value);
 }
 
@@ -2953,36 +3002,169 @@ void DataSource::read_del(const Object& target, const Key& key) {
 }
 
 
+namespace test { template <typename T> bool is_resolved(Object::Subscript<T>& subscript); }
+
 //////////////////////////////////////////////////////////////////////////////
 /// @brief This class implements the Object subscript operator.
 //////////////////////////////////////////////////////////////////////////////
-template <class T>
-class Object::Subscript : private Object
+template <class AccessType>
+class Object::Subscript
 {
   public:
-    Subscript(const Object& obj, const T& sub) : Object{obj}, m_sub{sub} {}
+    Object& resolve() const {
+        auto& self = const_cast<Object&>(m_obj);
+        if (m_pend) {
+            self = m_obj.get(m_sub);
+            m_pend = false;
+        }
+        return self;
+    }
 
-    Subscript<Key> operator [] (const Key& key);
+  public:
+    Subscript(const Object& obj, const AccessType& sub) : m_obj{obj}, m_sub{sub}, m_pend{true} {}
+
+    ReprIX type() const                { return resolve().type(); }
+    std::string_view type_name() const { return resolve().type_name(); }
+
+    Object root() const   { return resolve().root(); }
+    Object parent() const { return resolve().parent(); }
+
+    KeyRange iter_keys() const     { return resolve().iter_keys(); }
+    ItemRange iter_items() const   { return resolve().iter_items(); }
+    ValueRange iter_values() const { return resolve().iter_values(); }
+    LineRange iter_line() const    { return resolve().iter_line(); }
+
+    KeyRange iter_keys(const Slice& slice) const     { return resolve().iter_keys(slice); }
+    ItemRange iter_items(const Slice& slice) const   { return resolve().iter_items(slice); }
+    ValueRange iter_values(const Slice& slice) const { return resolve().iter_values(slice); }
+
+    TreeRange<Object, NoPredicate, NoPredicate> iter_tree() const { return resolve().iter_tree(); }
+
+    template <typename VisitPred>
+    TreeRange<Object, Predicate, NoPredicate> iter_tree(VisitPred&& visit_pred) const {
+        return resolve().iter_tree(std::forward<VisitPred>(visit_pred));
+    }
+
+    template <typename EnterPred>
+    TreeRange<Object, NoPredicate, Predicate> iter_tree_if(EnterPred&& enter_pred) const {
+        return resolve().iter_tree(std::forward<EnterPred>(enter_pred));
+    }
+
+    template <typename VisitPred, typename EnterPred>
+    TreeRange<Object, Predicate, Predicate> iter_tree_if(VisitPred&& visit_pred, EnterPred&& enter_pred) const {
+        return resolve().iter_tree(std::forward<VisitPred>(visit_pred), std::forward<EnterPred>(enter_pred));
+    }
+
+    const KeyList keys() const   { return resolve().keys(); }
+    const ItemList items() const { return resolve().items(); }
+    const List values() const    { return resolve().values(); }
+    size_t size() const          { return resolve().size(); }
+
+    const Key key() const                     { if constexpr (std::is_same<AccessType, Key>::value) return m_sub; else return m_sub.tail(); }
+    const Key key_of(const Object& obj) const { return resolve().key_of(obj); }
+    OPath path() const                        { return resolve().path(); }
+    OPath path(const Object& root) const      { return resolve().path(root); }
+
+    template <typename T> T value_cast() const { return resolve().template value_cast<T>(); }
+    template <typename T> bool is_type() const { return resolve().template is_type<T>(); }
+
+    template <typename V> void visit(V&& visitor) const { return resolve().visit(visitor); }
+
+    template <typename T> T as() const requires is_byvalue<T>                         { return resolve().template as<T>(); }
+    template <typename T> const T& as() const requires std::is_same<T, String>::value { return resolve().template as<T>(); }
+    template <typename T> T& as() requires is_byvalue<T>                              { return resolve().template as<T>(); }
+    template <typename T> T& as() requires std::is_same<T, String>::value             { return resolve().template as<T>(); }
+
+    bool is_empty() const   { return resolve().is_empty(); }
+    bool is_deleted() const { return resolve().is_deleted(); }
+
+    bool is_num() const       { return resolve().is_num(); }
+    bool is_any_int() const   { return resolve().is_any_int(); }
+    bool is_map() const       { return resolve().is_map(); }
+    bool is_container() const { return resolve().is_container(); }
+
+    bool is_valid() const     { return resolve().is_valid(); }
+
+    bool to_bool() const   { return resolve().to_bool(); }
+    Int to_int() const     { return resolve().to_int(); }
+    UInt to_uint() const   { return resolve().to_uint(); }
+    Float to_float() const { return resolve().to_float(); }
+    String to_str() const  { return resolve().to_str(); }
+
+    Key to_key() const                       { return resolve().to_key(); }
+    Key into_key()                           { return resolve().into_key(); }
+    String to_json() const                   { return resolve().to_json(); }
+    void to_json(std::ostream& stream) const { return resolve().to_json(stream); }
+
+    Object get(is_like_Int auto v) const { return resolve().get(v); }
+    Object get(const Key& key) const     { return resolve().get(key); }
+    Object get(const OPath& path) const  { return resolve().get(path); }
+    Object get(const Slice& slice) const { return resolve().get(slice); }
+
+    Object set(const Object& obj)                   { return resolve().set(obj); }
+    Object set(const Key& key, const Object& obj)   { return resolve().set(key, obj); }
+    Object set(Key&& key, const Object& obj)        { return resolve().set(std::forward<Key>(key), obj); }
+    Object set(const OPath& key, const Object& obj) { return resolve().set(key, obj); }
+    void set(const Slice& slice, const Object& obj) { return resolve().set(slice, obj); }
+
+    void del(const Key& key)     { resolve().del(key); }
+    void del(const OPath& path)  { resolve().del(path); }
+    void del(const Slice& slice) { resolve().del(slice); }
+    void del_from_parent()       { if (m_pend) m_obj.del(m_sub); else m_obj.del_from_parent(); }
+
+    Subscript<OPath> operator [] (const Key& key);
     Subscript<OPath> operator [] (const OPath& path);
 
-    Object operator = (const Object& obj) { return Object::set(m_sub, obj); }
-    String to_str() const { return Object::get(m_sub).to_str(); }
+    bool operator == (const Object& other) const                   { return resolve() == other; }
+    bool operator == (nil_t) const                                 { return resolve().type() == Object::NIL; }
+    std::partial_ordering operator <=> (const Object& other) const { return resolve() <=> other; }
+
+    Oid id() const                     { return resolve().id(); }
+    bool is(const Object& other) const { return resolve().is(other); }
+    Object copy() const                { return resolve().copy(); }
+    refcnt_t ref_count() const         { return resolve().ref_count(); }
+
+    Object operator = (const Object& obj) { return m_obj.set(m_sub, obj); }
+    Object operator = (Object&& other)    { return m_obj.set(m_sub, std::forward<Object>(other)); }
+
+    template <class DataSourceType>
+    DataSourceType* data_source() const { return resolve().template data_source<DataSourceType>(); }
+
+    void needs_saving()              { resolve().needs_saving(); }
+    void save()                      { resolve().save(); }
+    void reset()                     { resolve().reset(); }
+    void reset_key(const Key& key)   { resolve().reset_key(key); }
+    void refresh()                   { resolve().refresh(); }
+    void refresh_key(const Key& key) { resolve().refresh_key(key); }
 
   private:
-    T m_sub;
+    Object m_obj;
+    AccessType m_sub;
+    mutable bool m_pend;
+
+  template <typename T> friend bool test::is_resolved(Subscript<T>& subscript);
 };
 
-inline
-Object::Subscript<Key> Object::operator [] (const Key& key) { return {*this, key}; }
 
-inline
-Object::Subscript<OPath> Object::operator [] (const OPath& path) { return {*this, path}; }
+inline Object::Object(const Subscript<Key>& sub) : Object{sub.resolve()} {}
+inline Object::Object(const Subscript<OPath>& sub) : Object{sub.resolve()} {}
 
-template <class T>
-Object::Subscript<Key> Object::Subscript<T>::operator [] (const Key& key) { return {get(m_sub), key}; }
+inline Object::Subscript<Key> Object::operator [] (const Key& key)      { return {*this, key}; }
+inline Object::Subscript<OPath> Object::operator [] (const OPath& path) { return {*this, path}; }
 
 template <class T>
-Object::Subscript<OPath> Object::Subscript<T>::operator [] (const OPath& path) { return {get(m_sub), path}; }
+Object::Subscript<OPath> Object::Subscript<T>::operator [] (const Key& key) {
+    if (m_pend) return {m_obj, OPath{m_sub, key}};
+    OPath path;
+    path.append(key);
+    return {m_obj, path};
+}
+
+template <class T>
+Object::Subscript<OPath> Object::Subscript<T>::operator [] (const OPath& path) {
+    if (m_pend) return {m_obj, OPath{m_sub, path}};
+    return {m_obj, path};
+}
 
 
 namespace test {
@@ -2998,6 +3180,9 @@ class DataSourceTestInterface
   private:
     DataSource& m_data_source;
 };
+
+
+template <typename T> bool is_resolved(Object::Subscript<T>& subscript) { return !subscript.m_pend; }
 
 } // test namespace
 } // nodel namespace

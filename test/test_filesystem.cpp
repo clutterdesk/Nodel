@@ -239,7 +239,6 @@ TEST(Filesystem, CopyFileToAnotherDirectory) {
 }
 
 TEST(Filesystem, Bind) {
-    filesystem::configure();
     Object cwd = bind("file://"_uri);
     EXPECT_TRUE(cwd.get("test_data"_key) != nil);
 }

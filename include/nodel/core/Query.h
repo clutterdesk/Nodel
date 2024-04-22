@@ -21,7 +21,12 @@ class StackItem
     struct IteratorBundle
     {
         IteratorBundle() {}
-        IteratorBundle(ValueRange&& range) : m_range{std::forward<ValueRange>(range)}, m_it{m_range.begin()}, m_end{m_range.end()} {}
+
+        IteratorBundle(ValueRange&& range)
+          : m_range{std::forward<ValueRange>(range)}, m_it{m_range.begin()}, m_end{m_range.end()} {}
+
+        IteratorBundle(ValueRange&& range, const Predicate& pred)
+          : m_range{std::forward<ValueRange>(range)}, m_it{m_range.begin()}, m_end{m_range.end()}, m_pred{pred} {}
 
         auto& operator = (IteratorBundle&& other) {
             m_range = std::move(other.m_range);
@@ -33,6 +38,7 @@ class StackItem
         ValueRange m_range;
         ValueIterator m_it;
         ValueIterator m_end;
+        Predicate m_pred;
     };
 
     union ReprIX
@@ -40,6 +46,7 @@ class StackItem
         ReprIX() {}
         ReprIX(const Object& obj)  : m_obj{obj} {}
         ReprIX(ValueRange&& range) : m_bundle{std::forward<ValueRange>(range)} {}
+        ReprIX(ValueRange&& range, const Predicate& pred) : m_bundle{std::forward<ValueRange>(range), pred} {}
         ~ReprIX() {}
 
         Object m_obj;             // has default ctor
@@ -49,6 +56,8 @@ class StackItem
   public:
     StackItem(uint32_t step_i, const Object& obj) : m_repr{obj}, m_step_i{step_i}, m_repr_ix{OBJECT} {}
     StackItem(uint32_t step_i, ValueRange&& range) : m_repr{std::forward<ValueRange>(range)}, m_step_i{step_i}, m_repr_ix{ITER} {}
+    StackItem(uint32_t step_i, ValueRange&& range, const Predicate& pred)
+      : m_repr{std::forward<ValueRange>(range), pred}, m_step_i{step_i}, m_repr_ix{ITER} {}
     StackItem(StackItem&&);
 
     Object peek();
@@ -66,27 +75,26 @@ class StackItem
 } // impl namespace
 
 
+enum class Axis {
+    ANCESTOR,  // TODO: rename "LINEAGE"?
+    PARENT,
+    SELF,
+    CHILD,
+    SUBTREE
+};
+
+
 struct Step
 {
-    enum class Axis {
-        ANCESTOR,  // TODO: rename "LINEAGE"?
-        PARENT,
-        SELF,
-        CHILD,
-        SUBTREE
-    };
-
-//    enum class Push {
-//        FRONT,
-//        BACK
-//    };
-
     Step(Axis axis)                 : m_axis{axis}, m_key{nil} {}
     Step(Axis axis, const Key& key) : m_axis{axis}, m_key{key} {}
 
+    template <typename Func>
+    Step(Axis axis, const Key& key, Func&& pred) : m_axis{axis}, m_key{key}, m_pred{std::forward<Func>(pred)} {}
+
     Axis m_axis;
     Key m_key;
-//    Push m_push;
+    Predicate m_pred;
 };
 
 
@@ -108,8 +116,56 @@ class Query
     template <class ... Args>
     void add_steps(const Step& step, Args&& ... steps);
 
-    QueryEval eval(const Object& obj) const;
-    QueryEval eval(ValueRange&& range) const;
+    Query& operator = (const Query& other) {
+        m_steps = other.m_steps;
+        return *this;
+    }
+
+    Query& operator += (const Query& other) {
+        for (const auto& step : other.m_steps)
+            m_steps.push_back(step);
+        return *this;
+    }
+
+    Query operator + (const Query& other) {
+        Query query = *this;
+        query += other;
+        return query;
+    }
+
+    Query& operator += (const Step& step) {
+        add_steps(step);
+        return *this;
+    }
+
+    QueryEval iter_eval(const Object& obj) const;
+    QueryEval iter_eval(ValueRange&& range) const;
+
+    void eval(List& out, const Object&) const;
+    void eval(List& out, ValueRange&&) const;
+
+    List eval(const Object& obj) const  { List result; eval(result, obj); return result; }
+    List eval(ValueRange&& range) const { List result; eval(result, std::forward<ValueRange>(range)); return result; }
+
+    template <typename Predicate>
+    void eval(List& out, const Object& obj, Predicate&& pred) const;
+
+    template <typename Predicate>
+    void eval(List& out, ValueRange&& range, Predicate&& pred) const;
+
+    template <typename Predicate>
+    List eval(const Object& obj, Predicate&& pred) const {
+        List result;
+        eval(result, obj, std::forward<Predicate>(pred));
+        return result;
+    }
+
+    template <typename Predicate>
+    List eval(ValueRange&& range, Predicate&& pred) const {
+        List result;
+        eval(result, std::forward<ValueRange>(range), std::forward<Predicate>(pred));
+        return result;
+    }
 
   private:
     std::vector<Step> m_steps;
@@ -201,15 +257,50 @@ void Query::add_steps(const Step& step, Args&& ... steps) {
 
 
 inline
-QueryEval Query::eval(const Object& obj) const {
+QueryEval Query::iter_eval(const Object& obj) const {
     return {*this, obj};
 }
 
 inline
-QueryEval Query::eval(ValueRange&& range) const {
+QueryEval Query::iter_eval(ValueRange&& range) const {
     return {*this, std::forward<ValueRange>(range)};
 }
 
+inline
+void Query::eval(List& out, const Object& obj) const {
+    auto it = iter_eval(obj);
+    auto cur = it.next();
+    while (cur != nil) {
+        out.push_back(cur);
+        cur = it.next();
+    }
+}
+
+inline
+void Query::eval(List& out, ValueRange&& range) const {
+    auto it = iter_eval(std::forward<ValueRange>(range));
+    auto cur = it.next();
+    while (cur != nil) {
+        out.push_back(cur);
+        cur = it.next();
+    }
+}
+
+template <typename Predicate>
+void Query::eval(List& out, const Object& obj, Predicate&& pred) const {
+    auto it = iter_eval(obj);
+    for (auto cur = it.next(); cur != nil; cur = it.next())
+        if (pred(cur))
+            out.push_back(cur);
+}
+
+template <typename Predicate>
+void Query::eval(List& out, ValueRange&& range, Predicate&& pred) const {
+    auto it = iter_eval(std::forward<ValueRange>(range));
+    for (auto cur = it.next(); cur != nil; cur = it.next())
+        if (pred(cur))
+            out.push_back(cur);
+}
 
 inline
 QueryEval::QueryEval(const Query& query, const Object& obj) : m_query{query} {
@@ -238,22 +329,21 @@ Object QueryEval::next() {
         auto& step = m_query.m_steps[curr_step_i];
         auto step_key =  step.m_key;
         auto step_axis = step.m_axis;
-//        auto step_push = step.m_push;
 
         if (item.m_repr_ix != StackItem::ITER || item.done()) {
             m_fifo.pop_front();
         }
 
         switch (step_axis) {
-            case Step::Axis::ANCESTOR: {
+            case Axis::ANCESTOR: {
                 const auto& next_obj = curr_obj.parent();
-                if (next_obj != nil) {
+                if (next_obj != nil && (!step.m_pred || step.m_pred(next_obj))) {
                     // continue current step
                     m_fifo.push_front({curr_step_i, next_obj});
                 }
 
                 // proceed to next step, or return obj if last step
-                if (step_key == nil || step_key == curr_obj.key()) {
+                if ((step_key == nil || step_key == curr_obj.key()) && (!step.m_pred || step.m_pred(next_obj))) {
                     if (next_step_i < m_query.m_steps.size()) {
                         m_fifo.push_front({next_step_i, curr_obj});
                     } else {
@@ -264,9 +354,9 @@ Object QueryEval::next() {
                 break;
             }
 
-            case Step::Axis::PARENT: {
+            case Axis::PARENT: {
                 const auto& next_obj = curr_obj.parent();
-                if (next_obj != nil) {
+                if (next_obj != nil && (!step.m_pred || step.m_pred(next_obj))) {
                     if (step_key == nil || step_key == next_obj.key()) {
                         // proceed to next step, or return obj if last step
                         if (next_step_i < m_query.m_steps.size()) {
@@ -279,8 +369,8 @@ Object QueryEval::next() {
                 break;
             }
 
-            case Step::Axis::SELF: {
-                if (step_key == nil || step_key == curr_obj.key()) {
+            case Axis::SELF: {
+                if ((step_key == nil || step_key == curr_obj.key()) && (!step.m_pred || step.m_pred(curr_obj))) {
                     // proceed to next step, or return obj if last step
                     if (next_step_i < m_query.m_steps.size()) {
                         m_fifo.push_front({next_step_i, curr_obj});
@@ -291,15 +381,15 @@ Object QueryEval::next() {
                 break;
             }
 
-            case Step::Axis::CHILD: {
+            case Axis::CHILD: {
                 if (curr_obj.is_container()) {
                     if (step_key == nil) {
                         // NOTE: size of sparse data-source may be unknown, so always create iterator
-                        m_fifo.push_front({next_step_i, curr_obj.iter_values()});
+                        m_fifo.push_front({next_step_i, curr_obj.iter_values(), step.m_pred});
                         if (m_fifo.front().done()) m_fifo.pop_front();
                     } else {
                         const auto& next_obj = curr_obj.get(step_key);
-                        if (next_obj != nil) {
+                        if (next_obj != nil && (!step.m_pred || step.m_pred(next_obj))) {
                             // proceed to next step, or return obj if last step
                             if (next_step_i < m_query.m_steps.size()) {
                                 m_fifo.push_front({next_step_i, next_obj});
@@ -312,15 +402,15 @@ Object QueryEval::next() {
                 break;
             }
 
-            case Step::Axis::SUBTREE: {
+            case Axis::SUBTREE: {
                 // continue current step: push current object children
                 if (curr_obj.is_container()) {
                     // NOTE: size of sparse data-source may be unknown, so always create iterator
-                    m_fifo.push_front({curr_step_i, curr_obj.iter_values()});
+                    m_fifo.push_front({curr_step_i, curr_obj.iter_values(), step.m_pred});
                     if (m_fifo.front().done()) m_fifo.pop_front();
                 }
 
-                if (step_key == nil || step_key == curr_obj.key()) {
+                if ((step_key == nil || step_key == curr_obj.key()) && (!step.m_pred || step.m_pred(curr_obj))) {
                     // proceed to next step, or return obj if last step
                     if (next_step_i < m_query.m_steps.size()) {
                         m_fifo.push_front({next_step_i, curr_obj});

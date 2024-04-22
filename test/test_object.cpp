@@ -941,13 +941,13 @@ TEST(Object, SortedMapGetNotFound) {
     EXPECT_TRUE(obj.get("x"_key) == nil);
 }
 
-TEST(Object, MultipleSubscriptOrderedMap) {
+TEST(Object, MultipleGetOrderedMap) {
   Object obj = json::parse(R"({"a": {"b": {"c": 7}}})");
   EXPECT_TRUE(obj.is_type<OrderedMap>());
   EXPECT_EQ(obj.get("a"_key).get("b"_key).get("c"_key), 7);
 }
 
-TEST(Object, MultipleSubscriptSortedMap) {
+TEST(Object, MultipleGetSortedMap) {
   json::Options options; options.use_sorted_map = true;
   Object obj = json::parse(options, R"({"a": {"b": {"c": 7}}})");
   EXPECT_TRUE(obj.is_type<SortedMap>());
@@ -1128,6 +1128,58 @@ TEST(Object, SortedMapGetKey) {
     EXPECT_EQ(obj.get("z"_key).key(), "z"_key);
     EXPECT_EQ(obj.get("z"_key).get(0).key(), 0);
     EXPECT_EQ(obj.get("z"_key).get(1).key(), 1);
+}
+
+TEST(Object, SubscriptResolution) {
+    Object obj = "{'x': 'tea'}"_json;
+    auto sub = obj["x"_key];
+    EXPECT_FALSE(test::is_resolved(sub));
+    EXPECT_EQ(sub.as<String>(), "tea");
+    EXPECT_TRUE(test::is_resolved(sub));
+}
+
+TEST(Object, Subscript) {
+    Object obj = "{'x': 'tea', 'y': {'u': [1, 2], 'v': [3, 4]}}"_json;
+    EXPECT_EQ(obj["x"_key], "tea");
+    EXPECT_EQ(obj["y"_key]["v"_key][1], 4);
+    EXPECT_EQ(obj["y"_key].key(), "y"_key);
+    EXPECT_EQ(obj["y"_path]["u[1]"_path], 2);
+}
+
+TEST(Object, SubscriptAssignKey) {
+    Object obj = "{'x': 'water', 'y': {'u': [1, 2], 'v': [3, 4]}}"_json;
+    obj["x"_key] = "tea";
+    EXPECT_EQ(obj.get("x"_key), "tea");
+
+    obj["y"_key]["u"_key][1] = 7;
+    EXPECT_EQ(obj.get("y.u"_path), "[1, 7]"_json);
+}
+
+TEST(Object, SubscriptAssignPath) {
+    Object obj = "{'x': {'y': {'z': 'water'}}}"_json;
+    obj["x.y.z"_path] = "tea";
+    EXPECT_EQ(obj.get("x.y.z"_path), "tea");
+}
+
+TEST(Object, SubscriptDelFromParent) {
+    Object obj = "{'x': 'tea'}"_json;
+    auto sub = obj["x"_key];
+    EXPECT_TRUE(sub.parent().is(obj));
+    sub.del_from_parent();
+    EXPECT_EQ(sub.parent(), nil);
+}
+
+TEST(Object, ReuseResolvedSubscript) {
+    Object obj = "{'x': {'u': [0, 1], 'v': [2, 3]}, 'y': {'u': [4, 5]}}"_json;
+    auto sub1 = obj["x"_key];
+    auto sub2 = sub1["u"_key];
+    EXPECT_EQ(sub1["v[1]"_path], 3);
+    EXPECT_EQ(sub2[1], 1);
+}
+
+TEST(Object, SubscriptGetKey) {
+    Object obj = "{'x': 'tea'}"_json;
+    EXPECT_EQ(obj["x"_key].key(), "x");
 }
 
 TEST(Object, KeyOf) {

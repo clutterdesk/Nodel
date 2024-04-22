@@ -546,6 +546,8 @@ static PyMappingMethods NodelObject_as_mapping = {
 // NodelObject Methods
 //-----------------------------------------------------------------------------
 
+constexpr auto is_same_method_doc = "Returns true if argument is the same object";
+
 static PyObject* NodelObject_is_same(PyObject* self, PyObject* arg) {
     if (!NodelObject_CheckExact(arg)) Py_RETURN_FALSE;
     NodelObject* nd_self = (NodelObject*)self;
@@ -553,15 +555,21 @@ static PyObject* NodelObject_is_same(PyObject* self, PyObject* arg) {
     if (nd_self->obj.is(nd_arg->obj)) Py_RETURN_TRUE; else Py_RETURN_FALSE;
 }
 
+constexpr auto root_method_doc = "Returns the root of the tree";
+
 static PyObject* NodelObject_root(PyObject* self, PyObject*) {
     NodelObject* nd_self = (NodelObject*)self;
     return (PyObject*)NodelObject_wrap(nd_self->obj.root());
 }
 
+constexpr auto parent_method_doc = "Returns the parent object";
+
 static PyObject* NodelObject_parent(PyObject* self, PyObject*) {
     NodelObject* nd_self = (NodelObject*)self;
     return (PyObject*)NodelObject_wrap(nd_self->obj.parent());
 }
+
+constexpr auto iter_keys_method_doc = "Returns an iterator over the keys";
 
 static PyObject* NodelObject_iter_keys(PyObject* self, PyObject*) {
     NodelKeyIter* nit = (NodelKeyIter*)NodelKeyIterType.tp_alloc(&NodelKeyIterType, 0);
@@ -582,6 +590,8 @@ static PyObject* NodelObject_iter_keys(PyObject* self, PyObject*) {
     }
 }
 
+constexpr auto iter_values_method_doc = "Returns an iterator over the values";
+
 static PyObject* NodelObject_iter_values(PyObject* self, PyObject*) {
     NodelValueIter* nit = (NodelValueIter*)NodelValueIterType.tp_alloc(&NodelValueIterType, 0);
     if (nit == NULL) return NULL;
@@ -600,6 +610,8 @@ static PyObject* NodelObject_iter_values(PyObject* self, PyObject*) {
         return NULL;
     }
 }
+
+constexpr auto iter_items_method_doc = "Returns an iterator over the items";
 
 static PyObject* NodelObject_iter_items(PyObject* self, PyObject*) {
     NodelItemIter* nit = (NodelItemIter*)NodelItemIterType.tp_alloc(&NodelItemIterType, 0);
@@ -620,6 +632,8 @@ static PyObject* NodelObject_iter_items(PyObject* self, PyObject*) {
     }
 }
 
+constexpr auto iter_tree_method_doc = "Returns a tree iterator";
+
 static PyObject* NodelObject_iter_tree(PyObject* self, PyObject* args) {
     NodelTreeIter* nit = (NodelTreeIter*)NodelTreeIterType.tp_alloc(&NodelTreeIterType, 0);
     if (nit == NULL) return NULL;
@@ -639,20 +653,35 @@ static PyObject* NodelObject_iter_tree(PyObject* self, PyObject* args) {
     }
 }
 
+constexpr auto key_method_doc = "Returns the key/index of this object";
+
 static PyObject* NodelObject_key(PyObject* self, PyObject* args) {
     NodelObject* nd_self = (NodelObject*)self;
     return support.to_py(nd_self->obj.key());
 }
 
+constexpr auto reset_method_doc = \
+"If object is bound (has data-source), then it's cleared and the data-source "
+"will re-load on the next data access. Any references to descendants will be "
+"orphaned, and cannot be re-loaded, themselves.  In general, the refresh "
+"method is preferred for this reason.";
+
+static PyObject* NodelObject_reset(PyObject* self, PyObject* args) {
+    NodelObject* nd_self = (NodelObject*)self;
+    nd_self->obj.reset();
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef NodelObject_methods[] = {
-    {"is_same",     (PyCFunction)NodelObject_is_same,     METH_O,      PyDoc_STR("Returns true if argument is the same object")},
-    {"root",        (PyCFunction)NodelObject_root,        METH_NOARGS, PyDoc_STR("Returns the root of the tree")},
-    {"parent",      (PyCFunction)NodelObject_parent,      METH_NOARGS, PyDoc_STR("Returns the parent object")},
-    {"iter_keys",   (PyCFunction)NodelObject_iter_keys,   METH_NOARGS, PyDoc_STR("Returns an iterator over the keys")},
-    {"iter_values", (PyCFunction)NodelObject_iter_values, METH_NOARGS, PyDoc_STR("Returns an iterator over the values")},
-    {"iter_items",  (PyCFunction)NodelObject_iter_items,  METH_NOARGS, PyDoc_STR("Returns an iterator over the items")},
-    {"iter_tree",   (PyCFunction)NodelObject_iter_tree,   METH_NOARGS, PyDoc_STR("Returns a tree iterator")},
-    {"key",         (PyCFunction)NodelObject_key,         METH_NOARGS, PyDoc_STR("Returns the key/index of this object")},
+    {"is_same",     (PyCFunction)NodelObject_is_same,     METH_O,      PyDoc_STR(is_same_method_doc)},
+    {"root",        (PyCFunction)NodelObject_root,        METH_NOARGS, PyDoc_STR(root_method_doc)},
+    {"parent",      (PyCFunction)NodelObject_parent,      METH_NOARGS, PyDoc_STR(parent_method_doc)},
+    {"iter_keys",   (PyCFunction)NodelObject_iter_keys,   METH_NOARGS, PyDoc_STR(iter_keys_method_doc)},
+    {"iter_values", (PyCFunction)NodelObject_iter_values, METH_NOARGS, PyDoc_STR(iter_values_method_doc)},
+    {"iter_items",  (PyCFunction)NodelObject_iter_items,  METH_NOARGS, PyDoc_STR(iter_items_method_doc)},
+    {"iter_tree",   (PyCFunction)NodelObject_iter_tree,   METH_NOARGS, PyDoc_STR(iter_tree_method_doc)},
+    {"key",         (PyCFunction)NodelObject_key,         METH_NOARGS, PyDoc_STR(key_method_doc)},
+    {"reset",       (PyCFunction)NodelObject_reset,       METH_NOARGS, PyDoc_STR(reset_method_doc)},
     {NULL, NULL}
 };
 

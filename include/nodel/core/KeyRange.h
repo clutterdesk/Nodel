@@ -79,19 +79,19 @@ KeyIterator::~KeyIterator() {
     switch (m_repr_ix) {
         case ReprIX::LIST: std::destroy_at(&m_repr.li); break;
         case ReprIX::DSRC: std::destroy_at(&m_repr.pdi); break;
-        default:               break;
+        default:           break;
     }
 }
 
 inline
 KeyIterator::KeyIterator(KeyIterator&& other) : m_repr_ix{other.m_repr_ix} {
     switch (m_repr_ix) {
-        case ReprIX::NIL: break;
+        case ReprIX::NIL:  break;
         case ReprIX::LIST: m_repr.li = other.m_repr.li; break;
         case ReprIX::MAP:  m_repr.smi = other.m_repr.smi; break;
         case ReprIX::OMAP: m_repr.omi = other.m_repr.omi; break;
         case ReprIX::DSRC: m_repr.pdi = std::move(other.m_repr.pdi); break;
-        default:               throw Object::wrong_type(m_repr_ix);
+        default:           throw Object::wrong_type(m_repr_ix);
     }
 }
 
@@ -99,12 +99,12 @@ inline
 auto& KeyIterator::operator = (KeyIterator&& other) {
     m_repr_ix = other.m_repr_ix;
     switch (m_repr_ix) {
-        case ReprIX::NIL: break;
+        case ReprIX::NIL:  break;
         case ReprIX::LIST: m_repr.li = other.m_repr.li; break;
         case ReprIX::MAP:  m_repr.smi = other.m_repr.smi; break;
         case ReprIX::OMAP: m_repr.omi = other.m_repr.omi; break;
         case ReprIX::DSRC: m_repr.pdi = std::move(other.m_repr.pdi); break;
-        default:               throw Object::wrong_type(m_repr_ix);
+        default:           throw Object::wrong_type(m_repr_ix);
     }
     return *this;
 }
@@ -116,7 +116,7 @@ auto& KeyIterator::operator ++ () {
         case ReprIX::MAP:  ++(m_repr.smi); break;
         case ReprIX::OMAP: ++(m_repr.omi); break;
         case ReprIX::DSRC: m_repr.pdi->next(); break;
-        default:               throw Object::wrong_type(m_repr_ix);
+        default:           throw Object::wrong_type(m_repr_ix);
     }
     return *this;
 }
@@ -128,7 +128,7 @@ const Key& KeyIterator::operator * () const {
         case ReprIX::MAP:  return m_repr.smi->first;
         case ReprIX::OMAP: return m_repr.omi->first;
         case ReprIX::DSRC: return m_repr.pdi->key();
-        default:               throw Object::wrong_type(m_repr_ix);
+        default:           throw Object::wrong_type(m_repr_ix);
     }
 }
 
@@ -140,7 +140,7 @@ bool KeyIterator::operator == (const KeyIterator& other) const {
         case ReprIX::MAP:  return m_repr.smi == other.m_repr.smi;
         case ReprIX::OMAP: return m_repr.omi == other.m_repr.omi;
         case ReprIX::DSRC: return m_repr.pdi->done() && other.m_repr_ix == ReprIX::NIL;
-        default:               throw Object::wrong_type(m_repr_ix);
+        default:           throw Object::wrong_type(m_repr_ix);
     }
 }
 
