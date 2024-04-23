@@ -15,27 +15,27 @@ TEST(Ref, CreateAndDelete) {
     auto p_thing = new Thing(1);
     while (1) {
       Ref<Thing> r_thing = p_thing;
-      EXPECT_EQ(p_thing->m_ref_count, 2);
+      EXPECT_EQ(p_thing->m_ref_count, 2UL);
       break;
     }
-    EXPECT_EQ(p_thing->m_ref_count, 1);
+    EXPECT_EQ(p_thing->m_ref_count, 1UL);
     delete p_thing;
 }
 
 TEST(Ref, CopyRefCountIntegrity) {
     auto p_thing = new Thing(0);
     Ref<Thing> r_thing = p_thing;
-    EXPECT_EQ(p_thing->m_ref_count, 1);
+    EXPECT_EQ(p_thing->m_ref_count, 1UL);
     Ref<Thing> r_copy{r_thing};
-    EXPECT_EQ(p_thing->m_ref_count, 2);
+    EXPECT_EQ(p_thing->m_ref_count, 2UL);
 }
 
 TEST(Ref, MoveRefCountIntegrity) {
     auto p_thing = new Thing(1);
     Ref<Thing> r_thing = p_thing;
-    EXPECT_EQ(p_thing->m_ref_count, 2);
+    EXPECT_EQ(p_thing->m_ref_count, 2UL);
     Ref<Thing> r_copy{std::move(r_thing)};
-    EXPECT_EQ(p_thing->m_ref_count, 2);
+    EXPECT_EQ(p_thing->m_ref_count, 2UL);
 }
 
 TEST(Ref, CopyAssignRefCountIntegrity) {
@@ -44,16 +44,16 @@ TEST(Ref, CopyAssignRefCountIntegrity) {
     while (1) {
         Ref<Thing> r1{p1};
         Ref<Thing> r2{p2};
-        EXPECT_EQ(r1->m_ref_count, 2);
-        EXPECT_EQ(r2->m_ref_count, 2);
+        EXPECT_EQ(r1->m_ref_count, 2UL);
+        EXPECT_EQ(r2->m_ref_count, 2UL);
 
         r2 = r1;
-        EXPECT_EQ(p1->m_ref_count, 3);
-        EXPECT_EQ(p2->m_ref_count, 1);
+        EXPECT_EQ(p1->m_ref_count, 3UL);
+        EXPECT_EQ(p2->m_ref_count, 1UL);
         break;
     }
-    EXPECT_EQ(p1->m_ref_count, 1);
-    EXPECT_EQ(p2->m_ref_count, 1);
+    EXPECT_EQ(p1->m_ref_count, 1UL);
+    EXPECT_EQ(p2->m_ref_count, 1UL);
     delete p1;
     delete p2;
 }
@@ -64,16 +64,16 @@ TEST(Ref, MoveAssignRefCountIntegrity) {
     while (1) {
         Ref<Thing> r1{p1};
         Ref<Thing> r2{p2};
-        EXPECT_EQ(r1->m_ref_count, 2);
-        EXPECT_EQ(r2->m_ref_count, 2);
+        EXPECT_EQ(r1->m_ref_count, 2UL);
+        EXPECT_EQ(r2->m_ref_count, 2UL);
 
         r2 = std::move(r1);
-        EXPECT_EQ(p1->m_ref_count, 2);
-        EXPECT_EQ(p2->m_ref_count, 1);
+        EXPECT_EQ(p1->m_ref_count, 2UL);
+        EXPECT_EQ(p2->m_ref_count, 1UL);
         break;
     }
-    EXPECT_EQ(p1->m_ref_count, 1);
-    EXPECT_EQ(p2->m_ref_count, 1);
+    EXPECT_EQ(p1->m_ref_count, 1UL);
+    EXPECT_EQ(p2->m_ref_count, 1UL);
     delete p1;
     delete p2;
 }

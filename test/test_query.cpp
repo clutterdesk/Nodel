@@ -114,7 +114,7 @@ TEST(Query, SubtreeAnyStep) {
     for (auto obj : root.iter_tree()) { expect.insert(obj.id()); }
 
     auto it = query.iter_eval(root);
-    auto count = 0;
+    auto count = 0UL;
     for (auto it_obj = it.next(); it_obj != nil; it_obj = it.next(), ++count) {
         EXPECT_TRUE(expect.contains(it_obj.id()));
     }
@@ -134,7 +134,7 @@ TEST(Query, AncestorChild) {
         actual.push_back(it_obj);
     }
 
-    EXPECT_EQ(actual.size(), 2);
+    EXPECT_EQ(actual.size(), 2UL);
     EXPECT_EQ(actual[0], "yu");
     EXPECT_EQ(actual[1].to_str(), R"({"z": "uz"})");
 }

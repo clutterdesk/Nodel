@@ -110,7 +110,7 @@ TEST(DB, IterKeys) {
         keys.push_back(key);
     }
 
-    EXPECT_EQ(keys.size(), 8);
+    EXPECT_EQ(keys.size(), 8UL);
     EXPECT_EQ(keys[0], false);
     EXPECT_EQ(keys[1], true);
     EXPECT_EQ(keys[2], -7);
@@ -131,7 +131,7 @@ TEST(DB, IterValues) {
         values.push_back(value);
     }
 
-    EXPECT_EQ(values.size(), 8);
+    EXPECT_EQ(values.size(), 8UL);
     EXPECT_EQ(values[0], false);
     EXPECT_EQ(values[1], true);
     EXPECT_EQ(values[2], -7);
@@ -152,7 +152,7 @@ TEST(DB, IterItems) {
         items.push_back(item);
     }
 
-    EXPECT_EQ(items.size(), 8);
+    EXPECT_EQ(items.size(), 8UL);
     EXPECT_EQ(items[0].first, false);
     EXPECT_EQ(items[0].second, false);
     EXPECT_EQ(items[4].first, 3.1415926);

@@ -178,7 +178,7 @@ void set_slice(T& l_arr, Int start, Int stop, Int step, const T& r_arr) {
 }
 
 inline
-Slice operator ""_slice (const char* str, size_t size) {
+Slice operator ""_slice (const char* str, size_t) {
     static std::regex slice_re{"([-+]?[0-9]+)?(\\:([-+]?[0-9]+)?)?(\\:([-+]?[0-9]+)?)?"};
 
     std::cmatch match;

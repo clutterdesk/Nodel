@@ -6,7 +6,6 @@ struct Flags
 {
     constexpr Flags(T value) : m_value{value} {}
 
-    Flags(const Flags&) = default;
     Flags<T>& operator = (const Flags<size_t>& flag) { m_value = flag.m_value; }
     bool operator == (const Flags& flags) { return m_value == flags.m_value; }
 

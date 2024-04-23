@@ -64,9 +64,9 @@ TEST(CsvParser, UnquotedWithSpaces) {
 
   Parser parser{stream};
   Object obj = parser.parse();
-  EXPECT_EQ(obj.size(), 4);
-  for (int i=0; i<obj.size(); i++)
-      EXPECT_EQ(obj.get(i).size(), 2);
+  EXPECT_EQ(obj.size(), 4UL);
+  for (size_t i=0; i<obj.size(); i++)
+      EXPECT_EQ(obj.get(i).size(), 2UL);
   EXPECT_EQ(obj.get(1).get(0), "Moby Dick");
   EXPECT_EQ(obj.get(1).get(1), "Herman Melville");
   EXPECT_EQ(obj.get(2).get(0), "The Name of the Rose");

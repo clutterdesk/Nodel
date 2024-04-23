@@ -116,11 +116,6 @@ class Query
     template <class ... Args>
     void add_steps(const Step& step, Args&& ... steps);
 
-    Query& operator = (const Query& other) {
-        m_steps = other.m_steps;
-        return *this;
-    }
-
     Query& operator += (const Query& other) {
         for (const auto& step : other.m_steps)
             m_steps.push_back(step);

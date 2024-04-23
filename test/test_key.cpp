@@ -162,32 +162,25 @@ TEST(Key, CompareString) {
 TEST(Key, HashNull) {
     Key k;
     EXPECT_TRUE(k == nil);
-    EXPECT_EQ(std::hash<Key>{}(k), 0);
+    EXPECT_EQ(std::hash<Key>{}(k), 0UL);
 }
 
 TEST(Key, HashInt) {
     Key k{7};
     EXPECT_TRUE(k.is_type<Int>());
-    EXPECT_EQ(std::hash<Key>{}(k), 7);
+    EXPECT_EQ(std::hash<Key>{}(k), 7UL);
 }
 
 TEST(Key, HashUInt) {
     Key k{7ULL};
     EXPECT_TRUE(k.is_type<UInt>());
-    EXPECT_EQ(std::hash<Key>{}(k), 7);
+    EXPECT_EQ(std::hash<Key>{}(k), 7UL);
 }
 
 TEST(Key, HashFloat) {
     Key k{-2.2250738585072020e-308};
     EXPECT_TRUE(k.is_type<Float>());
-    EXPECT_NE(std::hash<Key>{}(k), 0);
-}
-
-static void dump(const char* data) {
-    for (auto* p = data; *p != 0 ; p++) {
-        fmt::print("{:x}", *p);
-    }
-    std::cout << std::endl;
+    EXPECT_NE(std::hash<Key>{}(k), 0UL);
 }
 
 TEST(Key, HashStringLiteral) {

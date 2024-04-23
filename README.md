@@ -1,16 +1,40 @@
 # Nodel
-## High-performance Dynamic Object with Optional Data Source
+## Fast Dynamic Object with Optional Data Source
 ### Overview
-"Nodel" is a portmanteau of "node" and "model", where "node" refers to a node in a tree. The tree
-is similar to other semi-structured data representations: TOML, JSON, XML-DOM, etc....
+The Nodel library consists of a dynamic object (the `Object` class), which can represent the data
+types: 
+- `nil`
+- `bool`, `int64_t`, `uint64_t`, `double`
+- `std::string`
+- `std::vector<Object>`
+- `std::map<Key, Object>`
+- `tsl::ordered_map<Key, Objec>`
 
-Nodel consists of an Object class and a DataSource base class, which can be sub-classed to provide 
-on-demand/lazy loading.
+An Nodel Object may be "bound" to a data-source class. The data-source framework provides on-demand, 
+lazy loading of data from ... somewhere else.
 
-Nodel Objects are reference counted.
+Nodel data-sources are selected and configured by calling the `nodel::bind` function with a URI that
+identifies the scheme of a data-source implementation, with the remaining elements of the URI
+interpreted by the data-source implementation.
 
-Nodel is header-only library with *no required dependencies*. However, if you link with cpptrace,
-any Nodel exceptions will contain backtraces.
+The following code binds an Object to the current working directory:
+
+```
+auto wd = nodel::bind("file://");
+```
+
+The Nodel filesystem data-source (see include/nodel/filesystem/Directory.h) represents a directory
+with a `tsl::ordered_map<Key, Object>`, where the keys are the file names, and the values are Objects 
+bound to a `nodel::filesystem::File` data-source. A data-source load operation is triggered when a
+bound object is accessed using one of the `nodel::Object` methods.
+
+Nodel Objects are reference counted. A `nodel::Object` instance is a reference to its underying data.
+
+Nodel is header-only library with *no required dependencies*. This means that your program must
+instantiate certain macros and call the `configure` function of the subsystems it uses.  See the
+"Quick Start" below for a complete example.
+
+If you link with cpptrace, Nodel exceptions will contain backtraces.
 
 Nodel provides its own *homegrown* JSON and CSV parsers, both of which are stream-based.  These
 parsers are simple and eliminate external dependencies.
@@ -30,16 +54,23 @@ the iteration is actually performed by the native RocksDB Iterator.
 
 Nodel includes a Python 3.x C-API extension.
 
+"Nodel" is a portmanteau of "node" and "model", where "node" refers to a node in a tree. The tree
+is similar to other semi-structured data representations: TOML, JSON, XML-DOM, etc....
+
 ## Quick Start
+
 ```
 #include <nodel/core.h>
 #include <nodel/filesystem.h>
 #include <iostream>
 
-NODEL_THREAD_LOCAL_INTERNS;  // Required for header-only usage
+NODEL_CORE_INIT;
+NODEL_FILESYSTEM_INIT;
+
 using namespace nodel;
 
 int main(int argc, char** argv) {
+    filesystem::configure();                // Register the "file:" URI scheme
     Object dir = filesystem::bind(".");     // Bind an object to the current working directory
     for (const auto& f: dir.iter_keys())    // Iterate the names of the files
         std::cout << f << std::endl;

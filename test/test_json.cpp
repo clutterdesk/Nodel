@@ -171,7 +171,7 @@ TEST(Json, ParseListEmpty) {
   std::stringstream stream{"[]"};
   Parser parser1{StreamAdapter{stream}};
   EXPECT_TRUE(parser1.parse_list());
-  EXPECT_EQ(parser1.m_curr.size(), 0);
+  EXPECT_EQ(parser1.m_curr.size(), 0UL);
 }
 
 TEST(Json, ParseListOneInt) {
@@ -179,7 +179,7 @@ TEST(Json, ParseListOneInt) {
   Parser parser1{StreamAdapter{stream}};
   EXPECT_TRUE(parser1.parse_list());
   Object curr = parser1.m_curr;
-  EXPECT_EQ(curr.size(), 1);
+  EXPECT_EQ(curr.size(), 1UL);
   EXPECT_EQ(curr.get(0).as<Int>(), 2);
 }
 
@@ -188,7 +188,7 @@ TEST(Json, ParseListThreeInts) {
   Parser parser1{StreamAdapter{stream}};
   EXPECT_TRUE(parser1.parse_list());
   Object curr = parser1.m_curr;
-  EXPECT_EQ(curr.size(), 3);
+  EXPECT_EQ(curr.size(), 3UL);
   EXPECT_EQ(curr.get(0).as<Int>(), 2);
   EXPECT_EQ(curr.get(1).as<Int>(), 4);
   EXPECT_EQ(curr.get(2).as<Int>(), 6);
@@ -200,7 +200,7 @@ TEST(Json, ParseExample1) {
     EXPECT_TRUE(parser1.parse_object());
     Object curr = parser1.m_curr;
     EXPECT_TRUE(curr.is_type<OrderedMap>());
-    EXPECT_EQ(curr.size(), 2);
+    EXPECT_EQ(curr.size(), 2UL);
     EXPECT_EQ(curr.get("x"_key).get(0), 1);
     EXPECT_EQ(curr.get("y"_key).get(0), 2);
 }
@@ -235,7 +235,7 @@ TEST(Json, ParseListErrantColon) {
   Parser parser{StreamAdapter{stream}};
     EXPECT_FALSE(parser.parse_object());
     EXPECT_NE(parser.m_error_message, "");
-    EXPECT_EQ(parser.m_error_offset, 6);
+    EXPECT_EQ(parser.m_error_offset, 6UL);
 }
 
 TEST(Json, ParseListDoubleComma) {
@@ -243,7 +243,7 @@ TEST(Json, ParseListDoubleComma) {
   Parser parser{StreamAdapter{stream}};
     EXPECT_FALSE(parser.parse_object());
     EXPECT_NE(parser.m_error_message, "");
-    EXPECT_EQ(parser.m_error_offset, 5);
+    EXPECT_EQ(parser.m_error_offset, 5UL);
 }
 
 TEST(Json, ParseMapDoubleComma) {
@@ -251,12 +251,12 @@ TEST(Json, ParseMapDoubleComma) {
   Parser parser{StreamAdapter{stream}};
     EXPECT_FALSE(parser.parse_object());
     EXPECT_NE(parser.m_error_message, "");
-    EXPECT_EQ(parser.m_error_offset, 10);
+    EXPECT_EQ(parser.m_error_offset, 10UL);
 }
 
 TEST(Json, ParseErrorBadNumberInList) {
   std::stringstream stream{"[2x]"};
   Parser parser1{StreamAdapter{stream}};
   EXPECT_FALSE(parser1.parse_list());
-  EXPECT_EQ(parser1.m_error_offset, 2);
+  EXPECT_EQ(parser1.m_error_offset, 2UL);
 }
