@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <fmt/core.h>
+#include <fmt/format.h>
 #include <unordered_set>
 
 #include <nodel/core/Object.h>
