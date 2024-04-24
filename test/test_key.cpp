@@ -282,5 +282,5 @@ TEST(Key, StringWithDQuote) {
     Key k = "a\"b"_key;
     std::stringstream ss;
     k.to_step(ss);
-    EXPECT_EQ(ss.str(), R"(["a\"b"])");
+    EXPECT_EQ(ss.str(), "[\"a\\\"b\"]");
 }

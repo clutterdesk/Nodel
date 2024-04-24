@@ -1881,38 +1881,38 @@ bool Object::operator == (const Object& obj) const {
             switch (obj.m_fields.repr_ix)
             {
                 case BOOL:  return m_repr.b == obj.m_repr.b;
-                case INT:   return m_repr.b == obj.m_repr.i;
-                case UINT:  return m_repr.b == obj.m_repr.u;
-                case FLOAT: return m_repr.b == obj.m_repr.f;
+                case INT:   return m_repr.b == (bool)obj.m_repr.i;
+                case UINT:  return m_repr.b == (bool)obj.m_repr.u;
+                case FLOAT: return m_repr.b == (bool)obj.m_repr.f;
                 default:    return false;
             }
         }
         case INT: {
             switch (obj.m_fields.repr_ix)
             {
-                case BOOL:  return m_repr.i == obj.m_repr.b;
+                case BOOL:  return (bool)m_repr.i == obj.m_repr.b;
                 case INT:   return m_repr.i == obj.m_repr.i;
                 case UINT:  return equal(obj.m_repr.u, m_repr.i);
-                case FLOAT: return m_repr.i == obj.m_repr.f;
+                case FLOAT: return (Float)m_repr.i == obj.m_repr.f;
                 default:    return false;
             }
         }
         case UINT: {
             switch (obj.m_fields.repr_ix)
             {
-                case BOOL:  return m_repr.u == obj.m_repr.b;
+                case BOOL:  return (bool)m_repr.u == obj.m_repr.b;
                 case INT:   return equal(m_repr.u, obj.m_repr.i);
                 case UINT:  return m_repr.u == obj.m_repr.u;
-                case FLOAT: return m_repr.u == obj.m_repr.f;
+                case FLOAT: return (Float)m_repr.u == obj.m_repr.f;
                 default:    return false;
             }
         }
         case FLOAT: {
             switch (obj.m_fields.repr_ix)
             {
-                case BOOL:  return m_repr.f == obj.m_repr.b;
-                case INT:   return m_repr.f == obj.m_repr.i;
-                case UINT:  return m_repr.f == obj.m_repr.u;
+                case BOOL:  return (bool)m_repr.f == obj.m_repr.b;
+                case INT:   return m_repr.f == (Float)obj.m_repr.i;
+                case UINT:  return m_repr.f == (Float)obj.m_repr.u;
                 case FLOAT: return m_repr.f == obj.m_repr.f;
                 default:    return false;
             }

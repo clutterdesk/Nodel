@@ -148,7 +148,7 @@ class Key
 
     bool operator == (UInt other) const {
         switch (m_repr_ix) {
-            case BOOL:  return m_repr.b == other;
+            case BOOL:  return m_repr.b == (bool)other;
             case INT:   return equal(other, m_repr.i);
             case UINT:  return m_repr.u == other;
             case FLOAT: return m_repr.f == other;
@@ -158,7 +158,7 @@ class Key
 
     bool operator == (is_number auto other) const {
         switch (m_repr_ix) {
-            case BOOL:  return m_repr.b == other;
+            case BOOL:  return m_repr.b == (bool)other;
             case INT:   return equal(other, m_repr.i);
             case UINT:  return equal(m_repr.u, other);
             case FLOAT: return m_repr.f == other;
