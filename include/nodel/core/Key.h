@@ -120,19 +120,6 @@ class Key
         return *this;
     }
 
-    bool operator == (const Key& other) const {
-        switch (m_repr_ix) {
-            case NIL:  return other == nil;
-            case BOOL:  return other == m_repr.b;
-            case INT:   return other == m_repr.i;
-            case UINT:  return other == m_repr.u;
-            case FLOAT: return other == m_repr.f;
-            case STR:   return other == m_repr.s;
-            default:      break;
-        }
-        return false;
-    }
-
     bool operator == (nil_t) const {
         return m_repr_ix == NIL;
     }
@@ -146,7 +133,27 @@ class Key
         return (m_repr_ix == STR)? (m_repr.s == other): false;
     }
 
-    bool operator == (UInt other) const {
+    bool operator == (is_bool auto other) const {
+        switch (m_repr_ix) {
+            case BOOL:  return m_repr.b == other;
+            case INT:   return (bool)m_repr.i == other;
+            case UINT:  return (bool)m_repr.u == other;
+            case FLOAT: return (bool)m_repr.f == other;
+            default:    return false;
+        }
+    }
+
+    bool operator == (is_like_Int auto other) const {
+        switch (m_repr_ix) {
+            case BOOL:  return m_repr.b == (bool)other;
+            case INT:   return m_repr.i == other;
+            case UINT:  return equal(m_repr.u, other);
+            case FLOAT: return m_repr.f == other;
+            default:    return false;
+        }
+    }
+
+    bool operator == (is_like_UInt auto other) const {
         switch (m_repr_ix) {
             case BOOL:  return m_repr.b == (bool)other;
             case INT:   return equal(other, m_repr.i);
@@ -156,14 +163,27 @@ class Key
         }
     }
 
-    bool operator == (is_number auto other) const {
+    bool operator == (Float other) const {
         switch (m_repr_ix) {
             case BOOL:  return m_repr.b == (bool)other;
-            case INT:   return equal(other, m_repr.i);
-            case UINT:  return equal(m_repr.u, other);
+            case INT:   return (Float)m_repr.i == other;
+            case UINT:  return (Float)m_repr.u == other;
             case FLOAT: return m_repr.f == other;
             default:    return false;
         }
+    }
+
+    bool operator == (const Key& other) const {
+        switch (m_repr_ix) {
+            case NIL:   return other == nil;
+            case BOOL:  return other == m_repr.b;
+            case INT:   return other == m_repr.i;
+            case UINT:  return other == m_repr.u;
+            case FLOAT: return other == m_repr.f;
+            case STR:   return other == m_repr.s;
+            default:    break;
+        }
+        return false;
     }
 
     std::partial_ordering operator <=> (const Key& other) const {

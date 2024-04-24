@@ -7,7 +7,6 @@ class ItemIterator
   private:
     using DsIterPtr = std::unique_ptr<DataSource::ItemIterator>;
     using ListIterator = std::tuple<size_t, List::iterator>;
-
     using ReprIX = Object::ReprIX;
 
     union Repr
@@ -33,7 +32,7 @@ class ItemIterator
     ItemIterator(DsIterPtr&& p_it)           : m_repr_ix{ReprIX::DSRC}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
     ~ItemIterator();
     
-    ItemIterator(const ItemIterator& other) = delete;
+    ItemIterator(ItemIterator& other);
     ItemIterator(ItemIterator&& other);
     auto& operator = (const ItemIterator& other) = delete;
     auto& operator = (ItemIterator&& other);
@@ -82,13 +81,25 @@ ItemIterator::~ItemIterator() {
 }
 
 inline
+ItemIterator::ItemIterator(ItemIterator& other) : m_repr_ix{other.m_repr_ix} {
+    switch (m_repr_ix) {
+        case ReprIX::NIL: break;
+        case ReprIX::LIST: m_repr.li = other.m_repr.li; break;
+        case ReprIX::MAP:  m_repr.smi = other.m_repr.smi; break;
+        case ReprIX::OMAP: m_repr.omi = other.m_repr.omi; break;
+        case ReprIX::DSRC: m_repr.pdi.swap(other.m_repr.pdi); break;
+        default:     throw Object::wrong_type(m_repr_ix);
+    }
+}
+
+inline
 ItemIterator::ItemIterator(ItemIterator&& other) : m_repr_ix{other.m_repr_ix} {
     switch (m_repr_ix) {
         case ReprIX::NIL: break;
         case ReprIX::LIST: m_repr.li = other.m_repr.li; break;
         case ReprIX::MAP:  m_repr.smi = other.m_repr.smi; break;
         case ReprIX::OMAP: m_repr.omi = other.m_repr.omi; break;
-        case ReprIX::DSRC: m_repr.pdi = std::move(other.m_repr.pdi); break;
+        case ReprIX::DSRC: m_repr.pdi = std::move(other).m_repr.pdi; break;
         default:     throw Object::wrong_type(m_repr_ix);
     }
 }
