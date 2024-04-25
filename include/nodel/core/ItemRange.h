@@ -27,7 +27,7 @@ class ItemIterator
   public:
     ItemIterator()                           : m_repr_ix{ReprIX::NIL} {}
     ItemIterator(Int pos, List::iterator it) : m_repr_ix{ReprIX::LIST}, m_repr{pos, it} {}
-    ItemIterator(SortedMap::iterator it)     : m_repr_ix{ReprIX::MAP}, m_repr{it} {}
+    ItemIterator(SortedMap::iterator it)     : m_repr_ix{ReprIX::SMAP}, m_repr{it} {}
     ItemIterator(OrderedMap::iterator it)    : m_repr_ix{ReprIX::OMAP}, m_repr{it} {}
     ItemIterator(DsIterPtr&& p_it)           : m_repr_ix{ReprIX::DSRC}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
     ~ItemIterator();
@@ -85,7 +85,7 @@ ItemIterator::ItemIterator(ItemIterator& other) : m_repr_ix{other.m_repr_ix} {
     switch (m_repr_ix) {
         case ReprIX::NIL: break;
         case ReprIX::LIST: m_repr.li = other.m_repr.li; break;
-        case ReprIX::MAP:  m_repr.smi = other.m_repr.smi; break;
+        case ReprIX::SMAP:  m_repr.smi = other.m_repr.smi; break;
         case ReprIX::OMAP: m_repr.omi = other.m_repr.omi; break;
         case ReprIX::DSRC: m_repr.pdi.swap(other.m_repr.pdi); break;
         default:     throw Object::wrong_type(m_repr_ix);
@@ -97,7 +97,7 @@ ItemIterator::ItemIterator(ItemIterator&& other) : m_repr_ix{other.m_repr_ix} {
     switch (m_repr_ix) {
         case ReprIX::NIL: break;
         case ReprIX::LIST: m_repr.li = other.m_repr.li; break;
-        case ReprIX::MAP:  m_repr.smi = other.m_repr.smi; break;
+        case ReprIX::SMAP:  m_repr.smi = other.m_repr.smi; break;
         case ReprIX::OMAP: m_repr.omi = other.m_repr.omi; break;
         case ReprIX::DSRC: m_repr.pdi = std::move(other).m_repr.pdi; break;
         default:     throw Object::wrong_type(m_repr_ix);
@@ -110,7 +110,7 @@ auto& ItemIterator::operator = (ItemIterator&& other) {
     switch (m_repr_ix) {
         case ReprIX::NIL: break;
         case ReprIX::LIST: m_repr.li = other.m_repr.li; break;
-        case ReprIX::MAP:  m_repr.smi = other.m_repr.smi; break;
+        case ReprIX::SMAP:  m_repr.smi = other.m_repr.smi; break;
         case ReprIX::OMAP: m_repr.omi = other.m_repr.omi; break;
         case ReprIX::DSRC: m_repr.pdi = std::move(other.m_repr.pdi); break;
         default:     throw Object::wrong_type(m_repr_ix);
@@ -122,7 +122,7 @@ inline
 auto& ItemIterator::operator ++ () {
     switch (m_repr_ix) {
         case ReprIX::LIST: ++(std::get<0>(m_repr.li)); ++(std::get<1>(m_repr.li)); break;
-        case ReprIX::MAP:  ++(m_repr.smi); break;
+        case ReprIX::SMAP:  ++(m_repr.smi); break;
         case ReprIX::OMAP: ++(m_repr.omi); break;
         case ReprIX::DSRC: m_repr.pdi->next(); break;
         default:     throw Object::wrong_type(m_repr_ix);
@@ -138,7 +138,7 @@ const Item& ItemIterator::operator * () {
             m_item.second = *(std::get<1>(m_repr.li));
             return m_item;
         }
-        case ReprIX::MAP: {
+        case ReprIX::SMAP: {
             m_item = *m_repr.smi;
             return m_item;
         }
@@ -153,7 +153,7 @@ bool ItemIterator::operator == (const ItemIterator& other) const {
     switch (m_repr_ix) {
         case ReprIX::NIL: return other.m_repr_ix == ReprIX::NIL || other == *this;
         case ReprIX::LIST: return std::get<0>(m_repr.li) == std::get<0>(other.m_repr.li);
-        case ReprIX::MAP:  return m_repr.smi == other.m_repr.smi;
+        case ReprIX::SMAP:  return m_repr.smi == other.m_repr.smi;
         case ReprIX::OMAP: return m_repr.omi == other.m_repr.omi;
         case ReprIX::DSRC: return m_repr.pdi->done();
         default:     throw Object::wrong_type(m_repr_ix);
@@ -174,7 +174,7 @@ ItemIterator ItemRange::begin() {
                 return ItemIterator{start, list.begin() + start};
             }
         }
-        case ReprIX::MAP: {
+        case ReprIX::SMAP: {
             auto& map = std::get<0>(*m_obj.m_repr.psm);
             auto& min_key = m_slice.min().value();
             if (min_key == nil) {
@@ -212,7 +212,7 @@ ItemIterator ItemRange::end() {
                 return ItemIterator{stop, list.begin() + stop};
             }
         }
-        case ReprIX::MAP: {
+        case ReprIX::SMAP: {
             auto& map = std::get<0>(*m_obj.m_repr.psm);
             auto& max_key = m_slice.max().value();
             if (max_key == nil) {

@@ -157,7 +157,7 @@ PyObject* Support::to_str(const Object& obj) {
             return python::to_str(StringView{str.data(), str.size()});
         }
         case Object::LIST:  [[fallthrough]];
-        case Object::MAP:   [[fallthrough]];
+        case Object::SMAP:  [[fallthrough]];
         case Object::OMAP:  return python::to_str(obj.to_json());
         case Object::DSRC:  return python::to_str(const_cast<DataSourcePtr>(obj.m_repr.ds)->to_str(obj));
         default: {

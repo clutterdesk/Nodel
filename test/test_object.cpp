@@ -27,7 +27,7 @@ TEST(Object, TypeName) {
     EXPECT_EQ(Object{1UL}.type_name(), "uint");
     EXPECT_EQ(Object{"foo"}.type_name(), "string");
     EXPECT_EQ(Object{Object::LIST}.type_name(), "list");
-    EXPECT_EQ(Object{Object::MAP}.type_name(), "sorted-map");
+    EXPECT_EQ(Object{Object::SMAP}.type_name(), "sorted-map");
     EXPECT_EQ(Object{Object::OMAP}.type_name(), "ordered-map");
 }
 
@@ -1014,7 +1014,7 @@ TEST(Object, SortedMapSetOrderedMap) {
 }
 
 TEST(Object, SortedMapGetSlice) {
-    Object obj = Object::MAP;
+    Object obj = Object::SMAP;
     for (int i=0; i<5; i++)
         obj.set(i, i + 10);
 
@@ -1035,7 +1035,7 @@ TEST(Object, SortedMapGetSlice) {
 }
 
 TEST(Object, SortedMapSetSliceSameLen) {
-    Object obj = Object::MAP;
+    Object obj = Object::SMAP;
     for (int i=0; i<5; i++)
         obj.set(i, i + 10);
 
@@ -1050,7 +1050,7 @@ TEST(Object, SortedMapSetSliceSameLen) {
 }
 
 TEST(Object, SortedMapSetSliceShorter) {
-    Object obj = Object::MAP;
+    Object obj = Object::SMAP;
     for (int i=0; i<5; i++)
         obj.set(i, i + 10);
 
@@ -1064,7 +1064,7 @@ TEST(Object, SortedMapSetSliceShorter) {
 }
 
 TEST(Object, SortedMapSetSliceLonger) {
-    Object obj = Object::MAP;
+    Object obj = Object::SMAP;
     for (int i=0; i<5; i++)
         obj.set(i, i + 10);
 
@@ -1081,7 +1081,7 @@ TEST(Object, SortedMapSetSliceLonger) {
 }
 
 TEST(Object, SortedMapDelSlice) {
-    Object obj = Object::MAP;
+    Object obj = Object::SMAP;
     for (int i=0; i<5; i++)
         obj.set(i, i + 10);
 

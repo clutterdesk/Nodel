@@ -149,7 +149,7 @@ class Object
         FLOAT,
         STR,     // text or binary data
         LIST,
-        MAP,     // sorted map
+        SMAP,     // sorted map
         OMAP,    // ordered map
         DSRC,    // DataSource
         DEL,     // indicates deleted key in sparse data-store
@@ -206,7 +206,7 @@ class Object
     template <> ReprIX get_repr_ix<Float>() const      { return FLOAT; }
     template <> ReprIX get_repr_ix<String>() const     { return STR; }
     template <> ReprIX get_repr_ix<List>() const       { return LIST; }
-    template <> ReprIX get_repr_ix<SortedMap>() const  { return MAP; }
+    template <> ReprIX get_repr_ix<SortedMap>() const  { return SMAP; }
     template <> ReprIX get_repr_ix<OrderedMap>() const { return OMAP; }
 
     template <typename T> T get_repr() const requires is_byvalue<T>;
@@ -241,7 +241,7 @@ class Object
           case FLOAT: return "double";
           case STR:   return "string";
           case LIST:  return "list";
-          case MAP:   return "sorted-map";
+          case SMAP:  return "sorted-map";
           case OMAP:  return "ordered-map";
           case DSRC:  return "data-source";
           case DEL:   return "deleted";
@@ -368,8 +368,8 @@ class Object
 
     bool is_num() const       { auto type = resolve_repr_ix(); return type == INT || type == UINT || type == FLOAT; }
     bool is_any_int() const   { auto type = resolve_repr_ix(); return type == INT || type == UINT; }
-    bool is_map() const       { auto type = resolve_repr_ix(); return type == MAP || type == OMAP; }
-    bool is_container() const { auto type = resolve_repr_ix(); return type == LIST || type == OMAP || type == MAP; }
+    bool is_map() const       { auto type = resolve_repr_ix(); return type == SMAP || type == OMAP; }
+    bool is_container() const { auto type = resolve_repr_ix(); return type == LIST || type == OMAP || type == SMAP; }
 
     bool is_valid() const;
 
@@ -960,7 +960,7 @@ Object::Object(const Object& other) : m_fields{other.m_fields} {
         case FLOAT: m_repr.f = other.m_repr.f; break;
         case STR:   m_repr.ps = other.m_repr.ps; inc_ref_count(); break;
         case LIST:  m_repr.pl = other.m_repr.pl; inc_ref_count(); break;
-        case MAP:   m_repr.psm = other.m_repr.psm; inc_ref_count(); break;
+        case SMAP:  m_repr.psm = other.m_repr.psm; inc_ref_count(); break;
         case OMAP:  m_repr.pom = other.m_repr.pom; inc_ref_count(); break;
         case DSRC:  m_repr.ds = other.m_repr.ds; m_repr.ds->inc_ref_count(); break;
     }
@@ -977,7 +977,7 @@ Object::Object(Object&& other) : m_fields{other.m_fields} {
         case FLOAT: m_repr.f = other.m_repr.f; break;
         case STR:   m_repr.ps = other.m_repr.ps; break;
         case LIST:  m_repr.pl = other.m_repr.pl; break;
-        case MAP:   m_repr.psm = other.m_repr.psm; break;
+        case SMAP:  m_repr.psm = other.m_repr.psm; break;
         case OMAP:  m_repr.pom = other.m_repr.pom; break;
         case DSRC:  m_repr.ds = other.m_repr.ds; break;
     }
@@ -1000,7 +1000,7 @@ Object::Object(const List& list) : m_repr{new IRCList({}, NoParent{})}, m_fields
 }
 
 inline
-Object::Object(const SortedMap& map) : m_repr{new IRCMap({}, NoParent{})}, m_fields{MAP} {
+Object::Object(const SortedMap& map) : m_repr{new IRCMap({}, NoParent{})}, m_fields{SMAP} {
     auto& my_map = std::get<0>(*m_repr.psm);
     for (auto& [key, value]: map) {
         Object copy = value.copy();
@@ -1027,7 +1027,7 @@ Object::Object(List&& list) : m_repr{new IRCList(std::forward<List>(list), NoPar
 }
 
 inline
-Object::Object(SortedMap&& map) : m_repr{new IRCMap(std::forward<SortedMap>(map), NoParent{})}, m_fields{MAP} {
+Object::Object(SortedMap&& map) : m_repr{new IRCMap(std::forward<SortedMap>(map), NoParent{})}, m_fields{SMAP} {
     auto& my_map = std::get<0>(*m_repr.psm);
     for (auto& [key, obj]: my_map)
         const_cast<Object&>(obj).set_parent(*this);
@@ -1085,7 +1085,7 @@ Object::Object(ReprIX type) : m_fields{(uint8_t)type} {
         case FLOAT: m_repr.f = 0.0; break;
         case STR:   m_repr.ps = new IRCString{"", NoParent{}}; break;
         case LIST:  m_repr.pl = new IRCList{{}, NoParent{}}; break;
-        case MAP:   m_repr.psm = new IRCMap{{}, NoParent{}}; break;
+        case SMAP:  m_repr.psm = new IRCMap{{}, NoParent{}}; break;
         case OMAP:  m_repr.pom = new IRCOMap{{}, NoParent{}}; break;
         case DEL:   m_repr.z = nullptr; break;
         default:      throw wrong_type(type);
@@ -1117,7 +1117,7 @@ Object Object::parent() const {
         case EMPTY: throw empty_reference();
         case STR:   return std::get<1>(*m_repr.ps);
         case LIST:  return std::get<1>(*m_repr.pl);
-        case MAP:   return std::get<1>(*m_repr.psm);
+        case SMAP:  return std::get<1>(*m_repr.psm);
         case OMAP:  return std::get<1>(*m_repr.pom);
         case DSRC:  return m_repr.ds->m_parent;
         default:      return nil;
@@ -1171,7 +1171,7 @@ void Object::weak_refer_to(const Object& other) {
 //        case FLOAT: m_repr.f = other.m_repr.f; break;
 //        case STR:   m_repr.ps = other.m_repr.ps; break;
         case LIST:  m_repr.pl = other.m_repr.pl; break;
-        case MAP:   m_repr.psm = other.m_repr.psm; break;
+        case SMAP:  m_repr.psm = other.m_repr.psm; break;
         case OMAP:  m_repr.pom = other.m_repr.pom; break;
         case DSRC:  m_repr.ds = other.m_repr.ds; break;
         default:      throw wrong_type(m_fields.repr_ix);
@@ -1191,7 +1191,7 @@ void Object::set_parent(const Object& new_parent) const {
             parent.weak_refer_to(new_parent);
             break;
         }
-        case MAP: {
+        case SMAP: {
             auto& parent = std::get<1>(*m_repr.psm);
             parent.weak_refer_to(new_parent);
             break;
@@ -1224,7 +1224,7 @@ void Object::clear_parent() const {
             parent.m_fields.repr_ix = NIL;
             break;
         }
-        case MAP: {
+        case SMAP: {
             auto& parent = std::get<1>(*m_repr.psm);
             parent.m_fields.repr_ix = NIL;
             break;
@@ -1262,7 +1262,7 @@ const Key Object::key_of(const Object& obj) const {
             }
             break;
         }
-        case MAP: {
+        case SMAP: {
             const auto& map = std::get<0>(*m_repr.psm);
             for (auto& [key, value] : map) {
                 if (value.is(obj))
@@ -1310,7 +1310,7 @@ String Object::to_str() const {
         case FLOAT: return float_to_str(m_repr.f);
         case STR:   return std::get<0>(*m_repr.ps);
         case LIST:  [[fallthrough]];
-        case MAP:   [[fallthrough]];
+        case SMAP:  [[fallthrough]];
         case OMAP:  return to_json();
         case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->to_str(*this);
         default:    throw wrong_type(m_fields.repr_ix);
@@ -1338,7 +1338,7 @@ bool Object::to_bool() const {
         case FLOAT: return m_repr.f;
         case STR:   return str_to_bool(std::get<0>(*m_repr.ps));
         case LIST:  [[fallthrough]];
-        case MAP:   [[fallthrough]];
+        case SMAP:  [[fallthrough]];
         case OMAP:  return size() > 0;
         case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).to_bool();
         default:    throw wrong_type(m_fields.repr_ix, BOOL);
@@ -1471,7 +1471,7 @@ Object Object::get(const Key& key) const {
             if (!norm_index(index, list.size())) return nil;
             return list[index];
         }
-        case MAP: {
+        case SMAP: {
             auto& map = std::get<0>(*m_repr.psm);
             auto it = map.find(key);
             if (it == map.end()) return nil;
@@ -1547,7 +1547,7 @@ Object Object::set(const Key& key, const Object& in_val) {
             return in_val;
         }
         case LIST: return list_set(key, in_val);
-        case MAP: {
+        case SMAP: {
             Object out_val = (in_val.parent() == nil)? in_val: in_val.copy();
             auto& map = std::get<0>(*m_repr.psm);
             auto it = map.find(key);
@@ -1581,7 +1581,7 @@ Object Object::set(Key&& key, const Object& in_val) {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
         case LIST: return list_set(key, in_val);
-        case MAP: {
+        case SMAP: {
             Object out_val = (in_val.parent() == nil)? in_val: in_val.copy();
             auto& map = std::get<0>(*m_repr.psm);
             auto it = map.find(key);
@@ -1633,7 +1633,7 @@ void Object::del(const Key& key) {
             }
             break;
         }
-        case MAP: {
+        case SMAP: {
             auto& map = std::get<0>(*m_repr.psm);
             auto it = map.find(key);
             if (it != map.end()) {
@@ -1680,7 +1680,7 @@ size_t Object::size() const {
         case EMPTY: throw empty_reference();
         case STR:   return std::get<0>(*m_repr.ps).size();
         case LIST:  return std::get<0>(*m_repr.pl).size();
-        case MAP:   return std::get<0>(*m_repr.psm).size();
+        case SMAP:  return std::get<0>(*m_repr.psm).size();
         case OMAP:  return std::get<0>(*m_repr.pom).size();
         case DSRC:  return m_repr.ds->size(*this);
         default:
@@ -1782,7 +1782,7 @@ void Object::set(const Slice& slice, const Object& in_vals) {
             }
             break;
         }
-        case MAP: {
+        case SMAP: {
             auto& map = std::get<0>(*m_repr.psm);
             del(slice);
             auto start = slice.min().value();
@@ -1816,7 +1816,7 @@ void Object::del(const Slice& slice) {
             list.erase(list.begin() + start, list.begin() + stop);
             break;
         }
-        case MAP: {
+        case SMAP: {
             KeyList keys;
             for (auto key : iter_keys(slice))
                 keys.push_back(key);
@@ -1846,7 +1846,7 @@ const List Object::values() const {
                 children.push_back(child);
             break;
         }
-        case MAP:  {
+        case SMAP: {
             for (auto& item : std::get<0>(*m_repr.psm))
                 children.push_back(item.second);
             break;
@@ -1877,7 +1877,7 @@ inline
 const ItemList Object::items() const {
     ItemList items;
     switch (m_fields.repr_ix) {
-        case MAP:  {
+        case SMAP: {
             for (auto& item : std::get<0>(*m_repr.psm))
                 items.push_back(item);
             break;
@@ -1967,7 +1967,7 @@ bool Object::operator == (const Object& obj) const {
                     return false;
             return true;
         }
-        case MAP: [[fallthrough]];
+        case SMAP: [[fallthrough]];
         case OMAP: {
             if (!obj.is_map()) return false;
             if (size() != obj.size()) return false;
@@ -2092,7 +2092,7 @@ public:
                         }
                         break;
                     }
-                    case Object::MAP: {
+                    case Object::SMAP: {
                         m_visitor(parent, key, object, event | BEGIN_PARENT);
                         m_stack.emplace(parent, key, object, event | END_PARENT);
                         auto& map = std::get<0>(*object.m_repr.psm);
@@ -2165,7 +2165,7 @@ public:
                     }
                     break;
                 }
-                case Object::MAP: {
+                case Object::SMAP: {
                     auto& map = std::get<0>(*object.m_repr.psm);
                     for (auto it = map.cbegin(); it != map.cend(); it++) {
                         auto& [key, child] = *it;
@@ -2227,7 +2227,7 @@ void Object::to_json(std::ostream& os) const {
             case FLOAT: os << float_to_str(object.m_repr.f); break;
             case STR:   os << std::quoted(std::get<0>(*object.m_repr.ps)); break;
             case LIST:  os << ((event & WalkDF::BEGIN_PARENT)? '[': ']'); break;
-            case MAP:   [[fallthrough]];
+            case SMAP:  [[fallthrough]];
             case OMAP:  os << ((event & WalkDF::BEGIN_PARENT)? '{': '}'); break;
             default:      throw wrong_type(object.m_fields.repr_ix);
         }
@@ -2249,7 +2249,7 @@ Oid Object::id() const {
         case FLOAT: return Oid{repr_ix, *((uint64_t*)(&m_repr.f))};;
         case STR:   return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.ps)))};
         case LIST:  return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.pl)))};
-        case MAP:   return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.pom)))};
+        case SMAP:  return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.pom)))};
         case OMAP:  return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.pom)))};
         case DSRC:  return Oid{repr_ix, (uint64_t)(m_repr.ds)};
         default:      throw wrong_type(m_fields.repr_ix);
@@ -2269,7 +2269,7 @@ bool Object::is(const Object& other) const {
         case FLOAT: return m_repr.f == other.m_repr.f;
         case STR:   return m_repr.ps == other.m_repr.ps;
         case LIST:  return m_repr.pl == other.m_repr.pl;
-        case MAP:   return m_repr.psm == other.m_repr.psm;
+        case SMAP:  return m_repr.psm == other.m_repr.psm;
         case OMAP:  return m_repr.pom == other.m_repr.pom;
         case DSRC:  return m_repr.ds == other.m_repr.ds;
         default:      throw wrong_type(m_fields.repr_ix);
@@ -2287,7 +2287,7 @@ Object Object::copy() const {
         case FLOAT: return m_repr.f;
         case STR:   return std::get<0>(*m_repr.ps);
         case LIST:  return std::get<0>(*m_repr.pl);   // TODO: long-hand deep-copy, instead of using stack
-        case MAP:   return std::get<0>(*m_repr.psm);  // TODO: long-hand deep-copy, instead of using stack
+        case SMAP:  return std::get<0>(*m_repr.psm);  // TODO: long-hand deep-copy, instead of using stack
         case OMAP:  return std::get<0>(*m_repr.pom);  // TODO: long-hand deep-copy, instead of using stack
         case DSRC:  return m_repr.ds->copy(*this, DataSource::Origin::MEMORY);
         case DEL:   return DEL;
@@ -2300,7 +2300,7 @@ refcnt_t Object::ref_count() const {
     switch (m_fields.repr_ix) {
         case STR:   return std::get<1>(*m_repr.ps).m_fields.ref_count;
         case LIST:  return std::get<1>(*m_repr.pl).m_fields.ref_count;
-        case MAP:   return std::get<1>(*m_repr.psm).m_fields.ref_count;
+        case SMAP:  return std::get<1>(*m_repr.psm).m_fields.ref_count;
         case OMAP:  return std::get<1>(*m_repr.pom).m_fields.ref_count;
         case DSRC:  return m_repr.ds->ref_count();
         default:      return no_ref_count;
@@ -2315,7 +2315,7 @@ void Object::inc_ref_count() const {
         case EMPTY: throw empty_reference();
         case STR:   ++(std::get<1>(*self.m_repr.ps).m_fields.ref_count); break;
         case LIST:  ++(std::get<1>(*self.m_repr.pl).m_fields.ref_count); break;
-        case MAP:   ++(std::get<1>(*self.m_repr.psm).m_fields.ref_count); break;
+        case SMAP:  ++(std::get<1>(*self.m_repr.psm).m_fields.ref_count); break;
         case OMAP:  ++(std::get<1>(*self.m_repr.pom).m_fields.ref_count); break;
         case DSRC:  m_repr.ds->inc_ref_count(); break;
         default:      break;
@@ -2342,7 +2342,7 @@ void Object::dec_ref_count() const {
             }
             break;
         }
-        case MAP: {
+        case SMAP: {
             auto p_irc = self.m_repr.psm;
             if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
                 for (auto& item : std::get<0>(*p_irc))
@@ -2401,7 +2401,7 @@ Object& Object::operator = (const Object& other) {
             inc_ref_count();
             break;
         }
-        case MAP: {
+        case SMAP: {
             m_repr.psm = other.m_repr.psm;
             inc_ref_count();
             break;
@@ -2434,7 +2434,7 @@ Object& Object::operator = (Object&& other) {
         case FLOAT: m_repr.f = other.m_repr.f; break;
         case STR:   m_repr.ps = other.m_repr.ps; break;
         case LIST:  m_repr.pl = other.m_repr.pl; break;
-        case MAP:   m_repr.psm = other.m_repr.psm; break;
+        case SMAP:  m_repr.psm = other.m_repr.psm; break;
         case OMAP:  m_repr.pom = other.m_repr.pom; break;
         case DSRC:  m_repr.ds = other.m_repr.ds; break;
     }
@@ -2997,7 +2997,7 @@ void DataSource::insure_fully_cached(const Object& target) {
                     value.set_parent(target);  // TODO: avoid setting parent twice
                 break;
             }
-            case Object::MAP: {
+            case Object::SMAP: {
                 for (auto& item : std::get<0>(*m_cache.m_repr.psm))
                     item.second.set_parent(target);  // TODO: avoid setting parent twice
                 break;

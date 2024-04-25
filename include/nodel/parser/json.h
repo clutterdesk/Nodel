@@ -351,7 +351,7 @@ void Parser<StreamType>::consume_whitespace()
 
 template <typename StreamType>
 Object::ReprIX Parser<StreamType>::get_map_type() const {
-    return m_options.use_sorted_map? Object::MAP: Object::OMAP;
+    return m_options.use_sorted_map? Object::SMAP: Object::OMAP;
 }
 
 template <typename StreamType>
