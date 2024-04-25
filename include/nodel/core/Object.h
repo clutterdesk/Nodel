@@ -1868,7 +1868,6 @@ const ItemList Object::items() const {
     return items;
 }
 
-#pragma warning(disable:5232)
 inline
 bool Object::operator == (const Object& obj) const {
     if (is_empty() || obj.is_empty()) throw empty_reference();
@@ -1947,7 +1946,6 @@ bool Object::operator == (const Object& obj) const {
         default:     throw wrong_type(m_fields.repr_ix);
     }
 }
-#pragma warning(enable:5232)
 
 inline
 bool Object::operator == (nil_t) const {

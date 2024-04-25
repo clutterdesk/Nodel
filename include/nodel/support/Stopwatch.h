@@ -43,7 +43,7 @@ class Stopwatch
     auto last()  { return m_history.back(); }
     auto min()   { return *std::min_element(m_history.begin(), m_history.end()); }
     auto max()   { return *std::max_element(m_history.begin(), m_history.end()); }
-    auto total() { return std::accumulate(m_history.begin(), m_history.end(), 0); }
+    auto total() { return std::accumulate(m_history.begin(), m_history.end(), 0ULL); }
     auto avg()   { return (double)total() / m_history.size(); }
 
     void clear()   { m_history.clear(); }
