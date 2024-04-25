@@ -58,7 +58,6 @@ struct InvalidPath : public NodelException
     InvalidPath() : NodelException("Invalid object path"s) {}
 };
 
-
 class URI;
 class Object;
 class OPath;
@@ -98,18 +97,49 @@ using DataSourcePtr = DataSource*;
 
 namespace test { class DataSourceTestInterface; }
 
-constexpr size_t min_key_chunk_size = 128;
 
-
-//////////////////////////////////////////////////////////////////////////////
-/// @brief Nodel dynamic object.
-//////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+// Nodel dynamic object.
+// - Like Python objects, an Object is a reference to its backing data.
+//   The assignment operator does not copy the backing data - it copies the
+//   reference.
+// - Objects are garbage collected.
+// - Objects have a reference count and are *not* thread-safe.  However
+//   an Object can be accessed from different threads synchronously.
+// - The backing data is one of the following types:
+//     - nil              (similar to "None" in Python)
+//     - boolean
+//     - integer          (64-bit, as defined in nodel/support/types.h)
+//     - unsigned integer (64-bit, as defined in nodel/support/types.h)
+//     - floating point   (64-bit, as defined in nodel/support/types.h)
+//     - string           (may represent either text, or binary data)
+//     - list             (a recursive list of Objects)
+//     - ordered map      (an insertion ordered map, Key -> Object)
+//     - sorted map       (a sorted map, Key -> Object)
+// - The NIL, BOOL, INT, UINT and FLOAT data types are stored in the Object
+//   by-value.  Objects containing these types do not have a reference count,
+//   or a parent.
+// - The `get`, `set`, and `del` methods can be used for both lists and maps.
+// - When working with a list, Key instances are integers.  Lists and maps
+//   are referred to collectively as "containers".
+// - In general the `get` and `set` methods are faster than the subscript
+//   operator.  However a chain of subscript operators will result in a
+//   single call to `get` or `set` with an `OPath` instance, which can be
+//   optimized by a DataSource implementation.
+// - The `get`, `set`, and `del` methods do not accept `const char*` strings,
+//   since this would be the most common usage, and (to my knowledge) can't be
+//   optimized since it's not possible to know whether a `const char*` is a
+//   read-only literal.
+// - Compiling with `NODEL_ARCH=32` on 32-bit architectures will reduce the
+//   size of Object instances from 16-bytes to 8-bytes.
+/////////////////////////////////////////////////////////////////////////////
 class Object
 {
   public:
     template <class T> class Subscript;
     template <class ValueType, typename VisitPred, typename EnterPred> class TreeRange;
 
+    // Enumeration representing the type of the backing data.
     enum ReprIX {
         EMPTY,   // uninitialized reference
         NIL,     // json null, and used to indicate non-existence
@@ -117,7 +147,7 @@ class Object
         INT,
         UINT,
         FLOAT,
-        STR,
+        STR,     // text or binary data
         LIST,
         MAP,     // sorted map
         OMAP,    // ordered map
@@ -126,7 +156,7 @@ class Object
         INVALID = 31
     };
 
-  public:
+  protected:
       union Repr {
           Repr()                : z{nullptr} {}
           Repr(bool v)          : b{v} {}
@@ -199,6 +229,8 @@ class Object
     Object(NoParent&&) : m_repr{}, m_fields{NIL} {}  // initialize reference count
 
   public:
+    // Returns a text description of the type enumeration.
+    // @arg repr_ix The value of the ReprIX enumeration.
     static std::string_view type_name(uint8_t repr_ix) {
       switch (repr_ix) {
           case EMPTY: return "empty";
@@ -219,6 +251,8 @@ class Object
     }
 
   public:
+    // Indicates an object with a data type that is not reference counted.
+    // @see See `Object::ref_count` method.
     static constexpr refcnt_t no_ref_count = std::numeric_limits<refcnt_t>::max();
 
     Object()                           : m_repr{}, m_fields{EMPTY} {}
@@ -243,6 +277,8 @@ class Object
     Object(const Key&);
     Object(Key&&);
 
+    // Construct with a new, default value for the specified data type.
+    // @arg type The data type.
     Object(ReprIX type);
 
     Object(const Subscript<Key>& sub);
