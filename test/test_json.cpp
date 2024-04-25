@@ -217,7 +217,7 @@ TEST(Json, ParseLargeExample1File) {
     std::string error;
     Object example = json::parse_file("test_data/large_example_1.json", error);
     EXPECT_EQ(error, "");
-    EXPECT_TRUE(example.is_type<List>());
+    EXPECT_TRUE(example.is_type<ObjectList>());
 }
 
 TEST(Json, ParseLargeExample2File) {

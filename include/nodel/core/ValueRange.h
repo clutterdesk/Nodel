@@ -18,13 +18,13 @@ class ValueIterator
     union Repr
     {
         Repr()                        : pdi{nullptr} {}
-        Repr(List::iterator it)       : li{it} {}
+        Repr(ObjectList::iterator it) : li{it} {}
         Repr(SortedMap::iterator it)  : smi{it} {}
         Repr(OrderedMap::iterator it) : omi{it} {}
         Repr(DsIterPtr&& p_it)        : pdi{std::forward<DsIterPtr>(p_it)} {}
         ~Repr() {}
 
-        List::iterator li;
+        ObjectList::iterator li;
         SortedMap::iterator smi;
         OrderedMap::iterator omi;
         DsIterPtr pdi;
@@ -32,7 +32,7 @@ class ValueIterator
 
   public:
     ValueIterator()                        : m_repr_ix{ReprIX::NIL}, m_repr{} {}
-    ValueIterator(List::iterator it)       : m_repr_ix{ReprIX::LIST}, m_repr{it} {}
+    ValueIterator(ObjectList::iterator it) : m_repr_ix{ReprIX::LIST}, m_repr{it} {}
     ValueIterator(SortedMap::iterator it)  : m_repr_ix{ReprIX::SMAP}, m_repr{it} {}
     ValueIterator(OrderedMap::iterator it) : m_repr_ix{ReprIX::OMAP}, m_repr{it} {}
     ValueIterator(DsIterPtr&& p_it)        : m_repr_ix{ReprIX::DSRC}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }

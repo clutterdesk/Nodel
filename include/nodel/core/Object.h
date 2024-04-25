@@ -74,7 +74,7 @@ struct NoPredicate {};
 using Predicate = std::function<bool(const Object&)>;
 
 using String = std::string;
-using List = std::vector<Object>;
+using ObjectList = std::vector<Object>;
 using SortedMap = std::map<Key, Object>;
 using OrderedMap = tsl::ordered_map<Key, Object, KeyHash>;
 
@@ -85,7 +85,7 @@ using ItemList = std::vector<Item>;
 
 // inplace reference count types (ref-count stored in parent bit-field)
 using IRCString = std::tuple<String, Object>;
-using IRCList = std::tuple<List, Object>;
+using IRCList = std::tuple<ObjectList, Object>;
 using IRCMap = std::tuple<SortedMap, Object>;
 using IRCOMap = std::tuple<OrderedMap, Object>;
 
@@ -205,7 +205,7 @@ class Object
     template <> ReprIX get_repr_ix<UInt>() const       { return UINT; }
     template <> ReprIX get_repr_ix<Float>() const      { return FLOAT; }
     template <> ReprIX get_repr_ix<String>() const     { return STR; }
-    template <> ReprIX get_repr_ix<List>() const       { return LIST; }
+    template <> ReprIX get_repr_ix<ObjectList>() const { return LIST; }
     template <> ReprIX get_repr_ix<SortedMap>() const  { return SMAP; }
     template <> ReprIX get_repr_ix<OrderedMap>() const { return OMAP; }
 
@@ -267,10 +267,10 @@ class Object
     Object(is_like_UInt auto v)        : m_repr{(UInt)v}, m_fields{UINT} {}
     Object(DataSourcePtr ptr);
 
-    Object(const List&);
+    Object(const ObjectList&);
     Object(const SortedMap&);
     Object(const OrderedMap&);
-    Object(List&&);
+    Object(ObjectList&&);
     Object(SortedMap&&);
     Object(OrderedMap&&);
 
@@ -317,7 +317,7 @@ class Object
 
     const KeyList keys() const;
     const ItemList items() const;
-    const List values() const;
+    const ObjectList values() const;
 
     size_t size() const;
 
@@ -990,7 +990,7 @@ inline
 Object::Object(DataSourcePtr ptr) : m_repr{ptr}, m_fields{DSRC} {}  // DataSource ownership transferred
 
 inline
-Object::Object(const List& list) : m_repr{new IRCList({}, NoParent{})}, m_fields{LIST} {
+Object::Object(const ObjectList& list) : m_repr{new IRCList({}, NoParent{})}, m_fields{LIST} {
     auto& my_list = std::get<0>(*m_repr.pl);
     for (auto& value : list) {
         Object copy = value.copy();
@@ -1020,7 +1020,7 @@ Object::Object(const OrderedMap& map) : m_repr{new IRCOMap({}, NoParent{})}, m_f
 }
 
 inline
-Object::Object(List&& list) : m_repr{new IRCList(std::forward<List>(list), NoParent{})}, m_fields{LIST} {
+Object::Object(ObjectList&& list) : m_repr{new IRCList(std::forward<ObjectList>(list), NoParent{})}, m_fields{LIST} {
     auto& my_list = std::get<0>(*m_repr.pl);
     for (auto& obj : my_list)
         obj.set_parent(*this);
@@ -1731,7 +1731,7 @@ Object Object::get(const Slice& slice) const {
         auto [start, stop, step] = slice.to_indices(list.size());
         return get_slice(list, start, stop, step);
     } else {
-        List result;
+        ObjectList result;
         for (auto value : iter_values(slice))
             result.push_back(value);
         return result;
@@ -1838,8 +1838,8 @@ const KeyList Object::keys() const {
 }
 
 inline
-const List Object::values() const {
-    List children;
+const ObjectList Object::values() const {
+    ObjectList children;
     switch (m_fields.repr_ix) {
         case LIST:  {
             for (auto& child : std::get<0>(*m_repr.pl))
@@ -1962,7 +1962,7 @@ bool Object::operator == (const Object& obj) const {
             auto& lhs = std::get<0>(*m_repr.pl);
             auto& rhs = std::get<0>(*obj.m_repr.pl);
             if (lhs.size() != rhs.size()) return false;
-            for (List::size_type i=0; i<lhs.size(); i++)
+            for (ObjectList::size_type i=0; i<lhs.size(); i++)
                 if (lhs[i] != rhs[i])
                     return false;
             return true;
@@ -2516,7 +2516,7 @@ class TreeIterator
 
     TreeIterator(TreeRange* p_range) : mp_range{p_range} {}
 
-    TreeIterator(TreeRange* p_range, List& list)
+    TreeIterator(TreeRange* p_range, ObjectList& list)
       : mp_range{p_range}
       , m_it{list.begin()}
       , m_end{list.end()}
@@ -2604,7 +2604,7 @@ class Object::TreeRange
     auto& fifo() { return m_fifo; }
 
   private:
-    List m_list;
+    ObjectList m_list;
     std::deque<ValueRange> m_fifo;
     VisitPred m_visit_pred;
     EnterPred m_enter_pred;
@@ -3091,10 +3091,10 @@ class Object::Subscript
         return resolve().iter_tree(std::forward<VisitPred>(visit_pred), std::forward<EnterPred>(enter_pred));
     }
 
-    const KeyList keys() const   { return resolve().keys(); }
-    const ItemList items() const { return resolve().items(); }
-    const List values() const    { return resolve().values(); }
-    size_t size() const          { return resolve().size(); }
+    const KeyList keys() const      { return resolve().keys(); }
+    const ItemList items() const    { return resolve().items(); }
+    const ObjectList values() const { return resolve().values(); }
+    size_t size() const             { return resolve().size(); }
 
     const Key key() const                     { if constexpr (std::is_same<AccessType, Key>::value) return m_sub; else return m_sub.tail(); }
     const Key key_of(const Object& obj) const { return resolve().key_of(obj); }

@@ -6,16 +6,16 @@ class ItemIterator
 {
   private:
     using DsIterPtr = std::unique_ptr<DataSource::ItemIterator>;
-    using ListIterator = std::tuple<size_t, List::iterator>;
+    using ListIterator = std::tuple<size_t, ObjectList::iterator>;
     using ReprIX = Object::ReprIX;
 
     union Repr
     {
-        Repr()                            : pdi{nullptr} {}
-        Repr(Int pos, List::iterator it)  : li{pos, it} {}
-        Repr(SortedMap::iterator it)      : smi{it} {}
-        Repr(OrderedMap::iterator it)     : omi{it} {}
-        Repr(DsIterPtr&& p_it)            : pdi{std::forward<DsIterPtr>(p_it)} {}
+        Repr()                                 : pdi{nullptr} {}
+        Repr(Int pos, ObjectList::iterator it) : li{pos, it} {}
+        Repr(SortedMap::iterator it)           : smi{it} {}
+        Repr(OrderedMap::iterator it)          : omi{it} {}
+        Repr(DsIterPtr&& p_it)                 : pdi{std::forward<DsIterPtr>(p_it)} {}
         ~Repr() {}
 
         ListIterator li;
@@ -25,11 +25,11 @@ class ItemIterator
     };
 
   public:
-    ItemIterator()                           : m_repr_ix{ReprIX::NIL} {}
-    ItemIterator(Int pos, List::iterator it) : m_repr_ix{ReprIX::LIST}, m_repr{pos, it} {}
-    ItemIterator(SortedMap::iterator it)     : m_repr_ix{ReprIX::SMAP}, m_repr{it} {}
-    ItemIterator(OrderedMap::iterator it)    : m_repr_ix{ReprIX::OMAP}, m_repr{it} {}
-    ItemIterator(DsIterPtr&& p_it)           : m_repr_ix{ReprIX::DSRC}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
+    ItemIterator()                                 : m_repr_ix{ReprIX::NIL} {}
+    ItemIterator(Int pos, ObjectList::iterator it) : m_repr_ix{ReprIX::LIST}, m_repr{pos, it} {}
+    ItemIterator(SortedMap::iterator it)           : m_repr_ix{ReprIX::SMAP}, m_repr{it} {}
+    ItemIterator(OrderedMap::iterator it)          : m_repr_ix{ReprIX::OMAP}, m_repr{it} {}
+    ItemIterator(DsIterPtr&& p_it)                 : m_repr_ix{ReprIX::DSRC}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
     ~ItemIterator();
     
     ItemIterator(ItemIterator& other);

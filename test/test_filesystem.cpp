@@ -42,7 +42,7 @@ TEST(Filesystem, IsFile) {
 TEST(Filesystem, VisitOnlyFiles) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new Registry{default_registry()}, wd);
-    List found;
+    ObjectList found;
     for (const auto& file : test_data.iter_tree(is_file)) {
         EXPECT_TRUE(is_file(file));
     }
@@ -76,8 +76,8 @@ TEST(Filesystem, DirectoryFiles) {
     auto example_csv = obj.get("example.csv"_key);
     EXPECT_TRUE(example_csv.parent().is(obj));
     EXPECT_TRUE(!example_csv.data_source<DataSource>()->is_fully_cached());
-    EXPECT_TRUE(example_csv.is_type<List>());
-    EXPECT_TRUE(example_csv.get(7).is_type<List>());
+    EXPECT_TRUE(example_csv.is_type<ObjectList>());
+    EXPECT_TRUE(example_csv.get(7).is_type<ObjectList>());
     EXPECT_EQ(example_csv.get(7).get(2), "Peg");
 
     auto example_txt = obj.get("example.txt"_key);
@@ -89,7 +89,7 @@ TEST(Filesystem, DirectoryFiles) {
     auto example = obj.get("example.json"_key);
     EXPECT_TRUE(example.parent().is(obj));
     EXPECT_TRUE(!example.data_source<DataSource>()->is_fully_cached());
-    EXPECT_TRUE(example.get("teas"_key).is_type<List>());
+    EXPECT_TRUE(example.get("teas"_key).is_type<ObjectList>());
     EXPECT_EQ(example.get("teas"_key).get(0), "Assam");
 
     auto large_example_1 = obj.get("large_example_1.json"_key);
@@ -107,8 +107,8 @@ TEST(Filesystem, Subdirectory) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new Registry{default_registry()}, wd);
     EXPECT_TRUE(test_data.get("more"_key).is_map());
-    EXPECT_TRUE(test_data.get("more"_key).get("example.csv"_key).is_type<List>());
-    EXPECT_TRUE(test_data.get("more"_key).get("example.csv"_key).get(-1).is_type<List>());
+    EXPECT_TRUE(test_data.get("more"_key).get("example.csv"_key).is_type<ObjectList>());
+    EXPECT_TRUE(test_data.get("more"_key).get("example.csv"_key).get(-1).is_type<ObjectList>());
     EXPECT_EQ(test_data.get("more"_key).get("example.csv"_key).get(-1).get(-1), "andrew43514@gmail.comField Tags");
 }
 

@@ -128,7 +128,7 @@ TEST(Query, AncestorChild) {
     Query query{Step{Axis::ANCESTOR},
                 Step{Axis::CHILD, "u"_key}};
 
-    List actual;
+    ObjectList actual;
     auto it = query.iter_eval(root.get("y.z"_path));
     for (auto it_obj = it.next(); it_obj != nil; it_obj = it.next()) {
         actual.push_back(it_obj);
@@ -145,7 +145,7 @@ TEST(Query, FindFiles) {
     auto is_txt_file = [] (const Object& obj) { return obj.key().to_str().ends_with(".txt"); };
     Query query;
     query.add_steps({Axis::SUBTREE, nil, is_txt_file});
-    List result = query.eval(wd["test_data"_key]);
+    ObjectList result = query.eval(wd["test_data"_key]);
     for (auto& obj : result) {
         DEBUG("{}", obj.path());
     }

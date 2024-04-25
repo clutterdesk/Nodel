@@ -20,8 +20,8 @@ class Parser
     const std::string& error() const { return m_error; }
 
   private:
-    bool parse_row(List&);
-    bool parse_column(List&);
+    bool parse_row(ObjectList&);
+    bool parse_column(ObjectList&);
     Object parse_quoted();
     Object parse_unquoted();
     void consume_whitespace();
@@ -35,7 +35,7 @@ class Parser
 
 template <typename StreamType>
 Object Parser<StreamType>::parse() {
-    List table;
+    ObjectList table;
     while (!m_it.done())
         if (!parse_row(table))
             return nil;
@@ -43,8 +43,8 @@ Object Parser<StreamType>::parse() {
 }
 
 template <typename StreamType>
-bool Parser<StreamType>::parse_row(List& table) {
-    List row;
+bool Parser<StreamType>::parse_row(ObjectList& table) {
+    ObjectList row;
 
     do {
         if (!parse_column(row)) return false;
@@ -66,7 +66,7 @@ bool Parser<StreamType>::parse_row(List& table) {
 }
 
 template <typename StreamType>
-bool Parser<StreamType>::parse_column(List& row) {
+bool Parser<StreamType>::parse_column(ObjectList& row) {
     consume_whitespace();
     if (m_it.done()) return false;
     char c = m_it.peek();

@@ -126,7 +126,7 @@ TEST(DB, IterValues) {
     Finally finally{ []() { delete_db(); } };
 
     Object kst = new DB("test_data/test.rocksdb");
-    List values;
+    ObjectList values;
     for (auto& value : kst.iter_values()) {
         values.push_back(value);
     }

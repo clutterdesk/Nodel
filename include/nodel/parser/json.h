@@ -239,7 +239,7 @@ bool Parser<StreamType>::parse_string() {
 
 template <typename StreamType>
 bool Parser<StreamType>::parse_list() {
-    List list;
+    ObjectList list;
     m_it.next();  // consume [
     consume_whitespace();
     if (m_it.peek() == ']') {

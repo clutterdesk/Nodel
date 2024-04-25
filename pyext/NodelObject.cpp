@@ -48,7 +48,7 @@ static bool require_container(const Object& obj) {
 }
 
 static bool require_subscript(const Object& obj, const Key& key) {
-    if (obj.is_type<List>() || obj.is_type<String>()) {
+    if (obj.is_type<ObjectList>() || obj.is_type<String>()) {
         if (!key.is_any_int()) {
             python::raise_type_error(key);
             return false;

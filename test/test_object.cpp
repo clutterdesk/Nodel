@@ -110,9 +110,9 @@ TEST(Object, ConstructWithInvalidRepr) {
     }
 }
 
-TEST(Object, List) {
-  Object list{List{Object(1), Object("tea"), Object(3.14), Object(true)}};
-  EXPECT_TRUE(list.is_type<List>());
+TEST(Object, ObjectList) {
+  Object list{ObjectList{Object(1), Object("tea"), Object(3.14), Object(true)}};
+  EXPECT_TRUE(list.is_type<ObjectList>());
   EXPECT_EQ(list.to_json(), "[1, \"tea\", 3.14, true]");
 }
 
@@ -761,7 +761,7 @@ TEST(Object, CopyBasic) {
 
 TEST(Object, ListGet) {
   Object obj = "[7, 8, 9]"_json;
-  EXPECT_TRUE(obj.is_type<List>());
+  EXPECT_TRUE(obj.is_type<ObjectList>());
   EXPECT_EQ(obj.get(0).to_int(), 7);
   EXPECT_EQ(obj.get(1).to_int(), 8);
   EXPECT_EQ(obj.get(2).to_int(), 9);
@@ -825,7 +825,7 @@ TEST(Object, ListGetSlice) {
 
 TEST(Object, ListGetOutOfRange) {
     Object obj = json::parse(R"([])");
-    EXPECT_TRUE(obj.is_type<List>());
+    EXPECT_TRUE(obj.is_type<ObjectList>());
     EXPECT_TRUE(obj.get(1) == nil);
 }
 
@@ -1224,7 +1224,7 @@ TEST(Object, KeyOfWrongType) {
 
 TEST(Object, LineageRange) {
     Object obj = json::parse(R"({"a": {"b": ["Assam", "Ceylon"]}})");
-    List ancestors;
+    ObjectList ancestors;
     for (auto anc : obj.get("a"_key).get("b"_key).get(1).iter_line())
         ancestors.push_back(anc);
     EXPECT_EQ(ancestors.size(), 4UL);
@@ -1236,7 +1236,7 @@ TEST(Object, LineageRange) {
 
 TEST(Object, ListChildrenRange) {
     Object obj = json::parse(R"([true, 1, "x"])");
-    List children;
+    ObjectList children;
     for (auto obj : obj.values())
         children.push_back(obj);
     EXPECT_EQ(children.size(), 3UL);
@@ -1247,7 +1247,7 @@ TEST(Object, ListChildrenRange) {
 
 TEST(Object, OrderedMapChildrenRange) {
     Object obj = json::parse(R"({"a": true, "b": 1, "c": "x"})");
-    List children;
+    ObjectList children;
     for (auto obj : obj.values())
         children.push_back(obj);
     EXPECT_EQ(children.size(), 3UL);
@@ -1259,7 +1259,7 @@ TEST(Object, OrderedMapChildrenRange) {
 TEST(Object, SortedMapChildrenRange) {
     json::Options options; options.use_sorted_map = true;
     Object obj = json::parse(options, R"({"b": 1, "a": true, "c": "x"})");
-    List children;
+    ObjectList children;
     for (auto obj : obj.values())
         children.push_back(obj);
     EXPECT_EQ(children.size(), 3UL);
@@ -1275,7 +1275,7 @@ TEST(Object, TreeRangeOverOrderedMaps) {
               {"b1a": "B1A", "b1b": ["B1B0"], "b1c": {"b1ca": "B1CA"}},
               [], "B2"]
     })");
-    List list;
+    ObjectList list;
     for (auto des : obj.iter_tree())
         list.push_back(des);
     ASSERT_EQ(list.size(), 16UL);
@@ -1295,7 +1295,7 @@ TEST(Object, TreeRangeOverSortedMaps) {
               [], "B2"],
         "a": {"ab": "AB", "aa": "AA"} 
     })");
-    List list;
+    ObjectList list;
     for (auto des : obj.iter_tree())
         list.push_back(des);
     ASSERT_EQ(list.size(), 16UL);
@@ -1314,7 +1314,7 @@ TEST(Object, TreeRangeVisitPredOverOrderedMaps) {
               {"b1a": "B1A", "b1b": ["B1B0"], "b1c": {"b1ca": "B1CA"}},
               [], "B2"]
     })");
-    List list;
+    ObjectList list;
     auto pred = [](const Object& o) { return o.is_type<String>() && o.as<String>()[0] == 'B'; };
     for (auto des : obj.iter_tree(pred))
         list.push_back(des);
@@ -1332,7 +1332,7 @@ TEST(Object, TreeRangeVisitPredOverSortedMaps) {
               [], "B2"],
         "a": {"ab": "AB", "aa": "AA"} 
     })");
-    List list;
+    ObjectList list;
     auto pred = [](const Object& o) { return o.is_type<String>() && o.as<String>()[0] == 'B'; };
     for (auto des : obj.iter_tree(pred))
         list.push_back(des);
@@ -1349,7 +1349,7 @@ TEST(Object, TreeRangeEnterPredOverOrderedMaps) {
               {"b1a": "B1A", "b1b": ["B1B0"], "b1c": {"b1ca": "B1CA"}},
               [], "B2"]
     })");
-    List list;
+    ObjectList list;
     auto pred = [](const Object& o) { return o.is_type<OrderedMap>(); };
     for (auto des : obj.iter_tree_if(pred))
         list.push_back(des);
@@ -1369,7 +1369,7 @@ TEST(Object, TreeRangeEnterPredOverSortedMaps) {
               [], "B2"],
         "a": {"ab": "AB", "aa": "AA"} 
     })");
-    List list;
+    ObjectList list;
     auto pred = [](const Object& o) { return o.is_type<SortedMap>(); };
     for (auto des : obj.iter_tree_if(pred))
         list.push_back(des);
@@ -1388,7 +1388,7 @@ TEST(Object, TreeRange_VisitAndEnterPredOverOrderedMaps) {
               {"b1a": "B1A", "b1b": ["B1B0"], "b1c": {"b1ca": "B1CA"}},
               [], "B2"]
     })");
-    List list;
+    ObjectList list;
     auto visit_pred = [](const Object& o) { return o.is_type<String>(); };
     auto enter_pred = [](const Object& o) { return o.is_type<OrderedMap>(); };
     for (auto des : obj.iter_tree_if(visit_pred, enter_pred))
@@ -1406,7 +1406,7 @@ TEST(Object, TreeRange_VisitAndEnterPredOverSortedMaps) {
               [], "B2"],
         "a": {"ab": "AB", "aa": "AA"} 
     })");
-    List list;
+    ObjectList list;
     auto visit_pred = [](const Object& o) { return o.is_type<String>(); };
     auto enter_pred = [](const Object& o) { return o.is_type<SortedMap>(); };
     for (auto des : obj.iter_tree_if(visit_pred, enter_pred))
@@ -1419,7 +1419,7 @@ TEST(Object, TreeRange_VisitAndEnterPredOverSortedMaps) {
 TEST(Object, ValuesRangeMultiuser) {
     Object o1 = json::parse(R"({"a": "A", "b": "B", "c": "C"})");
     Object o2 = json::parse(R"({"x": "X", "y": "Y", "z": "Z"})");
-    List result;
+    ObjectList result;
     auto r1 = o1.values();
     auto it1 = r1.begin();
     auto end1 = r1.end();
@@ -1515,7 +1515,7 @@ TEST(Object, ManuallyCreatePath) {
     path.create(obj, 100);
 
     EXPECT_EQ(path.to_str(), "a[0].b");
-    EXPECT_TRUE(obj.get("a"_key).is_type<List>());
+    EXPECT_TRUE(obj.get("a"_key).is_type<ObjectList>());
     EXPECT_EQ(obj.get("a"_key).get(0).type(), Object::OMAP);
     EXPECT_EQ(obj.get("a"_key).get(0).get("b"_key), 100);
 }
@@ -1531,7 +1531,7 @@ TEST(Object, CreatePartialPath) {
 
     EXPECT_EQ(path.to_str(), "a.b[0]");
     EXPECT_TRUE(obj.get("a"_key).is_type<OrderedMap>());
-    EXPECT_TRUE(obj.get("a"_key).get("b"_key).is_type<List>());
+    EXPECT_TRUE(obj.get("a"_key).get("b"_key).is_type<ObjectList>());
     EXPECT_EQ(obj.get("a"_key).get("b"_key).get(0), 100);
 }
 
@@ -1675,8 +1675,8 @@ TEST(Object, RefCountNewString) {
 }
 
 TEST(Object, RefCountNewList) {
-  Object obj{List{}};
-  EXPECT_TRUE(obj.is_type<List>());
+  Object obj{ObjectList{}};
+  EXPECT_TRUE(obj.is_type<ObjectList>());
   EXPECT_EQ(obj.ref_count(), 1UL);
 }
 
@@ -1847,12 +1847,12 @@ TEST(Object, AssignString) {
 
 TEST(Object, RedundantAssign) {
     Object obj = json::parse(R"({"x": [1], "y": [2]})");
-    EXPECT_TRUE(obj.get("x"_key).is_type<List>());
+    EXPECT_TRUE(obj.get("x"_key).is_type<ObjectList>());
     EXPECT_EQ(obj.get("x"_key).get(0), 1);
     // ref count error might not manifest with one try
     for (int i=0; i<100; i++) {
         obj.get("x"_key) = obj.get("x"_key);
-        EXPECT_TRUE(obj.get("x"_key).is_type<List>());
+        EXPECT_TRUE(obj.get("x"_key).is_type<ObjectList>());
         ASSERT_EQ(obj.get("x"_key).get(0), 1);
     }
 }
@@ -1966,8 +1966,8 @@ TEST(Object, IterSortedMapKeysUpperBound) {
 TEST(Object, IterSortedMapValuesLowerBound) {
     json::Options options; options.use_sorted_map = true;
     Object obj = json::parse(options, R"({"z": [3], "y": [2], "x": [1]})");
-    List expect = {obj.get("y"_key), obj.get("z"_key)};
-    List actual;
+    ObjectList expect = {obj.get("y"_key), obj.get("z"_key)};
+    ObjectList actual;
     for (auto& value : obj.iter_values({"y"_key, {}}))
         actual.push_back(value);
     EXPECT_EQ(actual, expect);
@@ -1976,8 +1976,8 @@ TEST(Object, IterSortedMapValuesLowerBound) {
 TEST(Object, IterSortedMapValuesUpperBound) {
     json::Options options; options.use_sorted_map = true;
     Object obj = json::parse(options, R"({"z": [3], "y": [2], "x": [1]})");
-    List expect = {obj.get("x"_key), obj.get("y"_key)};
-    List actual;
+    ObjectList expect = {obj.get("x"_key), obj.get("y"_key)};
+    ObjectList actual;
     for (auto& value : obj.iter_values({{}, "z"_key}))
         actual.push_back(value);
     EXPECT_EQ(actual, expect);
@@ -2018,8 +2018,8 @@ TEST(Object, IterListKeys) {
 
 TEST(Object, IterListValues) {
     Object obj = json::parse(R"([100, 101, 102])");
-    List expect = {100, 101, 102};
-    List actual;
+    ObjectList expect = {100, 101, 102};
+    ObjectList actual;
     for (auto& val : obj.iter_values())
         actual.push_back(val);
     EXPECT_EQ(actual, expect);
@@ -2472,7 +2472,7 @@ TEST(Object, TestSparseSource_ValueIterator) {
     Object obj{dsrc};
 
     EXPECT_FALSE(dsrc->iter_deleted);
-    List found;
+    ObjectList found;
     for (auto& value : obj.iter_values())
         found.push_back(value);
     EXPECT_TRUE(dsrc->iter_deleted);
@@ -2497,7 +2497,7 @@ TEST(Object, TestSparseSource_ItemIterator) {
 
 TEST(Object, TestSparseSource_GetValues) {
     Object obj{new TestSparseSource("{'x': 100, 'y': 101}")};
-    List values = obj.values();
+    ObjectList values = obj.values();
     EXPECT_EQ(values.size(), 2UL);
     EXPECT_EQ(values[0], 100);
     EXPECT_EQ(values[1], 101);

@@ -136,28 +136,28 @@ class Query
     QueryEval iter_eval(const Object& obj) const;
     QueryEval iter_eval(ValueRange&& range) const;
 
-    void eval(List& out, const Object&) const;
-    void eval(List& out, ValueRange&&) const;
+    void eval(ObjectList& out, const Object&) const;
+    void eval(ObjectList& out, ValueRange&&) const;
 
-    List eval(const Object& obj) const  { List result; eval(result, obj); return result; }
-    List eval(ValueRange&& range) const { List result; eval(result, std::forward<ValueRange>(range)); return result; }
-
-    template <typename Predicate>
-    void eval(List& out, const Object& obj, Predicate&& pred) const;
+    ObjectList eval(const Object& obj) const  { ObjectList result; eval(result, obj); return result; }
+    ObjectList eval(ValueRange&& range) const { ObjectList result; eval(result, std::forward<ValueRange>(range)); return result; }
 
     template <typename Predicate>
-    void eval(List& out, ValueRange&& range, Predicate&& pred) const;
+    void eval(ObjectList& out, const Object& obj, Predicate&& pred) const;
 
     template <typename Predicate>
-    List eval(const Object& obj, Predicate&& pred) const {
-        List result;
+    void eval(ObjectList& out, ValueRange&& range, Predicate&& pred) const;
+
+    template <typename Predicate>
+    ObjectList eval(const Object& obj, Predicate&& pred) const {
+        ObjectList result;
         eval(result, obj, std::forward<Predicate>(pred));
         return result;
     }
 
     template <typename Predicate>
-    List eval(ValueRange&& range, Predicate&& pred) const {
-        List result;
+    ObjectList eval(ValueRange&& range, Predicate&& pred) const {
+        ObjectList result;
         eval(result, std::forward<ValueRange>(range), std::forward<Predicate>(pred));
         return result;
     }
@@ -262,7 +262,7 @@ QueryEval Query::iter_eval(ValueRange&& range) const {
 }
 
 inline
-void Query::eval(List& out, const Object& obj) const {
+void Query::eval(ObjectList& out, const Object& obj) const {
     auto it = iter_eval(obj);
     auto cur = it.next();
     while (cur != nil) {
@@ -272,7 +272,7 @@ void Query::eval(List& out, const Object& obj) const {
 }
 
 inline
-void Query::eval(List& out, ValueRange&& range) const {
+void Query::eval(ObjectList& out, ValueRange&& range) const {
     auto it = iter_eval(std::forward<ValueRange>(range));
     auto cur = it.next();
     while (cur != nil) {
@@ -282,7 +282,7 @@ void Query::eval(List& out, ValueRange&& range) const {
 }
 
 template <typename Predicate>
-void Query::eval(List& out, const Object& obj, Predicate&& pred) const {
+void Query::eval(ObjectList& out, const Object& obj, Predicate&& pred) const {
     auto it = iter_eval(obj);
     for (auto cur = it.next(); cur != nil; cur = it.next())
         if (pred(cur))
@@ -290,7 +290,7 @@ void Query::eval(List& out, const Object& obj, Predicate&& pred) const {
 }
 
 template <typename Predicate>
-void Query::eval(List& out, ValueRange&& range, Predicate&& pred) const {
+void Query::eval(ObjectList& out, ValueRange&& range, Predicate&& pred) const {
     auto it = iter_eval(std::forward<ValueRange>(range));
     for (auto cur = it.next(); cur != nil; cur = it.next())
         if (pred(cur))
