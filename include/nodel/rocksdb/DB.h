@@ -11,12 +11,14 @@
 
 namespace nodel::rocksdb {
 
-// A simple key/value store backed by RocksDB.
+/////////////////////////////////////////////////////////////////////////////
+/// @brief A simple key/value store backed by RocksDB.
 // - Multiple objects may operate on the same DB, but no synchronization is provided.
 //   Use Object::refresh or Object::reset to synchronize one object after changes have
 //   been made to the DB.
 // - Updates and deletes are batched together when Object::save is called, providing
 //   atomicity.
+/////////////////////////////////////////////////////////////////////////////
 class DB : public nodel::DataSource
 {
   public:

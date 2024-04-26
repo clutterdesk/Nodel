@@ -46,8 +46,6 @@ class SubDirectory : public DataSource
 
 /**
  * @brief DataSource to use for filesystem directory
- * Example:
- *     Object o = Directory(<path>);
  */
 class Directory : public SubDirectory
 {

@@ -9,15 +9,14 @@
 namespace nodel::filesystem {
 
 /**
- * @brief A registry that maps filesystem patterns and extensions to DataSources.
- * - Registry entries may be defined for a regular expression pattern, or a file extension.
+ * @brief A registry that maps filesystem extensions to DataSources.
  * - In general the schema of a file cannot be determined by examining its content. The Registry
  *   provides a means of determining schema from the filesystem path of the file.
  * - If no rule applies for a given file, or directory, the default factory is used, if present.
  *   Separate default factories are provided for files and directories.
  * - If no rule applies, and no default factory is defined, no object will be created to represent
  *   the path. Such elided files/directories will not be removed when the parent object is saved.
- * @see nodel::filesystem::DefaultFactory
+ * - A default factory can further differentiate files or directories based on the full path.
  */
 class Registry
 {

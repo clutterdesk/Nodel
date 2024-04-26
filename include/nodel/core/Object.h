@@ -1,3 +1,4 @@
+/** @file */
 #pragma once
 
 #include <limits>
@@ -99,39 +100,39 @@ namespace test { class DataSourceTestInterface; }
 
 
 /////////////////////////////////////////////////////////////////////////////
-// Nodel dynamic object.
-// - Like Python objects, an Object is a reference to its backing data.
-//   The assignment operator does not copy the backing data - it copies the
-//   reference.
-// - Objects are garbage collected.
-// - Objects have a reference count and are *not* thread-safe.  However
-//   an Object can be accessed from different threads synchronously.
-// - The backing data is one of the following types:
-//     - nil              (similar to "None" in Python)
-//     - boolean
-//     - integer          (64-bit, as defined in nodel/support/types.h)
-//     - unsigned integer (64-bit, as defined in nodel/support/types.h)
-//     - floating point   (64-bit, as defined in nodel/support/types.h)
-//     - string           (may represent either text, or binary data)
-//     - list             (a recursive list of Objects)
-//     - ordered map      (an insertion ordered map, Key -> Object)
-//     - sorted map       (a sorted map, Key -> Object)
-// - The NIL, BOOL, INT, UINT and FLOAT data types are stored in the Object
-//   by-value.  Objects containing these types do not have a reference count,
-//   or a parent.
-// - The `get`, `set`, and `del` methods can be used for both lists and maps.
-// - When working with a list, Key instances are integers.  Lists and maps
-//   are referred to collectively as "containers".
-// - In general the `get` and `set` methods are faster than the subscript
-//   operator.  However a chain of subscript operators will result in a
-//   single call to `get` or `set` with an `OPath` instance, which can be
-//   optimized by a DataSource implementation.
-// - The `get`, `set`, and `del` methods do not accept `const char*` strings,
-//   since this would be the most common usage, and (to my knowledge) can't be
-//   optimized since it's not possible to know whether a `const char*` is a
-//   read-only literal.
-// - Compiling with `NODEL_ARCH=32` on 32-bit architectures will reduce the
-//   size of Object instances from 16-bytes to 8-bytes.
+/// @brief Nodel dynamic object.
+/// - Like Python objects, an Object is a reference to its backing data.
+///   The assignment operator does not copy the backing data - it copies the
+///   reference.
+/// - Objects are garbage collected.
+/// - Objects have a reference count and are *not* thread-safe.  However
+///   an Object can be accessed from different threads synchronously.
+/// - The backing data is one of the following types:
+///     - nil              (similar to "None" in Python)
+///     - boolean
+///     - integer          (64-bit, as defined in nodel/support/types.h)
+///     - unsigned integer (64-bit, as defined in nodel/support/types.h)
+///     - floating point   (64-bit, as defined in nodel/support/types.h)
+///     - string           (may represent either text, or binary data)
+///     - list             (a recursive list of Objects)
+///     - ordered map      (an insertion ordered map, Key -> Object)
+///     - sorted map       (a sorted map, Key -> Object)
+/// - The NIL, BOOL, INT, UINT and FLOAT data types are stored in the Object
+///   by-value.  Objects containing these types do not have a reference count,
+///   or a parent.
+/// - The `get`, `set`, and `del` methods can be used for both lists and maps.
+/// - When working with a list, Key instances are integers.  Lists and maps
+///   are referred to collectively as "containers".
+/// - In general the `get` and `set` methods are faster than the subscript
+///   operator.  However a chain of subscript operators will result in a
+///   single call to `get` or `set` with an `OPath` instance, which can be
+///   optimized by a DataSource implementation.
+/// - The `get`, `set`, and `del` methods do not accept `const char*` strings,
+///   since this would be the most common usage, and (to my knowledge) can't be
+///   optimized since it's not possible to know whether a `const char*` is a
+///   read-only literal.
+/// - Compiling with `NODEL_ARCH=32` on 32-bit architectures will reduce the
+///   size of Object instances from 16-bytes to 8-bytes.
 /////////////////////////////////////////////////////////////////////////////
 class Object
 {
@@ -139,7 +140,7 @@ class Object
     template <class T> class Subscript;
     template <class ValueType, typename VisitPred, typename EnterPred> class TreeRange;
 
-    // Enumeration representing the type of the backing data.
+    // @brief Enumeration representing the type of the backing data.
     enum ReprIX {
         EMPTY,   // uninitialized reference
         NIL,     // json null, and used to indicate non-existence
@@ -149,7 +150,7 @@ class Object
         FLOAT,
         STR,     // text or binary data
         LIST,
-        SMAP,     // sorted map
+        SMAP,    // sorted map
         OMAP,    // ordered map
         DSRC,    // DataSource
         DEL,     // indicates deleted key in sparse data-store
@@ -229,8 +230,8 @@ class Object
     Object(NoParent&&) : m_repr{}, m_fields{NIL} {}  // initialize reference count
 
   public:
-    // Returns a text description of the type enumeration.
-    // @arg repr_ix The value of the ReprIX enumeration.
+    // @brief Returns a text description of the type enumeration.
+    // @param repr_ix The value of the ReprIX enumeration.
     static std::string_view type_name(uint8_t repr_ix) {
       switch (repr_ix) {
           case EMPTY: return "empty";
@@ -251,7 +252,7 @@ class Object
     }
 
   public:
-    // Indicates an object with a data type that is not reference counted.
+    // @brief Indicates an object with a data type that is not reference counted.
     // @see See `Object::ref_count` method.
     static constexpr refcnt_t no_ref_count = std::numeric_limits<refcnt_t>::max();
 
@@ -277,8 +278,8 @@ class Object
     Object(const Key&);
     Object(Key&&);
 
-    // Construct with a new, default value for the specified data type.
-    // @arg type The data type.
+    // @brief Construct with a new, default value for the specified data type.
+    // @param type The data type.
     Object(ReprIX type);
 
     Object(const Subscript<Key>& sub);
@@ -298,11 +299,12 @@ class Object
     KeyRange iter_keys() const;
     ItemRange iter_items() const;
     ValueRange iter_values() const;
-    LineRange iter_line() const;
 
     KeyRange iter_keys(const Slice&) const;
     ItemRange iter_items(const Slice&) const;
     ValueRange iter_values(const Slice&) const;
+
+    LineRange iter_line() const;
 
     TreeRange<Object, NoPredicate, NoPredicate> iter_tree() const;
 
@@ -470,8 +472,9 @@ class Object
 
 //////////////////////////////////////////////////////////////////////////////
 /// @brief A simple path consisting of a list of keys.
-/// Path literals can be created using ""_path literal operator.
+/// Path literals can be created using `""_path` literal operator.
 /// @see nodel::Object::get(const OPath&)
+/// @see nodel::Object::set(const OPath&, const Object&)
 /// @see nodel::Query
 //////////////////////////////////////////////////////////////////////////////
 class OPath
@@ -481,6 +484,10 @@ class OPath
     using ConstIterator = KeyList::const_iterator;
 
     OPath() {}
+
+    // @brief Construct a path from a string path specification.
+    // @param spec The string to parse.
+    // @see OPath operator ""_path (const char*, size_t);
     OPath(const StringView& spec);
 
     // helpers for Subscript class
@@ -495,8 +502,12 @@ class OPath
     void append(const Key& key) { m_keys.push_back(key); }
     void append(Key&& key)      { m_keys.emplace_back(std::forward<Key>(key)); }
 
+    // @brief Returns a copy of this path excepting the last key.
+    // - If an Object, `x`, would be returned by this path, then the path
+    //   returned by this function would return the `x` Object's parent.
+    // @return Returns the parent path.
     OPath parent() const {
-        if (m_keys.size() == 0) throw InvalidPath();
+        if (m_keys.size() < 2) return KeyList{nil};
         return KeyList{m_keys.begin(), m_keys.end() - 1};
     }
 
@@ -511,6 +522,10 @@ class OPath
         return obj;
     }
 
+    // @brief Returns true if the object lies on this path.
+    // @param obj The object to test.
+    // @return Returns true if the object is reachable from any of its ancestors via
+    // this path.
     bool is_leaf(const Object& obj) const {
         Object cursor = obj;
         Object parent = obj.parent();
@@ -522,6 +537,16 @@ class OPath
         return lookup(cursor).is(obj);
     }
 
+    // @brief Create objects necessary to complete this path.
+    // @param origin The starting point.
+    // @param last_value The value that will become the leaf of the path.
+    // - Intermediate containers that do not exist are created with a container
+    //   type that depends on the data type of the Key. If Key data type is an
+    //   integer, then an ObjectList is created. Otherwise, an OrderedMap is
+    //   created.
+    // - If the `last_value` argument has a parent then the copy that was
+    //   added to the last container will be returned.
+    // @return Returns `last_value` or a copy of `last_value`.
     Object create(const Object& origin, const Object& last_value) const {
         Object obj = origin;
         auto it = begin();
@@ -732,7 +757,33 @@ OPath Object::path(const Object& root) const {
 
 
 //////////////////////////////////////////////////////////////////////////////
-/// @brief Base class for objects implementing external data access.
+/// Base class for objects implementing external data access.
+/// - The backing data of an Object may be a subclass of DataSource. This is
+///   how on-demand/lazy loading is implemented. The DataSource subclass
+///   overrides virtual methods that read/write data from/to the external
+///   storage location.
+/// - End-users *should not* use the DataSource interface directly.
+/// - There are two types of DataSources: *complete* and *sparse*.
+///   - A *complete* DataSource loads *all* of its data when it's owning Object
+///     is first accessed.
+///   - A *sparse* DataSource must be a map. It loads each key independently
+///     when the key is first accessed. Sparse DataSources are designed for
+///     large databases, and *must* provide iterators.
+/// - The iterators provided by *sparse* DataSource implementations are used
+///   under-the-covers by all Object methods that return iterators, and
+///   provide a seamless, memory-efficient, means of traversing the data.
+/// - Ultimately, it's up to the end-user of the Object class to insure that
+///   data is accessed efficiently. You should not, for example, call the
+///   `Object::keys()` method, which returns a KeyList, if you might be working
+///   with a very large domain of keys. Prefer the Object iteration methods,
+///   instead.
+/// - The first argument of each of the virtual methods is the Object that owns
+///   the DataSource instance. This provides context to the DataSource
+///   implementation. In particular, the implementation can use the path of
+///   the Object.
+/// - A DataSource implementation can be hierarchical and populate a container
+///   with Objects that, themselves, have DataSources. This is how the
+///   filesystem DataSources work.
 //////////////////////////////////////////////////////////////////////////////
 class DataSource
 {
@@ -792,6 +843,7 @@ class DataSource
         operator int () const { return m_value; }
     };
 
+    // @brief Options common to all DataSource implementations.
     struct Options {
         Options() = default;
         Options(Mode mode) : mode{mode} {}
@@ -800,8 +852,8 @@ class DataSource
         void configure(const Object& uri);
 
         /// @brief Access control for get/set/del methods
-        /// CLOBBER access controls whether a bound Object may be completely overwritten with
-        /// a single call to Object::set(const Object&).
+        /// - CLOBBER access controls whether a bound Object may be completely overwritten with
+        ///   a single call to Object::set(const Object&).
         Mode mode = Mode::READ | Mode::WRITE;
 
         /// @brief Logging control during read operations
@@ -840,15 +892,67 @@ class DataSource
     virtual ~DataSource() {}
 
   protected:
+    /// @brief Create a new instance of this DataSource.
+    /// @param target The target that will receive this DataSource
+    /// @param origin Whether data originates in memory, or from external storage
+    /// @return Returns a heap-allocated DataSource instance.
     virtual DataSource* new_instance(const Object& target, Origin origin) const = 0;
-    virtual void configure(const Object& uri)                                {}
-    virtual void read_type(const Object& target)                             {}  // define type/id of object
+
+    /// @brief Configure this DataSource from a URI.
+    /// @param uri A map containing the parts of the URI.
+    /// @see nodel/core/uri.h.
+    virtual void configure(const Object& uri) {}
+
+    /// @brief Determine the type of data in external storage.
+    /// @param target The target holding this DataSource.
+    /// - Implementations should override this method when the type of data in
+    ///   storage is dynamic.
+    /// - Implementations should use metadata where possible to make this
+    ///   operation inexpensive. This method may be called in situations where
+    ///   the end-user does not want to incur the overhead of loading the data.
+    virtual void read_type(const Object& target) {}
+
+    /// @brief Read all data from external storage.
+    /// @param target The target holding this DataSource.
+    /// - This method must be implemented by both *complete* and *sparse*
+    ///   DataSources, although end-users can easily avoided this flow with
+    ///   *sparse* DataSources.
+    /// - Implementations call the `read_set` methods to populate the data.
     virtual void read(const Object& target) = 0;
-    virtual Object read_key(const Object& target, const Key&)                { return {}; }  // sparse
-    virtual void write(const Object& target, const Object&)                  {}  // both
-    virtual void write_key(const Object& target, const Key&, const Object&)  {}  // sparse
-    virtual void delete_key(const Object& target, const Key&)                {}  // sparse
-    virtual void commit(const Object& target, const KeyList& del_keys)       {}  // sparse
+
+    /// @brief Read the data for the specified key from external storage.
+    /// @param target The target holding this DataSource.
+    /// @param key The key to read.
+    /// - *sparse* implementations must override this method.
+    /// - Implementations call the `read_set` methods to populate the data.
+    /// @return Returns the value of the key, or nil.
+    virtual Object read_key(const Object& target, const Key& key) { return {}; }
+
+    /// @brief Write data to external storage.
+    /// @param target The target holding this DataSource.
+    /// @param data The data to be written.
+    virtual void write(const Object& target, const Object& data) = 0;
+
+    /// @brief Write data for the specified key to external storage.
+    /// @param target The target holding this DataSource.
+    /// @param key The key to write.
+    /// @param value The value of the key.
+    /// - *sparse* implementations must override this method.
+    virtual void write_key(const Object& target, const Key& key, const Object& value) {}
+
+    /// @brief Delete a key from external storage.
+    /// @param target The target holding this DataSource.
+    /// @param key The key to delete.
+    /// - *sparse* implementations must override thist method.
+    virtual void delete_key(const Object& target, const Key& key) {}
+
+    /// @brief Called just before the Object::save() method finishes.
+    /// @param target The target holding this DataSource.
+    /// @param del_keys The list of deleted keys.
+    /// - This method is called at the end of the Object::save() flow to
+    ///   allow the implementation to batch updates.
+    /// - This method is only called for *sparse* implementations.
+    virtual void commit(const Object& target, const KeyList& del_keys) {}
 
     // interface to use from virtual read methods
     void read_set(const Object& target, const Object& value);
@@ -2452,11 +2556,6 @@ DataSourceType* Object::data_source() const {
 }
 
 
-//////////////////////////////////////////////////////////////////////////////
-/// @brief An iterator over the ancestors of an Object.
-/// The first object returned by this iterator is always the object, itself.
-/// So, this iterator is like the XML ancestors-or-self axis.
-//////////////////////////////////////////////////////////////////////////////
 class LineIterator
 {
   public:
@@ -2482,9 +2581,6 @@ class LineIterator
 };
 
 
-//////////////////////////////////////////////////////////////////////////////
-/// @brief A range-like object for LineIterator.
-//////////////////////////////////////////////////////////////////////////////
 class LineRange
 {
   public:
@@ -2501,10 +2597,6 @@ LineRange Object::iter_line() const {
 }
 
 
-//////////////////////////////////////////////////////////////////////////////
-/// @brief An iterator over all descendants of an Object.
-/// This iterator is like the XML descendants-or-self axis.
-//////////////////////////////////////////////////////////////////////////////
 template <class ValueType, typename VisitPred, typename EnterPred>
 class TreeIterator
 {
@@ -2577,9 +2669,6 @@ class TreeIterator
 };
 
 
-//////////////////////////////////////////////////////////////////////////////
-/// @brief A range-like object for TreeIterator.
-//////////////////////////////////////////////////////////////////////////////
 template <class ValueType, typename VisitPred, typename EnterPred>
 class Object::TreeRange
 {
@@ -3040,9 +3129,6 @@ void DataSource::read_del(const Object& target, const Key& key) {
 
 namespace test { template <typename T> bool is_resolved(Object::Subscript<T>& subscript); }
 
-//////////////////////////////////////////////////////////////////////////////
-/// @brief This class implements the Object subscript operator.
-//////////////////////////////////////////////////////////////////////////////
 template <class AccessType>
 class Object::Subscript
 {
@@ -3202,12 +3288,20 @@ Object::Subscript<OPath> Object::Subscript<T>::operator [] (const OPath& path) {
     return {m_obj, path};
 }
 
+inline
+std::ostream& operator<< (std::ostream& ostream, const Object::Subscript<Key>& sub) {
+    ostream << sub.resolve().to_str();
+    return ostream;
+}
+
+inline
+std::ostream& operator<< (std::ostream& ostream, const Object::Subscript<OPath>& sub) {
+    ostream << sub.resolve().to_str();
+    return ostream;
+}
 
 namespace test {
 
-//////////////////////////////////////////////////////////////////////////////
-/// @brief Test interface for examining the private DataSource cache.
-//////////////////////////////////////////////////////////////////////////////
 class DataSourceTestInterface
 {
   public:
@@ -3220,6 +3314,13 @@ class DataSourceTestInterface
 
 template <typename T> bool is_resolved(Object::Subscript<T>& subscript) { return !subscript.m_pend; }
 
+/// @example examples/basic.cpp
+/// This is an example showing how to create an Object from JSON and access keys.
+
+/// @example examples/find.cpp
+/// This is an example of using an Object bound to the filesystem to perform a
+/// recursive directory search similar to the unix `find` command.
+
 } // test namespace
 } // nodel namespace
 
@@ -3227,7 +3328,7 @@ template <typename T> bool is_resolved(Object::Subscript<T>& subscript) { return
 namespace std {
 
 //////////////////////////////////////////////////////////////////////////////
-/// @brief OPath hash function
+/// @brief OPath hash function support
 //////////////////////////////////////////////////////////////////////////////
 template<>
 struct hash<nodel::OPath>

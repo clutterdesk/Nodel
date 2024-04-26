@@ -1,3 +1,4 @@
+/** @file */
 #pragma once
 
 #include <string>
@@ -16,8 +17,32 @@
 using namespace std::literals::string_literals;
 using namespace std::literals::string_view_literals;
 
+/// @brief Nodel namespace
 namespace nodel {
 
+/////////////////////////////////////////////////////////////////////////////
+/// @brief A class to represent keys in a dictionary or list.
+/// - The Key class is a dynamic type like the Object class. However, it only
+///   supports the following data types:
+///     - nil
+///     - boolean
+///     - integer          (64-bit, as defined in nodel/support/types.h)
+///     - unsigned integer (64-bit, as defined in nodel/support/types.h)
+///     - floating point   (64-bit, as defined in nodel/support/types.h)
+///     - string           (may represent either text, or binary data)
+/// - String keys are interned (see nodel/support/intern.h).
+/// - A literal operator `""_key` is provided, which is fast to create because
+///   it is known that the data is a read-only literal.
+/// - String interning has several benefits including:
+///     - String keys can be compared by comparing pointers
+///     - A string key can be hashed by hashing its pointer
+///     - A string key copy only has to assign a pointer
+/// - When creating Key instances from non-literal strings, the string must
+///   first be interned at the cost of a hash table lookup and comparison.
+/// - Applications with a high thread-count, and or a large/unbounded string
+///   key domain, may see significant overhead from the per-thread intern
+///   tables. This can be addressed in the future.
+/////////////////////////////////////////////////////////////////////////////
 class Key
 {
   public:
@@ -240,13 +265,19 @@ class Key
     ReprIX type() const   { return m_repr_ix; }
     auto type_name() const { return type_name(m_repr_ix); }
 
+    // Returns true if the Key contains the data type, T
+    // @targ T One of the data types defined in the Repr union.
     template <typename T>
     bool is_type() const { return m_repr_ix == get_repr_ix<T>(); }
 
+    // Returns true if the Key is an INT or UINT
     bool is_any_int() const { return m_repr_ix == INT || m_repr_ix == UINT; }
+
+    // Returns true if the Key is a INT, UINT, or FLOAT
     bool is_num() const     { return m_repr_ix >= INT && m_repr_ix <= FLOAT; }
 
-    // unsafe, but will not segv
+    // Unchecked access to the the backing data
+    // @targ T One of the data types defined in the Repr union.
     template <typename T> T as() const requires is_byvalue<T>;
     template <> bool as<bool>() const     { return m_repr.b; }
     template <> Int as<Int>() const       { return m_repr.i; }
@@ -258,6 +289,9 @@ class Key
         return m_repr.s.data();
     }
 
+    // Convert the backing data to a boolean.
+    // Numeric types are converted via C++ cast to bool.
+    // String data is converted by calling `nodel::str_to_bool` (see nodel/support/string.h).
     bool to_bool() const {
         switch (m_repr_ix) {
             case BOOL:  return m_repr.b;
@@ -270,6 +304,9 @@ class Key
         }
     }
 
+    // Convert the backing data to a signed integer.
+    // Numeric types are converted via C++ cast to Int.
+    // String data is converted by calling `nodel::str_to_int` (see nodel/support/string.h).
     Int to_int() const {
         switch (m_repr_ix) {
             case BOOL:  return (Int)m_repr.b;
@@ -282,6 +319,9 @@ class Key
         }
     }
 
+    // Convert the backing data to an unsigned integer.
+    // Numeric types are converted via C++ cast to UInt.
+    // String data is converted by calling `nodel::str_to_uint` (see nodel/support/string.h).
     UInt to_uint() const {
         switch (m_repr_ix) {
             case BOOL:  return (UInt)m_repr.b;
@@ -294,6 +334,9 @@ class Key
         }
     }
 
+    // Convert the backing data to floating point.
+    // Numeric types are converted via C++ cast to Float.
+    // String data is converted by calling `nodel::str_to_float` (see nodel/support/string.h).
     Float to_float() const {
         switch (m_repr_ix) {
             case BOOL:  return (Float)m_repr.b;
@@ -306,6 +349,22 @@ class Key
         }
     }
 
+    // Convert a Key to a string representation of a nodel::OPath step.
+    // @arg stream The output stream where the string is written.
+    // @arg is_first Should be true for the first step in a path.
+    // - A path step converted with this function can be deserialize by the
+    //   OPath class.
+    // - A boolean Key is converted to `[0]` or `[1]`.
+    // - An integer Key is converted to a string of the form, `[<integer>]`.
+    // - A float key is converted to a string of the form, `[<float>]`.
+    // - If `is_first` is true, a string key that does not contain a
+    //   double-quote character is converted to a string of the form,
+    //   `<string>`.
+    // - If `is_first` is false, a string key that does not contain a
+    //   double-quote character is converted to a string of the form,
+    //   `.<string>`.
+    // - A string key that contains a double-quote character is converted
+    //   to a string of the form, `["<string>"]`.
     void to_step(std::ostream& stream, bool is_first = false) const {
         switch (m_repr_ix) {
             case BOOL:  stream << (m_repr.b? "[1]": "[0]"); break;
@@ -327,6 +386,8 @@ class Key
         }
     }
 
+    // Convert the Key data to a string and write to an output stream.
+    // @arg stream The output stream where the string will be written.
     void to_str(std::ostream& stream) const {
         switch (m_repr_ix) {
             case NIL:   stream << "nil"; break;
@@ -339,6 +400,7 @@ class Key
         }
     }
 
+    // Convert the Key data to a string.
     String to_str() const {
         switch (m_repr_ix) {
             case NIL:   return "nil";
@@ -350,10 +412,12 @@ class Key
                 auto& str = m_repr.s.data();
                 return {str.data(), str.size()};
             }
-            default:    throw wrong_type(m_repr_ix);
+            default:
+                throw wrong_type(m_repr_ix);
         }
     }
 
+    // Convert the Key data to a JSON string.
     String to_json() const {
         switch (m_repr_ix) {
             case NIL:  return "nil";
@@ -371,17 +435,17 @@ class Key
         }
     }
 
+    // Return the hash value of the Key.
     size_t hash() const {
         static std::hash<Float> float_hash;
         switch (m_repr_ix) {
-            case NIL:  return 0;
+            case NIL:   return 0;
             case BOOL:  return (size_t)m_repr.b;
             case INT:   return (size_t)m_repr.i;
             case UINT:  return (size_t)m_repr.u;
             case FLOAT: return (size_t)float_hash(m_repr.f);
             case STR:   return (size_t)m_repr.s.data().data();
-            default:
-                throw wrong_type(m_repr_ix);
+            default:    throw wrong_type(m_repr_ix);
         }
     }
 
@@ -437,33 +501,14 @@ struct KeyHash
     }
 };
 
-
-// TODO: Make type checks functional?
-//----------------------------------------------------------------------------------
-// Operations
-//----------------------------------------------------------------------------------
-//template <> bool is_null(const Key& key)  { return key.is_null(); }
-//template <> bool is_bool(const Key& key)  { return key.is_type<bool>(); }
-//template <> bool is_int(const Key& key)   { return key.is_type<Int>(); }
-//template <> bool is_uint(const Key& key)  { return key.is_type<UInt>(); }
-//template <> bool is_float(const Key& key) { return key.is_type<Float>(); }
-//template <> bool is_str(const Key& key)   { return key.is_type<String>(); }
-//template <> bool is_num(const Key& key)   { return key.is_num(); }
-//
-//template <> bool to_bool(const Key& key)             { return key.to_bool(); }
-//template <> Int to_int(const Key& key)               { return key.to_int(); }
-//template <> UInt to_uint(const Key& key)             { return key.to_uint(); }
-//template <> Float to_float(const Key& key)           { return key.to_float(); }
-//template <> std::string to_str(const Key& key)       { return key.to_str(); }
-//template <> std::string to_json(const Key& key)      { return key.to_json(); }
-
 } // namespace nodel
+
 
 namespace std {
 
-//----------------------------------------------------------------------------------
-// std::hash
-//----------------------------------------------------------------------------------
+//////////////////////////////////////////////////////////////////////////////
+/// @brief Key hash function support
+//////////////////////////////////////////////////////////////////////////////
 template<>
 struct hash<nodel::Key>
 {

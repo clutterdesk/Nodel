@@ -2,15 +2,15 @@
 ## Fast Dynamic Object with Optional Data Source
 ### Overview
 The Nodel library consists of a dynamic object (the `Object` class), which can represent the data
-types: 
+types (as defined in nodel/support/types.h): 
 - `nil`
 - `bool`, `int64_t`, `uint64_t`, `double`
 - `std::string`
 - `std::vector<Object>`
 - `std::map<Key, Object>`
-- `tsl::ordered_map<Key, Objec>`
+- `tsl::ordered_map<Key, Object>`
 
-An Nodel Object may be "bound" to a data-source class. The data-source framework provides on-demand, 
+A Nodel Object may be "bound" to a DataSource sub-class. The DataSource framework provides on-demand, 
 lazy loading of data from ... somewhere else.
 
 Nodel data-sources are selected and configured by calling the `nodel::bind` function with a URI that
@@ -71,7 +71,7 @@ using namespace nodel;
 
 int main(int argc, char** argv) {
     filesystem::configure();                // Register the "file:" URI scheme
-    Object dir = filesystem::bind(".");     // Bind an object to the current working directory
+    Object dir = bind("file://");           // Bind an object to the current working directory
     for (const auto& f: dir.iter_keys())    // Iterate the names of the files
         std::cout << f << std::endl;
 }

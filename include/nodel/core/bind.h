@@ -1,3 +1,4 @@
+/** @file */
 #pragma once
 
 #include <nodel/core/Object.h>
@@ -12,6 +13,20 @@ struct BindError : public NodelException
     BindError(std::string&& err) : NodelException{std::forward<std::string>(err)} {}
 };
 
+/////////////////////////////////////////////////////////////////////////////
+/// @brief Bind an Object to the specified external storage location.
+/// @param uri A URI whose scheme identifies a registered DataSource.
+/// @param obj The Object to bind.
+/// - This form of the `bind` function associates data in memory with some
+///   external storage location. After calling this function, the data can
+///   be written to the storage location by calling Object::save().
+/// - As with Object::set(const Key&, const Object&), if @p obj has a parent,
+///   then a copy of the Object is bound, and the copy is returned.
+/// - The URI scheme must be a registered scheme. For example, the `file:`
+///   scheme is registered by calling
+///   nodel::filesystem::configure(nodel::DataSource::Options).
+/// @return Returns @p obj or a copy of it.
+/////////////////////////////////////////////////////////////////////////////
 inline
 Object bind(const URI& uri, const Object& obj) {
     Object bound = obj;
@@ -29,11 +44,32 @@ Object bind(const URI& uri, const Object& obj) {
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////
+/// @brief Bind a new Object to the specified URI.
+/// @param uri A URI whose scheme identifies a registered DataSource.
+/// - This form of the `bind` function should be used when data already
+///   exists in the external storage location pointed to by the URI.  After
+///   calling this function, the data will be loaded on-demand when an
+///   accessor function of the nodel::Object class is called.
+/// - The URI scheme must be a registered scheme. For example, the `file:`
+///   scheme is registered by calling
+///   nodel::filesystem::configure(nodel::DataSource::Options).
+/// @return Returns an Object bound to the specified URI.
+/////////////////////////////////////////////////////////////////////////////
 inline
 Object bind(const URI& uri) {
     return bind(uri, nil);
 }
 
+/////////////////////////////////////////////////////////////////////////////
+/// @brief Bind an Object to a specific DataSource.
+/// @tparam DataSourceType A concrete DataSource sub-class.
+/// @param obj The Object to bind.
+/// - This form of the `bind` function binds a specific DataSource to an
+///   Object. After calling this function, the data can be written to the
+///   external storage location by calling Object::save().
+/// @return Returns @p obj or a copy of it.
+/////////////////////////////////////////////////////////////////////////////
 template <class DataSourceType>
 Object bind(const Object& obj) {
     static_assert (std::is_base_of<DataSource, DataSourceType>::value);
@@ -41,6 +77,21 @@ Object bind(const Object& obj) {
     Object bound = obj;
     p_ds->bind(bound);
     return bound;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+/// @brief Bind an Object to a specific DataSource.
+/// @tparam DataSourceType A concrete DataSource sub-class.
+/// - This form of the `bind` function should be used when data already
+///   exists in the external storage location pointed to by the URI.  After
+///   calling this function, the data will be loaded on-demand when an
+///   accessor function of the nodel::Object class is called.
+/// @return Returns an Object bound to the specified URI.
+/////////////////////////////////////////////////////////////////////////////
+template <class DataSourceType>
+Object bind() {
+    static_assert (std::is_base_of<DataSource, DataSourceType>::value);
+    return new DataSourceType(DataSource::Origin::SOURCE);
 }
 
 } // namespace nodel

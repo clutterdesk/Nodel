@@ -1469,6 +1469,26 @@ TEST(Object, GetPartialPath) {
     EXPECT_TRUE(obj.get("a"_key).get(path).is(c));
 }
 
+TEST(Object, EmptyPath) {
+    Object obj = "{'x': {'y': ['tea']}}"_json;
+    OPath path;
+    EXPECT_TRUE(obj.get(path).is(obj));
+}
+
+TEST(Object, ParentPath) {
+    Object obj = "{'x': {'y': ['tea']}}"_json;
+    auto path = "x.y[0]"_path;
+    auto parent_path = path.parent();
+    EXPECT_TRUE(obj.get(path).parent().is(obj.get(parent_path)));
+}
+
+TEST(Object, ParentPathNil) {
+    Object obj = "{'x': {'y': ['tea']}}"_json;
+    auto path = "x"_path;
+    auto parent_path = path.parent();
+    EXPECT_EQ(obj.get(parent_path), nil);
+}
+
 TEST(Object, ConstructedPathOverOrderedMaps) {
     Object obj = json::parse(R"({"a": {"b": ["Assam", "Ceylon"]}})");
     EXPECT_TRUE(obj.is_type<OrderedMap>());
