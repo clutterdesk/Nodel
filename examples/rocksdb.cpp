@@ -11,12 +11,13 @@ int main(int argc, char** argv) {
     nodel::filesystem::configure();
     nodel::rocksdb::configure();
 
+    std::cout << "Create DB ..." << std::endl;
     debug::Stopwatch swatch;
     swatch.start();
     Object db = bind("rocksdb://?perm=rw&path=example.rocksdb");
     size_t k=0;
-    for (size_t i=0; i<1; i++) {
-        for (size_t j=0; j<1000; ++j, ++k) {
+    for (size_t i=0; i<10; i++) {
+        for (size_t j=0; j<1000000; ++j, ++k) {
             db.set(k, k);
         }
         db.save();
@@ -26,12 +27,12 @@ int main(int argc, char** argv) {
     swatch.stop();
     swatch.log();
 
+    std::cout << "Count keys ..." << std::endl;
     swatch.clear();
     swatch.start();
     db.reset();
     k=0;
     for (auto key : db.iter_keys()) {
-        std::cout << key << std::endl;
         ++k;
     }
     swatch.stop();
