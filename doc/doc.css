@@ -53,6 +53,11 @@ code {
     font-size: 80%;
 }
 
+div.line {
+    line-height: 1.4;
+    font-size: 11pt;
+}
+
 a + h2.groupheader {
     display:none;
 }

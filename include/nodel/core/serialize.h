@@ -12,13 +12,12 @@ namespace nodel {
 inline
 std::string serialize(const Key& key) {
     switch (key.type()) {
-        case Key::NIL:  return "0";
         case Key::BOOL:  return key.as<bool>()? "2": "1";
         case Key::INT:   return "3" + key.to_str();
         case Key::UINT:  return "4" + key.to_str();
         case Key::FLOAT: return "5" + key.to_str();
         case Key::STR:   return "6" + key.to_str();
-        default:           throw Key::wrong_type(key.type());
+        default:         throw Key::wrong_type(key.type());
     }
 }
 
@@ -26,7 +25,6 @@ inline
 bool deserialize(const std::string_view& data, Key& key) {
     if (data.size() < 1) return false;
     switch (data[0]) {
-        case '0': key = nil; break;
         case '1': key = false; break;
         case '2': key = true; break;
         case '3': key = str_to_int(data.substr(1)); break;

@@ -35,7 +35,7 @@ class ValueIterator
     ValueIterator(ObjectList::iterator it) : m_repr_ix{ReprIX::LIST}, m_repr{it} {}
     ValueIterator(SortedMap::iterator it)  : m_repr_ix{ReprIX::SMAP}, m_repr{it} {}
     ValueIterator(OrderedMap::iterator it) : m_repr_ix{ReprIX::OMAP}, m_repr{it} {}
-    ValueIterator(DsIterPtr&& p_it)        : m_repr_ix{ReprIX::DSRC}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
+    ValueIterator(DsIterPtr&& p_it)        : m_repr_ix{ReprIX::DSRC}, m_repr{std::forward<DsIterPtr>(p_it)} {}
     ~ValueIterator();
 
     ValueIterator(const ValueIterator& other) = delete;

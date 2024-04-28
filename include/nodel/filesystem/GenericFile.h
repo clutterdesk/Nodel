@@ -10,10 +10,8 @@ namespace filesystem {
 class GenericFile : public File
 {
   public:
-    GenericFile(Options options, Origin origin)   : File(Kind::COMPLETE, options, Object::STR, origin) { set_mode(mode() | Mode::INHERIT); }
-    GenericFile(Origin origin)                    : GenericFile(Options{}, origin) {}
-    GenericFile(Options options)                  : GenericFile(options, Origin::MEMORY) {}
-    GenericFile()                                 : GenericFile(Options{}, Origin::MEMORY) {}
+    GenericFile(Origin origin) : File(Kind::COMPLETE, Object::STR, origin) { set_mode(mode() | Mode::INHERIT); }
+    GenericFile()              : GenericFile(Origin::MEMORY) {}
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new GenericFile(origin); }
 

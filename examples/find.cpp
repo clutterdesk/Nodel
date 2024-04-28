@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
 
     filesystem::configure();
 
-    URI uri{"file:///?perm=r"};
+    URI uri{"file://?perm=r&path=."};
     uri["path"_key] = argv[1];
     Object dir = bind(uri);
 

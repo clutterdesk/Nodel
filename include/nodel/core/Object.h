@@ -791,6 +791,7 @@ class DataSource
     class KeyIterator
     {
       public:
+        KeyIterator() : m_key{nil} {}
         virtual ~KeyIterator() {}
         void next() { if (!next_impl()) m_key = nil; }
         Key& key() { return m_key; }
@@ -804,6 +805,7 @@ class DataSource
     class ValueIterator
     {
       public:
+        ValueIterator() : m_value{nil} {}
         virtual ~ValueIterator() {}
         void next() { if (!next_impl()) m_value.release(); }
         Object& value() { return m_value; }
@@ -817,6 +819,7 @@ class DataSource
     class ItemIterator
     {
       public:
+        ItemIterator() : m_item{nil, nil} {}
         virtual ~ItemIterator() {}
         void next() { if (!next_impl()) std::get<0>(m_item) = nil; }
         Item& item() { return m_item; }
@@ -869,24 +872,22 @@ class DataSource
         bool throw_write_error = true;
     };
 
-    DataSource(Kind kind, Options options, Origin origin)
+    DataSource(Kind kind, Origin origin)
       : m_parent{Object::NIL}
       , m_cache{Object::EMPTY}
       , m_kind{kind}
       , m_repr_ix{Object::EMPTY}
       , m_fully_cached{(kind == Kind::COMPLETE) && origin == Origin::MEMORY}
       , m_unsaved{origin == Origin::MEMORY}
-      , m_options{options}
     {}
 
-    DataSource(Kind kind, Options options, ReprIX repr_ix, Origin origin)
+    DataSource(Kind kind, ReprIX repr_ix, Origin origin)
       : m_parent{Object::NIL}
       , m_cache{repr_ix}
       , m_kind{kind}
       , m_repr_ix{repr_ix}
       , m_fully_cached{(kind == Kind::COMPLETE) && origin == Origin::MEMORY}
       , m_unsaved{origin == Origin::MEMORY}
-      , m_options{options}
     {}
 
     virtual ~DataSource() {}
@@ -901,7 +902,7 @@ class DataSource
     /// @brief Configure this DataSource from a URI.
     /// @param uri A map containing the parts of the URI.
     /// @see nodel/core/uri.h.
-    virtual void configure(const Object& uri) {}
+    virtual void configure(const Object& uri) { m_options.configure(uri); }
 
     /// @brief Determine the type of data in external storage.
     /// @param target The target holding this DataSource.
@@ -948,11 +949,12 @@ class DataSource
 
     /// @brief Called just before the Object::save() method finishes.
     /// @param target The target holding this DataSource.
+    /// @param data The memory representation of this DataSource.
     /// @param del_keys The list of deleted keys.
     /// - This method is called at the end of the Object::save() flow to
     ///   allow the implementation to batch updates.
     /// - This method is only called for *sparse* implementations.
-    virtual void commit(const Object& target, const KeyList& del_keys) {}
+    virtual void commit(const Object& target, const Object& data, const KeyList& del_keys) {}
 
     // interface to use from virtual read methods
     void read_set(const Object& target, const Object& value);
@@ -1671,7 +1673,7 @@ Object Object::set(const Key& key, const Object& in_val) {
                 it->second.set_parent(nil);
                 map.erase(it);
             }
-            map.insert({key, out_val});
+            map.insert_or_assign(key, out_val);
             out_val.set_parent(*this);
             return out_val;
         }
@@ -1705,7 +1707,7 @@ Object Object::set(Key&& key, const Object& in_val) {
                 it->second.set_parent(nil);
                 map.erase(it);
             }
-            map.insert({std::forward<Key>(key), out_val});
+            map.insert_or_assign(std::forward<Key>(key), out_val);
             out_val.set_parent(*this);
             return out_val;
         }
@@ -2859,7 +2861,7 @@ size_t DataSource::size(const Object& target) {
         assert (opt_it);
         size_t size = 0;
         auto& it = *opt_it;
-        for (it.next(); !it.done(); it.next()) {
+        for (; !it.done(); it.next()) {
             if (!deleted.contains(it.key())) {
                 ++size;
             }
@@ -3011,6 +3013,11 @@ void DataSource::save(const Object& target) {
 
         if (m_fully_cached) {
             write(target, m_cache);
+
+            if (is_sparse()) {
+                // final save notification to support batching
+                commit(target, m_cache, {});
+            }
         }
         else if (is_sparse()) {
             KeyList deleted_keys;
@@ -3029,7 +3036,7 @@ void DataSource::save(const Object& target) {
                 m_cache.del(del_key);
 
             // final save notification to support batching
-            commit(target, deleted_keys);
+            commit(target, m_cache, deleted_keys);
         }
 
         if (!m_write_failed)

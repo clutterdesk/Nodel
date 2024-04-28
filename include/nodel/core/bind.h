@@ -33,7 +33,8 @@ Object bind(const URI& uri, const Object& obj) {
     auto scheme = uri.get("scheme"_key).as<String>();
     auto factory = lookup_uri_scheme(scheme);
     if (factory) {
-        auto p_ds = factory(uri);
+        auto origin = (obj == nil)? DataSource::Origin::SOURCE: DataSource::Origin::MEMORY;
+        auto p_ds = factory(uri, origin);
         if (obj == nil) bound = p_ds; else p_ds->bind(bound);
         p_ds->configure(uri);
         return bound;

@@ -44,19 +44,14 @@ Registry& default_registry() {
 /**
  * @brief Configure Nodel filesystem.
  * - Enable binding URI with the "file" scheme using nodel::bind(const String& uri_spec, ...).
- * - Use `file://` to bind the current working directory.  All other URI paths are absolute.
+ * - Use URI query to set path when the path is relative (ex: file://?path=a/b).
  */
 inline
 void configure(DataSource::Options default_options={}) {
-    register_uri_scheme("file", [default_options] (const Object& uri) -> DataSource* {
-        DataSource::Options options = default_options;
-        options.configure(uri);
-        auto path = uri.get("path"_key);
-        if (path == nil) {
-            return new Directory(new Registry{default_registry()}, ".", options);
-        } else {
-            return new Directory(new Registry{default_registry()}, uri.get("path"_key).to_str(), options);
-        }
+    register_uri_scheme("file", [default_options] (const Object& uri, DataSource::Origin origin) -> DataSource* {
+        auto p_ds = new Directory(new Registry{default_registry()}, origin);
+        p_ds->set_options(default_options);
+        return p_ds;
     });
 }
 

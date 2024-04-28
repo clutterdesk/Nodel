@@ -31,9 +31,9 @@ struct Options
  */
 inline
 void configure(Options options={}) {
-    register_uri_scheme("rocksdb", [&options] (const URI& uri) -> DataSource* {
-        options.configure(uri);
-        auto p_ds = new rocksdb::DB(uri.get("path"_key).to_str(), options.base, DataSource::Origin::SOURCE);
+    register_uri_scheme("rocksdb", [options] (const URI& uri, DataSource::Origin origin) -> DataSource* {
+        auto p_ds = new rocksdb::DB(origin);
+        p_ds->set_options(options.base);
         p_ds->set_db_options(options.db);
         p_ds->set_read_options(options.db_read);
         p_ds->set_write_options(options.db_write);

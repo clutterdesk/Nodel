@@ -2086,7 +2086,9 @@ TEST(Object, IterListKeyClosedClosedIntSlice) {
 struct TestSimpleSource : public DataSource
 {
     TestSimpleSource(const std::string& json, Options options)
-      : DataSource(Kind::COMPLETE, options, Origin::SOURCE), data{json::parse(json)} {}
+      : DataSource(Kind::COMPLETE, Origin::SOURCE), data{json::parse(json)} {
+          set_options(options);
+      }
 
     TestSimpleSource(const std::string& json)
       : TestSimpleSource(json, {}) {}
@@ -2094,6 +2096,7 @@ struct TestSimpleSource : public DataSource
     DataSource* new_instance(const Object& target, Origin origin) const override { return new TestSimpleSource(data.to_json(), {}); }
 
     void configure(const Object& uri) override {
+        DataSource::configure(uri);
         config = uri;
     }
 
@@ -2129,7 +2132,8 @@ struct TestSimpleSource : public DataSource
 struct TestSparseSource : public DataSource
 {
     TestSparseSource(const std::string& json, Options options)
-      : DataSource(Kind::SPARSE, options, Object::OMAP, Origin::SOURCE), data{json::parse(json)} {
+      : DataSource(Kind::SPARSE, Object::OMAP, Origin::SOURCE), data{json::parse(json)} {
+          set_options(options);
           set_mode(Mode::READ | Mode::WRITE | Mode::CLOBBER);
     }
 
@@ -2166,13 +2170,14 @@ struct TestSparseSource : public DataSource
             auto range = data.iter_keys();
             m_it = range.begin();
             m_end = range.end();
+            if (m_it == m_end) m_key = nil; else m_key = *m_it;
         }
 
         TestKeyIterator(TestSparseSource& ds, const Object& data) : TestKeyIterator{ds, data, {}} {}
 
         ~TestKeyIterator() { m_ds.iter_deleted = true; }
 
-        bool next_impl() override { if (m_it == m_end) { return false; } else { m_key = *m_it; ++m_it; return true; } }
+        bool next_impl() override { if (++m_it == m_end) { return false; } else { m_key = *m_it; return true; } }
 
       private:
         TestSparseSource& m_ds;
@@ -2188,13 +2193,14 @@ struct TestSparseSource : public DataSource
             auto range = data.iter_values();
             m_it = range.begin();
             m_end = range.end();
+            if (m_it == m_end) m_value = nil; else m_value = *m_it;
         }
 
         TestValueIterator(TestSparseSource& ds, const Object& data) : TestValueIterator{ds, data, {}} {}
 
         ~TestValueIterator() { m_ds.iter_deleted = true; }
 
-        bool next_impl() override { if (m_it == m_end) { return false; } else { m_value = *m_it; ++m_it; return true; } }
+        bool next_impl() override { if (++m_it == m_end) { return false; } else { m_value = *m_it; return true; } }
 
       private:
         TestSparseSource& m_ds;
@@ -2210,13 +2216,14 @@ struct TestSparseSource : public DataSource
             auto range = data.iter_items();
             m_it = range.begin();
             m_end = range.end();
+            if (m_it == m_end) m_item = {nil, nil}; else m_item = *m_it;
         }
 
         TestItemIterator(TestSparseSource& ds, const Object& data) : TestItemIterator{ds, data, {}} {}
 
         ~TestItemIterator() { m_ds.iter_deleted = true; }
 
-        bool next_impl() override { if (m_it == m_end) { return false; } else { m_item = *m_it; ++m_it; return true; } }
+        bool next_impl() override { if (++m_it == m_end) { return false; } else { m_item = *m_it; return true; } }
 
       private:
         TestSparseSource& m_ds;
@@ -2462,7 +2469,7 @@ TEST(Object, TestSimpleSource_DeleteAndSave) {
 }
 
 TEST(Object, TestSimpleSource_RegisterURIScheme) {
-    register_uri_scheme("simple", [] (const Object& uri) {
+    register_uri_scheme("simple", [] (const Object& uri, DataSource::Origin origin) {
         return new TestSimpleSource("{'x': 1, 'y': 2}");
     });
 

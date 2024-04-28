@@ -26,11 +26,11 @@ typedef std::function<bool(const Object&)> Predicate;
 class SubDirectory : public DataSource
 {
   public:
-    SubDirectory(Options options, Origin origin) : DataSource(Kind::COMPLETE, options, Object::OMAP, origin) {}
-    SubDirectory(Options options = {})           : DataSource(Kind::COMPLETE, options, Object::OMAP, Origin::MEMORY) {}
-    SubDirectory(Origin origin)                  : SubDirectory({}, origin) {}
+    SubDirectory(Origin origin) : DataSource(Kind::COMPLETE, Object::OMAP, origin) {}
 
-    DataSource* new_instance(const Object& target, Origin origin) const override { return new SubDirectory(options(), origin); }
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new SubDirectory(origin); }
+
+    void configure(const Object& uri) override { DataSource::configure(uri); }
 
     void read_type(const Object&) override { assert (false); } // TODO: remove, later
     void read(const Object& target) override;
@@ -50,15 +50,18 @@ class SubDirectory : public DataSource
 class Directory : public SubDirectory
 {
   public:
-    Directory(Ref<Registry> r_registry, const std::filesystem::path& path, Options options = {})
-      : SubDirectory(options, Origin::SOURCE), m_path(path) {
+    Directory(Ref<Registry> r_registry, const std::filesystem::path& path, Origin origin)
+      : SubDirectory(origin), m_path(path) {
         mr_registry = r_registry;
     }
 
+    Directory(Ref<Registry> r_registry, Origin origin) : Directory(r_registry, {}, origin) {}
+
     DataSource* new_instance(const Object& target, Origin origin) const override {
-        assert (origin == Origin::SOURCE);
-        return new Directory(mr_registry, m_path, options());
+        return new Directory(mr_registry, m_path, origin);
     }
+
+    void configure(const Object& uri) override;
 
     std::filesystem::path path() const { return m_path; }
 
@@ -205,6 +208,17 @@ void SubDirectory::write(const Object& target, const Object& cache) {
         std::filesystem::remove_all(deleted, ec);
         if (ec) report_write_error(ec.message());
     }
+}
+
+inline
+void Directory::configure(const Object& uri) {
+    SubDirectory::configure(uri);
+
+    auto path = uri.get("path"_key);
+    if (path == nil || path.to_str() == "")
+        path = uri.get("query.path"_path);
+
+    if (path != nil) m_path = path.to_str();
 }
 
 } // namespace filesystem

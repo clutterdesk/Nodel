@@ -140,7 +140,7 @@ TEST(Query, AncestorChild) {
 }
 
 TEST(Query, FindFiles) {
-    Object wd = bind("file://"_uri);
+    Object wd = bind("file://?path=."_uri);
 
     auto is_txt_file = [] (const Object& obj) { return obj.key().to_str().ends_with(".txt"); };
     Query query;

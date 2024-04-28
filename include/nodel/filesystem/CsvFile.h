@@ -13,10 +13,8 @@ namespace filesystem {
 class CsvFile : public File
 {
   public:
-    CsvFile(Options options, Origin origin)   : File(Kind::COMPLETE, options, Object::LIST, origin) { set_mode(mode() | Mode::INHERIT); }
-    CsvFile(Origin origin)                    : CsvFile(Options{}, origin) {}
-    CsvFile(Options options)                  : CsvFile(options, Origin::MEMORY) {}
-    CsvFile()                                 : CsvFile(Options{}, Origin::MEMORY) {}
+    CsvFile(Origin origin) : File(Kind::COMPLETE, Object::LIST, origin) { set_mode(mode() | Mode::INHERIT); }
+    CsvFile()              : CsvFile(Origin::MEMORY) {}
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new CsvFile(origin); }
 

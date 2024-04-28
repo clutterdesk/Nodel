@@ -11,9 +11,8 @@ namespace filesystem {
 class JsonFile : public File
 {
   public:
-    JsonFile(Options options, Origin origin)   : File(Kind::COMPLETE, options, origin) { set_mode(mode() | Mode::INHERIT); }
-    JsonFile(Origin origin)                    : JsonFile(Options{}, origin) {}
-    JsonFile(Options options = {})             : JsonFile(options, Origin::MEMORY) {}
+    JsonFile(Origin origin) : File(Kind::COMPLETE, origin) { set_mode(mode() | Mode::INHERIT); }
+    JsonFile()              : JsonFile(Origin::MEMORY) {}
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new JsonFile(origin); }
 

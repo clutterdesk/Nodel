@@ -29,7 +29,7 @@ class ItemIterator
     ItemIterator(Int pos, ObjectList::iterator it) : m_repr_ix{ReprIX::LIST}, m_repr{pos, it} {}
     ItemIterator(SortedMap::iterator it)           : m_repr_ix{ReprIX::SMAP}, m_repr{it} {}
     ItemIterator(OrderedMap::iterator it)          : m_repr_ix{ReprIX::OMAP}, m_repr{it} {}
-    ItemIterator(DsIterPtr&& p_it)                 : m_repr_ix{ReprIX::DSRC}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
+    ItemIterator(DsIterPtr&& p_it)                 : m_repr_ix{ReprIX::DSRC}, m_repr{std::forward<DsIterPtr>(p_it)} {}
     ~ItemIterator();
     
     ItemIterator(ItemIterator& other);

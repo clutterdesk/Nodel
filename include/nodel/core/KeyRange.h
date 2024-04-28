@@ -28,7 +28,7 @@ class KeyIterator
     KeyIterator(Int pos)                 : m_repr_ix{ReprIX::LIST}, m_repr{pos} {}
     KeyIterator(SortedMap::iterator it)  : m_repr_ix{ReprIX::SMAP}, m_repr{it} {}
     KeyIterator(OrderedMap::iterator it) : m_repr_ix{ReprIX::OMAP}, m_repr{it} {}
-    KeyIterator(DsIterPtr&& p_it)        : m_repr_ix{ReprIX::DSRC}, m_repr{std::forward<DsIterPtr>(p_it)} { m_repr.pdi->next(); }
+    KeyIterator(DsIterPtr&& p_it)        : m_repr_ix{ReprIX::DSRC}, m_repr{std::forward<DsIterPtr>(p_it)} {}
     ~KeyIterator();
 
     KeyIterator(const KeyIterator& other) = delete;
@@ -88,7 +88,7 @@ KeyIterator::KeyIterator(KeyIterator&& other) : m_repr_ix{other.m_repr_ix} {
     switch (m_repr_ix) {
         case ReprIX::NIL:  break;
         case ReprIX::LIST: m_repr.li = other.m_repr.li; break;
-        case ReprIX::SMAP:  m_repr.smi = other.m_repr.smi; break;
+        case ReprIX::SMAP: m_repr.smi = other.m_repr.smi; break;
         case ReprIX::OMAP: m_repr.omi = other.m_repr.omi; break;
         case ReprIX::DSRC: m_repr.pdi = std::move(other.m_repr.pdi); break;
         default:           throw Object::wrong_type(m_repr_ix);
@@ -101,7 +101,7 @@ auto& KeyIterator::operator = (KeyIterator&& other) {
     switch (m_repr_ix) {
         case ReprIX::NIL:  break;
         case ReprIX::LIST: m_repr.li = other.m_repr.li; break;
-        case ReprIX::SMAP:  m_repr.smi = other.m_repr.smi; break;
+        case ReprIX::SMAP: m_repr.smi = other.m_repr.smi; break;
         case ReprIX::OMAP: m_repr.omi = other.m_repr.omi; break;
         case ReprIX::DSRC: m_repr.pdi = std::move(other.m_repr.pdi); break;
         default:           throw Object::wrong_type(m_repr_ix);
@@ -113,7 +113,7 @@ inline
 auto& KeyIterator::operator ++ () {
     switch (m_repr_ix) {
         case ReprIX::LIST: m_repr.li = m_repr.li.as<UInt>() + 1; break;
-        case ReprIX::SMAP:  ++(m_repr.smi); break;
+        case ReprIX::SMAP: ++(m_repr.smi); break;
         case ReprIX::OMAP: ++(m_repr.omi); break;
         case ReprIX::DSRC: m_repr.pdi->next(); break;
         default:           throw Object::wrong_type(m_repr_ix);
@@ -125,7 +125,7 @@ inline
 const Key& KeyIterator::operator * () const {
     switch (m_repr_ix) {
         case ReprIX::LIST: return m_repr.li;
-        case ReprIX::SMAP:  return m_repr.smi->first;
+        case ReprIX::SMAP: return m_repr.smi->first;
         case ReprIX::OMAP: return m_repr.omi->first;
         case ReprIX::DSRC: return m_repr.pdi->key();
         default:           throw Object::wrong_type(m_repr_ix);
@@ -137,7 +137,7 @@ bool KeyIterator::operator == (const KeyIterator& other) const {
     switch (m_repr_ix) {
         case ReprIX::NIL: return other.m_repr_ix == ReprIX::NIL || other == *this;
         case ReprIX::LIST: return m_repr.li == other.m_repr.li;
-        case ReprIX::SMAP:  return m_repr.smi == other.m_repr.smi;
+        case ReprIX::SMAP: return m_repr.smi == other.m_repr.smi;
         case ReprIX::OMAP: return m_repr.omi == other.m_repr.omi;
         case ReprIX::DSRC: return m_repr.pdi->done() && other.m_repr_ix == ReprIX::NIL;
         default:           throw Object::wrong_type(m_repr_ix);

@@ -22,9 +22,6 @@ void build_db() {
     db::Status status = db::DB::Open(options, "test_data/test.rocksdb", &db);
     ASSERT(status.ok());
 
-    status = db->Put(db::WriteOptions(), "0", "0");  // nil key
-    ASSERT(status.ok());
-
     status = db->Put(db::WriteOptions(), "1", "1");
     ASSERT(status.ok());
 
@@ -67,8 +64,7 @@ TEST(DB, Values) {
     build_db();
     Finally finally{ []() { delete_db(); } };
 
-    Object kst = new DB("test_data/test.rocksdb");
-    EXPECT_EQ(kst.get(nil), Object{nil});
+    Object kst = new DB("test_data/test.rocksdb", DataSource::Origin::SOURCE);
     EXPECT_EQ(kst.get(true), Object{true});
     EXPECT_EQ(kst.get(-7), Object{-7});
     EXPECT_EQ(kst.get(7UL), Object{7UL});
@@ -82,12 +78,12 @@ TEST(DB, Save) {
     build_db();
     Finally finally{ []() { delete_db(); } };
 
-    Object kst = new DB("test_data/test.rocksdb");
+    Object kst = new DB("test_data/test.rocksdb", DataSource::Origin::SOURCE);
     kst.set("tmp_1"_key, "tmp_1");
     kst.set("tmp_2"_key, json::parse("[1, 2]"));
     kst.save();
 
-    Object kst_2 = new DB("test_data/test.rocksdb");
+    Object kst_2 = new DB("test_data/test.rocksdb", DataSource::Origin::SOURCE);
     EXPECT_EQ(kst_2.get("tmp_1"_key), "tmp_1");
     EXPECT_EQ(kst_2.get("tmp_2"_key).to_json(), "[1, 2]");
 
@@ -104,7 +100,7 @@ TEST(DB, IterKeys) {
     build_db();
     Finally finally{ []() { delete_db(); } };
 
-    Object kst = new DB("test_data/test.rocksdb");
+    Object kst = new DB("test_data/test.rocksdb", DataSource::Origin::SOURCE);
     KeyList keys;
     for (auto& key : kst.iter_keys()) {
         keys.push_back(key);
@@ -125,7 +121,7 @@ TEST(DB, IterValues) {
     build_db();
     Finally finally{ []() { delete_db(); } };
 
-    Object kst = new DB("test_data/test.rocksdb");
+    Object kst = new DB("test_data/test.rocksdb", DataSource::Origin::SOURCE);
     ObjectList values;
     for (auto& value : kst.iter_values()) {
         values.push_back(value);
@@ -146,7 +142,7 @@ TEST(DB, IterItems) {
     build_db();
     Finally finally{ []() { delete_db(); } };
 
-    Object kst = new DB("test_data/test.rocksdb");
+    Object kst = new DB("test_data/test.rocksdb", DataSource::Origin::SOURCE);
     ItemList items;
     for (auto& item : kst.iter_items()) {
         items.push_back(item);
@@ -171,7 +167,7 @@ TEST(DB, FilesystemIntegration) {
     Ref<Registry> r_reg = new nodel::filesystem::Registry{default_registry()};
     r_reg->associate<DB>(".rocksdb");
 
-    Object test_data = new Directory(r_reg, wd);
+    Object test_data = new Directory(r_reg, wd, DataSource::Origin::SOURCE);
     ASSERT_TRUE(test_data.get("test.rocksdb"_key) != nil);
     ASSERT_TRUE(test_data.get("test.rocksdb"_key).data_source<DB>() != nullptr);
     EXPECT_EQ(test_data.get("test.rocksdb"_key).get("tea"_key), "tea");

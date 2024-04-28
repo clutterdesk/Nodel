@@ -11,7 +11,7 @@ namespace nodel {
 
 class URI;
 
-using DataSourceFactory = std::function<DataSource*(const URI& uri)>;
+using DataSourceFactory = std::function<DataSource*(const URI& uri, DataSource::Origin origin)>;
 using URIMap = std::unordered_map<String, DataSourceFactory>;
 
 #define NODEL_INIT_URI_SCHEMES namespace nodel { \

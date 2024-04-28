@@ -11,13 +11,15 @@ namespace nodel::filesystem {
 class File : public DataSource
 {
   public:
-    File(Kind kind, Options options, Origin origin) : DataSource(kind, options, origin) {
+    File(Kind kind, Origin origin) : DataSource(kind, origin) {
         set_mode(mode() | Mode::INHERIT);
     }
 
-    File(Kind kind, Options options, ReprIX repr_ix, Origin origin) : DataSource(kind, options, repr_ix, origin) {
+    File(Kind kind, ReprIX repr_ix, Origin origin) : DataSource(kind, repr_ix, origin) {
         set_mode(mode() | Mode::INHERIT);
     }
+
+    void configure(const Object& uri) override { DataSource::configure(uri); };
 
   protected:
     void report_read_error(const std::string& path, const std::string& error);
