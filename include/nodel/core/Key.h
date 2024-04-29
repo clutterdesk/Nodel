@@ -216,45 +216,52 @@ class Key
             case BOOL: {
                 switch (other.m_repr_ix) {
                     case BOOL:  return m_repr.b <=> other.m_repr.b;
-                    case INT:   return m_repr.b <=> other.to_bool();
-                    case UINT:  return m_repr.b <=> other.to_bool();
-                    case FLOAT: return m_repr.b <=> other.to_bool();
-                    case STR:   return to_str() <=> other.m_repr.s.data();
-                    default:      return std::partial_ordering::unordered;
+                    case INT:   return (Int)m_repr.b <=> other.m_repr.i;
+                    case UINT:  return (UInt)m_repr.b <=> other.m_repr.u;
+                    case FLOAT: return (Float)m_repr.b <=> other.m_repr.f;
+                    case STR:   return std::partial_ordering::less;
+                    default:    return std::partial_ordering::unordered;
                 }
             }
             case INT: {
                 switch (other.m_repr_ix) {
-                    case BOOL:  return to_bool() <=> other.m_repr.b;
+                    case BOOL:  return m_repr.i <=> other.to_int();
                     case INT:   return m_repr.i <=> other.m_repr.i;
                     case UINT:  return compare(m_repr.i, other.m_repr.u);
                     case FLOAT: return m_repr.i <=> other.m_repr.f;
-                    case STR:   return to_str() <=> other.m_repr.s.data();
-                    default:      return std::partial_ordering::unordered;
+                    case STR:   return std::partial_ordering::less;
+                    default:    return std::partial_ordering::unordered;
                 }
             }
             case UINT: {
                 switch (other.m_repr_ix) {
-                    case BOOL:  return to_bool() <=> other.m_repr.b;
+                    case BOOL:  return m_repr.u <=> other.to_uint();
                     case INT:   return compare(m_repr.u, other.m_repr.i);
                     case UINT:  return m_repr.u <=> other.m_repr.u;
                     case FLOAT: return m_repr.u <=> other.m_repr.f;
-                    case STR:   return to_str() <=> other.m_repr.s.data();
-                    default:      return std::partial_ordering::unordered;
+                    case STR:   return std::partial_ordering::less;
+                    default:    return std::partial_ordering::unordered;
                 }
             }
             case FLOAT: {
                 switch (other.m_repr_ix) {
-                    case BOOL:  return to_bool() <=> other.m_repr.b;
+                    case BOOL:  return m_repr.f <=> other.to_float();
                     case INT:   return m_repr.f <=> other.m_repr.i;
                     case UINT:  return m_repr.f <=> other.m_repr.u;
                     case FLOAT: return m_repr.f <=> other.m_repr.f;
-                    case STR:   return to_str() <=> other.m_repr.s.data();
-                    default:      return std::partial_ordering::unordered;
+                    case STR:   return std::partial_ordering::less;
+                    default:    return std::partial_ordering::unordered;
                 }
             }
             case STR: {
-                return m_repr.s.data() <=> other.to_str();
+                switch (other.m_repr_ix) {
+                    case BOOL:  return std::partial_ordering::greater;
+                    case INT:   return std::partial_ordering::greater;
+                    case UINT:  return std::partial_ordering::greater;
+                    case FLOAT: return std::partial_ordering::greater;
+                    case STR:   return m_repr.s.data() <=> other.m_repr.s.data();
+                    default:    return std::partial_ordering::unordered;
+                }
             }
             default: {
                 return std::partial_ordering::unordered;

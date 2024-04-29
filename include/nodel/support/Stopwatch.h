@@ -33,11 +33,22 @@ class Stopwatch
         m_t_start = high_resolution_clock::now();
     }
 
+    void start(const std::string& name) {
+        m_name = name;
+        start();
+    }
+
     void stop()  {
         if (m_running) {
             m_history.push_back(duration_cast<nanoseconds>(high_resolution_clock::now() - m_t_start).count());
             m_running = false;
         }
+    }
+
+    void finish() {
+        stop();
+        log();
+        clear();
     }
 
     auto last()  { return m_history.back(); }
@@ -68,7 +79,9 @@ void Stopwatch::format(int64_t t_ns, std::ostream& os) {
 
 inline
 void Stopwatch::log() {
-    if (m_history.size() == 1) {
+    if (m_history.size() == 0) {
+        std::cout << m_name << ": no data" << std::endl;
+    } else if (m_history.size() == 1) {
         std::cout << m_name << ": ";
         format(last(), std::cout);
         std::cout << std::endl;

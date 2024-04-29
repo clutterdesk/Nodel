@@ -3328,6 +3328,12 @@ template <typename T> bool is_resolved(Object::Subscript<T>& subscript) { return
 /// This is an example of using an Object bound to the filesystem to perform a
 /// recursive directory search similar to the unix `find` command.
 
+/// @example examples/rocksdb.cpp
+/// This is an example of creating a RocksDB database from an Object, iterate
+/// of all the keys in the database, and iterate over a range of the keys.
+/// To manage memory overhead, the Object is periodically saved and reset.
+/// A Stopwatch instance is used to report latencies.
+
 } // test namespace
 } // nodel namespace
 

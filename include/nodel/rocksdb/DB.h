@@ -1,12 +1,14 @@
 #pragma once
 
-#include <rocksdb/db.h>
 #include <nodel/core/Object.h>
 #include <nodel/core/serialize.h>
 #include <nodel/filesystem/Directory.h>
 #include <nodel/parser/json.h>
+
+#include "Comparator.h"
 #include "DBManager.h"
 
+#include <rocksdb/db.h>
 #include <filesystem>
 
 namespace nodel::rocksdb {
@@ -56,7 +58,7 @@ class DB : public nodel::DataSource
         bool next_impl() override;
         bool read_key();
       private:
-        DB* mp_db;
+        DB* mp_ds;
         ::rocksdb::Iterator* mp_iter;
         Slice m_slice;
     };
@@ -68,7 +70,7 @@ class DB : public nodel::DataSource
         bool next_impl() override;
         bool read_value();
       private:
-        DB* mp_db;
+        DB* mp_ds;
         ::rocksdb::Iterator* mp_iter;
         Slice m_slice;
     };
@@ -80,7 +82,7 @@ class DB : public nodel::DataSource
         bool next_impl() override;
         bool read_item();
       private:
-        DB* mp_db;
+        DB* mp_ds;
         ::rocksdb::Iterator* mp_iter;
         Slice m_slice;
     };
@@ -126,10 +128,10 @@ DB::~DB() {
 
 
 inline
-DB::KeyIterator::KeyIterator(DB* p_db, ::rocksdb::Iterator* p_iter, const Slice& slice)
-: mp_db{p_db}, mp_iter{p_iter}, m_slice{slice}
+DB::KeyIterator::KeyIterator(DB* p_ds, ::rocksdb::Iterator* p_iter, const Slice& slice)
+: mp_ds{p_ds}, mp_iter{p_iter}, m_slice{slice}
 {
-    read_key();
+    if (!read_key()) m_key = nil;
 }
 
 inline
@@ -147,16 +149,16 @@ bool DB::KeyIterator::read_key() {
         return true;
     }
     if (!mp_iter->status().ok()) {
-        mp_db->report_read_error(mp_iter->status().ToString());
+        mp_ds->report_read_error(mp_iter->status().ToString());
     }
     return false;
 }
 
 inline
-DB::ValueIterator::ValueIterator(DB* p_db, ::rocksdb::Iterator* p_iter, const Slice& slice)
-: mp_db{p_db}, mp_iter{p_iter}, m_slice{slice}
+DB::ValueIterator::ValueIterator(DB* p_ds, ::rocksdb::Iterator* p_iter, const Slice& slice)
+: mp_ds{p_ds}, mp_iter{p_iter}, m_slice{slice}
 {
-    read_value();
+    if (!read_value()) m_value.release();
 }
 
 inline
@@ -176,16 +178,16 @@ bool DB::ValueIterator::read_value() {
         return true;
     }
     if (!mp_iter->status().ok()) {
-        mp_db->report_read_error(mp_iter->status().ToString());
+        mp_ds->report_read_error(mp_iter->status().ToString());
     }
     return false;
 }
 
 inline
-DB::ItemIterator::ItemIterator(DB* p_db, ::rocksdb::Iterator* p_iter, const Slice& slice)
-: mp_db{p_db}, mp_iter{p_iter}, m_slice{slice}
+DB::ItemIterator::ItemIterator(DB* p_ds, ::rocksdb::Iterator* p_iter, const Slice& slice)
+: mp_ds{p_ds}, mp_iter{p_iter}, m_slice{slice}
 {
-    read_item();
+    if (!read_item()) m_item.first = nil;
 }
 
 inline
@@ -203,11 +205,12 @@ bool DB::ItemIterator::read_item() {
             return false;
         Object value;
         ASSERT(deserialize(mp_iter->value().ToStringView(), value));
-        m_item = std::make_pair(key, value);
+        m_item.first = key;
+        m_item.second = value;
         return true;
     }
     if (!mp_iter->status().ok()) {
-        mp_db->report_read_error(mp_iter->status().ToString());
+        mp_ds->report_read_error(mp_iter->status().ToString());
     }
     return false;
 }
@@ -241,6 +244,9 @@ std::unique_ptr<nodel::DataSource::KeyIterator> DB::key_iter(const Slice& slice)
     } else {
         p_it->Seek(serialize(min.value()));
     }
+    if (!p_it->status().ok()) {
+        report_read_error(p_it->status().ToString());
+    }
     return std::make_unique<KeyIterator>(this, p_it, slice);
 }
 
@@ -257,6 +263,9 @@ std::unique_ptr<nodel::DataSource::ValueIterator> DB::value_iter(const Slice& sl
         p_it->SeekToFirst();
     } else {
         p_it->Seek(serialize(min.value()));
+    }
+    if (!p_it->status().ok()) {
+        report_read_error(p_it->status().ToString());
     }
     return std::make_unique<ValueIterator>(this, p_it, slice);
 }
@@ -275,6 +284,9 @@ std::unique_ptr<nodel::DataSource::ItemIterator> DB::item_iter(const Slice& slic
     } else {
         p_it->Seek(serialize(min.value()));
     }
+    if (!p_it->status().ok()) {
+        report_read_error(p_it->status().ToString());
+    }
     return std::make_unique<ItemIterator>(this, p_it, slice);
 }
 
@@ -282,6 +294,7 @@ inline
 void DB::open(const std::filesystem::path& path, bool create_if_missing) {
     ASSERT(mp_db == nullptr);
     m_options.create_if_missing = create_if_missing;
+    m_options.comparator = new nodel::rocksdb::Comparator();
     auto status = DBManager::get_instance().open(m_options, path.string(), mp_db);
     if (!status.ok()) {
         report_read_error(status.ToString());
@@ -305,16 +318,20 @@ void DB::read(const Object& target) {
         open(m_path.empty()? nodel::filesystem::path(target): m_path, true);
 
     auto p_it = mp_db->NewIterator(m_read_options);
-    for (p_it->SeekToFirst(); p_it->Valid(); p_it->Next()) {
-        Key key;
-        ASSERT(deserialize(p_it->key().ToStringView(), key));
-        Object value;
-        ASSERT(deserialize(p_it->value().ToStringView(), value));
-        read_set(target, key, value);
-    }
+    if (p_it != nullptr) {
+        for (p_it->SeekToFirst(); p_it->Valid(); p_it->Next()) {
+            Key key;
+            ASSERT(deserialize(p_it->key().ToStringView(), key));
+            Object value;
+            ASSERT(deserialize(p_it->value().ToStringView(), value));
+            read_set(target, key, value);
+        }
 
-    if (!p_it->status().ok()) {
-        report_read_error(p_it->status().ToString());
+        if (!p_it->status().ok()) {
+            report_read_error(p_it->status().ToString());
+        }
+
+        delete p_it;
     }
 }
 

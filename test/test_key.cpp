@@ -119,6 +119,10 @@ TEST(Key, CompareBool) {
     EXPECT_EQ(k, 1.0);
     EXPECT_NE(k, 0.0);
     EXPECT_EQ(k, Key{true});
+    EXPECT_LT(k, 2);
+    EXPECT_LT(k, 2ULL);
+    EXPECT_LT(k, 1.1);
+    EXPECT_LT(k, "tea"_key);
 }
 
 TEST(Key, CompareInt) {

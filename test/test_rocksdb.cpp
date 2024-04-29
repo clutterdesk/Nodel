@@ -16,36 +16,44 @@ using DB = nodel::rocksdb::DB;
 
 namespace {
 
+void check_status(const db::Status& status) {
+    if (!status.ok()) {
+        DEBUG("!ok: {}", status.ToString());
+        ASSERT(false);
+    }
+}
+
 void build_db() {
     db::DB* db;
     db::Options options;
     options.create_if_missing = true;
+    options.comparator = new nodel::rocksdb::Comparator();
     db::Status status = db::DB::Open(options, "test_data/test.rocksdb", &db);
-    ASSERT(status.ok());
+    check_status(status);
 
-    status = db->Put(db::WriteOptions(), "1", "1");
-    ASSERT(status.ok());
+    status = db->Put(db::WriteOptions(), serialize(Key{false}), serialize(Object{false}));
+    check_status(status);
 
-    status = db->Put(db::WriteOptions(), "2", "2");
-    ASSERT(status.ok());
+    status = db->Put(db::WriteOptions(), serialize(Key{true}), serialize(Object{true}));
+    check_status(status);
 
-    status = db->Put(db::WriteOptions(), "3-7", "3-7");
-    ASSERT(status.ok());
+    status = db->Put(db::WriteOptions(), serialize(Key{-7}), serialize(Object{-7}));
+    check_status(status);
 
-    status = db->Put(db::WriteOptions(), "47", "47");
-    ASSERT(status.ok());
+    status = db->Put(db::WriteOptions(), serialize(Key{7ULL}), serialize(Object{7ULL}));
+    check_status(status);
 
-    status = db->Put(db::WriteOptions(), "53.1415926", "53.1415926");
-    ASSERT(status.ok());
+    status = db->Put(db::WriteOptions(), serialize(Key{3.1415926}), serialize(Object{3.1415926}));
+    check_status(status);
 
-    status = db->Put(db::WriteOptions(), "6tea", "6tea");
-    ASSERT(status.ok());
+    status = db->Put(db::WriteOptions(), serialize("tea"_key), serialize(Object{"tea"}));
+    check_status(status);
 
-    status = db->Put(db::WriteOptions(), "6list", "7[1, 2, 3]");
-    ASSERT(status.ok());
+    status = db->Put(db::WriteOptions(), serialize("list"_key), serialize("[1, 2, 3]"_json));
+    check_status(status);
 
-    status = db->Put(db::WriteOptions(), "6map", "7{'x': [1], 'y': [2]}");
-    ASSERT(status.ok());
+    status = db->Put(db::WriteOptions(), serialize("map"_key), serialize("{'x': [1], 'y': [2]}"_json));
+    check_status(status);
 
     delete db;
 }
@@ -108,11 +116,11 @@ TEST(DB, IterKeys) {
     }
 
     EXPECT_EQ(keys.size(), 8UL);
-    EXPECT_EQ(keys[0], false);
-    EXPECT_EQ(keys[1], true);
-    EXPECT_EQ(keys[2], -7);
-    EXPECT_EQ(keys[3], 7UL);
-    EXPECT_EQ(keys[4], 3.1415926);
+    EXPECT_EQ(keys[0], -7);
+    EXPECT_EQ(keys[1], false);
+    EXPECT_EQ(keys[2], true);
+    EXPECT_EQ(keys[3], 3.1415926);
+    EXPECT_EQ(keys[4], 7UL);
     EXPECT_EQ(keys[5], "list");
     EXPECT_EQ(keys[6], "map");
     EXPECT_EQ(keys[7], "tea");
@@ -129,11 +137,11 @@ TEST(DB, IterValues) {
     }
 
     EXPECT_EQ(values.size(), 8UL);
-    EXPECT_EQ(values[0], false);
-    EXPECT_EQ(values[1], true);
-    EXPECT_EQ(values[2], -7);
-    EXPECT_EQ(values[3], 7UL);
-    EXPECT_EQ(values[4], 3.1415926);
+    EXPECT_EQ(values[0], -7);
+    EXPECT_EQ(values[1], false);
+    EXPECT_EQ(values[2], true);
+    EXPECT_EQ(values[3], 3.1415926);
+    EXPECT_EQ(values[4], 7UL);
     EXPECT_EQ(values[5].to_str(), "[1, 2, 3]");
     EXPECT_EQ(values[6].to_str(), R"({"x": [1], "y": [2]})");
     EXPECT_EQ(values[7], "tea");
@@ -150,10 +158,10 @@ TEST(DB, IterItems) {
     }
 
     EXPECT_EQ(items.size(), 8UL);
-    EXPECT_EQ(items[0].first, false);
-    EXPECT_EQ(items[0].second, false);
-    EXPECT_EQ(items[4].first, 3.1415926);
-    EXPECT_EQ(items[4].second, 3.1415926);
+    EXPECT_EQ(items[0].first, -7);
+    EXPECT_EQ(items[0].second, -7);
+    EXPECT_EQ(items[3].first, 3.1415926);
+    EXPECT_EQ(items[3].second, 3.1415926);
     EXPECT_EQ(items[5].first, "list");
     EXPECT_EQ(items[5].second.to_str(), "[1, 2, 3]");
 }

@@ -8,7 +8,7 @@
 namespace nodel::algo {
 
 template<class InRange, class UnaryPredicate>
-Object find_first(InRange range, UnaryPredicate pred) {
+Object find_first(InRange&& range, UnaryPredicate pred) {
     auto it = range.begin();
     auto end = range.end();
     for (; it != end; ++it) {
@@ -16,6 +16,15 @@ Object find_first(InRange range, UnaryPredicate pred) {
             return *it;
     }
     return {};
+}
+
+template<class InRange>
+size_t count(InRange&& range) {
+    auto it = range.begin();
+    auto end = range.end();
+    size_t count = 0;
+    for (; it != end; ++it, ++count);
+    return count;
 }
 
 } // namespace nodel::algo

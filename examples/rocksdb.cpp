@@ -11,10 +11,11 @@ int main(int argc, char** argv) {
     nodel::filesystem::configure();
     nodel::rocksdb::configure();
 
-    std::cout << "Create DB ..." << std::endl;
+    std::filesystem::remove_all("nodel_example.rocksdb");
+
     debug::Stopwatch swatch;
-    swatch.start();
-    Object db = bind("rocksdb://?perm=rw&path=example.rocksdb");
+    swatch.start("Create DB");
+    Object db = bind("rocksdb://?perm=rw&path=nodel_example.rocksdb");
     size_t k=0;
     for (size_t i=0; i<10; i++) {
         for (size_t j=0; j<1000000; ++j, ++k) {
@@ -24,19 +25,17 @@ int main(int argc, char** argv) {
         db.reset();  // free memory
     }
     db.save();
-    swatch.stop();
-    swatch.log();
+    swatch.finish();
 
-    std::cout << "Count keys ..." << std::endl;
-    swatch.clear();
-    swatch.start();
+    swatch.start("Count keys");
     db.reset();
-    k=0;
-    for (auto key : db.iter_keys()) {
-        ++k;
-    }
-    swatch.stop();
-    swatch.log();
+    auto count = algo::count(db.iter_keys());
+    swatch.finish();
+    std::cout << "Total number of entries=" << count << std::endl;
 
-    std::cout << "keys=" << k << std::endl;
+    swatch.start("Count keys in [5000700, 5000705)");
+    db.reset();
+    count = algo::count(db.iter_keys({{5000700UL}, {5000705UL}}));
+    swatch.finish();
+    std::cout << "Number of entries in slice=" << count << std::endl;
 }

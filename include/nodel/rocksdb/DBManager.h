@@ -45,8 +45,8 @@ inline
 db::Status DBManager::open(db::Options options, const std::filesystem::path& path, db::DB*& p_db) {
     if (!m_instances.contains(path.string())) {
         db::Status status = db::DB::Open(options, path.string(), &p_db);
-        ASSERT(status.ok()); // TODO: error handling
-        m_instances.insert(std::make_pair(path.string(), new DB(options, status, p_db)));
+        if (status.ok())
+            m_instances.insert(std::make_pair(path.string(), new DB(options, status, p_db)));
         return status;
     } else {
         auto& item = m_instances.at(path.string());
