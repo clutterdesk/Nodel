@@ -229,6 +229,11 @@ std::unique_ptr<nodel::DataSource::ItemIterator> DB::item_iter() {
 
 inline
 std::unique_ptr<nodel::DataSource::KeyIterator> DB::key_iter(const Slice& slice) {
+    if (mp_db == nullptr) {
+        assert (!m_path.empty());
+        open(m_path, true);
+    }
+
     auto p_it = mp_db->NewIterator(m_read_options);
     auto& min = slice.min();
     if (min.value() == nil) {
@@ -241,6 +246,11 @@ std::unique_ptr<nodel::DataSource::KeyIterator> DB::key_iter(const Slice& slice)
 
 inline
 std::unique_ptr<nodel::DataSource::ValueIterator> DB::value_iter(const Slice& slice) {
+    if (mp_db == nullptr) {
+        assert (!m_path.empty());
+        open(m_path, true);
+    }
+
     auto p_it = mp_db->NewIterator(m_read_options);
     auto& min = slice.min();
     if (min.value() == nil) {
@@ -253,6 +263,11 @@ std::unique_ptr<nodel::DataSource::ValueIterator> DB::value_iter(const Slice& sl
 
 inline
 std::unique_ptr<nodel::DataSource::ItemIterator> DB::item_iter(const Slice& slice) {
+    if (mp_db == nullptr) {
+        assert (!m_path.empty());
+        open(m_path, true);
+    }
+
     auto p_it = mp_db->NewIterator(m_read_options);
     auto& min = slice.min();
     if (min.value() == nil) {
@@ -286,6 +301,9 @@ void DB::configure(const Object& uri) {
 
 inline
 void DB::read(const Object& target) {
+    if (mp_db == nullptr)
+        open(m_path.empty()? nodel::filesystem::path(target): m_path, true);
+
     auto p_it = mp_db->NewIterator(m_read_options);
     for (p_it->SeekToFirst(); p_it->Valid(); p_it->Next()) {
         Key key;
@@ -307,9 +325,9 @@ void DB::write(const Object& target, const Object& data) {
 
 inline
 Object DB::read_key(const Object& target, const Key& key) {
-    if (mp_db == nullptr) {
+    if (mp_db == nullptr)
         open(m_path.empty()? nodel::filesystem::path(target): m_path, true);
-    }
+
     auto db_key = serialize(key);
     std::string data;
     ::rocksdb::Status status = mp_db->Get(m_read_options, db_key, &data);
@@ -333,9 +351,8 @@ void DB::write_key(const Object& target, const Key& key, const Object& value) {
 
 inline
 void DB::commit(const Object& target, const Object& data, const KeyList& del_keys) {
-    if (mp_db == nullptr) {
+    if (mp_db == nullptr)
         open(m_path.empty()? nodel::filesystem::path(target): m_path, true);
-    }
 
     ::rocksdb::WriteBatch batch;
 

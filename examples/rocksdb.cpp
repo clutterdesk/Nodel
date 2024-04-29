@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
             db.set(k, k);
         }
         db.save();
-        db.reset();
+        db.reset();  // free memory
     }
     db.save();
     swatch.stop();

@@ -5,7 +5,8 @@
 #include <rocksdb/db.h>
 #include <fmt/core.h>
 
-#include <nodel/rocksdb/DB.h>
+#include <nodel/core.h>
+#include <nodel/rocksdb.h>
 #include <nodel/filesystem.h>
 #include <nodel/support/Finally.h>
 
@@ -155,6 +156,18 @@ TEST(DB, IterItems) {
     EXPECT_EQ(items[4].second, 3.1415926);
     EXPECT_EQ(items[5].first, "list");
     EXPECT_EQ(items[5].second.to_str(), "[1, 2, 3]");
+}
+
+TEST(DB, BugIterNewUnsavedDB) {
+    Finally finally{ []() { delete_db(); } };
+
+    nodel::rocksdb::configure();
+
+    Object data = "{'x': 1, 'y': 2}"_json;
+    Object db = bind("rocksdb://?perm=rw&path=test_data/test.rocksdb", data);
+    for (auto& key : db.iter_keys()) {
+        DEBUG("{}", key.to_str());
+    }
 }
 
 TEST(DB, FilesystemIntegration) {
