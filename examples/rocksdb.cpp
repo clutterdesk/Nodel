@@ -14,18 +14,21 @@ int main(int argc, char** argv) {
     std::filesystem::remove_all("nodel_example.rocksdb");
 
     debug::Stopwatch swatch;
-    swatch.start("Create DB");
+    swatch.start("Profile Creating Data Without DB Overhead");
     Object db = bind("rocksdb://?perm=rw&path=nodel_example.rocksdb");
-    size_t k=0;
-    for (size_t i=0; i<10; i++) {
-        for (size_t j=0; j<1000000; ++j, ++k) {
-            db.set(k, k);
-        }
-        db.save();
-        db.reset();  // free memory
-    }
+    db.reserve((size_t)1e7);
+    for (size_t i=0; i<1e7; i++)
+        db.set(i, i);
+    auto elapsed_without_save = swatch.finish();
+
+    swatch.start("Profile Creating Data and Saving to DB");
+    db = bind("rocksdb://?perm=rw&path=nodel_example.rocksdb");
+    for (size_t i=0; i<1e7; i++)
+        db.set(i, i);
     db.save();
-    swatch.finish();
+    auto elapsed_with_save = swatch.finish();
+
+    std::cout << "Nodel Overhead=" << (100.0 * elapsed_without_save / elapsed_with_save) << "%"<< std::endl;
 
     swatch.start("Count keys");
     db.reset();
