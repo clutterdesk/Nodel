@@ -146,7 +146,9 @@ TEST(Query, FindFiles) {
     Query query;
     query.add_steps({Axis::SUBTREE, nil, is_txt_file});
     ObjectList result = query.eval(wd["test_data"_key]);
-    for (auto& obj : result) {
-        DEBUG("{}", obj.path());
-    }
+    Object found = Object::LIST;
+    for (auto& obj : result)
+        found.set(found.size(), obj.path().to_str());
+    EXPECT_EQ(found.size(), 1UL);
+    EXPECT_EQ(found.get(0), "test_data[\"example.txt\"]");
 }

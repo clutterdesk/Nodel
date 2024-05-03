@@ -45,10 +45,12 @@ class Stopwatch
         }
     }
 
-    void finish() {
+    auto finish() {
         stop();
         log();
+        auto elapsed = m_history.back();
         clear();
+        return elapsed;
     }
 
     auto last()  { return m_history.back(); }

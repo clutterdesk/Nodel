@@ -1,18 +1,19 @@
 #include <gtest/gtest.h>
 
-#include <cpptrace/cpptrace.hpp>
 #include <stdlib.h>
 #include <string_view>
 
 #include <nodel/core.h>
 #include <nodel/filesystem.h>
+//#include <fmt/core.h>
+//#include <nodel/support/leak_detect.h>
 
 NODEL_INIT_CORE;
 NODEL_INIT_FILESYSTEM;
+//NODEL_INIT_LEAK_DETECT;
+
 
 int main(int argc, char **argv) {
-  cpptrace::register_terminate_handler();
-
   nodel::filesystem::configure();
 
   // build new arg list
@@ -27,5 +28,21 @@ int main(int argc, char **argv) {
   argv = args.data();
 
   ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  int rc = RUN_ALL_TESTS();
+
+//  size_t leaks = 0;
+//  for (auto entry : nodel::ref_tracker) {
+//      auto p_obj = entry.first;
+//      auto count = entry.second;
+//      if (count > 0) {
+//          if (p_obj->is_empty())
+//              fmt::print("LEAK: EMPTY\n");
+//          else
+//              fmt::print("LEAK: {}\n", p_obj->path().to_str());
+//          ++leaks;
+//      }
+//  }
+//  fmt::print("refs={}, leaks={}\n", nodel::ref_tracker.size(), leaks);
+
+  return rc;
 }

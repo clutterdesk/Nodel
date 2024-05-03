@@ -26,7 +26,7 @@ typedef std::function<bool(const Object&)> Predicate;
 class SubDirectory : public DataSource
 {
   public:
-    SubDirectory(Origin origin) : DataSource(Kind::COMPLETE, Object::OMAP, origin) {}
+    SubDirectory(Origin origin) : DataSource(Kind::COMPLETE, Object::OMAP, origin, true) {}
 
     DataSource* new_instance(const Object& target, Origin origin) const override { return new SubDirectory(origin); }
 

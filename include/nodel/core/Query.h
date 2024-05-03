@@ -43,7 +43,7 @@ class StackItem
 
     union ReprIX
     {
-        ReprIX() {}
+        ReprIX() {}  // used by StackItem(StackItem&&)
         ReprIX(const Object& obj)  : m_obj{obj} {}
         ReprIX(ValueRange&& range) : m_bundle{std::forward<ValueRange>(range)} {}
         ReprIX(ValueRange&& range, const Predicate& pred) : m_bundle{std::forward<ValueRange>(range), pred} {}
@@ -59,6 +59,7 @@ class StackItem
     StackItem(uint32_t step_i, ValueRange&& range, const Predicate& pred)
       : m_repr{std::forward<ValueRange>(range), pred}, m_step_i{step_i}, m_repr_ix{ITER} {}
     StackItem(StackItem&&);
+    ~StackItem();
 
     Object peek();
     Object next();
@@ -186,9 +187,18 @@ class QueryEval
 inline
 StackItem::StackItem(StackItem&& other) : m_step_i{other.m_step_i}, m_repr_ix{other.m_repr_ix} {
     if (other.m_repr_ix == OBJECT) {
-        m_repr.m_obj = other.m_repr.m_obj;
+        std::construct_at(&m_repr.m_obj, std::move(other.m_repr.m_obj));
     } else {
-        m_repr.m_bundle = IteratorBundle{std::move(other.m_repr.m_bundle.m_range)};
+        std::construct_at(&m_repr.m_bundle, std::move(other.m_repr.m_bundle.m_range));
+    }
+}
+
+inline
+StackItem::~StackItem() {
+    switch (m_repr_ix) {
+        case OBJECT: std::destroy_at(&m_repr.m_obj); break;
+        case ITER:   std::destroy_at(&m_repr.m_bundle); break;
+        default:     break;
     }
 }
 
