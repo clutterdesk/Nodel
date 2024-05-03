@@ -20,9 +20,9 @@ namespace filesystem {
 typedef std::function<bool(const Object&)> Predicate;
 
 
-/**
- * @brief DataSource for filesystem directories
- */
+/////////////////////////////////////////////////////////////////////////////
+/// @brief DataSource for filesystem directories
+/////////////////////////////////////////////////////////////////////////////
 class SubDirectory : public DataSource
 {
   public:
@@ -44,9 +44,9 @@ class SubDirectory : public DataSource
 };
 
 
-/**
- * @brief DataSource to use for filesystem directory
- */
+/////////////////////////////////////////////////////////////////////////////
+/// @brief DataSource to use for filesystem directory
+/////////////////////////////////////////////////////////////////////////////
 class Directory : public SubDirectory
 {
   public:

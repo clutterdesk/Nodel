@@ -23,12 +23,12 @@ struct Options
     std::string db_ext = ".rocksdb";
 };
 
-/**
- * @brief Enable and configure the URI "rocksdb" scheme.
- * - Enable binding URI with the "rocksdb" scheme using nodel::bind(const String& uri_spec, ...).
- * - Create directory association for ".rocksdb" in the default registry.
- * @see nodel::bind(const String&, Object)
- */
+/////////////////////////////////////////////////////////////////////////////
+/// @brief Enable and configure the URI "rocksdb" scheme.
+/// - Enable binding URI with the "rocksdb" scheme using nodel::bind(const String& uri_spec, ...).
+/// - Create directory association for ".rocksdb" in the default registry.
+/// @see nodel::bind(const String&, Object)
+/////////////////////////////////////////////////////////////////////////////
 inline
 void configure(Options options={}) {
     register_uri_scheme("rocksdb", [options] (const URI& uri, DataSource::Origin origin) -> DataSource* {
@@ -43,14 +43,14 @@ void configure(Options options={}) {
     filesystem::default_registry().associate<rocksdb::DB>(options.db_ext);
 }
 
-/**
- * @brief Register a directory extension to recognize RocksDB database directories.
- * This function can be used to customize the extension used in a single tree, when that
- * extension is different from the default extension.
- * @param fs_obj A filesystem object.
- * @param ext The directory extension, including the leading period.
- * @note The extension is registered for the entire tree.
- */
+/////////////////////////////////////////////////////////////////////////////
+/// @brief Register a directory extension to recognize RocksDB database directories.
+/// This function can be used to customize the extension used in a single tree, when that
+/// extension is different from the default extension.
+/// @param fs_obj A filesystem object.
+/// @param ext The directory extension, including the leading period.
+/// @note The extension is registered for the entire tree.
+/////////////////////////////////////////////////////////////////////////////
 inline
 void register_directory_extension(const Object& fs_obj, const std::string& ext = ".rocksdb") {
     Ref<Registry> r_reg = filesystem::get_registry(fs_obj);

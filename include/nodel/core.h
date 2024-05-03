@@ -6,10 +6,10 @@
 #include <nodel/core/bind.h>
 #include <nodel/support/logging.h>
 
-/**
- * @brief Nodel initialization macro
- * This macro must be instantiated before using nodel::* services.
- */
+/////////////////////////////////////////////////////////////////////////////
+/// @brief Nodel initialization macro
+/// This macro must be instantiated before using nodel::* services.
+/////////////////////////////////////////////////////////////////////////////
 #define NODEL_INIT_CORE \
     NODEL_INIT_INTERNS; \
     NODEL_INIT_URI_SCHEMES;

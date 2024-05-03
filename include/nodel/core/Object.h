@@ -2835,17 +2835,18 @@ void DataSource::Options::configure(const Object& uri) {
     }
 }
 
-/**
- * @brief Bind an object to a DataSource.
- * @param obj The object to be bound.
- * - If the object has a parent, the object is first removed from the parent, bound to the DataSource,
- *   and then added back to the parent.
- * - The object must not already be bound to another DataSource.
- * - This is a low-level method that should not be called directly by users.
- * - The behavior is undefined (probably terrible) if the DataSource is already bound to another object.
- * - A WrongType exception is thrown if the DataSource requires a specific object type, and the object argument
- *   has a different type.
- */
+/////////////////////////////////////////////////////////////////////////////
+/// @brief Bind an object to a DataSource.
+/// @param obj The object to be bound.
+/// - If the object has a parent, the object is first removed from the
+///   parent, bound to the DataSource, and then added back to the parent.
+/// - The object must not already be bound to another DataSource.
+/// - This is a low-level method that should not be called directly by users.
+/// - The behavior is undefined (probably terrible) if the DataSource is
+///   already bound to another object.
+/// - A WrongType exception is thrown if the DataSource requires a specific
+///   object type, and the object argument has a different type.
+/////////////////////////////////////////////////////////////////////////////
 inline
 void DataSource::bind(Object& obj) {
     if (m_repr_ix != Object::EMPTY && m_repr_ix != obj.m_fields.repr_ix)

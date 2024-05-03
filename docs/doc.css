@@ -61,3 +61,7 @@ div.line {
 a + h2.groupheader {
     display:none;
 }
+
+.SRPage .SREntry {
+    font-size: 11pt;
+}
