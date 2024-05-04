@@ -357,41 +357,22 @@ class Object // : public debug::Object
     OPath path(const Object& root) const;
 
     template <typename T>
-    T value_cast() const;
-
-    template <typename T>
-    bool is_type() const { return resolve_repr_ix() == get_repr_ix<T>(); }
+    bool is_type() const;
 
     template <typename V>
     void visit(V&& visitor) const;
 
     template <typename T>
-    T as() const requires is_byvalue<T> {
-        if (m_fields.repr_ix == get_repr_ix<T>()) return get_repr<T>();
-        else if (m_fields.repr_ix == DSRC) return dsrc_read().as<T>();
-        throw wrong_type(m_fields.repr_ix);
-    }
+    T as() const requires is_byvalue<T>;
 
     template <typename T>
-    const T& as() const requires std::is_same<T, String>::value {
-        if (m_fields.repr_ix == get_repr_ix<T>()) return get_repr<T>();
-        else if (m_fields.repr_ix == DSRC) return dsrc_read().as<T>();
-        throw wrong_type(m_fields.repr_ix);
-    }
+    const T& as() const requires std::is_same<T, String>::value;
 
     template <typename T>
-    T& as() requires is_byvalue<T> {
-        if (m_fields.repr_ix == get_repr_ix<T>()) return get_repr<T>();
-        else if (m_fields.repr_ix == DSRC) return dsrc_read().as<T>();
-        throw wrong_type(m_fields.repr_ix);
-    }
+    T& as() requires is_byvalue<T>;
 
     template <typename T>
-    T& as() requires std::is_same<T, String>::value {
-        if (m_fields.repr_ix == get_repr_ix<T>()) return get_repr<T>();
-        else if (m_fields.repr_ix == DSRC) return dsrc_read().as<T>();
-        throw wrong_type(m_fields.repr_ix);
-    }
+    T& as() requires std::is_same<T, String>::value;
 
     bool is_empty() const   { return m_fields.repr_ix == EMPTY; }
     bool is_deleted() const { return m_fields.repr_ix == DEL; }
@@ -754,7 +735,13 @@ OPath operator ""_path (const char* str, size_t size) {
     return OPath{StringView{str, size}};
 }
 
-
+/// @brief Get the path from the root to this Object
+/// - Get an @ref OPath instance that would yield this Object from the
+///   following expression: `this->root().get(path)`
+/// - If the Object does not have a parent then an empty path is returned.
+/// @return Returns a (possibly empty) OPath instance.
+/// @see Object::get(const OPath&)
+/// @see Object::set(const OPath&, const Object&)
 inline
 OPath Object::path() const {
     OPath path;
@@ -769,6 +756,15 @@ OPath Object::path() const {
     return path;
 }
 
+/// @brief Get the path from the specified ancestor to this Object
+/// @param root An ancestor of this Object.
+/// - This method is similar to the Object::path() method except that
+///   you can specify an ancestor other than the root of the tree.
+/// - If `root` is not an ancestor of this Object then it is ignored
+///   and the root of the tree is used, instead.
+/// @return Returns a (possibly empty) OPath instance.
+/// @see Object::get(const OPath&)
+/// @see Object::set(const OPath&, const Object&)
 inline
 OPath Object::path(const Object& root) const {
     if (root == nil) return path();
@@ -1269,23 +1265,79 @@ Object Object::parent() const {
         case SMAP:  return std::get<1>(*m_repr.psm);
         case OMAP:  return std::get<1>(*m_repr.pom);
         case DSRC:  return m_repr.ds->m_parent;
-        default:      return nil;
+        default:    return nil;
     }
 }
 
+/// @brief Similar to the std::visit function
+/// @tparam V The type of the visitor function
+/// @param visitor The visitor.
+/// - If the @ref Object::is_empty method would return true then calling
+///   this method will throw an EmptyReference exception.
 template <typename V>
 void Object::visit(V&& visitor) const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case NIL:  visitor(nullptr); break;
+        case NIL:   visitor(nullptr); break;
         case BOOL:  visitor(m_repr.b); break;
         case INT:   visitor(m_repr.i); break;
         case UINT:  visitor(m_repr.u); break;
         case FLOAT: visitor(m_repr.f); break;
         case STR:   visitor(std::get<0>(*m_repr.ps)); break;
         case DSRC:  visitor(*this); break;  // TODO: How to visit Object with DataSource?
-        default:      throw wrong_type(m_fields.repr_ix);
+        default:    throw wrong_type(m_fields.repr_ix);
     }
+}
+
+/// @brief Get the stored data iff the data has the specified numeric type
+/// @tparam T One of the supported numeric data types
+/// - The supported data types are: bool, Int, UInt, Float
+/// @return Returns a copy of the stored data type
+/// @throw Throws a WrongType exception if the stored data type does not match
+template <typename T>
+T Object::as() const requires is_byvalue<T> {
+    if (m_fields.repr_ix == get_repr_ix<T>()) return get_repr<T>();
+    else if (m_fields.repr_ix == DSRC) return dsrc_read().as<T>();
+    throw wrong_type(m_fields.repr_ix);
+}
+
+/// @brief Get the stored data iff the data has the specified numeric type
+/// @tparam T One of the supported numeric data types
+/// - This overload of the method is for String
+/// @return Returns a const reference to the stored data type
+/// @throw Throws a WrongType exception if the stored data type does not match
+template <typename T>
+const T& Object::as() const requires std::is_same<T, String>::value {
+    if (m_fields.repr_ix == get_repr_ix<T>()) return get_repr<T>();
+    else if (m_fields.repr_ix == DSRC) return dsrc_read().as<T>();
+    throw wrong_type(m_fields.repr_ix);
+}
+
+/// @brief Get the stored data iff the data has the specified numeric type
+/// @tparam T One of the supported numeric data types
+/// - The supported data types are: bool, Int, UInt, Float
+/// @return Returns a reference to the stored data type
+/// @throw Throws a WrongType exception if the stored data type does not match
+template <typename T>
+T& Object::as() requires is_byvalue<T> {
+    if (m_fields.repr_ix == get_repr_ix<T>()) return get_repr<T>();
+    else if (m_fields.repr_ix == DSRC) return dsrc_read().as<T>();
+    throw wrong_type(m_fields.repr_ix);
+}
+
+/// @brief Get the stored data iff the data has the specified numeric type
+/// @tparam T One of the supported numeric data types
+/// - This overload of the method is for String
+/// @note If this Object has a DataSource and you modify the string data
+///       returned by this method, then you must call @ref Object::needs_saving
+///       to set the `unsaved` flag, before call @ref Object::save.
+/// @return Returns a mutable reference to the String data
+/// @throw Throws a WrongType exception if the stored data type does not match
+template <typename T>
+T& Object::as() requires std::is_same<T, String>::value {
+    if (m_fields.repr_ix == get_repr_ix<T>()) return get_repr<T>();
+    else if (m_fields.repr_ix == DSRC) return dsrc_read().as<T>();
+    throw wrong_type(m_fields.repr_ix);
 }
 
 inline
@@ -1392,11 +1444,19 @@ void Object::clear_parent() const {
     }
 }
 
+/// @brief Get the key associated with this Object
+/// - If this Object has a parent then this method returns the key by which
+///   you can access this Object within its parent.
+/// - If this Object does not have a parent, then nil is returned.
+/// @return Returns nil or the key.
 inline
 const Key Object::key() const {
     return parent().key_of(*this);
 }
 
+/// @brief Get the key associated with the specified Object
+/// @param obj The Object.
+/// @return Returns nil or the key.
 inline
 const Key Object::key_of(const Object& obj) const {
     switch (m_fields.repr_ix) {
@@ -1436,16 +1496,16 @@ const Key Object::key_of(const Object& obj) const {
     return {};
 }
 
+/// @brief Check the type of the stored data
+/// @tparam T The type to test.
+/// - If this Object has a DataSource then it may be necessary to load some or
+///   all of the data to determine the type of Object. For example, since a JSON
+///   file may contain different types, it's necessary to load at least enough of
+///   the beginning of the JSON data to determine the type.
+/// @return Returns true if the stored data has the specified type
 template <typename T>
-T Object::value_cast() const {
-    switch (m_fields.repr_ix) {
-        case BOOL:  return static_cast<T>(m_repr.b);
-        case INT:   return static_cast<T>(m_repr.i);
-        case UINT:  return static_cast<T>(m_repr.u);
-        case FLOAT: return static_cast<T>(m_repr.f);
-        case DSRC:  return m_repr.ds->get_cached(*this).value_cast<T>();
-        default:    throw wrong_type(m_fields.repr_ix);
-    }
+bool Object::is_type() const {
+    return resolve_repr_ix() == get_repr_ix<T>();
 }
 
 inline
@@ -1844,6 +1904,8 @@ void Object::clear() {
     }
 }
 
+/// @brief Returns the size of the string or container
+/// @return Returns the size of the string or container, or 0 for other types.
 inline
 size_t Object::size() const {
     switch (m_fields.repr_ix) {
@@ -3287,7 +3349,6 @@ class Object::Subscript
     OPath path() const                        { return resolve().path(); }
     OPath path(const Object& root) const      { return resolve().path(root); }
 
-    template <typename T> T value_cast() const { return resolve().template value_cast<T>(); }
     template <typename T> bool is_type() const { return resolve().template is_type<T>(); }
 
     template <typename V> void visit(V&& visitor) const { return resolve().visit(visitor); }
