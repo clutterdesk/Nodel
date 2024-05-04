@@ -101,7 +101,7 @@ namespace test { class DataSourceTestInterface; }
 
 
 /////////////////////////////////////////////////////////////////////////////
-/// @brief Nodel dynamic object.
+/// Nodel dynamic object.
 /// - Like Python objects, an Object is a reference to its backing data.
 ///   The assignment operator does not copy the backing data - it copies the
 ///   reference.
@@ -141,7 +141,7 @@ class Object // : public debug::Object
     template <class T> class Subscript;
     template <class ValueType, typename VisitPred, typename EnterPred> class TreeRange;
 
-    // @brief Enumeration representing the type of the backing data.
+    // Enumeration representing the type of the backing data.
     enum ReprIX {
         EMPTY,   // uninitialized reference
         NIL,     // json null, and used to indicate non-existence
@@ -231,7 +231,7 @@ class Object // : public debug::Object
     Object(NoParent&&) : m_repr{}, m_fields{NIL} {}  // initialize reference count
 
   public:
-    /// @brief Returns a text description of the type enumeration.
+    /// Returns a text description of the type enumeration.
     /// @param repr_ix The value of the ReprIX enumeration.
     static std::string_view type_name(uint8_t repr_ix) {
       switch (repr_ix) {
@@ -253,66 +253,66 @@ class Object // : public debug::Object
     }
 
   public:
-    /// @brief Indicates an object with a data type that is not reference counted.
+    /// Indicates an object with a data type that is not reference counted.
     /// @see See `Object::ref_count` method.
     static constexpr refcnt_t no_ref_count = std::numeric_limits<refcnt_t>::max();
 
-    /// @brief Create an *empty* Object.
+    /// Create an *empty* Object.
     /// *Empty* objects behave like references that don't point to anything.  Any
     /// attempt to access data will result in an EmptyReference exception being
     /// thrown.
     Object()                           : m_repr{}, m_fields{EMPTY} {}
 
-    /// @brief Create a reference to nil
+    /// Create a reference to nil
     Object(nil_t)                      : m_repr{}, m_fields{NIL} {}
-    /// @brief Copy string
+    /// Copy string
     Object(const String& str)          : m_repr{new IRCString{str, NoParent()}}, m_fields{STR} {}
-    /// @brief Move string
+    /// Move string
     Object(String&& str)               : m_repr{new IRCString(std::forward<String>(str), NoParent())}, m_fields{STR} {}
-    /// @brief Copy string view
+    /// Copy string view
     Object(const StringView& sv)       : m_repr{new IRCString{{sv.data(), sv.size()}, NoParent()}}, m_fields{STR} {}
-    /// @brief Copy plain string
+    /// Copy plain string
     Object(const char* v)              : m_repr{new IRCString{v, NoParent()}}, m_fields{STR} { ASSERT(v != nullptr); }
-    /// @brief From boolean value
+    /// From boolean value
     Object(bool v)                     : m_repr{v}, m_fields{BOOL} {}
-    /// @brief From float value
+    /// From float value
     Object(is_like_Float auto v)       : m_repr{(Float)v}, m_fields{FLOAT} {}
-    /// @brief From signed integer value
+    /// From signed integer value
     Object(is_like_Int auto v)         : m_repr{(Int)v}, m_fields{INT} {}
-    /// @brief From unsigned integer value
+    /// From unsigned integer value
     Object(is_like_UInt auto v)        : m_repr{(UInt)v}, m_fields{UINT} {}
 
-    /// @brief Create an Object with a DataSource (Use @ref nodel::bind, instead)
+    /// Create an Object with a DataSource (Use @ref nodel::bind, instead)
     /// - This is a low-level interface. Prefer using one of the @ref nodel::bind
     ///   functions, so that you can take advantage of configuring the DataSource
     ///   from a URI.
     Object(DataSourcePtr ptr);
 
-    /// @brief Copy Objects from container
+    /// Copy Objects from container
     Object(const ObjectList&);
-    /// @brief Copy Key/Object pairs from container
+    /// Copy Key/Object pairs from container
     Object(const SortedMap&);
-    /// @brief Copy Key/Object pairs from container
+    /// Copy Key/Object pairs from container
     Object(const OrderedMap&);
-    /// @brief Move Key/Object pairs from container
+    /// Move Key/Object pairs from container
     Object(ObjectList&&);
-    /// @brief Move Key/Object pairs from container
+    /// Move Key/Object pairs from container
     Object(SortedMap&&);
-    /// @brief Move Key/Object pairs from container
+    /// Move Key/Object pairs from container
     Object(OrderedMap&&);
 
-    // @brief Create Object from Key
+    // Create Object from Key
     Object(const Key&);
-    // @brief Create Object from Key
+    // Create Object from Key
     Object(Key&&);
 
-    /// @brief Construct with a new, default value for the specified data type.
+    /// Construct with a new, default value for the specified data type.
     /// @param type The data type.
     Object(ReprIX type);
 
-    /// @brief Implicit conversion of Subscript<Key>
+    /// Implicit conversion of Subscript<Key>
     Object(const Subscript<Key>& sub);
-    /// @brief Implicit conversion of Subscript<OPath>
+    /// Implicit conversion of Subscript<OPath>
     Object(const Subscript<OPath>& sub);
 
     Object(const Object& other);
@@ -322,7 +322,7 @@ class Object // : public debug::Object
 
     ReprIX type() const;
 
-    /// @brief Returns a readable name for the type of the Object
+    /// Returns a readable name for the type of the Object
     std::string_view type_name() const { return type_name(type()); }
 
     Object root() const;
@@ -374,8 +374,8 @@ class Object // : public debug::Object
     template <typename T>
     T& as() requires std::is_same<T, String>::value;
 
-    bool is_empty() const   { return m_fields.repr_ix == EMPTY; }
-    bool is_deleted() const { return m_fields.repr_ix == DEL; }
+    bool is_empty() const;
+    bool is_deleted() const;
     bool is_valid() const;
 
     template <typename T>
@@ -472,7 +472,7 @@ class Object // : public debug::Object
 
 
 //////////////////////////////////////////////////////////////////////////////
-/// @brief A simple path consisting of a list of keys.
+/// A simple path consisting of a list of keys.
 /// Path literals can be created using `""_path` literal operator.
 /// @see nodel::Object::get(const OPath&)
 /// @see nodel::Object::set(const OPath&, const Object&)
@@ -486,9 +486,9 @@ class OPath
 
     OPath() {}
 
-    // @brief Construct a path from a string path specification.
-    // @param spec The string to parse.
-    // @see OPath operator ""_path (const char*, size_t);
+    /// Construct a path from a string path specification.
+    /// @param spec The string to parse.
+    /// @see OPath operator ""_path (const char*, size_t);
     OPath(const StringView& spec);
 
     // helpers for Subscript class
@@ -503,10 +503,10 @@ class OPath
     void append(const Key& key) { m_keys.push_back(key); }
     void append(Key&& key)      { m_keys.emplace_back(std::forward<Key>(key)); }
 
-    // @brief Returns a copy of this path excepting the last key.
-    // - If an Object, `x`, would be returned by this path, then the path
-    //   returned by this function would return the `x` Object's parent.
-    // @return Returns the parent path.
+    /// Returns a copy of this path excepting the last key.
+    /// - If an Object, `x`, would be returned by this path, then the path
+    ///   returned by this function would return the `x` Object's parent.
+    /// @return Returns the parent path.
     OPath parent() const {
         if (m_keys.size() < 2) return KeyList{nil};
         return KeyList{m_keys.begin(), m_keys.end() - 1};
@@ -523,10 +523,10 @@ class OPath
         return obj;
     }
 
-    // @brief Returns true if the object lies on this path.
-    // @param obj The object to test.
-    // @return Returns true if the object is reachable from any of its ancestors via
-    // this path.
+    /// Returns true if the object lies on this path.
+    /// @param obj The object to test.
+    /// @return Returns true if the object is reachable from any of its ancestors via
+    /// this path.
     bool is_leaf(const Object& obj) const {
         Object cursor = obj;
         Object parent = obj.parent();
@@ -538,16 +538,16 @@ class OPath
         return lookup(cursor).is(obj);
     }
 
-    // @brief Create objects necessary to complete this path.
-    // @param origin The starting point.
-    // @param last_value The value that will become the leaf of the path.
-    // - Intermediate containers that do not exist are created with a container
-    //   type that depends on the data type of the Key. If Key data type is an
-    //   integer, then an ObjectList is created. Otherwise, an OrderedMap is
-    //   created.
-    // - If the `last_value` argument has a parent then the copy that was
-    //   added to the last container will be returned.
-    // @return Returns `last_value` or a copy of `last_value`.
+    /// Create objects necessary to complete this path.
+    /// @param origin The starting point.
+    /// @param last_value The value that will become the leaf of the path.
+    /// - Intermediate containers that do not exist are created with a container
+    ///   type that depends on the data type of the Key. If Key data type is an
+    ///   integer, then an ObjectList is created. Otherwise, an OrderedMap is
+    ///   created.
+    /// - If the `last_value` argument has a parent then the copy that was
+    ///   added to the last container will be returned.
+    /// @return Returns `last_value` or a copy of `last_value`.
     Object create(const Object& origin, const Object& last_value) const {
         Object obj = origin;
         auto it = begin();
@@ -726,7 +726,7 @@ OPath operator ""_path (const char* str, size_t size) {
     return OPath{StringView{str, size}};
 }
 
-/// @brief Get the path from the root to this Object
+/// Get the path from the root to this Object
 /// - Get an @ref OPath instance that would yield this Object from the
 ///   following expression: `this->root().get(path)`
 /// - If the Object does not have a parent then an empty path is returned.
@@ -747,7 +747,7 @@ OPath Object::path() const {
     return path;
 }
 
-/// @brief Get the path from the specified ancestor to this Object
+/// Get the path from the specified ancestor to this Object
 /// @param root An ancestor of this Object.
 /// - This method is similar to the Object::path() method except that
 ///   you can specify an ancestor other than the root of the tree.
@@ -862,29 +862,29 @@ class DataSource
         operator int () const { return m_value; }
     };
 
-    // @brief Options common to all DataSource implementations.
+    // Options common to all DataSource implementations.
     struct Options {
         Options() = default;
         Options(Mode mode) : mode{mode} {}
 
-        /// @brief Configure options from the specified URI query.
+        /// Configure options from the specified URI query.
         void configure(const Object& uri);
 
-        /// @brief Access control for get/set/del methods
+        /// Access control for get/set/del methods
         /// - CLOBBER access controls whether a bound Object may be completely overwritten with
         ///   a single call to Object::set(const Object&).
         Mode mode = Mode::READ | Mode::WRITE;
 
-        /// @brief Logging control during read operations
+        /// Logging control during read operations
         bool quiet_read = false;
 
-        /// @brief Logging control during write operations
+        /// Logging control during write operations
         bool quiet_write = false;
 
-        /// @brief Throw exception when read operation fails
+        /// Throw exception when read operation fails
         bool throw_read_error = true;
 
-        /// @brief Throw exception when write operation fails
+        /// Throw exception when write operation fails
         bool throw_write_error = true;
     };
 
@@ -912,18 +912,18 @@ class DataSource
     virtual ~DataSource() {}
 
   protected:
-    /// @brief Create a new instance of this DataSource.
+    /// Create a new instance of this DataSource.
     /// @param target The target that will receive this DataSource
     /// @param origin Whether data originates in memory, or from external storage
     /// @return Returns a heap-allocated DataSource instance.
     virtual DataSource* new_instance(const Object& target, Origin origin) const = 0;
 
-    /// @brief Configure this DataSource from a URI.
+    /// Configure this DataSource from a URI.
     /// @param uri A map containing the parts of the URI.
     /// @see nodel/core/uri.h.
     virtual void configure(const Object& uri) { m_options.configure(uri); }
 
-    /// @brief Determine the type of data in external storage.
+    /// Determine the type of data in external storage.
     /// @param target The target holding this DataSource.
     /// - Implementations should override this method when the type of data in
     ///   storage is dynamic.
@@ -932,7 +932,7 @@ class DataSource
     ///   the end-user does not want to incur the overhead of loading the data.
     virtual void read_type(const Object& target) {}
 
-    /// @brief Read all data from external storage.
+    /// Read all data from external storage.
     /// @param target The target holding this DataSource.
     /// - This method must be implemented by both *complete* and *sparse*
     ///   DataSources, although end-users can easily avoided this flow with
@@ -940,7 +940,7 @@ class DataSource
     /// - Implementations call the `read_set` methods to populate the data.
     virtual void read(const Object& target) = 0;
 
-    /// @brief Read the data for the specified key from external storage.
+    /// Read the data for the specified key from external storage.
     /// @param target The target holding this DataSource.
     /// @param key The key to read.
     /// - *sparse* implementations must override this method.
@@ -948,25 +948,25 @@ class DataSource
     /// @return Returns the value of the key, or nil.
     virtual Object read_key(const Object& target, const Key& key) { return {}; }
 
-    /// @brief Write data to external storage.
+    /// Write data to external storage.
     /// @param target The target holding this DataSource.
     /// @param data The data to be written.
     virtual void write(const Object& target, const Object& data) = 0;
 
-    /// @brief Write data for the specified key to external storage.
+    /// Write data for the specified key to external storage.
     /// @param target The target holding this DataSource.
     /// @param key The key to write.
     /// @param value The value of the key.
     /// - *sparse* implementations must override this method.
     virtual void write_key(const Object& target, const Key& key, const Object& value) {}
 
-    /// @brief Delete a key from external storage.
+    /// Delete a key from external storage.
     /// @param target The target holding this DataSource.
     /// @param key The key to delete.
     /// - *sparse* implementations must override thist method.
     virtual void delete_key(const Object& target, const Key& key) {}
 
-    /// @brief Called just before the Object::save() method finishes.
+    /// Called just before the Object::save() method finishes.
     /// @param target The target holding this DataSource.
     /// @param data The memory representation of this DataSource.
     /// @param del_keys The list of deleted keys.
@@ -1260,7 +1260,7 @@ Object::ReprIX Object::type() const {
     }
 }
 
-/// @brief Returns the root container
+/// Returns the root container
 inline
 Object Object::root() const {
     Object obj = *this;
@@ -1272,7 +1272,7 @@ Object Object::root() const {
     return obj;
 }
 
-/// @brief Returns the parent container which holds this Object
+/// Returns the parent container which holds this Object
 inline
 Object Object::parent() const {
     switch (m_fields.repr_ix) {
@@ -1286,7 +1286,7 @@ Object Object::parent() const {
     }
 }
 
-/// @brief Similar to the std::visit function
+/// Similar to the std::visit function
 /// @tparam V The type of the visitor function
 /// @param visitor The visitor.
 /// - If the @ref Object::is_empty method would return true then calling
@@ -1306,7 +1306,7 @@ void Object::visit(V&& visitor) const {
     }
 }
 
-/// @brief Get the stored data iff the data has the specified numeric type
+/// Get the stored data iff the data has the specified numeric type
 /// @tparam T One of the supported numeric data types
 /// - The supported data types are: bool, Int, UInt, Float
 /// @return Returns a copy of the stored data type
@@ -1318,7 +1318,7 @@ T Object::as() const requires is_byvalue<T> {
     throw wrong_type(m_fields.repr_ix);
 }
 
-/// @brief Get the stored data iff the data has the specified numeric type
+/// Get the stored data iff the data has the specified numeric type
 /// @tparam T One of the supported numeric data types
 /// - This overload of the method is for String
 /// @return Returns a const reference to the stored data type
@@ -1330,7 +1330,7 @@ const T& Object::as() const requires std::is_same<T, String>::value {
     throw wrong_type(m_fields.repr_ix);
 }
 
-/// @brief Get the stored data iff the data has the specified numeric type
+/// Get the stored data iff the data has the specified numeric type
 /// @tparam T One of the supported numeric data types
 /// - The supported data types are: bool, Int, UInt, Float
 /// @return Returns a reference to the stored data type
@@ -1342,7 +1342,7 @@ T& Object::as() requires is_byvalue<T> {
     throw wrong_type(m_fields.repr_ix);
 }
 
-/// @brief Get the stored data iff the data has the specified numeric type
+/// Get the stored data iff the data has the specified numeric type
 /// @tparam T One of the supported numeric data types
 /// - This overload of the method is for String
 /// @note If this Object has a DataSource and you modify the string data
@@ -1453,7 +1453,7 @@ void Object::clear_parent() const {
     }
 }
 
-/// @brief Get the key associated with this Object
+/// Get the key associated with this Object
 /// - If this Object has a parent then this method returns the key by which
 ///   you can access this Object within its parent.
 /// - If this Object does not have a parent, then nil is returned.
@@ -1463,7 +1463,7 @@ const Key Object::key() const {
     return parent().key_of(*this);
 }
 
-/// @brief Get the key associated with the specified Object
+/// Get the key associated with the specified Object
 /// @param obj The Object.
 /// @return Returns nil or the key.
 inline
@@ -1505,7 +1505,7 @@ const Key Object::key_of(const Object& obj) const {
     return {};
 }
 
-/// @brief Check the type of the stored data
+/// Check the type of the stored data
 /// @tparam T The type to test.
 /// - If this Object has a DataSource then it may be necessary to load some or
 ///   all of the data to determine the type of Object. For example, since a JSON
@@ -1535,6 +1535,32 @@ String Object::to_str() const {
     }
 }
 
+/// Test if this Object is an empty reference
+/// - An Object is an empty reference if it was never assigned a value.
+/// - Default constructed Object instances are empty references.
+/// - Calling @ref Object::release will result in an empty reference.
+/// @return Returns true if the Object is an empty reference.
+inline
+bool Object::is_empty() const {
+    return m_fields.repr_ix == EMPTY;
+}
+
+/// Test if this Object has been deleted from a *sparse* DataSource
+/// - Sparse DataSource implementations load keys individually, so a special data
+///   type is reserved to indicate that a key has been deleted.
+/// - This method is only useful for a *sparse* DataSource implementation.
+/// @return Returns true if the key associated with this Object was deleted.
+bool Object::is_deleted() const {
+    return m_fields.repr_ix == DEL;
+}
+
+/// Test if this Object was successfully loaded into memory
+/// - An Object containing a DataSource configured not to throw exceptions will
+///   be marked invalid if a load operation fails.
+/// - Use this method to verify that a load operation was successful whenever
+///   the DataSource is configured *not* to throw exceptions.
+/// @return Returns true if the Object was successfully loaded, or if the
+///         Object does not have a DataSource.
 inline
 bool Object::is_valid() const {
     if (m_fields.repr_ix == INVALID)
@@ -1913,7 +1939,7 @@ void Object::clear() {
     }
 }
 
-/// @brief Returns the size of the string or container
+/// Returns the size of the string or container
 /// @return Returns the size of the string or container, or 0 for other types.
 inline
 size_t Object::size() const {
@@ -1933,32 +1959,32 @@ size_t Object::size() const {
 #include "ValueRange.h"
 #include "ItemRange.h"
 
-/// @brief Returns a range-like object over container Keys
+/// Returns a range-like object over container Keys
 inline KeyRange Object::iter_keys() const {
     return *this;
 }
 
-/// @brief Returns a range-like object over container std::pair<Key, Object>
+/// Returns a range-like object over container std::pair<Key, Object>
 inline ItemRange Object::iter_items() const {
     return *this;
 }
 
-/// @brief Returns a range-like object over container Objects
+/// Returns a range-like object over container Objects
 inline ValueRange Object::iter_values() const {
     return *this;
 }
 
-/// @brief Returns a range-like object over a slice of container
+/// Returns a range-like object over a slice of container
 inline KeyRange Object::iter_keys(const Slice& slice) const {
     return {*this, slice};
 }
 
-/// @brief Returns a range-like object over a slice of container
+/// Returns a range-like object over a slice of container
 inline ItemRange Object::iter_items(const Slice& slice) const {
     return {*this, slice};
 }
 
-/// @brief Returns a range-like object over a slice of container
+/// Returns a range-like object over a slice of container
 inline ValueRange Object::iter_values(const Slice& slice) const {
     return {*this, slice};
 }
@@ -2700,7 +2726,7 @@ class LineRange
     Object m_object;
 };
 
-/// @brief Iterate this Object and its ancestors
+/// Iterate this Object and its ancestors
 inline
 LineRange Object::iter_line() const {
     return *this;
@@ -2809,21 +2835,26 @@ class Object::TreeRange
     EnterPred m_enter_pred;
 };
 
-/// @brief Iterate the subtree rooted on this Object
+/// Iterate the subtree rooted on this Object.
 /// @return Returns a range-like object.
 inline
 Object::TreeRange<Object, NoPredicate, NoPredicate> Object::iter_tree() const {
     return {*this, NoPredicate{}, NoPredicate{}};
 }
 
-/// @brief Iterate the subtree rooted on this Object and filtered by a predicate
+/// Iterate the subtree rooted on this Object and filtered by a predicate.
+/// @tparam VisitPred Any function-like type (lambdas)
+/// @param visit_pred A predicate function that is called with each iterated Object.
 /// @return Returns a range-like object.
 template <typename VisitPred>
 Object::TreeRange<Object, Predicate, NoPredicate> Object::iter_tree(VisitPred&& visit_pred) const {
     return {*this, std::forward<Predicate>(visit_pred), NoPredicate{}};
 }
 
-/// @brief Iterate selected branches of the subtree rooted on this Object
+/// Iterate selected branches of the subtree rooted on this Object.
+/// @tparam EnterPred Any function-like type (lambdas)
+/// @param enter_pred A predicate function that determines whether the algorithm descends into
+///        a container Object.
 /// Unlike the "visit" predicate, the "enter" predicate controls which Objects in the
 /// subtree are entered (descended into). This is useful for improving performance,
 /// as well as controlling whether Objects with DataSources are loaded into memory.
@@ -2833,14 +2864,19 @@ Object::TreeRange<Object, NoPredicate, Predicate> Object::iter_tree_if(EnterPred
     return {*this, NoPredicate{}, std::forward<Predicate>(enter_pred)};
 }
 
-/// @brief Iterate with both a "visit" predicate and an "enter" predicate
+/// Iterate with both a "visit" predicate and an "enter" predicate.
+/// @tparam VisitPred Any function-like type (lambdas)
+/// @tparam EnterPred Any function-like type (lambdas)
+/// @param visit_pred A predicate function that is called with each iterated Object.
+/// @param enter_pred A predicate function that determines whether the algorithm descends into
+///        a container Object.
 /// @return Returns a range-like object.
 template <typename VisitPred, typename EnterPred>
 Object::TreeRange<Object, Predicate, Predicate> Object::iter_tree_if(VisitPred&& visit_pred, EnterPred&& enter_pred) const {
     return {*this, std::forward<Predicate>(visit_pred), std::forward<Predicate>(enter_pred)};
 }
 
-/// @brief Mark this Object as having been updated
+/// Mark this Object as having been updated
 /// - If this Object has a DataSoource then it is flagged as having been updated
 ///   such that it will be saved on the next call to @ref Object::save. This is only
 ///   necessary when string data is modified by reference by calling
@@ -2851,7 +2887,7 @@ void Object::needs_saving() {
     if (p_ds != nullptr) p_ds->m_unsaved = true;
 }
 
-/// @brief Save changes made in the subtree
+/// Save changes made in the subtree
 /// - This method visits Objects with a DataSource in the subtree of this Object
 ///   that have been loaded into memory and calls the @ref DataSource::save method.
 /// - This method will *not* trigger a DataSource to load.
@@ -2942,7 +2978,7 @@ void DataSource::Options::configure(const Object& uri) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-/// @brief Bind an object to a DataSource.
+/// Bind an object to a DataSource.
 /// @param obj The object to be bound.
 /// - If the object has a parent, the object is first removed from the
 ///   parent, bound to the DataSource, and then added back to the parent.
@@ -3494,7 +3530,7 @@ template <typename T> bool is_resolved(Object::Subscript<T>& subscript) { return
 namespace std {
 
 //////////////////////////////////////////////////////////////////////////////
-/// @brief OPath hash function support
+/// OPath hash function support
 //////////////////////////////////////////////////////////////////////////////
 template<>
 struct hash<nodel::OPath>

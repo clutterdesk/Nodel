@@ -17,11 +17,11 @@
 using namespace std::literals::string_literals;
 using namespace std::literals::string_view_literals;
 
-/// @brief Nodel namespace
+/// Nodel namespace
 namespace nodel {
 
 /////////////////////////////////////////////////////////////////////////////
-/// @brief A class to represent keys in a dictionary or list.
+/// A class to represent keys in a dictionary or list.
 /// - The Key class is a dynamic type like the Object class. However, it only
 ///   supports the following data types:
 ///     - nil
@@ -514,7 +514,7 @@ struct KeyHash
 namespace std {
 
 //////////////////////////////////////////////////////////////////////////////
-/// @brief Key hash function support
+/// Key hash function support
 //////////////////////////////////////////////////////////////////////////////
 template<>
 struct hash<nodel::Key>

@@ -14,7 +14,7 @@ struct BindError : public NodelException
 };
 
 /////////////////////////////////////////////////////////////////////////////
-/// @brief Bind an Object to the specified external storage location.
+/// Bind an Object to the specified external storage location.
 /// @param uri A URI whose scheme identifies a registered DataSource.
 /// @param obj The Object to bind.
 /// - This form of the `bind` function associates data in memory with some
@@ -46,7 +46,7 @@ Object bind(const URI& uri, const Object& obj) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-/// @brief Bind a new Object to the specified URI.
+/// Bind a new Object to the specified URI.
 /// @param uri A URI whose scheme identifies a registered DataSource.
 /// - This form of the `bind` function should be used when data already
 ///   exists in the external storage location pointed to by the URI.  After
@@ -63,7 +63,7 @@ Object bind(const URI& uri) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-/// @brief Bind an Object to a specific DataSource.
+/// Bind an Object to a specific DataSource.
 /// @tparam DataSourceType A concrete DataSource sub-class.
 /// @param obj The Object to bind.
 /// - This form of the `bind` function binds a specific DataSource to an
@@ -81,7 +81,7 @@ Object bind(const Object& obj) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-/// @brief Bind an Object to a specific DataSource.
+/// Bind an Object to a specific DataSource.
 /// @tparam DataSourceType A concrete DataSource sub-class.
 /// - This form of the `bind` function should be used when data already
 ///   exists in the external storage location pointed to by the URI.  After

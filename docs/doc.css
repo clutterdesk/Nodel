@@ -65,3 +65,7 @@ a + h2.groupheader {
 .SRPage .SREntry {
     font-size: 11pt;
 }
+
+a.SRScope {
+    font-size: 10pt;
+}

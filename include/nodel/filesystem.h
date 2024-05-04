@@ -10,7 +10,7 @@ namespace nodel::filesystem {
 namespace impl {
 
 /////////////////////////////////////////////////////////////////////////////
-/// @brief Filesystem initialization macro.
+/// Filesystem initialization macro.
 /// This macro must be instantiated before using nodel::filesystem services.
 /// It defines thread-local data-structures.
 /////////////////////////////////////////////////////////////////////////////
@@ -29,7 +29,7 @@ void init_default_registry() {
 } // namespace impl
 
 /////////////////////////////////////////////////////////////////////////////
-/// @brief Returns the *thread-local* default registry.
+/// Returns the *thread-local* default registry.
 /// Changes to the file associations in this registry will affect *all*
 /// Objects bound to the filesystem in the current thread.
 /////////////////////////////////////////////////////////////////////////////
@@ -42,7 +42,7 @@ Registry& default_registry() {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-/// @brief Configure Nodel filesystem.
+/// Configure Nodel filesystem.
 /// - Enable binding URI with the "file" scheme using
 ///   nodel::bind(const String& uri_spec, ...).
 /// - Use URI query to set path when the path is relative

@@ -9,7 +9,7 @@
 namespace nodel::filesystem {
 
 /////////////////////////////////////////////////////////////////////////////
-/// @brief A registry that maps filesystem extensions to DataSources.
+/// A registry that maps filesystem extensions to DataSources.
 /// - In general the schema of a file cannot be determined by examining its content. The Registry
 ///   provides a means of determining schema from the filesystem path of the file.
 /// - If no rule applies for a given file, or directory, the default factory is used, if present.

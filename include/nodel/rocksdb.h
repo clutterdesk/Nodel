@@ -24,7 +24,7 @@ struct Options
 };
 
 /////////////////////////////////////////////////////////////////////////////
-/// @brief Enable and configure the URI "rocksdb" scheme.
+/// Enable and configure the URI "rocksdb" scheme.
 /// - Enable binding URI with the "rocksdb" scheme using nodel::bind(const String& uri_spec, ...).
 /// - Create directory association for ".rocksdb" in the default registry.
 /// @see nodel::bind(const String&, Object)
@@ -44,7 +44,7 @@ void configure(Options options={}) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-/// @brief Register a directory extension to recognize RocksDB database directories.
+/// Register a directory extension to recognize RocksDB database directories.
 /// This function can be used to customize the extension used in a single tree, when that
 /// extension is different from the default extension.
 /// @param fs_obj A filesystem object.
