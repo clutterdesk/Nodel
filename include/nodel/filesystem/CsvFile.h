@@ -35,9 +35,9 @@ void CsvFile::write(const Object& target, const Object& cache) {
     auto fpath = path(target).string();
     std::ofstream f_out{fpath, std::ios::out};
 
-    for (const auto& row : cache.values()) {
+    for (const auto& row : cache.iter_values()) {
         char sep = 0;
-        for (const auto& col: row.values()) {
+        for (const auto& col: row.iter_values()) {
             if (sep == 0) sep = ','; else f_out << sep;
             f_out << col.to_json();
         }

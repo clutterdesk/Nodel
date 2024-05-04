@@ -27,4 +27,24 @@ size_t count(InRange&& range) {
     return count;
 }
 
+inline
+Object collect(ItemRange&& range) {
+    OrderedMap map;
+    auto it = range.begin();
+    auto end = range.end();
+    for (; it != end; ++it)
+        map.insert(*it);
+    return map;
+}
+
+inline
+Object collect(ValueRange&& range) {
+    ObjectList list;
+    auto it = range.begin();
+    auto end = range.end();
+    for (; it != end; ++it)
+        list.push_back(*it);
+    return list;
+}
+
 } // namespace nodel::algo

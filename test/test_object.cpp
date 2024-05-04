@@ -883,7 +883,88 @@ TEST(Object, ListSetSlice) {
   EXPECT_EQ(obj.get(3), 103);
   EXPECT_EQ(obj.get(4), 104);
 
+  obj = "[[1], [2], [3], [4], [5]]"_json;
+  obj.set("::2"_slice, "[[10], [30], [50]]"_json);
+  ASSERT_EQ(obj.size(), 5UL);
+  EXPECT_EQ(obj.get(0).get(0), 10);
+  EXPECT_EQ(obj.get(1).get(0), 2);
+  EXPECT_EQ(obj.get(2).get(0), 30);
+  EXPECT_EQ(obj.get(3).get(0), 4);
+  EXPECT_EQ(obj.get(4).get(0), 50);
+  EXPECT_TRUE(obj.get(0).parent().is(obj));
+  EXPECT_TRUE(obj.get(2).parent().is(obj));
+  EXPECT_TRUE(obj.get(4).parent().is(obj));
 
+  obj = "[10, 11, 12, 13, 14]"_json;
+  obj.set("1::3"_slice, "[101, 104, 107]"_json);
+  ASSERT_EQ(obj.size(), 5UL);
+  EXPECT_EQ(obj.get(0), 10);
+  EXPECT_EQ(obj.get(1), 101);
+  EXPECT_EQ(obj.get(2), 12);
+  EXPECT_EQ(obj.get(3), 13);
+  EXPECT_EQ(obj.get(4), 104);
+
+  obj = "[10, 11, 12, 13, 14]"_json;
+  obj.set("3:1:-1"_slice, "[103, 102]"_json);
+  ASSERT_EQ(obj.size(), 5UL);
+  EXPECT_EQ(obj.get(0), 10);
+  EXPECT_EQ(obj.get(1), 11);
+  EXPECT_EQ(obj.get(2), 102);
+  EXPECT_EQ(obj.get(3), 103);
+  EXPECT_EQ(obj.get(4), 14);
+
+  obj = "[10, 11, 12, 13, 14]"_json;
+  obj.set("3:1:-1"_slice, "[103, 102, 101]"_json);
+  ASSERT_EQ(obj.size(), 6UL);
+  EXPECT_EQ(obj.get(0), 10);
+  EXPECT_EQ(obj.get(1), 11);
+  EXPECT_EQ(obj.get(2), 101);
+  EXPECT_EQ(obj.get(3), 102);
+  EXPECT_EQ(obj.get(4), 103);
+  EXPECT_EQ(obj.get(5), 14);
+
+  obj = "[10, 11, 12, 13, 14]"_json;
+  obj.set("1::-1"_slice, "[103, 102, 101]"_json);
+  ASSERT_EQ(obj.size(), 6UL);
+  EXPECT_EQ(obj.get(0), 101);
+  EXPECT_EQ(obj.get(1), 102);
+  EXPECT_EQ(obj.get(2), 103);
+  EXPECT_EQ(obj.get(3), 12);
+  EXPECT_EQ(obj.get(4), 13);
+  EXPECT_EQ(obj.get(5), 14);
+
+  obj = "[10, 11, 12, 13, 14]"_json;
+  obj.set("::-1"_slice, "[103, 102, 101]"_json);
+  ASSERT_EQ(obj.size(), 3UL);
+  EXPECT_EQ(obj.get(0), 101);
+  EXPECT_EQ(obj.get(1), 102);
+  EXPECT_EQ(obj.get(2), 103);
+
+  obj = "[10, 11, 12, 13, 14]"_json;
+  obj.set("::-2"_slice, "[104, 102, 100]"_json);
+  ASSERT_EQ(obj.size(), 5UL);
+  EXPECT_EQ(obj.get(0), 100);
+  EXPECT_EQ(obj.get(1), 11);
+  EXPECT_EQ(obj.get(2), 102);
+  EXPECT_EQ(obj.get(3), 13);
+  EXPECT_EQ(obj.get(4), 104);
+
+  obj = "[10, 11, 12, 13, 14]"_json;
+  obj.set("::-2"_slice, "[104, 102, 100, 90]"_json);
+  ASSERT_EQ(obj.size(), 5UL);
+  EXPECT_EQ(obj.get(0), 100);
+  EXPECT_EQ(obj.get(1), 11);
+  EXPECT_EQ(obj.get(2), 102);
+  EXPECT_EQ(obj.get(3), 13);
+  EXPECT_EQ(obj.get(4), 104);
+
+  obj = "[10, 11, 12, 13, 14]"_json;
+  obj.set("::-2"_slice, "[104, 102]"_json);
+  ASSERT_EQ(obj.size(), 4UL);
+  EXPECT_EQ(obj.get(0), 11);
+  EXPECT_EQ(obj.get(1), 102);
+  EXPECT_EQ(obj.get(2), 13);
+  EXPECT_EQ(obj.get(3), 104);
 }
 
 TEST(Object, ListDelete) {
@@ -1239,7 +1320,7 @@ TEST(Object, LineageRange) {
 TEST(Object, ListChildrenRange) {
     Object obj = json::parse(R"([true, 1, "x"])");
     ObjectList children;
-    for (auto obj : obj.values())
+    for (auto obj : obj.iter_values())
         children.push_back(obj);
     EXPECT_EQ(children.size(), 3UL);
     EXPECT_TRUE(children[0].is_type<bool>());
@@ -1250,7 +1331,7 @@ TEST(Object, ListChildrenRange) {
 TEST(Object, OrderedMapChildrenRange) {
     Object obj = json::parse(R"({"a": true, "b": 1, "c": "x"})");
     ObjectList children;
-    for (auto obj : obj.values())
+    for (auto obj : obj.iter_values())
         children.push_back(obj);
     EXPECT_EQ(children.size(), 3UL);
     EXPECT_TRUE(children[0].is_type<bool>());
@@ -1262,7 +1343,7 @@ TEST(Object, SortedMapChildrenRange) {
     json::Options options; options.use_sorted_map = true;
     Object obj = json::parse(options, R"({"b": 1, "a": true, "c": "x"})");
     ObjectList children;
-    for (auto obj : obj.values())
+    for (auto obj : obj.iter_values())
         children.push_back(obj);
     EXPECT_EQ(children.size(), 3UL);
     EXPECT_TRUE(children[0].is_type<bool>());
@@ -1422,10 +1503,10 @@ TEST(Object, ValuesRangeMultiuser) {
     Object o1 = json::parse(R"({"a": "A", "b": "B", "c": "C"})");
     Object o2 = json::parse(R"({"x": "X", "y": "Y", "z": "Z"})");
     ObjectList result;
-    auto r1 = o1.values();
+    auto r1 = o1.iter_values();
     auto it1 = r1.begin();
     auto end1 = r1.end();
-    auto r2 = o2.values();
+    auto r2 = o2.iter_values();
     auto it2 = r2.begin();
     auto end2 = r2.end();
     for (; it1 != end1 && it2 != end2; ++it1, ++it2) {
@@ -1940,10 +2021,13 @@ TEST(Object, ParentIntegrityOnDel) {
     EXPECT_TRUE(x2.parent() == nil);
 }
 
-TEST(Object, GetKeys) {
+TEST(Object, IterKeys) {
     Object obj = json::parse(R"({"x": [1], "y": [2]})");
     KeyList expect = {"x"_key, "y"_key};  // NOTE: std::vector has a gotcha: {"x", "y"} is interpreted in an unexpected way.
-    EXPECT_EQ(obj.keys(), expect);
+    KeyList actual;
+    for (auto& key : obj.iter_keys())
+        actual.push_back(key);
+    EXPECT_EQ(actual, expect);
 }
 
 TEST(Object, IterOrderedMapKeys) {
@@ -2289,7 +2373,7 @@ TEST(Object, TestSimpleSource_SetWithKey) {
 
 TEST(Object, TestSimpleSource_GetValues) {
     Object obj{new TestSimpleSource("{'x': 100, 'y': 101}")};
-    Object values = obj.values();
+    Object values = algo::collect(obj.iter_values());
     EXPECT_EQ(values.size(), 2UL);
     EXPECT_EQ(values.get(0), 100);
     EXPECT_EQ(values.get(1), 101);
@@ -2297,12 +2381,9 @@ TEST(Object, TestSimpleSource_GetValues) {
 
 TEST(Object, TestSimpleSource_GetItems) {
     Object obj{new TestSimpleSource("{'x': 100, 'y': 101}")};
-    ItemList items = obj.items();
-    EXPECT_EQ(items.size(), 2UL);
-    EXPECT_EQ(std::get<0>(items[0]), "x"_key);
-    EXPECT_EQ(std::get<1>(items[0]), 100);
-    EXPECT_EQ(std::get<0>(items[1]), "y"_key);
-    EXPECT_EQ(std::get<1>(items[1]), 101);
+    EXPECT_EQ(obj.size(), 2UL);
+    EXPECT_EQ(obj.get("x"_key), 100);
+    EXPECT_EQ(obj.get("y"_key), 101);
 }
 
 TEST(Object, TestSimpleSource_RefCountCopyAssign) {
@@ -2526,20 +2607,16 @@ TEST(Object, TestSparseSource_ItemIterator) {
 
 TEST(Object, TestSparseSource_GetValues) {
     Object obj{new TestSparseSource("{'x': 100, 'y': 101}")};
-    ObjectList values = obj.values();
-    EXPECT_EQ(values.size(), 2UL);
-    EXPECT_EQ(values[0], 100);
-    EXPECT_EQ(values[1], 101);
+    EXPECT_EQ(obj.size(), 2UL);
+    EXPECT_EQ(obj.get("x"_key), 100);
+    EXPECT_EQ(obj.get("y"_key), 101);
 }
 
 TEST(Object, TestSparseSource_GetItems) {
     Object obj{new TestSparseSource("{'x': 100, 'y': 101}")};
-    ItemList items = obj.items();
-    EXPECT_EQ(items.size(), 2UL);
-    EXPECT_EQ(std::get<0>(items[0]), "x");
-    EXPECT_EQ(std::get<1>(items[0]), 100);
-    EXPECT_EQ(std::get<0>(items[1]), "y");
-    EXPECT_EQ(std::get<1>(items[1]), 101);
+    EXPECT_EQ(obj.size(), 2UL);
+    EXPECT_EQ(obj.get("x"_key), 100);
+    EXPECT_EQ(obj.get("y"_key), 101);
 }
 
 TEST(Object, TestSparseSource_ReadKey) {

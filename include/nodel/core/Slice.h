@@ -160,23 +160,6 @@ T get_slice(const T& array, Int start, Int stop, Int step) {
     return result;
 }
 
-template <class T>
-void set_slice(T& l_arr, Int start, Int stop, Int step, const T& r_arr) {
-    auto [count, tail] = std::div(stop - start, step);
-
-    auto l_it = l_arr.begin() + start;
-    auto l_end = l_arr.end() - tail;
-    auto r_it = r_arr.begin();
-    auto r_end = r_arr.end();
-
-    for (; l_it < l_end && r_it < r_end; l_it += step, ++r_it)
-        *l_it = *r_it;
-
-    typename T::size_type l_pos = std::distance(l_it, l_end);
-    for (; l_pos < l_arr.size(); l_pos += (step - 1))
-        l_arr.erase(l_arr.begin() + l_pos);
-}
-
 inline
 Slice operator ""_slice (const char* str, size_t) {
     static std::regex slice_re{"([-+]?[0-9]+)?(\\:([-+]?[0-9]+)?)?(\\:([-+]?[0-9]+)?)?"};

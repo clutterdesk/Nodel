@@ -231,8 +231,8 @@ class Object // : public debug::Object
     Object(NoParent&&) : m_repr{}, m_fields{NIL} {}  // initialize reference count
 
   public:
-    // @brief Returns a text description of the type enumeration.
-    // @param repr_ix The value of the ReprIX enumeration.
+    /// @brief Returns a text description of the type enumeration.
+    /// @param repr_ix The value of the ReprIX enumeration.
     static std::string_view type_name(uint8_t repr_ix) {
       switch (repr_ix) {
           case EMPTY:   return "empty";
@@ -253,37 +253,66 @@ class Object // : public debug::Object
     }
 
   public:
-    // @brief Indicates an object with a data type that is not reference counted.
-    // @see See `Object::ref_count` method.
+    /// @brief Indicates an object with a data type that is not reference counted.
+    /// @see See `Object::ref_count` method.
     static constexpr refcnt_t no_ref_count = std::numeric_limits<refcnt_t>::max();
 
+    /// @brief Create an *empty* Object.
+    /// *Empty* objects behave like references that don't point to anything.  Any
+    /// attempt to access data will result in an EmptyReference exception being
+    /// thrown.
     Object()                           : m_repr{}, m_fields{EMPTY} {}
+
+    /// @brief Create a reference to nil
     Object(nil_t)                      : m_repr{}, m_fields{NIL} {}
+    /// @brief Copy string
     Object(const String& str)          : m_repr{new IRCString{str, NoParent()}}, m_fields{STR} {}
+    /// @brief Move string
     Object(String&& str)               : m_repr{new IRCString(std::forward<String>(str), NoParent())}, m_fields{STR} {}
+    /// @brief Copy string view
     Object(const StringView& sv)       : m_repr{new IRCString{{sv.data(), sv.size()}, NoParent()}}, m_fields{STR} {}
+    /// @brief Copy plain string
     Object(const char* v)              : m_repr{new IRCString{v, NoParent()}}, m_fields{STR} { ASSERT(v != nullptr); }
+    /// @brief From boolean value
     Object(bool v)                     : m_repr{v}, m_fields{BOOL} {}
+    /// @brief From float value
     Object(is_like_Float auto v)       : m_repr{(Float)v}, m_fields{FLOAT} {}
+    /// @brief From signed integer value
     Object(is_like_Int auto v)         : m_repr{(Int)v}, m_fields{INT} {}
+    /// @brief From unsigned integer value
     Object(is_like_UInt auto v)        : m_repr{(UInt)v}, m_fields{UINT} {}
+
+    /// @brief Create an Object with a DataSource (Use @ref nodel::bind, instead)
+    /// - This is a low-level interface. Prefer using one of the @ref nodel::bind
+    ///   functions, so that you can take advantage of configuring the DataSource
+    ///   from a URI.
     Object(DataSourcePtr ptr);
 
+    /// @brief Copy Objects from container
     Object(const ObjectList&);
+    /// @brief Copy Key/Object pairs from container
     Object(const SortedMap&);
+    /// @brief Copy Key/Object pairs from container
     Object(const OrderedMap&);
+    /// @brief Move Key/Object pairs from container
     Object(ObjectList&&);
+    /// @brief Move Key/Object pairs from container
     Object(SortedMap&&);
+    /// @brief Move Key/Object pairs from container
     Object(OrderedMap&&);
 
+    // @brief Create Object from Key
     Object(const Key&);
+    // @brief Create Object from Key
     Object(Key&&);
 
-    // @brief Construct with a new, default value for the specified data type.
-    // @param type The data type.
+    /// @brief Construct with a new, default value for the specified data type.
+    /// @param type The data type.
     Object(ReprIX type);
 
+    /// @brief Implicit conversion of Subscript<Key>
     Object(const Subscript<Key>& sub);
+    /// @brief Implicit conversion of Subscript<OPath>
     Object(const Subscript<OPath>& sub);
 
     Object(const Object& other);
@@ -292,6 +321,8 @@ class Object // : public debug::Object
     ~Object() { dec_ref_count(); }
 
     ReprIX type() const;
+
+    /// @brief Returns a readable name for the type of the Object
     std::string_view type_name() const { return type_name(type()); }
 
     Object root() const;
@@ -317,10 +348,6 @@ class Object // : public debug::Object
 
     template <typename VisitPred, typename EnterPred>
     TreeRange<Object, Predicate, Predicate> iter_tree_if(VisitPred&&, EnterPred&&) const;
-
-    const KeyList keys() const;
-    const ItemList items() const;
-    const ObjectList values() const;
 
     size_t size() const;
 
@@ -1067,7 +1094,7 @@ inline
 Object::Object(const Object& other) : m_fields{other.m_fields} {
     switch (m_fields.repr_ix) {
         case EMPTY: m_repr.z = nullptr; break;
-        case NIL:  m_repr.z = nullptr; break;
+        case NIL:   m_repr.z = nullptr; break;
         case BOOL:  m_repr.b = other.m_repr.b; break;
         case INT:   m_repr.i = other.m_repr.i; break;
         case UINT:  m_repr.u = other.m_repr.u; break;
@@ -1084,7 +1111,7 @@ inline
 Object::Object(Object&& other) : m_fields{other.m_fields} {
     switch (m_fields.repr_ix) {
         case EMPTY: m_repr.z = nullptr; break;
-        case NIL:  m_repr.z = nullptr; break;
+        case NIL:   m_repr.z = nullptr; break;
         case BOOL:  m_repr.b = other.m_repr.b; break;
         case INT:   m_repr.i = other.m_repr.i; break;
         case UINT:  m_repr.u = other.m_repr.u; break;
@@ -1106,58 +1133,64 @@ Object::Object(DataSourcePtr ptr) : m_repr{ptr}, m_fields{DSRC} {}  // DataSourc
 inline
 Object::Object(const ObjectList& list) : m_repr{new IRCList({}, NoParent{})}, m_fields{LIST} {
     auto& my_list = std::get<0>(*m_repr.pl);
-    for (auto& value : list) {
-        Object copy = value.copy();
-        my_list.push_back(copy);
-        copy.set_parent(*this);
+    for (auto value : list) {
+        value = value.copy();
+        my_list.push_back(value);
+        value.set_parent(*this);
     }
 }
 
 inline
 Object::Object(const SortedMap& map) : m_repr{new IRCMap({}, NoParent{})}, m_fields{SMAP} {
     auto& my_map = std::get<0>(*m_repr.psm);
-    for (auto& [key, value]: map) {
-        Object copy = value.copy();
-        my_map.insert({key, copy});
-        copy.set_parent(*this);
+    for (auto [key, value]: map) {
+        value = value.copy();
+        my_map.insert_or_assign(key, value);
+        value.set_parent(*this);
     }
 }
 
 inline
 Object::Object(const OrderedMap& map) : m_repr{new IRCOMap({}, NoParent{})}, m_fields{OMAP} {
     auto& my_map = std::get<0>(*m_repr.pom);
-    for (auto& [key, value]: map) {
-        Object copy = value.copy();
-        my_map.insert({key, copy});
-        copy.set_parent(*this);
+    for (auto [key, value]: map) {
+        value = value.copy();
+        my_map.insert_or_assign(key, value);
+        value.set_parent(*this);
     }
 }
 
 inline
 Object::Object(ObjectList&& list) : m_repr{new IRCList(std::forward<ObjectList>(list), NoParent{})}, m_fields{LIST} {
     auto& my_list = std::get<0>(*m_repr.pl);
-    for (auto& obj : my_list)
+    for (auto& obj : my_list) {
+        obj.clear_parent();
         obj.set_parent(*this);
+    }
 }
 
 inline
 Object::Object(SortedMap&& map) : m_repr{new IRCMap(std::forward<SortedMap>(map), NoParent{})}, m_fields{SMAP} {
     auto& my_map = std::get<0>(*m_repr.psm);
-    for (auto& [key, obj]: my_map)
+    for (auto& [key, obj]: my_map) {
+        const_cast<Object&>(obj).clear_parent();
         const_cast<Object&>(obj).set_parent(*this);
+    }
 }
 
 inline
 Object::Object(OrderedMap&& map) : m_repr{new IRCOMap(std::forward<OrderedMap>(map), NoParent{})}, m_fields{OMAP} {
     auto& my_map = std::get<0>(*m_repr.pom);
-    for (auto& [key, obj]: my_map)
+    for (auto& [key, obj]: my_map) {
+        const_cast<Object&>(obj).clear_parent();
         const_cast<Object&>(obj).set_parent(*this);
+    }
 }
 
 inline
 Object::Object(const Key& key) : m_fields{EMPTY} {
     switch (key.type()) {
-        case Key::NIL:  m_fields.repr_ix = NIL; m_repr.z = nullptr; break;
+        case Key::NIL:   m_fields.repr_ix = NIL; m_repr.z = nullptr; break;
         case Key::BOOL:  m_fields.repr_ix = BOOL; m_repr.b = key.as<bool>(); break;
         case Key::INT:   m_fields.repr_ix = INT; m_repr.i = key.as<Int>(); break;
         case Key::UINT:  m_fields.repr_ix = UINT; m_repr.u = key.as<UInt>(); break;
@@ -1214,6 +1247,7 @@ Object::ReprIX Object::type() const {
     }
 }
 
+/// @brief Returns the root container
 inline
 Object Object::root() const {
     Object obj = *this;
@@ -1225,6 +1259,7 @@ Object Object::root() const {
     return obj;
 }
 
+/// @brief Returns the parent container which holds this Object
 inline
 Object Object::parent() const {
     switch (m_fields.repr_ix) {
@@ -1818,8 +1853,7 @@ size_t Object::size() const {
         case SMAP:  return std::get<0>(*m_repr.psm).size();
         case OMAP:  return std::get<0>(*m_repr.pom).size();
         case DSRC:  return m_repr.ds->size(*this);
-        default:
-            return 0;
+        default:    return 0;
     }
 }
 
@@ -1828,26 +1862,32 @@ size_t Object::size() const {
 #include "ValueRange.h"
 #include "ItemRange.h"
 
+/// @brief Returns a range-like object over container Keys
 inline KeyRange Object::iter_keys() const {
     return *this;
 }
 
+/// @brief Returns a range-like object over container std::pair<Key, Object>
 inline ItemRange Object::iter_items() const {
     return *this;
 }
 
+/// @brief Returns a range-like object over container Objects
 inline ValueRange Object::iter_values() const {
     return *this;
 }
 
+/// @brief Returns a range-like object over a slice of container
 inline KeyRange Object::iter_keys(const Slice& slice) const {
     return {*this, slice};
 }
 
+/// @brief Returns a range-like object over a slice of container
 inline ItemRange Object::iter_items(const Slice& slice) const {
     return {*this, slice};
 }
 
+/// @brief Returns a range-like object over a slice of container
 inline ValueRange Object::iter_values(const Slice& slice) const {
     return {*this, slice};
 }
@@ -1894,7 +1934,12 @@ void Object::set(const Slice& slice, const Object& in_vals) {
                 if (step == 1) {
                     str.replace(str.begin() + start, str.begin() + stop, repl.begin(), repl.end());
                 } else {
-                    set_slice(str, start, stop, step, repl);
+                    for (auto c : repl) {
+                        str[start] = c;
+                        start += step;
+                        if (start == stop) break;  // should be sufficient, but...
+                        if (start < 0 || start > (Int)str.size()) break;  // extra safe-guard
+                    }
                 }
             } else {
                 throw wrong_type(in_vals.type());
@@ -1902,18 +1947,52 @@ void Object::set(const Slice& slice, const Object& in_vals) {
             break;
         }
         case LIST: {
-            auto& list = std::get<0>(*m_repr.pl);
+            ObjectList& list = std::get<0>(*m_repr.pl);
             auto [start, stop, step] = slice.to_indices(list.size());
-            auto val_list = in_vals.values();
             if (step == 1) {
-                list.erase(list.begin() + start, list.begin() + stop);
-                list.insert(list.begin() + start, val_list.begin(), val_list.end());
-                auto it = list.cbegin() + start;
-                auto end = list.cbegin() + start + val_list.size();
-                for (; it != end; ++it)
-                    it->set_parent(*this);
-            } else {
-                set_slice(list, start, stop, step, val_list);
+                for (auto val : in_vals.iter_values()) {
+                    if (val.parent() == nil) val = val.copy();
+                    if (start >= stop) {
+                        list.insert(list.begin() + start, val);
+                    } else {
+                        list[start++] = val;
+                    }
+                    val.set_parent(*this);
+                }
+                if (start < stop)
+                    list.erase(list.begin() + start, list.begin() + stop);
+            } else if (step > 1) {
+                for (auto val : in_vals.iter_values()) {
+                    if (val.parent() != nil) val = val.copy();
+                    list[start] = val;
+                    val.set_parent(*this);
+                    start += step;
+                    if (start >= stop) break;
+                }
+                for (; start < stop; start += step)
+                    list.erase(list.begin() + start, list.begin() + start + 1);
+            } else if (step == -1) {
+                for (auto val : in_vals.iter_values()) {
+                    if (val.parent() == nil) val = val.copy();
+                    if (start <= stop) {
+                        list.insert(list.begin() + start + 1, val);
+                    } else {
+                        list[start--] = val;
+                    }
+                    val.set_parent(*this);
+                }
+                if (start > stop)
+                    list.erase(list.begin() + stop + 1, list.begin() + start + 1);
+            } else if (step < -1) {
+                for (auto val : in_vals.iter_values()) {
+                    if (val.parent() != nil) val = val.copy();
+                    list[start] = val;
+                    val.set_parent(*this);
+                    start += step;
+                    if (start <= stop) break;
+                }
+                for (; start > stop; start += step)
+                    list.erase(list.begin() + start, list.begin() + start + 1);
             }
             break;
         }
@@ -1962,81 +2041,6 @@ void Object::del(const Slice& slice) {
         case DSRC: m_repr.ds->del(*this, slice); break;
         default:   throw wrong_type(m_fields.repr_ix);
     }
-}
-
-inline
-const KeyList Object::keys() const {
-    KeyList keys;
-    for (auto key : iter_keys())
-        keys.push_back(key);
-    return keys;
-}
-
-inline
-const ObjectList Object::values() const {
-    ObjectList children;
-    switch (m_fields.repr_ix) {
-        case LIST:  {
-            for (auto& child : std::get<0>(*m_repr.pl))
-                children.push_back(child);
-            break;
-        }
-        case SMAP: {
-            for (auto& item : std::get<0>(*m_repr.psm))
-                children.push_back(item.second);
-            break;
-        }
-        case OMAP:  {
-            for (auto& item : std::get<0>(*m_repr.pom))
-                children.push_back(item.second);
-            break;
-        }
-        case DSRC: {
-            auto& dsrc = *m_repr.ds;
-            if (dsrc.is_sparse()) {
-                ValueRange range{*this};
-                for (const auto& value : range)
-                    children.push_back(value);
-            } else {
-                return dsrc.get_cached(*this).values();
-            }
-            break;
-        }
-        default:
-            throw wrong_type(m_fields.repr_ix);
-    }
-    return children;
-}
-
-inline
-const ItemList Object::items() const {
-    ItemList items;
-    switch (m_fields.repr_ix) {
-        case SMAP: {
-            for (auto& item : std::get<0>(*m_repr.psm))
-                items.push_back(item);
-            break;
-        }
-        case OMAP:  {
-            for (auto& item : std::get<0>(*m_repr.pom))
-                items.push_back(item);
-            break;
-        }
-        case DSRC: {
-            auto& dsrc = *m_repr.ds;
-            if (dsrc.is_sparse()) {
-                ItemRange range{*this};
-                for (const auto& item : range)
-                    items.push_back(item);
-            } else {
-                return dsrc.get_cached(*this).items();
-            }
-            break;
-        }
-        default:
-            throw wrong_type(m_fields.repr_ix);
-    }
-    return items;
 }
 
 inline
@@ -2106,7 +2110,6 @@ bool Object::operator == (const Object& obj) const {
         case OMAP: {
             if (!obj.is_map()) return false;
             if (size() != obj.size()) return false;
-            if (keys() != obj.keys()) return false;
             for (const auto& item : iter_items()) {
                 if (item.second != obj.get(item.first))
                     return false;
@@ -2464,6 +2467,7 @@ void Object::dec_ref_count() const {
         case STR: {
             auto p_irc = self.m_repr.ps;
             if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
+                std::get<1>(*p_irc).m_fields.repr_ix = NIL;  // clear parent
                 delete p_irc;
             }
             break;
@@ -2471,6 +2475,7 @@ void Object::dec_ref_count() const {
         case LIST: {
             auto p_irc = self.m_repr.pl;
             if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
+                std::get<1>(*p_irc).m_fields.repr_ix = NIL;  // clear parent
                 for (auto& value : std::get<0>(*p_irc))
                     value.clear_parent();
                 delete p_irc;
@@ -2480,6 +2485,7 @@ void Object::dec_ref_count() const {
         case SMAP: {
             auto p_irc = self.m_repr.psm;
             if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
+                std::get<1>(*p_irc).m_fields.repr_ix = NIL;  // clear parent
                 for (auto& item : std::get<0>(*p_irc))
                     item.second.clear_parent();
                 delete p_irc;
@@ -2489,6 +2495,7 @@ void Object::dec_ref_count() const {
         case OMAP: {
             auto p_irc = self.m_repr.pom;
             if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
+                std::get<1>(*p_irc).m_fields.repr_ix = NIL;  // clear parent
                 for (auto& item : std::get<0>(*p_irc))
                     item.second.clear_parent();
                 delete p_irc;
@@ -2521,7 +2528,7 @@ Object& Object::operator = (const Object& other) {
     m_fields.repr_ix = other.m_fields.repr_ix;
     switch (m_fields.repr_ix) {
         case EMPTY: m_repr.z = nullptr; break;
-        case NIL:  m_repr.z = nullptr; break;
+        case NIL:   m_repr.z = nullptr; break;
         case BOOL:  m_repr.b = other.m_repr.b; break;
         case INT:   m_repr.i = other.m_repr.i; break;
         case UINT:  m_repr.u = other.m_repr.u; break;
@@ -2562,7 +2569,7 @@ Object& Object::operator = (Object&& other) {
     m_fields.repr_ix = other.m_fields.repr_ix;
     switch (m_fields.repr_ix) {
         case EMPTY: m_repr.z = nullptr; break;
-        case NIL:  m_repr.z = nullptr; break;
+        case NIL:   m_repr.z = nullptr; break;
         case BOOL:  m_repr.b = other.m_repr.b; break;
         case INT:   m_repr.i = other.m_repr.i; break;
         case UINT:  m_repr.u = other.m_repr.u; break;
@@ -2622,6 +2629,7 @@ class LineRange
     Object m_object;
 };
 
+/// @brief Iterate this Object and its ancestors
 inline
 LineRange Object::iter_line() const {
     return *this;
@@ -2730,32 +2738,59 @@ class Object::TreeRange
     EnterPred m_enter_pred;
 };
 
+/// @brief Iterate the subtree rooted on this Object
+/// @return Returns a range-like object.
 inline
 Object::TreeRange<Object, NoPredicate, NoPredicate> Object::iter_tree() const {
     return {*this, NoPredicate{}, NoPredicate{}};
 }
 
+/// @brief Iterate the subtree rooted on this Object and filtered by a predicate
+/// @return Returns a range-like object.
 template <typename VisitPred>
 Object::TreeRange<Object, Predicate, NoPredicate> Object::iter_tree(VisitPred&& visit_pred) const {
     return {*this, std::forward<Predicate>(visit_pred), NoPredicate{}};
 }
 
+/// @brief Iterate selected branches of the subtree rooted on this Object
+/// Unlike the "visit" predicate, the "enter" predicate controls which Objects in the
+/// subtree are entered (descended into). This is useful for improving performance,
+/// as well as controlling whether Objects with DataSources are loaded into memory.
+/// @return Returns a range-like object.
 template <typename EnterPred>
 Object::TreeRange<Object, NoPredicate, Predicate> Object::iter_tree_if(EnterPred&& enter_pred) const {
     return {*this, NoPredicate{}, std::forward<Predicate>(enter_pred)};
 }
 
+/// @brief Iterate with both a "visit" predicate and an "enter" predicate
+/// @return Returns a range-like object.
 template <typename VisitPred, typename EnterPred>
 Object::TreeRange<Object, Predicate, Predicate> Object::iter_tree_if(VisitPred&& visit_pred, EnterPred&& enter_pred) const {
     return {*this, std::forward<Predicate>(visit_pred), std::forward<Predicate>(enter_pred)};
 }
 
+/// @brief Mark this Object as having been updated
+/// - If this Object has a DataSoource then it is flagged as having been updated
+///   such that it will be saved on the next call to @ref Object::save. This is only
+///   necessary when string data is modified by reference by calling
+///   @ref Object::as<T>
 inline
 void Object::needs_saving() {
     auto p_ds = data_source<DataSource>();
-    p_ds->m_unsaved = true;
+    if (p_ds != nullptr) p_ds->m_unsaved = true;
 }
 
+/// @brief Save changes made in the subtree
+/// - This method visits Objects with a DataSource in the subtree of this Object
+///   that have been loaded into memory and calls the @ref DataSource::save method.
+/// - This method will *not* trigger a DataSource to load.
+/// - Use the @ref Object::reset or @ref Object::reset_key methods to discard
+///   changes before calling this method.
+/// - Only Objects that whose *unsaved* bit is set will be saved. The *unsaved* bit
+///   is set whenever a method is called that modifies the Object's data.
+/// - Use the @ref Object::needs_saving method to set the *unsaved* bit, if you
+///   modify string data by reference, as returned by the @ref Object::as<String>
+///   method.
 inline
 void Object::save() {
     auto enter_pred = [] (const Object& obj) {
@@ -3035,7 +3070,7 @@ void DataSource::del(const Object& target, const Slice& slice) {
     set_unsaved(true);
     if (is_sparse()) {
         if (m_cache.is_empty()) read_type(target);
-        for (auto& obj : m_cache.get(slice).values())
+        for (auto& obj : m_cache.get(slice).iter_values())
             obj.clear_parent();
         // TODO: memory overhead does not scale for large intervals
         for (auto key : m_cache.iter_keys(slice))
@@ -3054,7 +3089,7 @@ void DataSource::clear(const Object& target) {
 
     set_unsaved(true);
     if (is_sparse()) {
-        for (const auto& key : m_cache.keys())
+        for (const auto& key : m_cache.iter_keys())
             m_cache.set(key, Object::DEL);
     } else {
         m_cache.clear();
@@ -3081,7 +3116,7 @@ void DataSource::save(const Object& target) {
         else if (is_sparse()) {
             KeyList deleted_keys;
 
-            for (auto& [key, value] : m_cache.items()) {
+            for (auto& [key, value] : m_cache.iter_items()) {
                 if (value.m_fields.repr_ix == Object::DEL) {
                     delete_key(target, key);
                     deleted_keys.push_back(key);

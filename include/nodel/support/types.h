@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace nodel {
 
 #ifndef NODEL_ARCH

@@ -1,16 +1,14 @@
-#pragma once
-
-#include <memory>
-
 class ValueIterator
 {
+// NOTE: Implementing this requires copy-constructor, which requires
+//       std::shared_ptr<DataSource::ValueIterator>.
 //  public:
-//    using iterator_category = std::forward_iterator_tag;
+//    using iterator_category = std::input_iterator_tag;
 //    using difference_type   = std::ptrdiff_t;
 //    using value_type        = const Object;
 //    using pointer           = const Object*;
 //    using reference         = const Object&;
-//
+
   private:
     using DsIterPtr = std::unique_ptr<DataSource::ValueIterator>;
     using ReprIX = Object::ReprIX;
@@ -86,10 +84,10 @@ ValueIterator::ValueIterator(ValueIterator&& other) : m_repr_ix{other.m_repr_ix}
     switch (m_repr_ix) {
         case ReprIX::NIL: break;
         case ReprIX::LIST: m_repr.li = other.m_repr.li; break;
-        case ReprIX::SMAP:  m_repr.smi = other.m_repr.smi; break;
+        case ReprIX::SMAP: m_repr.smi = other.m_repr.smi; break;
         case ReprIX::OMAP: m_repr.omi = other.m_repr.omi; break;
         case ReprIX::DSRC: m_repr.pdi = std::move(other.m_repr.pdi); break;
-        default:               throw Object::wrong_type(m_repr_ix);
+        default:           throw Object::wrong_type(m_repr_ix);
     }
 }
 
@@ -99,10 +97,10 @@ auto& ValueIterator::operator = (ValueIterator&& other) {
     switch (m_repr_ix) {
         case ReprIX::NIL: break;
         case ReprIX::LIST: m_repr.li = other.m_repr.li; break;
-        case ReprIX::SMAP:  m_repr.smi = other.m_repr.smi; break;
+        case ReprIX::SMAP: m_repr.smi = other.m_repr.smi; break;
         case ReprIX::OMAP: m_repr.omi = other.m_repr.omi; break;
         case ReprIX::DSRC: m_repr.pdi.release(); m_repr.pdi = std::move(other.m_repr.pdi); break;
-        default:               throw Object::wrong_type(m_repr_ix);
+        default:           throw Object::wrong_type(m_repr_ix);
     }
     return *this;
 }
@@ -111,10 +109,10 @@ inline
 auto& ValueIterator::operator ++ () {
     switch (m_repr_ix) {
         case ReprIX::LIST: ++(m_repr.li); break;
-        case ReprIX::SMAP:  ++(m_repr.smi); break;
+        case ReprIX::SMAP: ++(m_repr.smi); break;
         case ReprIX::OMAP: ++(m_repr.omi); break;
         case ReprIX::DSRC: m_repr.pdi->next(); break;
-        default:               throw Object::wrong_type(m_repr_ix);
+        default:           throw Object::wrong_type(m_repr_ix);
     }
     return *this;
 }
@@ -123,10 +121,10 @@ inline
 const Object& ValueIterator::operator * () const {
     switch (m_repr_ix) {
         case ReprIX::LIST: return *m_repr.li;
-        case ReprIX::SMAP:  return m_repr.smi->second;
+        case ReprIX::SMAP: return m_repr.smi->second;
         case ReprIX::OMAP: return m_repr.omi->second;
         case ReprIX::DSRC: return m_repr.pdi->value();
-        default:               throw Object::wrong_type(m_repr_ix);
+        default:           throw Object::wrong_type(m_repr_ix);
     }
 }
 
@@ -135,10 +133,10 @@ bool ValueIterator::operator == (const ValueIterator& other) const {
     switch (m_repr_ix) {
         case ReprIX::NIL: return other.m_repr_ix == ReprIX::NIL || other == *this;
         case ReprIX::LIST: return m_repr.li == other.m_repr.li;
-        case ReprIX::SMAP:  return m_repr.smi == other.m_repr.smi;
+        case ReprIX::SMAP: return m_repr.smi == other.m_repr.smi;
         case ReprIX::OMAP: return m_repr.omi == other.m_repr.omi;
         case ReprIX::DSRC: return m_repr.pdi->done() && other.m_repr_ix == ReprIX::NIL;
-        default:               throw Object::wrong_type(m_repr_ix);
+        default:           throw Object::wrong_type(m_repr_ix);
     }
 }
 
