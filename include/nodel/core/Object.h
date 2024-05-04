@@ -376,22 +376,14 @@ class Object // : public debug::Object
 
     bool is_empty() const   { return m_fields.repr_ix == EMPTY; }
     bool is_deleted() const { return m_fields.repr_ix == DEL; }
-
-    bool is_num() const       { auto type = resolve_repr_ix(); return type == INT || type == UINT || type == FLOAT; }
-    bool is_any_int() const   { auto type = resolve_repr_ix(); return type == INT || type == UINT; }
-    bool is_map() const       { auto type = resolve_repr_ix(); return type == SMAP || type == OMAP; }
-    bool is_container() const { auto type = resolve_repr_ix(); return type == LIST || type == OMAP || type == SMAP; }
-
     bool is_valid() const;
 
-    bool to_bool() const;
-    Int to_int() const;
-    UInt to_uint() const;
-    Float to_float() const;
-    String to_str() const;
+    template <typename T>
+    T cast() const;
 
     Key to_key() const;
     Key into_key();
+    String to_str() const;
     String to_json() const;
     void to_json(std::ostream&) const;
 
@@ -450,7 +442,6 @@ class Object // : public debug::Object
     void map_set_slice(SortedMap& map, is_integral auto start, const Object& in_vals);
     Object list_set(const Key& key, const Object& in_val);
 
-    int resolve_repr_ix() const;
     Object dsrc_read() const;
 
     void set_parent(const Object& parent) const;
@@ -1075,6 +1066,7 @@ class DataSource
   friend Object bind(const URI&, const Object&);
 };
 
+
 inline
 bool has_data_source(const Object& obj) {
     return obj.m_fields.repr_ix == Object::DSRC;
@@ -1085,6 +1077,31 @@ bool is_fully_cached(const Object& obj) {
     auto p_ds = obj.data_source<DataSource>();
     return p_ds == nullptr || p_ds->is_fully_cached();
 }
+
+inline
+bool is_number(const Object& obj) {
+    auto typ = obj.type();
+    return typ == Object::INT || typ == Object::UINT || typ == Object::FLOAT;
+}
+
+inline
+bool is_integer(const Object& obj) {
+    auto typ = obj.type();
+    return typ == Object::INT || typ == Object::UINT;
+}
+
+inline
+bool is_map(const Object& obj) {
+    auto typ = obj.type();
+    return typ == Object::SMAP || typ == Object::OMAP;
+}
+
+inline
+bool is_container(const Object& obj) {
+    auto typ = obj.type();
+    return typ == Object::LIST || typ == Object::OMAP || typ == Object::SMAP;
+}
+
 
 inline
 Object::Object(const Object& other) : m_fields{other.m_fields} {
@@ -1341,14 +1358,6 @@ T& Object::as() requires std::is_same<T, String>::value {
 }
 
 inline
-int Object::resolve_repr_ix() const {
-    switch (m_fields.repr_ix) {
-        case DSRC: return const_cast<DataSourcePtr>(m_repr.ds)->type(*this);
-        default:     return m_fields.repr_ix;
-    }
-}
-
-inline
 Object Object::dsrc_read() const {
     return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this);
 }
@@ -1505,7 +1514,7 @@ const Key Object::key_of(const Object& obj) const {
 /// @return Returns true if the stored data has the specified type
 template <typename T>
 bool Object::is_type() const {
-    return resolve_repr_ix() == get_repr_ix<T>();
+    return type() == get_repr_ix<T>();
 }
 
 inline
@@ -1536,8 +1545,8 @@ bool Object::is_valid() const {
         return true;
 }
 
-inline
-bool Object::to_bool() const {
+template <> inline
+bool Object::cast() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
         case NIL:   return false;
@@ -1549,13 +1558,13 @@ bool Object::to_bool() const {
         case LIST:  [[fallthrough]];
         case SMAP:  [[fallthrough]];
         case OMAP:  return size() > 0;
-        case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).to_bool();
+        case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).cast<bool>();
         default:    throw wrong_type(m_fields.repr_ix, BOOL);
     }
 }
 
-inline
-Int Object::to_int() const {
+template<> inline
+Int Object::cast() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
         case NIL:   throw wrong_type(m_fields.repr_ix, INT);
@@ -1564,13 +1573,13 @@ Int Object::to_int() const {
         case UINT:  return m_repr.u;
         case FLOAT: return m_repr.f;
         case STR:   return str_to_int(std::get<0>(*m_repr.ps));
-        case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).to_int();
+        case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).cast<Int>();
         default:    throw wrong_type(m_fields.repr_ix, INT);
     }
 }
 
-inline
-UInt Object::to_uint() const {
+template <> inline
+UInt Object::cast() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
         case NIL:   throw wrong_type(m_fields.repr_ix, UINT);
@@ -1578,13 +1587,13 @@ UInt Object::to_uint() const {
         case INT:   return m_repr.i;
         case UINT:  return m_repr.u;
         case STR:   return str_to_int(std::get<0>(*m_repr.ps));
-        case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).to_uint();
+        case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).cast<UInt>();
         default:    throw wrong_type(m_fields.repr_ix, UINT);
     }
 }
 
-inline
-Float Object::to_float() const {
+template <> inline
+Float Object::cast() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
         case NIL:   throw wrong_type(m_fields.repr_ix, BOOL);
@@ -1593,7 +1602,7 @@ Float Object::to_float() const {
         case UINT:  return m_repr.u;
         case FLOAT: return m_repr.f;
         case STR:   return str_to_float(std::get<0>(*m_repr.ps));
-        case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).to_float();
+        case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).cast<Float>();
         default:    throw wrong_type(m_fields.repr_ix, FLOAT);
     }
 }
@@ -1664,14 +1673,14 @@ Object Object::get(const Key& key) const {
         case EMPTY: throw empty_reference();
         case STR: {
             auto& str = std::get<0>(*m_repr.ps);
-            if (!key.is_any_int()) throw Key::wrong_type(key.type());
+            if (!nodel::is_integer(key)) throw Key::wrong_type(key.type());
             Int index = key.to_int();
             if (!norm_index(index, str.size())) return nil;
             return str[index];
         }
         case LIST: {
             auto& list = std::get<0>(*m_repr.pl);
-            if (!key.is_any_int()) throw Key::wrong_type(key.type());
+            if (!nodel::is_integer(key)) throw Key::wrong_type(key.type());
             Int index = key.to_int();
             if (!norm_index(index, list.size())) return nil;
             return list[index];
@@ -1722,7 +1731,7 @@ Object Object::set(const Object& value) {
 
 inline
 ObjectList::size_type norm_index_key(const Key& key, Int list_size) {
-    if (!key.is_any_int()) throw Key::wrong_type(key.type());
+    if (!nodel::is_integer(key)) throw Key::wrong_type(key.type());
     Int index = key.to_int();
     if (index < 0) index += list_size;
     if (index < 0 || index > list_size)
@@ -1753,7 +1762,7 @@ Object Object::set(const Key& key, const Object& in_val) {
         case EMPTY: throw empty_reference();
         case STR: {
             auto& str = std::get<0>(*m_repr.ps);
-            if (!key.is_any_int()) throw Key::wrong_type(key.type());
+            if (!nodel::is_integer(key)) throw Key::wrong_type(key.type());
             auto index = key.to_int();
             if (!norm_index(index, str.size())) return nil;
             auto repl = in_val.to_str();
@@ -1812,7 +1821,7 @@ Object Object::insert(const Key& key, const Object& in_val) {
         case EMPTY: throw empty_reference();
         case STR: {
             auto& str = std::get<0>(*m_repr.ps);
-            if (!key.is_any_int()) throw Key::wrong_type(key.type());
+            if (!nodel::is_integer(key)) throw Key::wrong_type(key.type());
             auto index = key.to_int();
             if (!norm_index(index, str.size())) return nil;
             str.insert(index, in_val.to_str());
@@ -2170,7 +2179,7 @@ bool Object::operator == (const Object& obj) const {
         }
         case SMAP: [[fallthrough]];
         case OMAP: {
-            if (!obj.is_map()) return false;
+            if (!nodel::is_map(obj)) return false;
             if (size() != obj.size()) return false;
             for (const auto& item : iter_items()) {
                 if (item.second != obj.get(item.first))
@@ -2414,7 +2423,7 @@ void Object::to_json(std::ostream& os) const {
             os << ", ";
         }
 
-        if (parent.is_map() && !(event & WalkDF::END_PARENT)) {
+        if (nodel::is_map(parent) && !(event & WalkDF::END_PARENT)) {
             os << key.to_json() << ": ";
         }
 
@@ -2755,10 +2764,10 @@ class TreeIterator
 
     void enter(const Object& obj) {
         if constexpr (std::is_invocable<EnterPred, const Object&>::value) {
-            if (obj.is_container() && mp_range->should_enter(obj))
+            if (nodel::is_container(obj) && mp_range->should_enter(obj))
                 mp_range->fifo().push_back(obj);
         } else {
-            if (obj.is_container())
+            if (nodel::is_container(obj))
                 mp_range->fifo().push_back(obj);
         }
     }
@@ -3360,22 +3369,11 @@ class Object::Subscript
 
     bool is_empty() const   { return resolve().is_empty(); }
     bool is_deleted() const { return resolve().is_deleted(); }
-
-    bool is_num() const       { return resolve().is_num(); }
-    bool is_any_int() const   { return resolve().is_any_int(); }
-    bool is_map() const       { return resolve().is_map(); }
-    bool is_container() const { return resolve().is_container(); }
-
     bool is_valid() const     { return resolve().is_valid(); }
-
-    bool to_bool() const   { return resolve().to_bool(); }
-    Int to_int() const     { return resolve().to_int(); }
-    UInt to_uint() const   { return resolve().to_uint(); }
-    Float to_float() const { return resolve().to_float(); }
-    String to_str() const  { return resolve().to_str(); }
 
     Key to_key() const                       { return resolve().to_key(); }
     Key into_key()                           { return resolve().into_key(); }
+    String to_str() const                    { return resolve().to_str(); }
     String to_json() const                   { return resolve().to_json(); }
     void to_json(std::ostream& stream) const { return resolve().to_json(stream); }
 
@@ -3386,7 +3384,6 @@ class Object::Subscript
 
     Object set(const Object& obj)                    { return resolve().set(obj); }
     Object set(const Key& key, const Object& obj)    { return resolve().set(key, obj); }
-//    Object set(Key&& key, const Object& obj)         { return resolve().set(std::forward<Key>(key), obj); }
     Object set(const OPath& key, const Object& obj)  { return resolve().set(key, obj); }
     void set(const Slice& slice, const Object& obj)  { return resolve().set(slice, obj); }
     Object insert(const Key& key, const Object& obj) { return resolve().insert(key, obj); }

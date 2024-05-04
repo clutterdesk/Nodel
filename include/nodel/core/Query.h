@@ -387,7 +387,7 @@ Object QueryEval::next() {
             }
 
             case Axis::CHILD: {
-                if (curr_obj.is_container()) {
+                if (nodel::is_container(curr_obj)) {
                     if (step_key == nil) {
                         // NOTE: size of sparse data-source may be unknown, so always create iterator
                         m_fifo.push_front({next_step_i, curr_obj.iter_values(), step.m_pred});
@@ -409,7 +409,7 @@ Object QueryEval::next() {
 
             case Axis::SUBTREE: {
                 // continue current step: push current object children
-                if (curr_obj.is_container()) {
+                if (nodel::is_container(curr_obj)) {
                     // NOTE: size of sparse data-source may be unknown, so always create iterator
                     m_fifo.push_front({curr_step_i, curr_obj.iter_values(), step.m_pred});
                     if (m_fifo.front().done()) m_fifo.pop_front();

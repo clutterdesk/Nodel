@@ -33,7 +33,7 @@ class URI : public Object
     URI(const Object& obj) : Object{nil} {
         if (obj.type() == Object::STR) {
             parse(obj.as<String>());
-        } else if (obj.is_map()) {
+        } else if (nodel::is_map(obj)) {
             (*this) = obj;
         }
     }
@@ -79,7 +79,7 @@ void URI::parse(const String& spec) {
         if (match[1].length() > 0) set("scheme"_key,   match[1].str());
         if (match[3].length() > 0) set("user"_key,     substr(match[3].str(), 0, -1));
         if (match[4].length() > 0) set("host"_key,     match[4].str());
-        if (match[6].length() > 0) set("port"_key,     Object(match[6].str()).to_int());
+        if (match[6].length() > 0) set("port"_key,     Object(match[6].str()).cast<Int>());
         if (match[8].length() > 0) set("path"_key,     match[8].str());
         if (match[9].length() > 0) set("query"_key,    parse_uri_query(match[9].str().substr(1)));
         if (match[10].length() > 0) set("fragment"_key, match[10].str().substr(1));

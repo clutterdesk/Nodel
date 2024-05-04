@@ -150,7 +150,7 @@ void SubDirectory::read(const Object& target) {
 
 inline
 bool looks_like_directory(const Ref<Registry>& r_reg, const std::filesystem::path& parent_path, const Object& obj) {
-    if (!obj.is_map()) return false;
+    if (!nodel::is_map(obj)) return false;
     for (auto& key : obj.iter_keys()) {
         auto path = parent_path / key.to_str();
         return (bool)r_reg->get_association(path);

@@ -24,7 +24,7 @@ static python::Support support;
 //-----------------------------------------------------------------------------
 
 static bool require_any_int(const Object& obj) {
-    if (!obj.is_any_int()) {
+    if (!nodel::is_integer(obj)) {
         python::raise_type_error(obj);
         return false;
     }
@@ -32,7 +32,7 @@ static bool require_any_int(const Object& obj) {
 }
 
 static bool require_number(const Object& obj) {
-    if (!obj.is_num()) {
+    if (!nodel::is_number(obj)) {
         python::raise_type_error(obj);
         return false;
     }
@@ -40,7 +40,7 @@ static bool require_number(const Object& obj) {
 }
 
 static bool require_container(const Object& obj) {
-    if (!obj.is_container()) {
+    if (!nodel::is_container(obj)) {
         python::raise_type_error(obj);
         return false;
     }
@@ -49,11 +49,11 @@ static bool require_container(const Object& obj) {
 
 static bool require_subscript(const Object& obj, const Key& key) {
     if (obj.is_type<ObjectList>() || obj.is_type<String>()) {
-        if (!key.is_any_int()) {
+        if (!nodel::is_integer(key)) {
             python::raise_type_error(key);
             return false;
         }
-    } else if (!obj.is_map()) {
+    } else if (!nodel::is_map(obj)) {
         python::raise_type_error(obj);
         return false;
     }
@@ -139,7 +139,7 @@ static PyObject* NodelObject_absolute(PyObject* self) {
 static int NodelObject_bool(PyObject* self) {
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
-    return self_obj.to_bool()? 1: 0;
+    return self_obj.cast<bool>()? 1: 0;
 }
 
 static PyObject* NodelObject_invert(PyObject* self) {
@@ -197,7 +197,7 @@ static PyObject* NodelObject_int(PyObject* self) {
         return PyLong_FromUnsignedLongLong(self_obj.as<UInt>());
     } else {
         try {
-            return PyLong_FromLongLong(self_obj.to_int());
+            return PyLong_FromLongLong(self_obj.cast<Int>());
         } catch (const WrongType& exc) {
             python::raise_type_error(self_obj);
         }
@@ -209,7 +209,7 @@ static PyObject* NodelObject_float(PyObject* self) {
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
     try {
-        return PyFloat_FromDouble(self_obj.to_float());
+        return PyFloat_FromDouble(self_obj.cast<Float>());
     } catch (const WrongType& exc) {
         python::raise_type_error(self_obj);
     }
@@ -336,7 +336,7 @@ static PyObject* NodelObject_index(PyObject* self) {
         return PyLong_FromUnsignedLongLong(self_obj.as<UInt>());
     } else {
         try {
-            return PyLong_FromLongLong(self_obj.to_int());
+            return PyLong_FromLongLong(self_obj.cast<Int>());
         } catch (const WrongType& exc) {
             python::raise_type_error(self_obj);
         }

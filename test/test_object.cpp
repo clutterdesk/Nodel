@@ -46,7 +46,7 @@ TEST(Object, Null) {
 TEST(Object, Bool) {
   Object v{true};
   EXPECT_TRUE(v.is_type<bool>());
-  EXPECT_FALSE(v.is_num());
+  EXPECT_FALSE(nodel::is_number(v));
   EXPECT_EQ(v.to_json(), "true");
 
   v = false;
@@ -61,7 +61,7 @@ TEST(Object, Bool) {
 TEST(Object, Int64) {
   Object v{-0x7FFFFFFFFFFFFFFFLL};
   EXPECT_TRUE(v.is_type<Int>());
-  EXPECT_TRUE(v.is_num());
+  EXPECT_TRUE(nodel::is_number(v));
   EXPECT_EQ(v.to_json(), "-9223372036854775807");
 
   v = Object::INT;
@@ -72,7 +72,7 @@ TEST(Object, Int64) {
 TEST(Object, UInt64) {
   Object v{0xFFFFFFFFFFFFFFFFULL};
   EXPECT_TRUE(v.is_type<UInt>());
-  EXPECT_TRUE(v.is_num());
+  EXPECT_TRUE(nodel::is_number(v));
   EXPECT_EQ(v.to_json(), "18446744073709551615");
 
   v = Object::UINT;
@@ -83,7 +83,7 @@ TEST(Object, UInt64) {
 TEST(Object, Double) {
   Object v{3.141593};
   EXPECT_TRUE(v.is_type<Float>());
-  EXPECT_TRUE(v.is_num());
+  EXPECT_TRUE(nodel::is_number(v));
   EXPECT_EQ(v.to_json(), "3.141593");
 
   v = Object::FLOAT;
@@ -153,92 +153,92 @@ TEST(Object, Size) {
 }
 
 TEST(Object, ToBool) {
-    EXPECT_EQ(Object{nil}.to_bool(), false);
-    EXPECT_EQ(Object{true}.to_bool(), true);
-    EXPECT_EQ(Object{0}.to_bool(), false);
-    EXPECT_EQ(Object{1}.to_bool(), true);
-    EXPECT_EQ(Object{0UL}.to_bool(), false);
-    EXPECT_EQ(Object{1UL}.to_bool(), true);
-    EXPECT_EQ(Object{0.0}.to_bool(), false);
-    EXPECT_EQ(Object{1.0}.to_bool(), true);
-    EXPECT_EQ(Object{"false"}.to_bool(), false);
-    EXPECT_EQ(Object{"true"}.to_bool(), true);
+    EXPECT_EQ(Object{nil}.cast<bool>(), false);
+    EXPECT_EQ(Object{true}.cast<bool>(), true);
+    EXPECT_EQ(Object{0}.cast<bool>(), false);
+    EXPECT_EQ(Object{1}.cast<bool>(), true);
+    EXPECT_EQ(Object{0UL}.cast<bool>(), false);
+    EXPECT_EQ(Object{1UL}.cast<bool>(), true);
+    EXPECT_EQ(Object{0.0}.cast<bool>(), false);
+    EXPECT_EQ(Object{1.0}.cast<bool>(), true);
+    EXPECT_EQ(Object{"false"}.cast<bool>(), false);
+    EXPECT_EQ(Object{"true"}.cast<bool>(), true);
 
     try {
         Object obj;
-        obj.to_bool();
+        obj.cast<bool>();
         FAIL();
     } catch (...) {
     }
 }
 
 TEST(Object, ToInt) {
-    EXPECT_EQ(Object{false}.to_int(), 0);
-    EXPECT_EQ(Object{true}.to_int(), 1);
-    EXPECT_EQ(Object{-1}.to_int(), -1);
-    EXPECT_EQ(Object{1UL}.to_int(), 1);
-    EXPECT_EQ(Object{3.0}.to_int(), 3);
-    EXPECT_EQ(Object{"-1"}.to_int(), -1);
+    EXPECT_EQ(Object{false}.cast<Int>(), 0);
+    EXPECT_EQ(Object{true}.cast<Int>(), 1);
+    EXPECT_EQ(Object{-1}.cast<Int>(), -1);
+    EXPECT_EQ(Object{1UL}.cast<Int>(), 1);
+    EXPECT_EQ(Object{3.0}.cast<Int>(), 3);
+    EXPECT_EQ(Object{"-1"}.cast<Int>(), -1);
 
     try {
         Object obj;
-        obj.to_int();
+        obj.cast<Int>();
         FAIL();
     } catch (...) {
     }
 
     try {
         Object obj{nil};
-        obj.to_int();
+        obj.cast<Int>();
         FAIL();
     } catch (...) {
     }
 }
 
 TEST(Object, ToUInt) {
-    EXPECT_EQ(Object{false}.to_uint(), 0UL);
-    EXPECT_EQ(Object{true}.to_uint(), 1UL);
-    EXPECT_EQ(Object{-1}.to_uint(), (UInt)(-1));
-    EXPECT_EQ(Object{(UInt)(-1)}.to_uint(), (UInt)(-1));
-    EXPECT_EQ(Object{"3"}.to_uint(), 3UL);
+    EXPECT_EQ(Object{false}.cast<UInt>(), 0UL);
+    EXPECT_EQ(Object{true}.cast<UInt>(), 1UL);
+    EXPECT_EQ(Object{-1}.cast<UInt>(), (UInt)(-1));
+    EXPECT_EQ(Object{(UInt)(-1)}.cast<UInt>(), (UInt)(-1));
+    EXPECT_EQ(Object{"3"}.cast<UInt>(), 3UL);
 
 // NOTE: crashes with -On for n > 0 with EXC_BAD_INSTRUCTION (code=EXC_I386_INVOP, subcode=0x0)
 //    Float minus_one = -1.0;
-//    EXPECT_EQ(Object{-1.0}.to_uint(), (UInt)minus_one);
+//    EXPECT_EQ(Object{-1.0}.cast<UInt>(), (UInt)minus_one);
 
     try {
         Object obj;
-        obj.to_uint();
+        obj.cast<UInt>();
         FAIL();
     } catch (...) {
     }
 
     try {
         Object obj{nil};
-        obj.to_uint();
+        obj.cast<UInt>();
         FAIL();
     } catch (...) {
     }
 }
 
 TEST(Object, ToFloat) {
-    EXPECT_EQ(Object{false}.to_float(), (Float)(false));
-    EXPECT_EQ(Object{true}.to_float(), (Float)(true));
-    EXPECT_EQ(Object{-1}.to_float(), (Float)(-1));
-    EXPECT_EQ(Object{(UInt)(-1)}.to_float(), (Float)((UInt)(-1)));
-    EXPECT_EQ(Object{0.33333333}.to_float(), 0.33333333);
-    EXPECT_EQ(Object{"3.14159"}.to_float(), 3.14159);
+    EXPECT_EQ(Object{false}.cast<Float>(), (Float)(false));
+    EXPECT_EQ(Object{true}.cast<Float>(), (Float)(true));
+    EXPECT_EQ(Object{-1}.cast<Float>(), (Float)(-1));
+    EXPECT_EQ(Object{(UInt)(-1)}.cast<Float>(), (Float)((UInt)(-1)));
+    EXPECT_EQ(Object{0.33333333}.cast<Float>(), 0.33333333);
+    EXPECT_EQ(Object{"3.14159"}.cast<Float>(), 3.14159);
 
     try {
         Object obj;
-        obj.to_float();
+        obj.cast<Float>();
         FAIL();
     } catch (...) {
     }
 
     try {
         Object obj{nil};
-        obj.to_float();
+        obj.cast<Float>();
         FAIL();
     } catch (...) {
     }
@@ -764,12 +764,12 @@ TEST(Object, CopyBasic) {
 TEST(Object, ListGet) {
   Object obj = "[7, 8, 9]"_json;
   EXPECT_TRUE(obj.is_type<ObjectList>());
-  EXPECT_EQ(obj.get(0).to_int(), 7);
-  EXPECT_EQ(obj.get(1).to_int(), 8);
-  EXPECT_EQ(obj.get(2).to_int(), 9);
-  EXPECT_EQ(obj.get(-1).to_int(), 9);
-  EXPECT_EQ(obj.get(-2).to_int(), 8);
-  EXPECT_EQ(obj.get(-3).to_int(), 7);
+  EXPECT_EQ(obj.get(0).cast<Int>(), 7);
+  EXPECT_EQ(obj.get(1).cast<Int>(), 8);
+  EXPECT_EQ(obj.get(2).cast<Int>(), 9);
+  EXPECT_EQ(obj.get(-1).cast<Int>(), 9);
+  EXPECT_EQ(obj.get(-2).cast<Int>(), 8);
+  EXPECT_EQ(obj.get(-3).cast<Int>(), 7);
   EXPECT_TRUE(obj.get(-4) == nil);
   EXPECT_TRUE(obj.get(-5) == nil);
   EXPECT_TRUE(obj.get(3) == nil);
@@ -981,9 +981,9 @@ TEST(Object, ListDelete) {
 TEST(Object, OrderedMapGet) {
   Object obj = json::parse(R"({0: 7, 1: 8, 2: 9, "name": "Brian"})");
   EXPECT_TRUE(obj.is_type<OrderedMap>());
-  EXPECT_EQ(obj.get(0).to_int(), 7);
-  EXPECT_EQ(obj.get(1).to_int(), 8);
-  EXPECT_EQ(obj.get(2).to_int(), 9);
+  EXPECT_EQ(obj.get(0).cast<Int>(), 7);
+  EXPECT_EQ(obj.get(1).cast<Int>(), 8);
+  EXPECT_EQ(obj.get(2).cast<Int>(), 9);
   EXPECT_EQ(obj.get("name"_key).as<String>(), "Brian");
   EXPECT_TRUE(obj.get("blah"_key) == nil);
 }
@@ -992,9 +992,9 @@ TEST(Object, SortedMapGet) {
   json::Options options; options.use_sorted_map = true;
   Object obj = json::parse(options, R"({0: 7, 1: 8, 2: 9, "name": "Brian"})");
   EXPECT_TRUE(obj.is_type<SortedMap>());
-  EXPECT_EQ(obj.get(0).to_int(), 7);
-  EXPECT_EQ(obj.get(1).to_int(), 8);
-  EXPECT_EQ(obj.get(2).to_int(), 9);
+  EXPECT_EQ(obj.get(0).cast<Int>(), 7);
+  EXPECT_EQ(obj.get(1).cast<Int>(), 8);
+  EXPECT_EQ(obj.get(2).cast<Int>(), 9);
   EXPECT_EQ(obj.get("name"_key).as<String>(), "Brian");
   EXPECT_TRUE(obj.get("blah"_key) == nil);
 }
@@ -1737,8 +1737,8 @@ TEST(Object, WalkDF) {
   std::vector<Int> actual_order;
 
   auto visitor = [&actual_order] (const Object& parent, const Key& key, const Object& object, int) -> void {
-    if (!object.is_container())
-      actual_order.push_back(object.to_int());
+    if (!nodel::is_container(object))
+      actual_order.push_back(object.cast<Int>());
   };
 
   WalkDF walk{obj, visitor};
@@ -1754,8 +1754,8 @@ TEST(Object, WalkBF) {
   std::vector<Int> actual_order;
 
   auto visitor = [&actual_order] (const Object& parent, const Key& key, const Object& object) -> void {
-    if (!object.is_container())
-      actual_order.push_back(object.to_int());
+    if (!nodel::is_container(object))
+      actual_order.push_back(object.cast<Int>());
   };
 
   WalkBF walk{obj, visitor};
@@ -2348,10 +2348,10 @@ TEST(Object, TestSimpleSource_ToBlah) {
     auto max_uint = std::numeric_limits<UInt>::max();
     auto max_uint_str = std::to_string(max_uint);
     auto make = [] (const std::string& json) { return Object{new TestSimpleSource(json)}; };
-    EXPECT_EQ(make("true").to_bool(), true);
-    EXPECT_EQ(make("-1").to_int(), -1);
-    EXPECT_EQ(make(max_uint_str).to_uint(), max_uint);
-    EXPECT_EQ(make("3.14159").to_float(), 3.14159);
+    EXPECT_EQ(make("true").cast<bool>(), true);
+    EXPECT_EQ(make("-1").cast<Int>(), -1);
+    EXPECT_EQ(make(max_uint_str).cast<UInt>(), max_uint);
+    EXPECT_EQ(make("3.14159").cast<Float>(), 3.14159);
     EXPECT_EQ(make("'tea'").to_str(), "tea");
 }
 
@@ -2425,8 +2425,8 @@ TEST(Object, TestSimpleSource_WalkDF) {
   std::vector<Int> actual_order;
 
   auto visitor = [&actual_order] (const Object& parent, const Key& key, const Object& object, int) -> void {
-    if (!object.is_container())
-      actual_order.push_back(object.to_int());
+    if (!nodel::is_container(object))
+      actual_order.push_back(object.cast<Int>());
   };
 
   WalkDF walk{obj, visitor};
@@ -2443,8 +2443,8 @@ TEST(Object, TestSimpleSource_WalkBF) {
   std::vector<Int> actual_order;
 
   auto visitor = [&actual_order] (const Object& parent, const Key& key, const Object& object) -> void {
-    if (!object.is_container())
-      actual_order.push_back(object.to_int());
+    if (!nodel::is_container(object))
+      actual_order.push_back(object.cast<Int>());
   };
 
   WalkBF walk{obj, visitor};
