@@ -272,19 +272,19 @@ class Key
     ReprIX type() const   { return m_repr_ix; }
     auto type_name() const { return type_name(m_repr_ix); }
 
-    // Returns true if the Key contains the data type, T
-    // @targ T One of the data types defined in the Repr union.
+    /// Returns true if the Key contains the data type, T
+    /// @tparam T One of the data types defined in the Repr union.
     template <typename T>
     bool is_type() const { return m_repr_ix == get_repr_ix<T>(); }
 
-    // Returns true if the Key is an INT or UINT
+    /// Returns true if the Key is an INT or UINT
     bool is_any_int() const { return m_repr_ix == INT || m_repr_ix == UINT; }
 
-    // Returns true if the Key is a INT, UINT, or FLOAT
+    /// Returns true if the Key is a INT, UINT, or FLOAT
     bool is_num() const     { return m_repr_ix >= INT && m_repr_ix <= FLOAT; }
 
-    // Unchecked access to the the backing data
-    // @targ T One of the data types defined in the Repr union.
+    /// Unchecked access to the the backing data
+    /// @tparam T One of the data types defined in the Repr union.
     template <typename T> T as() const requires is_byvalue<T>;
     template <> bool as<bool>() const     { return m_repr.b; }
     template <> Int as<Int>() const       { return m_repr.i; }
@@ -296,9 +296,9 @@ class Key
         return m_repr.s.data();
     }
 
-    // Convert the backing data to a boolean.
-    // Numeric types are converted via C++ cast to bool.
-    // String data is converted by calling `nodel::str_to_bool` (see nodel/support/string.h).
+    /// Convert the backing data to a boolean.
+    /// Numeric types are converted via C++ cast to bool.
+    /// String data is converted by calling `nodel::str_to_bool` (see nodel/support/string.h).
     bool to_bool() const {
         switch (m_repr_ix) {
             case BOOL:  return m_repr.b;
@@ -311,9 +311,9 @@ class Key
         }
     }
 
-    // Convert the backing data to a signed integer.
-    // Numeric types are converted via C++ cast to Int.
-    // String data is converted by calling `nodel::str_to_int` (see nodel/support/string.h).
+    /// Convert the backing data to a signed integer.
+    /// Numeric types are converted via C++ cast to Int.
+    /// String data is converted by calling `nodel::str_to_int` (see nodel/support/string.h).
     Int to_int() const {
         switch (m_repr_ix) {
             case BOOL:  return (Int)m_repr.b;
@@ -326,9 +326,9 @@ class Key
         }
     }
 
-    // Convert the backing data to an unsigned integer.
-    // Numeric types are converted via C++ cast to UInt.
-    // String data is converted by calling `nodel::str_to_uint` (see nodel/support/string.h).
+    /// Convert the backing data to an unsigned integer.
+    /// Numeric types are converted via C++ cast to UInt.
+    /// String data is converted by calling `nodel::str_to_uint` (see nodel/support/string.h).
     UInt to_uint() const {
         switch (m_repr_ix) {
             case BOOL:  return (UInt)m_repr.b;
@@ -341,9 +341,9 @@ class Key
         }
     }
 
-    // Convert the backing data to floating point.
-    // Numeric types are converted via C++ cast to Float.
-    // String data is converted by calling `nodel::str_to_float` (see nodel/support/string.h).
+    /// Convert the backing data to floating point.
+    /// Numeric types are converted via C++ cast to Float.
+    /// String data is converted by calling `nodel::str_to_float` (see nodel/support/string.h).
     Float to_float() const {
         switch (m_repr_ix) {
             case BOOL:  return (Float)m_repr.b;
@@ -356,22 +356,22 @@ class Key
         }
     }
 
-    // Convert a Key to a string representation of a nodel::OPath step.
-    // @arg stream The output stream where the string is written.
-    // @arg is_first Should be true for the first step in a path.
-    // - A path step converted with this function can be deserialize by the
-    //   OPath class.
-    // - A boolean Key is converted to `[0]` or `[1]`.
-    // - An integer Key is converted to a string of the form, `[<integer>]`.
-    // - A float key is converted to a string of the form, `[<float>]`.
-    // - If `is_first` is true, a string key that does not contain a
-    //   double-quote character is converted to a string of the form,
-    //   `<string>`.
-    // - If `is_first` is false, a string key that does not contain a
-    //   double-quote character is converted to a string of the form,
-    //   `.<string>`.
-    // - A string key that contains a double-quote character is converted
-    //   to a string of the form, `["<string>"]`.
+    /// Convert a Key to a string representation of a nodel::OPath step.
+    /// @param stream The output stream where the string is written.
+    /// @param is_first Should be true for the first step in a path.
+    /// - A path step converted with this function can be deserialize by the
+    ///   OPath class.
+    /// - A boolean Key is converted to `[0]` or `[1]`.
+    /// - An integer Key is converted to a string of the form, `[<integer>]`.
+    /// - A float key is converted to a string of the form, `[<float>]`.
+    /// - If `is_first` is true, a string key that does not contain a
+    ///   double-quote character is converted to a string of the form,
+    ///   `<string>`.
+    /// - If `is_first` is false, a string key that does not contain a
+    ///   double-quote character is converted to a string of the form,
+    ///   `.<string>`.
+    /// - A string key that contains a double-quote character is converted
+    ///   to a string of the form, `["<string>"]`.
     void to_step(std::ostream& stream, bool is_first = false) const {
         switch (m_repr_ix) {
             case BOOL:  stream << (m_repr.b? "[1]": "[0]"); break;
@@ -393,8 +393,8 @@ class Key
         }
     }
 
-    // Convert the Key data to a string and write to an output stream.
-    // @arg stream The output stream where the string will be written.
+    /// Convert the Key data to a string and write to an output stream.
+    /// @param stream The output stream where the string will be written.
     void to_str(std::ostream& stream) const {
         switch (m_repr_ix) {
             case NIL:   stream << "nil"; break;
@@ -407,7 +407,7 @@ class Key
         }
     }
 
-    // Convert the Key data to a string.
+    /// Convert the Key data to a string.
     String to_str() const {
         switch (m_repr_ix) {
             case NIL:   return "nil";
@@ -424,7 +424,7 @@ class Key
         }
     }
 
-    // Convert the Key data to a JSON string.
+    /// Convert the Key data to a JSON string.
     String to_json() const {
         switch (m_repr_ix) {
             case NIL:  return "nil";
@@ -442,7 +442,7 @@ class Key
         }
     }
 
-    // Return the hash value of the Key.
+    /// Return the hash value of the Key.
     size_t hash() const {
         static std::hash<Float> float_hash;
         switch (m_repr_ix) {

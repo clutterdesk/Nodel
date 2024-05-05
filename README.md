@@ -20,7 +20,7 @@ interpreted by the data-source implementation.
 The following code binds an Object to the current working directory:
 
 ```
-auto wd = nodel::bind("file://");
+auto wd = nodel::bind("file://?path=.");
 ```
 
 The Nodel filesystem data-source (see include/nodel/filesystem/Directory.h) represents a directory
@@ -71,7 +71,7 @@ using namespace nodel;
 
 int main(int argc, char** argv) {
     filesystem::configure();                // Register the "file:" URI scheme
-    Object dir = bind("file://");           // Bind an object to the current working directory
+    Object dir = bind("file://?path=.");    // Bind an object to the current working directory
     for (const auto& f: dir.iter_keys())    // Iterate the names of the files
         std::cout << f << std::endl;
 }
