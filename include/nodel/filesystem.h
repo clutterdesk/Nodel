@@ -45,6 +45,8 @@ Registry& default_registry() {
 /// Configure Nodel filesystem.
 /// - Enable binding URI with the "file" scheme using
 ///   nodel::bind(const String& uri_spec, ...).
+/// - By default, Objects bound to the filesystem have their DataSource mode
+///   set to read-only. See @ref DataSource::Options for more information.
 /// - Use URI query to set path when the path is relative
 ///   (ex: file://?path=a/b).
 /////////////////////////////////////////////////////////////////////////////

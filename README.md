@@ -10,12 +10,12 @@ types (as defined in nodel/support/types.h):
 - `std::map<Key, Object>`
 - `tsl::ordered_map<Key, Object>`
 
-A Nodel Object may be "bound" to a DataSource sub-class. The DataSource framework provides on-demand, 
-lazy loading of data from ... somewhere else.
+A Nodel Object may be "bound" to a class derived from `nodel::DataSource`, which loads data on-demand
+from an external storage location into memory.  
 
-Nodel data-sources are selected and configured by calling the `nodel::bind` function with a URI that
+Nodel data sources are selected and configured by calling the `nodel::bind` function with a URI that
 identifies the scheme of a data-source implementation, with the remaining elements of the URI
-interpreted by the data-source implementation.
+interpreted by the data-source implementation.  URI schemes are extensible.
 
 The following code binds an Object to the current working directory:
 
@@ -30,32 +30,34 @@ bound object is accessed using one of the `nodel::Object` methods.
 
 Nodel Objects are reference counted. A `nodel::Object` instance is a reference to its underying data.
 
-Nodel is header-only library with *no required dependencies*. This means that your program must
+Nodel is a header-only library with no required dependencies. This means that your program must
 instantiate certain macros and call the `configure` function of the subsystems it uses.  See the
 "Quick Start" below for a complete example.
 
 If you link with cpptrace, Nodel exceptions will contain backtraces.
 
-Nodel provides its own *homegrown* JSON and CSV parsers, both of which are stream-based.  These
-parsers are simple and eliminate external dependencies.
+Nodel provides its own homegrown JSON and CSV parsers, both of which are stream-based and reduce
+external dependencies.
 
 Nodel includes two example DataSource implementations - one for the filesystem, and one for RocksDB.
 The filesystem DataSource collection is extensible and a the RocksDB DataSource additionally provides
 integration with the filesystem DataSource.  In this way, you can navigate through data stored in
-json files, csv files, text files, binary files, as well as RocksDB databases, from a single tree-like
-data-structure.  You can create new directories, files, and databases using the semantics of
-semi-structured data.
+json files, csv files, text files, binary files, as well as RocksDB databases, with a unified
+data model.
 
-Nodel interns string keys in a thread-local std::unordered_map.
+Nodel interns string keys in a thread-local hash map.
 
 Nodel provides key and value iterators that transparently use DataSource-specific iterators.  For
 example, if you are iterating the keys of an Object backed by a [RocksDB](https://rocksdb.org/) database,
 the iteration is actually performed by the native RocksDB Iterator.
 
-Nodel includes a Python 3.x C-API extension.
+Nodel includes a Python 3.x C-API extension, which supports URI binding to take advantage of whatever
+URI schemes have been registered in the Nodel build.
 
-"Nodel" is a portmanteau of "node" and "model", where "node" refers to a node in a tree. The tree
-is similar to other semi-structured data representations: TOML, JSON, XML-DOM, etc....
+"Nodel" is a portmanteau of "node" and "model", where "node" refers to a node in a tree.
+
+## How to Build
+To-do
 
 ## Quick Start
 
@@ -64,28 +66,28 @@ is similar to other semi-structured data representations: TOML, JSON, XML-DOM, e
 #include <nodel/filesystem.h>
 #include <iostream>
 
-NODEL_CORE_INIT;
-NODEL_FILESYSTEM_INIT;
+NODEL_CORE_INIT;       // initialize thread-local string intern maps
+NODEL_FILESYSTEM_INIT; // initialize thread-local extension registry (the default registry)
 
 using namespace nodel;
 
 int main(int argc, char** argv) {
     filesystem::configure();                // Register the "file:" URI scheme
-    Object dir = bind("file://?path=.");    // Bind an object to the current working directory
+    Object dir = bind("file://?path=.");    // Bind an object to a relative path
     for (const auto& f: dir.iter_keys())    // Iterate the names of the files
         std::cout << f << std::endl;
 }
 ```
 
-## C++ Examples
-### Find Filenames Matching Regular Expression
+## Python Quick Start
+```
+import nodel
+wd = nodel.bind("file://?path=.")
+print(list(wd))
+```
 
-
-
-Here are a few things you can do with Nodel Objects:
-- 
-- A Nodel Object can be *bound* to a file-system directory
-
+## API Documentation and Examples
+[Nodel API documentation](https://clutterdesk.github.io/Nodel)
 
 ### Similar Projects
 See Niels Lohmann project, [json](https://github.com/nlohmann/json).

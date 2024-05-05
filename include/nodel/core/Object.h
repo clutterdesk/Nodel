@@ -862,7 +862,13 @@ class DataSource
         operator int () const { return m_value; }
     };
 
-    // Options common to all DataSource implementations.
+    /// Options common to all DataSource implementations.
+    /// Options::mode can be set from a URI with the "perm" key in the query.
+    /// Valid "perm" values are one of the following case-insensitive letters:
+    /// - R - read
+    /// - W - write
+    /// - C - clobber (overwrite)
+    /// For example: file://?path=.&perm=rw
     struct Options {
         Options() = default;
         Options(Mode mode) : mode{mode} {}
@@ -1550,6 +1556,7 @@ bool Object::is_empty() const {
 ///   type is reserved to indicate that a key has been deleted.
 /// - This method is only useful for a *sparse* DataSource implementation.
 /// @return Returns true if the key associated with this Object was deleted.
+inline
 bool Object::is_deleted() const {
     return m_fields.repr_ix == DEL;
 }
