@@ -54,9 +54,23 @@ find_path(ROCKSDB_INCLUDE_DIR rocksdb/db.h)
 #----------------------------------------------------------------------------
 get_cmake_property(_variableNames VARIABLES)
 list (SORT _variableNames)
-foreach (_variableName ${_variableNames})
-    message(STATUS "${_variableName}=${${_variableName}}")
-endforeach()
+#foreach (_variableName ${_variableNames})
+#    message(STATUS "${_variableName}=${${_variableName}}")
+#endforeach()
+
+
+#----------------------------------------------------------------------------
+#-- Nodel Header-only Target
+#----------------------------------------------------------------------------
+add_library(nodel INTERFACE)
+
+
+#----------------------------------------------------------------------------
+#-- Precompile Headers
+#----------------------------------------------------------------------------
+target_precompile_headers(nodel
+  PUBLIC nodel/core.h
+)
 
 
 #----------------------------------------------------------------------------
@@ -65,8 +79,11 @@ endforeach()
 file(GLOB NODEL_TEST_SRC test/*.cpp include/**/*.h)
 add_executable(nodel_test ${NODEL_TEST_SRC})
 
+add_dependencies(nodel_test nodel)
+
 target_compile_features(nodel_test PRIVATE cxx_std_20)
-target_include_directories(nodel_test PUBLIC 
+
+target_include_directories(nodel_test PRIVATE 
     ${Nodel_SOURCE_DIR}/include
     ${tsl-ordered-map_SOURCE_DIR}/include
     ${ROCKSDB_INCLUDE_DIR}
@@ -75,14 +92,31 @@ target_include_directories(nodel_test PUBLIC
     ${gtest_SOURCE_DIR}/include
 )
 
-target_link_directories(nodel_test PUBLIC 
-    ${cpptrace_BINARY_DIR}
-)
+#target_link_directories(nodel_test PRIVATE
+#    ${cpptrace_BINARY_DIR}
+#)
     
-target_link_libraries(nodel_test PUBLIC ${rocksdb} fmt dwarf cpptrace::cpptrace gtest)
+target_link_libraries(nodel_test PRIVATE ${rocksdb} fmt dwarf cpptrace::cpptrace gtest)
 
 add_custom_command(
-    TARGET nodel_test PRE_BUILD
+    TARGET nodel_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/test_data/ $<TARGET_FILE_DIR:nodel_test>/test_data/
 )
                        
+                       
+#----------------------------------------------------------------------------
+#-- Python C-API Extension
+#----------------------------------------------------------------------------
+find_package (Python3 COMPONENTS Interpreter Development)
+
+if (NOT Python3_FOUND)
+message(WARNING "Python3 not found. Unable to build Python C-API extension.")
+else()
+add_custom_command(
+    TARGET nodel_test POST_BUILD
+    COMMAND ${Python3_EXECUTABLE} -m build
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/pyext/
+    COMMENT "Building Python C-API extension"
+)
+endif()
+
