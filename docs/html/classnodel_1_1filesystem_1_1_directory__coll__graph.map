@@ -1,0 +1,7 @@
+<map id="nodel::filesystem::Directory" name="nodel::filesystem::Directory">
+<area shape="rect" id="Node000001" title="DataSource to use for filesystem directory Example: Object o = Directory(&lt;path&gt;);." alt="" coords="6,168,134,208"/>
+<area shape="rect" id="Node000002" href="$classnodel_1_1filesystem_1_1_sub_directory.html" title="DataSource for filesystem directories." alt="" coords="6,79,134,120"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="73,135,73,167,67,167,67,135"/>
+<area shape="rect" id="Node000003" href="$classnodel_1_1_data_source.html" title=" " alt="" coords="5,5,135,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="73,46,73,79,67,79,67,46"/>
+</map>

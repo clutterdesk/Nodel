@@ -1,0 +1,71 @@
+#projectname {
+    color: #368C40;
+}
+
+#titlearea {
+    padding: 5px; 
+}
+
+div.contents {
+    max-width: 11in;
+}
+
+body, table, div, p {
+    font-family: sans-serif;
+    font-size: 12pt;
+}
+
+#nav-tree .label {
+    font-size: 12pt;
+    font-family: sans-serif;
+}
+
+#nav-tree .item {
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+div.title {
+    font-size: 14pt;
+    font-style: italic;
+    color: #368C40;
+}
+
+table.directory td.entry {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.navpath ul {
+    background-image: none;
+}
+
+.memtitle {
+    background-image: none;
+}
+
+img.footer {
+    width: 60px;
+}
+
+code {
+    color: #368C40;
+    font-size: 80%;
+}
+
+div.line {
+    line-height: 1.4;
+    font-size: 11pt;
+}
+
+a + h2.groupheader {
+    display:none;
+}
+
+.SRPage .SREntry {
+    font-size: 11pt;
+}
+
+a.SRScope {
+    font-size: 10pt;
+}
