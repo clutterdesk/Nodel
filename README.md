@@ -65,9 +65,10 @@ built without external dependencies using the following compiler flags:
 --std=c++20 -I<NODEL_DIRECTORY>/include -Wall -O2
 ```
 
-If you compile and link with `cpptrace`, all Nodel exceptions will have backtraces.
+If you compile and link with the excellent [cpptrace](https://github.com/jeremy-rifkin/cpptrace) library, 
+all Nodel exceptions will have backtraces.
 
-To build with RocksDB support, just add the compiler and linker flags required by RocksDB.
+To build with [RocksDB](https://rocksdb.org/) support, just add the compiler and linker flags required by RocksDB.
 
 To build and install the Python C-API, run the following commands:
 
