@@ -173,6 +173,7 @@ TEST(Object, ToBool) {
 }
 
 TEST(Object, ToInt) {
+    EXPECT_EQ(Object{nil}.cast<Int>(), 0);
     EXPECT_EQ(Object{false}.cast<Int>(), 0);
     EXPECT_EQ(Object{true}.cast<Int>(), 1);
     EXPECT_EQ(Object{-1}.cast<Int>(), -1);
@@ -186,16 +187,10 @@ TEST(Object, ToInt) {
         FAIL();
     } catch (...) {
     }
-
-    try {
-        Object obj{nil};
-        obj.cast<Int>();
-        FAIL();
-    } catch (...) {
-    }
 }
 
 TEST(Object, ToUInt) {
+    EXPECT_EQ(Object{nil}.cast<UInt>(), 0ULL);
     EXPECT_EQ(Object{false}.cast<UInt>(), 0UL);
     EXPECT_EQ(Object{true}.cast<UInt>(), 1UL);
     EXPECT_EQ(Object{-1}.cast<UInt>(), (UInt)(-1));
@@ -212,16 +207,10 @@ TEST(Object, ToUInt) {
         FAIL();
     } catch (...) {
     }
-
-    try {
-        Object obj{nil};
-        obj.cast<UInt>();
-        FAIL();
-    } catch (...) {
-    }
 }
 
 TEST(Object, ToFloat) {
+    EXPECT_EQ(Object{nil}.cast<Float>(), 0.0);
     EXPECT_EQ(Object{false}.cast<Float>(), (Float)(false));
     EXPECT_EQ(Object{true}.cast<Float>(), (Float)(true));
     EXPECT_EQ(Object{-1}.cast<Float>(), (Float)(-1));
@@ -231,13 +220,6 @@ TEST(Object, ToFloat) {
 
     try {
         Object obj;
-        obj.cast<Float>();
-        FAIL();
-    } catch (...) {
-    }
-
-    try {
-        Object obj{nil};
         obj.cast<Float>();
         FAIL();
     } catch (...) {

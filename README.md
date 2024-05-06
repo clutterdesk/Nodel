@@ -56,8 +56,26 @@ URI schemes have been registered in the Nodel build.
 
 "Nodel" is a portmanteau of "node" and "model", where "node" refers to a node in a tree.
 
-## How to Build
-To-do
+
+## How To Build
+The CMakeLists.txt has limited testing, so if you have trouble building with it, the core features can be 
+built without external dependencies using the following compiler flags:
+
+```
+--std=c++20 -I<NODEL_DIRECTORY>/include -Wall -O2
+```
+
+If you compile and link with `cpptrace`, all Nodel exceptions will have backtraces.
+
+To build with RocksDB support, just add the compiler and linker flags required by RocksDB.
+
+To build and install the Python C-API, run the following commands:
+
+```
+cd <NODEL_DIRECTORY>/pyext
+python3 -m build
+pip install dist/nodel*.whl
+```
 
 ## Quick Start
 

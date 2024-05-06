@@ -102,7 +102,7 @@ class Key
     Key(const Key& key) {
         m_repr_ix = key.m_repr_ix;
         switch (m_repr_ix) {
-            case NIL:    m_repr.z = key.m_repr.z; break;
+            case NIL:   m_repr.z = key.m_repr.z; break;
             case BOOL:  m_repr.b = key.m_repr.b; break;
             case INT:   m_repr.i = key.m_repr.i; break;
             case UINT:  m_repr.u = key.m_repr.u; break;

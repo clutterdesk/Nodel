@@ -382,7 +382,6 @@ class Object // : public debug::Object
     T cast() const;
 
     Key to_key() const;
-    Key into_key();
     String to_str() const;
     String to_json() const;
     void to_json(std::ostream&) const;
@@ -1373,6 +1372,7 @@ void Object::refer_to(const Object& other) {
     operator = (other);
 }
 
+/// For internal use only
 inline
 void Object::weak_refer_to(const Object& other) {
     // NOTE: This method is private, and only intended for use by the set_parent method.
@@ -1394,6 +1394,7 @@ void Object::weak_refer_to(const Object& other) {
     }
 }
 
+/// For internal use only
 inline
 void Object::set_parent(const Object& new_parent) const {
     switch (m_fields.repr_ix) {
@@ -1426,6 +1427,7 @@ void Object::set_parent(const Object& new_parent) const {
     }
 }
 
+/// For internal use only
 [[gnu::always_inline]]
 inline
 void Object::clear_parent() const {
@@ -1472,9 +1474,12 @@ const Key Object::key() const {
 /// Get the key associated with the specified Object
 /// @param obj The Object.
 /// @return Returns nil or the key.
+/// @throws WrongType
+/// @throws EmptyReference
 inline
 const Key Object::key_of(const Object& obj) const {
     switch (m_fields.repr_ix) {
+        case EMPTY: throw empty_reference();
         case NIL: break;
         case LIST: {
             const auto& list = std::get<0>(*m_repr.pl);
@@ -1523,6 +1528,14 @@ bool Object::is_type() const {
     return type() == get_repr_ix<T>();
 }
 
+/// Create a string representation of the stored data type
+/// - NIL is returned as, "nil"
+/// - BOOL is returned as, "true" or "false"
+/// - INT, UINT and FLOAT are converted to strings with maximum precision
+/// - Containers are converted to JSON strings
+/// - A DataSource is converted based on the data type it loads.
+/// @throws WrongType
+/// @throws EmptyReference
 inline
 String Object::to_str() const {
     switch (m_fields.repr_ix) {
@@ -1578,6 +1591,11 @@ bool Object::is_valid() const {
         return true;
 }
 
+/// Cast the data type stored in this Object to a bool
+/// - The following types can be cast to a bool: NIL, BOOL, INT, UINT, FLOAT,
+///   STR or DataSources with one of those types.
+/// @throws WrongType
+/// @throws EmptyReference
 template <> inline
 bool Object::cast() const {
     switch (m_fields.repr_ix) {
@@ -1596,11 +1614,16 @@ bool Object::cast() const {
     }
 }
 
+/// Cast the data type stored in this Object to a signed integer
+/// - The following types can be cast to a bool: NIL, BOOL, INT, UINT, FLOAT,
+///   STR or DataSources with one of those types.
+/// @throws WrongType
+/// @throws EmptyReference
 template<> inline
 Int Object::cast() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case NIL:   throw wrong_type(m_fields.repr_ix, INT);
+        case NIL:   return 0;
         case BOOL:  return m_repr.b;
         case INT:   return m_repr.i;
         case UINT:  return m_repr.u;
@@ -1611,11 +1634,16 @@ Int Object::cast() const {
     }
 }
 
+/// Cast the data type stored in this Object to a signed integer
+/// - The following types can be cast to a bool: NIL, BOOL, INT, UINT, FLOAT,
+///   STR or DataSources with one of those types.
+/// @throws WrongType
+/// @throws EmptyReference
 template <> inline
 UInt Object::cast() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case NIL:   throw wrong_type(m_fields.repr_ix, UINT);
+        case NIL:   return 0UL;
         case BOOL:  return m_repr.b;
         case INT:   return m_repr.i;
         case UINT:  return m_repr.u;
@@ -1625,11 +1653,16 @@ UInt Object::cast() const {
     }
 }
 
+/// Cast the data type stored in this Object to a signed integer
+/// - The following types can be cast to a bool: NIL, BOOL, INT, UINT, FLOAT,
+///   STR or DataSources with one of those types.
+/// @throws WrongType
+/// @throws EmptyReference
 template <> inline
 Float Object::cast() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case NIL:   throw wrong_type(m_fields.repr_ix, BOOL);
+        case NIL:   return 0.0;
         case BOOL:  return m_repr.b;
         case INT:   return m_repr.i;
         case UINT:  return m_repr.u;
@@ -1640,6 +1673,11 @@ Float Object::cast() const {
     }
 }
 
+/// Creates a Key with the same value as this Object, if possible
+/// - The following types can be cast to a bool: NIL, BOOL, INT, UINT, FLOAT,
+///   STR or DataSources with one of those types.
+/// @throws WrongType
+/// @throws EmptyReference
 inline
 Key Object::to_key() const {
     switch (m_fields.repr_ix) {
@@ -1656,31 +1694,20 @@ Key Object::to_key() const {
 }
 
 inline
-Key Object::into_key() {
-    switch (m_fields.repr_ix) {
-        case EMPTY: throw empty_reference();
-        case NIL:   return nil;
-        case BOOL:  return m_repr.b;
-        case INT:   return m_repr.i;
-        case UINT:  return m_repr.u;
-        case FLOAT: return m_repr.f;
-        case STR:   {
-            Key k{std::move(std::get<0>(*m_repr.ps))};
-            release();
-            return k;
-        }
-        default:
-            throw wrong_type(m_fields.repr_ix);
-    }
-}
-
-inline
 bool Object::norm_index(is_like_Int auto& index, UInt size) {
     if (index < 0) index += size;
     if (index < 0 || (UInt)index >= size) return false;
     return true;
 }
 
+/// Get the value of a key from a container or string
+/// @param index An integer key.
+/// - This method may provide slightly faster access to list elements or
+///   string characters by avoiding the creation of a temporary Key.
+/// - If the key is less than zero, the size of the container/string is first
+///   added to the key.
+/// @throws WrongType
+/// @throws EmptyReference
 inline
 Object Object::get(is_like_Int auto index) const {
     switch (m_fields.repr_ix) {
@@ -1696,10 +1723,21 @@ Object Object::get(is_like_Int auto index) const {
             return list[index];
         }
         case DSRC:  return m_repr.ds->get(*this, index);
-        default:      return get(Key{index});
+        default:    return get(Key{index});
     }
 }
 
+/// Get the value of a key from a container or string
+/// @param key The key to lookup.
+/// - If the key is less than zero, the size of the container/string is first
+///   added to the key.
+/// - If the stored data type is a list then the key must be convertible to
+///   a signed integer. The key is used to index the list.
+/// - If the stored data type is a map then any key type may be used.
+/// - If the stored data type is a string then the key must be convertible to
+///   a signed integer. The key is used to index the string.
+/// - If the stored data type is NIL then NIL is returned.
+/// @throws EmptyReference
 inline
 Object Object::get(const Key& key) const {
     switch (m_fields.repr_ix) {
@@ -1731,15 +1769,25 @@ Object Object::get(const Key& key) const {
             return it->second;
         }
         case DSRC: return m_repr.ds->get(*this, key); break;
-        default:     return nil;
+        default:   return nil;
     }
 }
 
+/// This method is equivalent to calling @ref OPath::lookup(const Object&).
+/// @param path The path whose leaf value will be returned.
+/// @throws WrongType
+/// @throws EmptyReference
 inline
 Object Object::get(const OPath& path) const {
     return path.lookup(*this);
 }
 
+/// Overwrite (clobber) the stored data type of this Object
+/// @param value The value to be assigned.
+/// - If this Object has a parent then this method is equivalent to
+///   `this->parent().set(this->key(), value)` - that is, it replaces this
+///   Object in the parent container.
+/// - Otherwise, this method is equivalent to calling the assignment operator.
 inline
 Object Object::set(const Object& value) {
     auto repr_ix = m_fields.repr_ix;
@@ -1789,6 +1837,22 @@ Object Object::list_set(const Key& key, const Object& in_val) {
     return out_val;
 }
 
+/// Set the value of a key in this container.
+/// @param key The key to be assigned.
+/// @param in_val The value to be assigned to the key.
+/// - If @p in_val already has a parent then it a copy is created and the
+///   copy is assigned to the key. An Object can only have one parent.
+///   Call @ref Object::del_from_parent() to avoid the copy.
+/// - If this Object is a string then @p in_val is first converted to a
+///   string. The key must be convertible to a signed integer. The size of
+///   the string will be added to a negative key. The string characters are
+///   consecutively replaced.
+/// - If this Object is a list and the key is negative, the size of the
+///   list is added to the key. The list elements are consecutively replaced.
+/// @see Object::insert(const Key&, const Object&)
+/// @return Returns the Object that was actually inserted, which may be a copy.
+/// @throws WrongType
+/// @throws EmptyReference
 inline
 Object Object::set(const Key& key, const Object& in_val) {
     switch (m_fields.repr_ix) {
@@ -1843,11 +1907,24 @@ Object Object::set(const Key& key, const Object& in_val) {
     }
 }
 
+/// Equivalent to calling @ref OPath::create(const Object&, const Object&)
+/// @note All the same rules apply as for the other @ref Object::set methods.
+/// @return Returns the Object that was actually inserted, which may be a copy.
+/// @throws WrongType
+/// @throws EmptyReference
 inline
 Object Object::set(const OPath& path, const Object& in_val) {
     return path.create(*this, in_val);
 }
 
+/// Insert a value at the specified key in the container.
+/// - This method is identical to @ref Object::set(const Key&, const Object&)
+///   for maps.
+/// - For lists and strings, this method *inserts*, instead of *replaces*, the
+///   elements or characters.
+/// @return Returns the Object that was actually inserted, which may be a copy.
+/// @throws WrongType
+/// @throws EmptyReference
 inline
 Object Object::insert(const Key& key, const Object& in_val) {
     switch (m_fields.repr_ix) {
@@ -1874,6 +1951,14 @@ Object Object::insert(const Key& key, const Object& in_val) {
     }
 }
 
+/// Delete the value of a key
+/// @param key The key to be deleted.
+/// - If this Object is a list and the key is negative, the size of the list
+///   is added to the key.
+/// - If this Object is a string then a WrongType exception is thrown.  Use
+///   @ref Object::as<String>(), instead.
+/// @throws WrongType
+/// @throws EmptyReference
 inline
 void Object::del(const Key& key) {
     switch (m_fields.repr_ix) {
@@ -1917,6 +2002,9 @@ void Object::del(const Key& key) {
     }
 }
 
+/// Delete the leaf of a path
+/// @throws WrongType
+/// @throws EmptyReference
 inline
 void Object::del(const OPath& path) {
     auto obj = path.lookup(*this);
@@ -1926,6 +2014,9 @@ void Object::del(const OPath& path) {
     }
 }
 
+/// Delete this Object from its parent container.
+/// @throws WrongType
+/// @throws EmptyReference
 inline
 void Object::del_from_parent() {
     Object par = parent();
@@ -1933,6 +2024,7 @@ void Object::del_from_parent() {
         par.del(par.key_of(*this));
 }
 
+/// Clear the elements, or string content, of this Object
 inline
 void Object::clear() {
     switch (m_fields.repr_ix) {
@@ -1996,9 +2088,15 @@ inline ValueRange Object::iter_values(const Slice& slice) const {
     return {*this, slice};
 }
 
-// intended for small intervals - use iter_values
-// TODO: consider whether slicing a map should slice keys are slice the list of map items
-//       currently it slices keys, which is useful when a map is used to represent a sparse list
+/// Intended for small intervals - use @ref Object::iter_values(), otherwise
+/// @todo Consider whether slicing a map should slice keys or slice the list
+///       of map items currently it slices keys, which is useful when a map
+///       is used to represent a sparse list
+/// @param slice A slice of elements to retrieve.
+/// @note If this Object is a list or map then copies of the values will be
+///       returned. Use @ref Object::iter_values() when the values that will
+///       be returned may be strings, lists or maps.
+/// @return Returns a list Object with the (possibly copied) elements.
 inline
 Object Object::get(const Slice& slice) const {
     if (m_fields.repr_ix == STR) {
@@ -3415,7 +3513,6 @@ class Object::Subscript
     bool is_valid() const     { return resolve().is_valid(); }
 
     Key to_key() const                       { return resolve().to_key(); }
-    Key into_key()                           { return resolve().into_key(); }
     String to_str() const                    { return resolve().to_str(); }
     String to_json() const                   { return resolve().to_json(); }
     void to_json(std::ostream& stream) const { return resolve().to_json(stream); }

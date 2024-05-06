@@ -288,7 +288,7 @@ bool Parser<StreamType>::parse_map() {
             return false;
         }
 
-        Key key = m_curr.into_key();
+        Key key = m_curr.to_key();
 
         if (nodel::is_container(m_curr)) {
             create_error("Keys must be a primitive type");
