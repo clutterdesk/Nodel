@@ -226,6 +226,8 @@ class Object // : public debug::Object
     template <typename T> const T& get_repr() const requires std::is_same<T, String>::value { return std::get<0>(*m_repr.ps); }
     template <typename T> T& get_repr() requires std::is_same<T, String>::value             { return std::get<0>(*m_repr.ps); }
 
+    template <typename T> T get_repr() const requires std::is_same<T, ObjectList>::value;
+
   private:
     struct NoParent {};
     Object(NoParent&&) : m_repr{}, m_fields{NIL} {}  // initialize reference count
@@ -374,6 +376,9 @@ class Object // : public debug::Object
     template <typename T>
     T& as() requires std::is_same<T, String>::value;
 
+    template <typename T>
+    T as() const requires std::is_same<T, ObjectList>::value;
+
     bool is_empty() const;
     bool is_deleted() const;
     bool is_valid() const;
@@ -389,12 +394,12 @@ class Object // : public debug::Object
     Object get(is_like_Int auto) const;
     Object get(const Key&) const;
     Object get(const OPath&) const;
-    Object get(const Slice&) const;
+    ObjectList get(const Slice&) const;
 
     Object set(const Object&);
     Object set(const Key&, const Object&);
     Object set(const OPath&, const Object&);
-    void set(const Slice&, const Object&);
+    void set(const Slice&, const ObjectList&);
     Object insert(const Key&, const Object&);
 
     void del(const Key&);
@@ -438,7 +443,7 @@ class Object // : public debug::Object
 
   protected:
     static bool norm_index(is_like_Int auto& index, UInt size);
-    void map_set_slice(SortedMap& map, is_integral auto start, const Object& in_vals);
+    void map_set_slice(SortedMap& map, const Slice& slice, const ObjectList& in_vals);
     Object list_set(const Key& key, const Object& in_val);
 
     Object dsrc_read() const;
@@ -1022,7 +1027,7 @@ class DataSource
     void set(const Object& target, const Object& in_val);
     Object set(const Object& target, const Key& key, const Object& in_val);
     Object set(const Object& target, Key&& key, const Object& in_val);
-    void set(const Object& target, const Slice& key, const Object& in_vals);
+    void set(const Object& target, const Slice& key, const ObjectList& in_vals);
     void del(const Object& target, const Key& key);
     void del(const Object& target, const Slice& slice);
     void clear(const Object& target);
@@ -1107,6 +1112,15 @@ bool is_container(const Object& obj) {
     return typ == Object::LIST || typ == Object::OMAP || typ == Object::SMAP;
 }
 
+
+template <typename T> T Object::get_repr() const requires std::is_same<T, ObjectList>::value {
+    ObjectList list;
+    if (type() == LIST) {
+        for (const auto& val : std::get<0>(*m_repr.pl))
+            list.push_back(val);
+    }
+    return list;
+}
 
 inline
 Object::Object(const Object& other) : m_fields{other.m_fields} {
@@ -1324,7 +1338,7 @@ T Object::as() const requires is_byvalue<T> {
 }
 
 /// Get the stored data iff the data has the specified numeric type
-/// @tparam T One of the supported numeric data types
+/// @tparam T String
 /// - This overload of the method is for String
 /// @return Returns a const reference to the stored data type
 /// @throw Throws a WrongType exception if the stored data type does not match
@@ -1348,7 +1362,7 @@ T& Object::as() requires is_byvalue<T> {
 }
 
 /// Get the stored data iff the data has the specified numeric type
-/// @tparam T One of the supported numeric data types
+/// @tparam T String
 /// - This overload of the method is for String
 /// @note If this Object has a DataSource and you modify the string data
 ///       returned by this method, then you must call @ref Object::needs_saving
@@ -1357,6 +1371,18 @@ T& Object::as() requires is_byvalue<T> {
 /// @throw Throws a WrongType exception if the stored data type does not match
 template <typename T>
 T& Object::as() requires std::is_same<T, String>::value {
+    if (m_fields.repr_ix == get_repr_ix<T>()) return get_repr<T>();
+    else if (m_fields.repr_ix == DSRC) return dsrc_read().as<T>();
+    throw wrong_type(m_fields.repr_ix);
+}
+
+/// Get a copy of the elements in this list Object.
+/// @tparam T ObjectList
+/// This method returns a copy of the Objects in the list to prevent untracked
+/// modifications that might violate invariants.
+/// @return Returns a copy of the list.
+template <typename T>
+T Object::as() const requires std::is_same<T, ObjectList>::value {
     if (m_fields.repr_ix == get_repr_ix<T>()) return get_repr<T>();
     else if (m_fields.repr_ix == DSRC) return dsrc_read().as<T>();
     throw wrong_type(m_fields.repr_ix);
@@ -1592,8 +1618,8 @@ bool Object::is_valid() const {
 }
 
 /// Cast the data type stored in this Object to a bool
-/// - The following types can be cast to a bool: NIL, BOOL, INT, UINT, FLOAT,
-///   STR or DataSources with one of those types.
+/// - Casting a container to bool returns true if the size > 0.
+/// - Casting an Object with a DataSource is equivalent to casting the loaded value.
 /// @throws WrongType
 /// @throws EmptyReference
 template <> inline
@@ -1702,9 +1728,9 @@ bool Object::norm_index(is_like_Int auto& index, UInt size) {
 
 /// Get the value of a key from a container or string
 /// @param index An integer key.
-/// - This method may provide slightly faster access to list elements or
-///   string characters by avoiding the creation of a temporary Key.
-/// - If the key is less than zero, the size of the container/string is first
+/// - This method may provide slightly faster access to list elements by
+///   avoiding the creation of a temporary Key.
+/// - If the key is less than zero, the size of the container is first
 ///   added to the key.
 /// @throws WrongType
 /// @throws EmptyReference
@@ -1712,11 +1738,6 @@ inline
 Object Object::get(is_like_Int auto index) const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case STR: {
-            auto& str = std::get<0>(*m_repr.ps);
-            if (!norm_index(index, str.size())) return nil;
-            return str[index];
-        }
         case LIST: {
             auto& list = std::get<0>(*m_repr.pl);
             if (!norm_index(index, list.size())) return nil;
@@ -1729,26 +1750,17 @@ Object Object::get(is_like_Int auto index) const {
 
 /// Get the value of a key from a container or string
 /// @param key The key to lookup.
-/// - If the key is less than zero, the size of the container/string is first
+/// - If the key is less than zero, the size of the container is first
 ///   added to the key.
 /// - If the stored data type is a list then the key must be convertible to
 ///   a signed integer. The key is used to index the list.
 /// - If the stored data type is a map then any key type may be used.
-/// - If the stored data type is a string then the key must be convertible to
-///   a signed integer. The key is used to index the string.
 /// - If the stored data type is NIL then NIL is returned.
 /// @throws EmptyReference
 inline
 Object Object::get(const Key& key) const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case STR: {
-            auto& str = std::get<0>(*m_repr.ps);
-            if (!nodel::is_integer(key)) throw Key::wrong_type(key.type());
-            Int index = key.to_int();
-            if (!norm_index(index, str.size())) return nil;
-            return str[index];
-        }
         case LIST: {
             auto& list = std::get<0>(*m_repr.pl);
             if (!nodel::is_integer(key)) throw Key::wrong_type(key.type());
@@ -1843,10 +1855,6 @@ Object Object::list_set(const Key& key, const Object& in_val) {
 /// - If @p in_val already has a parent then it a copy is created and the
 ///   copy is assigned to the key. An Object can only have one parent.
 ///   Call @ref Object::del_from_parent() to avoid the copy.
-/// - If this Object is a string then @p in_val is first converted to a
-///   string. The key must be convertible to a signed integer. The size of
-///   the string will be added to a negative key. The string characters are
-///   consecutively replaced.
 /// - If this Object is a list and the key is negative, the size of the
 ///   list is added to the key. The list elements are consecutively replaced.
 /// @see Object::insert(const Key&, const Object&)
@@ -1857,22 +1865,6 @@ inline
 Object Object::set(const Key& key, const Object& in_val) {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case STR: {
-            auto& str = std::get<0>(*m_repr.ps);
-            if (!nodel::is_integer(key)) throw Key::wrong_type(key.type());
-            auto index = key.to_int();
-            if (!norm_index(index, str.size())) return nil;
-            auto repl = in_val.to_str();
-            auto max_repl = str.size() - index;
-            if (repl.size() > max_repl) {
-                auto view = (StringView)repl;
-                str.replace(index, max_repl, view.substr(0, max_repl));
-                str.append(view.substr(max_repl));
-            } else {
-                str.replace(index, repl.size(), repl);
-            }
-            return in_val;
-        }
         case LIST: {
             return list_set(key, in_val);
         }
@@ -1920,8 +1912,7 @@ Object Object::set(const OPath& path, const Object& in_val) {
 /// Insert a value at the specified key in the container.
 /// - This method is identical to @ref Object::set(const Key&, const Object&)
 ///   for maps.
-/// - For lists and strings, this method *inserts*, instead of *replaces*, the
-///   elements or characters.
+/// - For lists, this method *inserts*, instead of *replaces*, the elements.
 /// @return Returns the Object that was actually inserted, which may be a copy.
 /// @throws WrongType
 /// @throws EmptyReference
@@ -1929,14 +1920,6 @@ inline
 Object Object::insert(const Key& key, const Object& in_val) {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case STR: {
-            auto& str = std::get<0>(*m_repr.ps);
-            if (!nodel::is_integer(key)) throw Key::wrong_type(key.type());
-            auto index = key.to_int();
-            if (!norm_index(index, str.size())) return nil;
-            str.insert(index, in_val.to_str());
-            return in_val;
-        }
         case LIST: {
             Object out_val = (in_val.parent() == nil)? in_val: in_val.copy();
             auto& list = std::get<0>(*m_repr.pl);
@@ -2097,13 +2080,11 @@ inline ValueRange Object::iter_values(const Slice& slice) const {
 ///       returned. Use @ref Object::iter_values() when the values that will
 ///       be returned may be strings, lists or maps.
 /// @return Returns a list Object with the (possibly copied) elements.
+/// @throws WrongType
+/// @throws EmptyReference
 inline
-Object Object::get(const Slice& slice) const {
-    if (m_fields.repr_ix == STR) {
-        auto& str = std::get<0>(*m_repr.ps);
-        auto [start, stop, step] = slice.to_indices(str.size());
-        return get_slice(str, start, stop, step);
-    } else if (m_fields.repr_ix == LIST) {
+ObjectList Object::get(const Slice& slice) const {
+    if (m_fields.repr_ix == LIST) {
         auto& list = std::get<0>(*m_repr.pl);
         auto [start, stop, step] = slice.to_indices(list.size());
         return get_slice(list, start, stop, step);
@@ -2115,44 +2096,31 @@ Object Object::get(const Slice& slice) const {
     }
 }
 
+/// Set a slice of values.
+/// @param slice An interval (slice) of keys.
+/// @param in_vals The values to be assigned.
+/// - If the number of values in @p in_vals is greater than the elements addressed
+///   by @p slice, then the extra elements in in_vals are ignored.
+/// - If the number of values in @p in_vals is less than the elements addressed by
+///   by @p slice, then the extra elements address by the @p slice are removed.
+/// - This method can be used with an sorted map Object to behave like a sparse array.
+///   However, the start and stop must be explicitly specified in the slice.  If any
+///   of the slice parameters are negative, a std::out_of_range exception is thrown.
+/// @throws std::out_of_range
+/// @throws WrongType
+/// @throws EmptyReference
 inline
-void Object::map_set_slice(SortedMap& map, is_integral auto start, const Object& in_vals) {
-    for (auto val : in_vals.iter_values())
-        set(start++, val);
-}
-
-inline
-void Object::set(const Slice& slice, const Object& in_vals) {
-    if (in_vals.size() == 0) return;
-
+void Object::set(const Slice& slice, const ObjectList& in_vals) {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case STR: {
-            if (in_vals.type() == STR) {
-                auto& str = std::get<0>(*m_repr.ps);
-                if (!in_vals.is_type<String>()) throw wrong_type(in_vals.type());
-                const auto& repl = in_vals.as<String>();
-                auto [start, stop, step] = slice.to_indices(str.size());
-                if (step == 1) {
-                    str.replace(str.begin() + start, str.begin() + stop, repl.begin(), repl.end());
-                } else {
-                    for (auto c : repl) {
-                        str[start] = c;
-                        start += step;
-                        if (start == stop) break;  // should be sufficient, but...
-                        if (start < 0 || start > (Int)str.size()) break;  // extra safe-guard
-                    }
-                }
-            } else {
-                throw wrong_type(in_vals.type());
-            }
-            break;
-        }
         case LIST: {
             ObjectList& list = std::get<0>(*m_repr.pl);
-            auto [start, stop, step] = slice.to_indices(list.size());
+            auto indices = slice.to_indices(list.size());
+            Int start = std::get<0>(indices);
+            Int stop = std::get<1>(indices);
+            Int step = std::get<2>(indices);
             if (step == 1) {
-                for (auto val : in_vals.iter_values()) {
+                for (auto val : in_vals) {
                     if (val.parent() == nil) val = val.copy();
                     if (start >= stop) {
                         list.insert(list.begin() + start, val);
@@ -2164,17 +2132,19 @@ void Object::set(const Slice& slice, const Object& in_vals) {
                 if (start < stop)
                     list.erase(list.begin() + start, list.begin() + stop);
             } else if (step > 1) {
-                for (auto val : in_vals.iter_values()) {
+                for (auto val : in_vals) {
                     if (val.parent() != nil) val = val.copy();
                     list[start] = val;
                     val.set_parent(*this);
                     start += step;
                     if (start >= stop) break;
                 }
-                for (; start < stop; start += step)
+                --step;  // size reduced by one on each iteration
+                for (; start < stop && start < (Int)list.size(); start += step) {
                     list.erase(list.begin() + start, list.begin() + start + 1);
+                }
             } else if (step == -1) {
-                for (auto val : in_vals.iter_values()) {
+                for (auto val : in_vals) {
                     if (val.parent() == nil) val = val.copy();
                     if (start <= stop) {
                         list.insert(list.begin() + start + 1, val);
@@ -2186,26 +2156,34 @@ void Object::set(const Slice& slice, const Object& in_vals) {
                 if (start > stop)
                     list.erase(list.begin() + stop + 1, list.begin() + start + 1);
             } else if (step < -1) {
-                for (auto val : in_vals.iter_values()) {
+                for (auto val : in_vals) {
                     if (val.parent() != nil) val = val.copy();
                     list[start] = val;
                     val.set_parent(*this);
                     start += step;
                     if (start <= stop) break;
                 }
-                for (; start > stop; start += step)
+                ++step;  // size reduced by on on each iteration
+                for (; start > stop && start >= 0; start += step)
                     list.erase(list.begin() + start, list.begin() + start + 1);
             }
             break;
         }
         case SMAP: {
-            auto& map = std::get<0>(*m_repr.psm);
-            del(slice);
-            auto start = slice.min().value();
-            switch (start.type()) {
-                case Key::INT:  map_set_slice(map, start.to_int(), in_vals); break;
-                case Key::UINT: map_set_slice(map, start.to_uint(), in_vals); break;
-                default:        throw wrong_type(start.type());
+            auto indices = slice.to_indices(0);
+            Int start = std::get<0>(indices);
+            Int stop = std::get<1>(indices);
+            Int step = std::get<2>(indices);
+            if (start < 0 || stop < 0 || step < 0)
+                throw std::out_of_range("slice");
+            for (auto val : in_vals) {
+                if (start >= stop) break;
+                set(start, val);
+                start += step;
+            }
+            if (start < stop) {
+                for (; start < stop; start += step)
+                    del(start);
             }
             break;
         }
@@ -2218,18 +2196,18 @@ inline
 void Object::del(const Slice& slice) {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case STR: {
-            auto& str = std::get<0>(*m_repr.ps);
-            auto [start, stop, step] = slice.to_indices(str.size());
-            // TODO: handle step
-            str.erase(str.begin() + start, str.begin() + stop);
-            break;
-        }
         case LIST: {
             auto& list = std::get<0>(*m_repr.pl);
             auto [start, stop, step] = slice.to_indices(list.size());
-            // TODO: handle step
-            list.erase(list.begin() + start, list.begin() + stop);
+            if (step == 1) {
+                list.erase(list.begin() + start, list.begin() + stop);
+            } else if (step > 1) {
+                for (; start < stop; ++start)
+                    list.erase(list.begin() + start);
+            } else if (step < 0) {
+                for (; start > stop; --start)
+                    list.erase(list.begin() + start);
+            }
             break;
         }
         case SMAP: {
@@ -3242,7 +3220,7 @@ Object DataSource::set(const Object& target, Key&& key, const Object& in_val) {
 }
 
 inline
-void DataSource::set(const Object& target, const Slice& slice, const Object& in_vals) {
+void DataSource::set(const Object& target, const Slice& slice, const ObjectList& in_vals) {
     Mode mode = resolve_mode();
     if (!(mode & Mode::WRITE)) throw WriteProtect();
 
@@ -3253,7 +3231,7 @@ void DataSource::set(const Object& target, const Slice& slice, const Object& in_
         insure_fully_cached(target);
     }
     m_cache.set(slice, in_vals);
-    for (auto val : m_cache.get(slice).iter_values())
+    for (auto val : m_cache.get(slice))
         val.set_parent(target);
 }
 
@@ -3282,7 +3260,7 @@ void DataSource::del(const Object& target, const Slice& slice) {
     set_unsaved(true);
     if (is_sparse()) {
         if (m_cache.is_empty()) read_type(target);
-        for (auto& obj : m_cache.get(slice).iter_values())
+        for (auto& obj : m_cache.get(slice))
             obj.clear_parent();
         // TODO: memory overhead does not scale for large intervals
         for (auto key : m_cache.iter_keys(slice))
@@ -3517,16 +3495,16 @@ class Object::Subscript
     String to_json() const                   { return resolve().to_json(); }
     void to_json(std::ostream& stream) const { return resolve().to_json(stream); }
 
-    Object get(is_like_Int auto v) const { return resolve().get(v); }
-    Object get(const Key& key) const     { return resolve().get(key); }
-    Object get(const OPath& path) const  { return resolve().get(path); }
-    Object get(const Slice& slice) const { return resolve().get(slice); }
+    Object get(is_like_Int auto v) const     { return resolve().get(v); }
+    Object get(const Key& key) const         { return resolve().get(key); }
+    Object get(const OPath& path) const      { return resolve().get(path); }
+    ObjectList get(const Slice& slice) const { return resolve().get(slice); }
 
-    Object set(const Object& obj)                    { return resolve().set(obj); }
-    Object set(const Key& key, const Object& obj)    { return resolve().set(key, obj); }
-    Object set(const OPath& key, const Object& obj)  { return resolve().set(key, obj); }
-    void set(const Slice& slice, const Object& obj)  { return resolve().set(slice, obj); }
-    Object insert(const Key& key, const Object& obj) { return resolve().insert(key, obj); }
+    Object set(const Object& obj)                        { return resolve().set(obj); }
+    Object set(const Key& key, const Object& obj)        { return resolve().set(key, obj); }
+    Object set(const OPath& key, const Object& obj)      { return resolve().set(key, obj); }
+    void set(const Slice& slice, const ObjectList& list) { return resolve().set(slice, list); }
+    Object insert(const Key& key, const Object& obj)     { return resolve().insert(key, obj); }
 
     void del(const Key& key)     { resolve().del(key); }
     void del(const OPath& path)  { resolve().del(path); }
