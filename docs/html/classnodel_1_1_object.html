@@ -336,6 +336,11 @@ template&lt;typename T &gt; <br />
 requires std::is_same&lt;T, String&gt;::value</td></tr>
 <tr class="memitem:af8a4fe8e49479827e77422dc6ac38a6b"><td class="memTemplItemLeft" align="right" valign="top">T &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><b>as</b> ()</td></tr>
 <tr class="separator:af8a4fe8e49479827e77422dc6ac38a6b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a59eaef24affcc0cfb49ec3331b542782" id="r_a59eaef24affcc0cfb49ec3331b542782"><td class="memTemplParams" colspan="2"><a id="a59eaef24affcc0cfb49ec3331b542782" name="a59eaef24affcc0cfb49ec3331b542782"></a>
+template&lt;typename T &gt; <br />
+requires std::is_same&lt;T, ObjectList&gt;::value</td></tr>
+<tr class="memitem:a59eaef24affcc0cfb49ec3331b542782"><td class="memTemplItemLeft" align="right" valign="top">T&#160;</td><td class="memTemplItemRight" valign="bottom"><b>as</b> () const</td></tr>
+<tr class="separator:a59eaef24affcc0cfb49ec3331b542782"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af86033739ff94d2f6120a5085531ca1a" id="r_af86033739ff94d2f6120a5085531ca1a"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#af86033739ff94d2f6120a5085531ca1a">is_empty</a> () const</td></tr>
 <tr class="memdesc:af86033739ff94d2f6120a5085531ca1a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Test if this <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a> is an empty reference.  <br /></td></tr>
 <tr class="separator:af86033739ff94d2f6120a5085531ca1a"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -368,9 +373,9 @@ template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a39a0fccdb3a0a93ce0df798adc510d13" id="r_a39a0fccdb3a0a93ce0df798adc510d13"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classnodel_1_1_object.html">Object</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a39a0fccdb3a0a93ce0df798adc510d13">get</a> (const <a class="el" href="classnodel_1_1_o_path.html">OPath</a> &amp;) const</td></tr>
 <tr class="memdesc:a39a0fccdb3a0a93ce0df798adc510d13"><td class="mdescLeft">&#160;</td><td class="mdescRight">This method is equivalent to calling OPath::lookup(const Object&amp;).  <br /></td></tr>
 <tr class="separator:a39a0fccdb3a0a93ce0df798adc510d13"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a685b23ad1e812afe93de0bf09d29f724" id="r_a685b23ad1e812afe93de0bf09d29f724"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classnodel_1_1_object.html">Object</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a685b23ad1e812afe93de0bf09d29f724">get</a> (const Slice &amp;) const</td></tr>
-<tr class="memdesc:a685b23ad1e812afe93de0bf09d29f724"><td class="mdescLeft">&#160;</td><td class="mdescRight">Intended for small intervals - use <a class="el" href="#a51fa9dc7ac93131ff4de571691989673">Object::iter_values()</a>, otherwise.  <br /></td></tr>
-<tr class="separator:a685b23ad1e812afe93de0bf09d29f724"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a103dbbe2bd7fbe9242d35a4a8e466103" id="r_a103dbbe2bd7fbe9242d35a4a8e466103"><td class="memItemLeft" align="right" valign="top">ObjectList&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a103dbbe2bd7fbe9242d35a4a8e466103">get</a> (const Slice &amp;) const</td></tr>
+<tr class="memdesc:a103dbbe2bd7fbe9242d35a4a8e466103"><td class="mdescLeft">&#160;</td><td class="mdescRight">Intended for small intervals - use <a class="el" href="#a51fa9dc7ac93131ff4de571691989673">Object::iter_values()</a>, otherwise.  <br /></td></tr>
+<tr class="separator:a103dbbe2bd7fbe9242d35a4a8e466103"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3d3090c28e6bfc7b4f900ec86062b1d8" id="r_a3d3090c28e6bfc7b4f900ec86062b1d8"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classnodel_1_1_object.html">Object</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a3d3090c28e6bfc7b4f900ec86062b1d8">set</a> (const <a class="el" href="classnodel_1_1_object.html">Object</a> &amp;)</td></tr>
 <tr class="memdesc:a3d3090c28e6bfc7b4f900ec86062b1d8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Overwrite (clobber) the stored data type of this <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a>.  <br /></td></tr>
 <tr class="separator:a3d3090c28e6bfc7b4f900ec86062b1d8"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -380,8 +385,9 @@ template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a4f75de10b185d6268cd1179dd51a0226" id="r_a4f75de10b185d6268cd1179dd51a0226"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classnodel_1_1_object.html">Object</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a4f75de10b185d6268cd1179dd51a0226">set</a> (const <a class="el" href="classnodel_1_1_o_path.html">OPath</a> &amp;, const <a class="el" href="classnodel_1_1_object.html">Object</a> &amp;)</td></tr>
 <tr class="memdesc:a4f75de10b185d6268cd1179dd51a0226"><td class="mdescLeft">&#160;</td><td class="mdescRight">Equivalent to calling OPath::create(const Object&amp;, const Object&amp;)  <br /></td></tr>
 <tr class="separator:a4f75de10b185d6268cd1179dd51a0226"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa1784629f14acef12fa12fe69a4b7c22" id="r_aa1784629f14acef12fa12fe69a4b7c22"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#aa1784629f14acef12fa12fe69a4b7c22">set</a> (const Slice &amp;, const <a class="el" href="classnodel_1_1_object.html">Object</a> &amp;)</td></tr>
-<tr class="separator:aa1784629f14acef12fa12fe69a4b7c22"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa6593436d3e83728c19aaad2c4514cb0" id="r_aa6593436d3e83728c19aaad2c4514cb0"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#aa6593436d3e83728c19aaad2c4514cb0">set</a> (const Slice &amp;, const ObjectList &amp;)</td></tr>
+<tr class="memdesc:aa6593436d3e83728c19aaad2c4514cb0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set a slice of values.  <br /></td></tr>
+<tr class="separator:aa6593436d3e83728c19aaad2c4514cb0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7ae997f731e1db3c6b0b55bec8c608ef" id="r_a7ae997f731e1db3c6b0b55bec8c608ef"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classnodel_1_1_object.html">Object</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a7ae997f731e1db3c6b0b55bec8c608ef">insert</a> (const <a class="el" href="classnodel_1_1_key.html">Key</a> &amp;, const <a class="el" href="classnodel_1_1_object.html">Object</a> &amp;)</td></tr>
 <tr class="memdesc:a7ae997f731e1db3c6b0b55bec8c608ef"><td class="mdescLeft">&#160;</td><td class="mdescRight">Insert a value at the specified key in the container.  <br /></td></tr>
 <tr class="separator:a7ae997f731e1db3c6b0b55bec8c608ef"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -483,8 +489,9 @@ Static Public Attributes</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pro-methods" name="pro-methods"></a>
 Protected Member Functions</h2></td></tr>
-<tr class="memitem:a3ebf08be29b9ce9018cf6f5409d3f54d" id="r_a3ebf08be29b9ce9018cf6f5409d3f54d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a3ebf08be29b9ce9018cf6f5409d3f54d">map_set_slice</a> (SortedMap &amp;map, is_integral auto start, const <a class="el" href="classnodel_1_1_object.html">Object</a> &amp;in_vals)</td></tr>
-<tr class="separator:a3ebf08be29b9ce9018cf6f5409d3f54d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab9fc65a702517765667f0c171441a272" id="r_ab9fc65a702517765667f0c171441a272"><td class="memItemLeft" align="right" valign="top"><a id="ab9fc65a702517765667f0c171441a272" name="ab9fc65a702517765667f0c171441a272"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>map_set_slice</b> (SortedMap &amp;map, const Slice &amp;slice, const ObjectList &amp;in_vals)</td></tr>
+<tr class="separator:ab9fc65a702517765667f0c171441a272"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9661c3e61914c56195cf4b06f58a73fa" id="r_a9661c3e61914c56195cf4b06f58a73fa"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classnodel_1_1_object.html">Object</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a9661c3e61914c56195cf4b06f58a73fa">list_set</a> (const <a class="el" href="classnodel_1_1_key.html">Key</a> &amp;<a class="el" href="#a303ac32d1ece16e75e4c9401a9e49ff7">key</a>, const <a class="el" href="classnodel_1_1_object.html">Object</a> &amp;in_val)</td></tr>
 <tr class="separator:a9661c3e61914c56195cf4b06f58a73fa"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a44c22dbc22de8d09a1b9be31531486d7" id="r_a44c22dbc22de8d09a1b9be31531486d7"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classnodel_1_1_object.html">Object</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a44c22dbc22de8d09a1b9be31531486d7">dsrc_read</a> () const</td></tr>
@@ -547,9 +554,9 @@ Protected Attributes</h2></td></tr>
 <p>Create an <em>empty</em> <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a>. </p>
 <p><em>Empty</em> objects behave like references that don't point to anything. Any attempt to access data will result in an EmptyReference exception being thrown. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00264">264</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00266">266</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l00954">nodel::DataSource::read_key()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l00959">nodel::DataSource::read_key()</a>.</p>
 
 </div>
 </div>
@@ -570,7 +577,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Create a reference to nil. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00267">267</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00269">269</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -591,9 +598,9 @@ Protected Attributes</h2></td></tr>
 
 <p>Copy string. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00269">269</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00271">271</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l01152">Object()</a>, <a class="el" href="_object_8h_source.html#l01172">Object()</a>, <a class="el" href="_object_8h_source.html#l01162">Object()</a>, and <a class="el" href="_object_8h_source.html#l00273">Object()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l00275">Object()</a>.</p>
 
 </div>
 </div>
@@ -614,7 +621,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Move string. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00271">271</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00273">273</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -635,7 +642,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Copy string view. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00273">273</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00275">275</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -656,7 +663,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Copy plain string. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00275">275</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00277">277</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -677,7 +684,7 @@ Protected Attributes</h2></td></tr>
 
 <p>From boolean value. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00277">277</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00279">279</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -698,9 +705,9 @@ Protected Attributes</h2></td></tr>
 
 <p>From float value. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00279">279</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00281">281</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l00281">Object()</a>, and <a class="el" href="_object_8h_source.html#l00283">Object()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l00283">Object()</a>, and <a class="el" href="_object_8h_source.html#l00285">Object()</a>.</p>
 
 </div>
 </div>
@@ -721,7 +728,7 @@ Protected Attributes</h2></td></tr>
 
 <p>From signed integer value. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00281">281</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00283">283</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -742,7 +749,7 @@ Protected Attributes</h2></td></tr>
 
 <p>From unsigned integer value. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00283">283</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00285">285</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -766,7 +773,7 @@ Protected Attributes</h2></td></tr>
 <li>This is a low-level interface. Prefer using one of the <a class="el" href="namespacenodel.html#a941da699233ba625dc79f42aef1b952d">nodel::bind</a> functions, so that you can take advantage of configuring the <a class="el" href="classnodel_1_1_data_source.html" title="Base class for objects implementing external data access.">DataSource</a> from a URI. </li>
 </ul>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01149">1149</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01163">1163</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -787,7 +794,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Copy Objects from container. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01152">1152</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01166">1166</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -808,7 +815,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Copy Key/Object pairs from container. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01162">1162</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01176">1176</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -829,7 +836,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Copy Key/Object pairs from container. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01172">1172</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01186">1186</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -850,7 +857,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Move Key/Object pairs from container. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01182">1182</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01196">1196</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -871,7 +878,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Move Key/Object pairs from container. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01191">1191</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01205">1205</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -892,7 +899,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Move Key/Object pairs from container. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01200">1200</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01214">1214</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -911,7 +918,7 @@ Protected Attributes</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01209">1209</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01223">1223</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -930,7 +937,7 @@ Protected Attributes</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01226">1226</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01240">1240</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -957,7 +964,7 @@ Protected Attributes</h2></td></tr>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01243">1243</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01257">1257</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -978,7 +985,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Implicit conversion of Subscript&lt;Key&gt; </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03571">3571</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03549">3549</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -999,7 +1006,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Implicit conversion of Subscript&lt;OPath&gt; </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03572">3572</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03550">3550</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1018,7 +1025,7 @@ Protected Attributes</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01112">1112</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01126">1126</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1037,7 +1044,7 @@ Protected Attributes</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01129">1129</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01143">1143</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1056,7 +1063,7 @@ Protected Attributes</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00321">321</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00323">323</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1092,7 +1099,7 @@ Protected Attributes</h2></td></tr>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00236">236</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00238">238</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1111,7 +1118,7 @@ Protected Attributes</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01261">1261</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01275">1275</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1132,7 +1139,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Returns a readable name for the type of the <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a>. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00326">326</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00328">328</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1153,7 +1160,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Returns the root container. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01270">1270</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01284">1284</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1174,9 +1181,9 @@ Protected Attributes</h2></td></tr>
 
 <p>Returns the parent container which holds this <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a>. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01282">1282</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01296">1296</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l03098">nodel::DataSource::bind()</a>, <a class="el" href="_object_8h_source.html#l00529">nodel::OPath::is_leaf()</a>, <a class="el" href="_object_8h_source.html#l00736">path()</a>, <a class="el" href="_object_8h_source.html#l00759">path()</a>, and <a class="el" href="_object_8h_source.html#l01270">root()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l03076">nodel::DataSource::bind()</a>, <a class="el" href="_object_8h_source.html#l00534">nodel::OPath::is_leaf()</a>, <a class="el" href="_object_8h_source.html#l00741">path()</a>, and <a class="el" href="_object_8h_source.html#l00764">path()</a>.</p>
 
 </div>
 </div>
@@ -1199,7 +1206,7 @@ Protected Attributes</h2></td></tr>
 <dl class="section examples"><dt>Examples</dt><dd><a class="el" href="examples_2rocksdb_8cpp-example.html#a4">examples/rocksdb.cpp</a>.</dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02062">2062</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02045">2045</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1220,7 +1227,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Returns a range-like object over container std::pair&lt;Key, Object&gt; </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02067">2067</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02050">2050</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1241,7 +1248,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Returns a range-like object over container Objects. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02072">2072</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02055">2055</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1262,7 +1269,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Returns a range-like object over a slice of container. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02077">2077</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02060">2060</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1283,7 +1290,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Returns a range-like object over a slice of container. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02082">2082</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02065">2065</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1304,9 +1311,9 @@ Protected Attributes</h2></td></tr>
 
 <p>Returns a range-like object over a slice of container. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02087">2087</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02070">2070</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l02101">get()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l02086">get()</a>.</p>
 
 </div>
 </div>
@@ -1327,7 +1334,7 @@ Protected Attributes</h2></td></tr>
 
 <p>Iterate this <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a> and its ancestors. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02836">2836</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02814">2814</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1349,7 +1356,7 @@ Protected Attributes</h2></td></tr>
 <p>Iterate the subtree rooted on this <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a>. </p>
 <dl class="section return"><dt>Returns</dt><dd>Returns a range-like object. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02946">2946</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02924">2924</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1385,7 +1392,7 @@ template&lt;typename VisitPred &gt; </div>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Returns a range-like object. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02955">2955</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02933">2933</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1423,7 +1430,7 @@ template&lt;typename EnterPred &gt; </div>
 <dl class="section examples"><dt>Examples</dt><dd><a class="el" href="examples_2find_8cpp-example.html#a1">examples/find.cpp</a>.</dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02968">2968</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02946">2946</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1465,7 +1472,7 @@ template&lt;typename VisitPred , typename EnterPred &gt; </div>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Returns a range-like object. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02980">2980</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02958">2958</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1487,7 +1494,7 @@ template&lt;typename VisitPred , typename EnterPred &gt; </div>
 <p>Returns the size of the string or container. </p>
 <dl class="section return"><dt>Returns</dt><dd>Returns the size of the string or container, or 0 for other types. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02044">2044</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02027">2027</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1513,7 +1520,7 @@ template&lt;typename VisitPred , typename EnterPred &gt; </div>
 </li>
 </ul>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01470">1470</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01496">1496</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1548,9 +1555,9 @@ template&lt;typename VisitPred , typename EnterPred &gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01480">1480</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01506">1506</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l03098">nodel::DataSource::bind()</a>, <a class="el" href="_object_8h_source.html#l00736">path()</a>, and <a class="el" href="_object_8h_source.html#l00759">path()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l03076">nodel::DataSource::bind()</a>, <a class="el" href="_object_8h_source.html#l00741">path()</a>, and <a class="el" href="_object_8h_source.html#l00764">path()</a>.</p>
 
 </div>
 </div>
@@ -1579,9 +1586,9 @@ template&lt;typename VisitPred , typename EnterPred &gt; </div>
 </li>
 </ul>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00736">736</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00741">741</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l00759">path()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l00764">path()</a>.</p>
 
 </div>
 </div>
@@ -1616,7 +1623,7 @@ template&lt;typename VisitPred , typename EnterPred &gt; </div>
 <dd>
 <a class="el" href="#a4f75de10b185d6268cd1179dd51a0226" title="Equivalent to calling OPath::create(const Object&amp;, const Object&amp;)">Object::set(const OPath&amp;, const Object&amp;)</a> </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00759">759</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00764">764</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1649,7 +1656,7 @@ template&lt;typename T &gt; </div>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Returns true if the stored data has the specified type </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01527">1527</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01553">1553</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1687,7 +1694,7 @@ template&lt;typename V &gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01300">1300</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01314">1314</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1710,6 +1717,7 @@ requires is_byvalue&lt;T&gt;</div>
 </div><div class="memdoc">
 
 <p>Get the stored data iff the data has the specified numeric type. </p>
+<p>Get a copy of the elements in this list <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a>.</p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td>One of the supported numeric data types<ul>
@@ -1722,12 +1730,19 @@ requires is_byvalue&lt;T&gt;</div>
 <dl class="section return"><dt>Returns</dt><dd>Returns a copy of the stored data type </dd></dl>
 <dl class="exception"><dt>Exceptions</dt><dd>
   <table class="exception">
-    <tr><td class="paramname">Throws</td><td>a WrongType exception if the stored data type does not match </td></tr>
+    <tr><td class="paramname">Throws</td><td>a WrongType exception if the stored data type does not match</td></tr>
   </table>
   </dd>
 </dl>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>ObjectList This method returns a copy of the Objects in the list to prevent untracked modifications that might violate invariants. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Returns a copy of the list. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01320">1320</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01334">1334</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1752,7 +1767,7 @@ requires std::is_same&lt;T, String&gt;::value</div>
 <p>Get the stored data iff the data has the specified numeric type. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td>One of the supported numeric data types<ul>
+    <tr><td class="paramname">T</td><td>String<ul>
 <li>This overload of the method is for String </li>
 </ul>
 </td></tr>
@@ -1767,7 +1782,7 @@ requires std::is_same&lt;T, String&gt;::value</div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01332">1332</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01346">1346</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1808,7 +1823,7 @@ requires is_byvalue&lt;T&gt;</div>
 </dl>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td>One of the supported numeric data types<ul>
+    <tr><td class="paramname">T</td><td>String<ul>
 <li>This overload of the method is for String </li>
 </ul>
 </td></tr>
@@ -1824,7 +1839,7 @@ requires is_byvalue&lt;T&gt;</div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01344">1344</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01358">1358</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1851,7 +1866,7 @@ requires is_byvalue&lt;T&gt;</div>
 </li>
 </ul>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01563">1563</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01589">1589</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1877,7 +1892,7 @@ requires is_byvalue&lt;T&gt;</div>
 </li>
 </ul>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01573">1573</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01599">1599</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1903,7 +1918,7 @@ requires is_byvalue&lt;T&gt;</div>
 </li>
 </ul>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01585">1585</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01611">1611</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1934,7 +1949,7 @@ requires is_byvalue&lt;T&gt;</div>
 </li>
 </ul>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01682">1682</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01708">1708</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1969,7 +1984,7 @@ requires is_byvalue&lt;T&gt;</div>
 </li>
 </ul>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01540">1540</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01566">1566</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1988,7 +2003,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02544">2544</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02522">2522</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2007,7 +2022,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02551">2551</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02529">2529</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2030,8 +2045,8 @@ requires is_byvalue&lt;T&gt;</div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">index</td><td>An integer key.<ul>
-<li>This method may provide slightly faster access to list elements or string characters by avoiding the creation of a temporary <a class="el" href="classnodel_1_1_key.html" title="A class to represent keys in a dictionary or list.">Key</a>.</li>
-<li>If the key is less than zero, the size of the container/string is first added to the key. </li>
+<li>This method may provide slightly faster access to list elements by avoiding the creation of a temporary <a class="el" href="classnodel_1_1_key.html" title="A class to represent keys in a dictionary or list.">Key</a>.</li>
+<li>If the key is less than zero, the size of the container is first added to the key. </li>
 </ul>
 </td></tr>
   </table>
@@ -2045,7 +2060,7 @@ requires is_byvalue&lt;T&gt;</div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01712">1712</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01738">1738</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2068,10 +2083,9 @@ requires is_byvalue&lt;T&gt;</div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">key</td><td>The key to lookup.<ul>
-<li>If the key is less than zero, the size of the container/string is first added to the key.</li>
+<li>If the key is less than zero, the size of the container is first added to the key.</li>
 <li>If the stored data type is a list then the key must be convertible to a signed integer. The key is used to index the list.</li>
 <li>If the stored data type is a map then any key type may be used.</li>
-<li>If the stored data type is a string then the key must be convertible to a signed integer. The key is used to index the string.</li>
 <li>If the stored data type is NIL then NIL is returned. </li>
 </ul>
 </td></tr>
@@ -2085,7 +2099,7 @@ requires is_byvalue&lt;T&gt;</div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01742">1742</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01761">1761</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2119,18 +2133,18 @@ requires is_byvalue&lt;T&gt;</div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01781">1781</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01793">1793</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
-<a id="a685b23ad1e812afe93de0bf09d29f724" name="a685b23ad1e812afe93de0bf09d29f724"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a685b23ad1e812afe93de0bf09d29f724">&#9670;&#160;</a></span>get() <span class="overload">[4/4]</span></h2>
+<a id="a103dbbe2bd7fbe9242d35a4a8e466103" name="a103dbbe2bd7fbe9242d35a4a8e466103"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a103dbbe2bd7fbe9242d35a4a8e466103">&#9670;&#160;</a></span>get() <span class="overload">[4/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="classnodel_1_1_object.html">Object</a> nodel::Object::get </td>
+          <td class="memname">ObjectList nodel::Object::get </td>
           <td>(</td>
           <td class="paramtype">const Slice &amp;</td>          <td class="paramname"><span class="paramname"><em>slice</em></span></td><td>)</td>
           <td> const</td>
@@ -2148,8 +2162,15 @@ requires is_byvalue&lt;T&gt;</div>
 </dl>
 <dl class="section note"><dt>Note</dt><dd>If this <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a> is a list or map then copies of the values will be returned. Use <a class="el" href="#a51fa9dc7ac93131ff4de571691989673">Object::iter_values()</a> when the values that will be returned may be strings, lists or maps. </dd></dl>
 <dl class="section return"><dt>Returns</dt><dd>Returns a list <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a> with the (possibly copied) elements. </dd></dl>
+<dl class="exception"><dt>Exceptions</dt><dd>
+  <table class="exception">
+    <tr><td class="paramname">WrongType</td><td></td></tr>
+    <tr><td class="paramname">EmptyReference</td><td></td></tr>
+  </table>
+  </dd>
+</dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02101">2101</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02086">2086</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2182,7 +2203,7 @@ requires is_byvalue&lt;T&gt;</div>
 <dl class="section examples"><dt>Examples</dt><dd><a class="el" href="examples_2rocksdb_8cpp-example.html#a1">examples/rocksdb.cpp</a>.</dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01792">1792</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01804">1804</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2211,7 +2232,6 @@ requires is_byvalue&lt;T&gt;</div>
     <tr><td class="paramname">key</td><td>The key to be assigned. </td></tr>
     <tr><td class="paramname">in_val</td><td>The value to be assigned to the key.<ul>
 <li>If <code>in_val</code> already has a parent then it a copy is created and the copy is assigned to the key. An <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a> can only have one parent. Call <a class="el" href="#a990443870be7a5b836ad11c898d4aebd">Object::del_from_parent()</a> to avoid the copy.</li>
-<li>If this <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a> is a string then <code>in_val</code> is first converted to a string. The key must be convertible to a signed integer. The size of the string will be added to a negative key. The string characters are consecutively replaced.</li>
 <li>If this <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a> is a list and the key is negative, the size of the list is added to the key. The list elements are consecutively replaced. </li>
 </ul>
 </td></tr>
@@ -2228,9 +2248,9 @@ requires is_byvalue&lt;T&gt;</div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01857">1857</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01865">1865</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l03098">nodel::DataSource::bind()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l03076">nodel::DataSource::bind()</a>.</p>
 
 </div>
 </div>
@@ -2264,12 +2284,12 @@ requires is_byvalue&lt;T&gt;</div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01916">1916</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01908">1908</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
-<a id="aa1784629f14acef12fa12fe69a4b7c22" name="aa1784629f14acef12fa12fe69a4b7c22"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa1784629f14acef12fa12fe69a4b7c22">&#9670;&#160;</a></span>set() <span class="overload">[4/4]</span></h2>
+<a id="aa6593436d3e83728c19aaad2c4514cb0" name="aa6593436d3e83728c19aaad2c4514cb0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa6593436d3e83728c19aaad2c4514cb0">&#9670;&#160;</a></span>set() <span class="overload">[4/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -2282,12 +2302,34 @@ requires is_byvalue&lt;T&gt;</div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classnodel_1_1_object.html">Object</a> &amp;</td>          <td class="paramname"><span class="paramname"><em>in_vals</em></span>&#160;)</td>
+          <td class="paramtype">const ObjectList &amp;</td>          <td class="paramname"><span class="paramname"><em>in_vals</em></span>&#160;)</td>
         </tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02125">2125</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p>Set a slice of values. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">slice</td><td>An interval (slice) of keys. </td></tr>
+    <tr><td class="paramname">in_vals</td><td>The values to be assigned.<ul>
+<li>If the number of values in <code>in_vals</code> is greater than the elements addressed by <code>slice</code>, then the extra elements in in_vals are ignored.</li>
+<li>If the number of values in <code>in_vals</code> is less than the elements addressed by by <code>slice</code>, then the extra elements address by the <code>slice</code> are removed.</li>
+<li>This method can be used with an sorted map <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a> to behave like a sparse array. However, the start and stop must be explicitly specified in the slice. If any of the slice parameters are negative, a std::out_of_range exception is thrown. </li>
+</ul>
+</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="exception"><dt>Exceptions</dt><dd>
+  <table class="exception">
+    <tr><td class="paramname">std::out_of_range</td><td></td></tr>
+    <tr><td class="paramname">WrongType</td><td></td></tr>
+    <tr><td class="paramname">EmptyReference</td><td></td></tr>
+  </table>
+  </dd>
+</dl>
+
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02113">2113</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2313,7 +2355,7 @@ requires is_byvalue&lt;T&gt;</div>
 <p>Insert a value at the specified key in the container. </p>
 <ul>
 <li>This method is identical to <a class="el" href="#a373a41ac898b002a39916c7d12341765">Object::set(const Key&amp;, const Object&amp;)</a> for maps.</li>
-<li>For lists and strings, this method <em>inserts</em>, instead of <em>replaces</em>, the elements or characters. <dl class="section return"><dt>Returns</dt><dd>Returns the <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a> that was actually inserted, which may be a copy. </dd></dl>
+<li>For lists, this method <em>inserts</em>, instead of <em>replaces</em>, the elements. <dl class="section return"><dt>Returns</dt><dd>Returns the <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a> that was actually inserted, which may be a copy. </dd></dl>
 <dl class="exception"><dt>Exceptions</dt><dd>
   <table class="exception">
     <tr><td class="paramname">WrongType</td><td></td></tr>
@@ -2324,7 +2366,7 @@ requires is_byvalue&lt;T&gt;</div>
 </li>
 </ul>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01929">1929</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01920">1920</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2362,7 +2404,7 @@ requires is_byvalue&lt;T&gt;</div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01963">1963</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01946">1946</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2390,7 +2432,7 @@ requires is_byvalue&lt;T&gt;</div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02009">2009</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01992">1992</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2409,7 +2451,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02218">2218</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02196">2196</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2437,7 +2479,7 @@ requires is_byvalue&lt;T&gt;</div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02021">2021</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02004">2004</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2458,7 +2500,7 @@ requires is_byvalue&lt;T&gt;</div>
 
 <p>Clear the elements, or string content, of this <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a>. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02029">2029</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02012">2012</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2477,7 +2519,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03574">3574</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03552">3552</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2496,7 +2538,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03575">3575</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03553">3553</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2515,7 +2557,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02249">2249</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02227">2227</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2534,7 +2576,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02327">2327</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02305">2305</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2553,7 +2595,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02332">2332</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02310">2310</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2572,7 +2614,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02581">2581</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02559">2559</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2591,7 +2633,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02600">2600</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02578">2578</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2610,7 +2652,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02620">2620</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02598">2598</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2629,7 +2671,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02639">2639</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02617">2617</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2648,7 +2690,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02652">2652</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02630">2630</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2667,7 +2709,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02666">2666</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02644">2644</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2686,7 +2728,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02720">2720</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02698">2698</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2705,7 +2747,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01371">1371</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01397">1397</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2724,7 +2766,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02727">2727</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02705">2705</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2743,7 +2785,7 @@ requires is_byvalue&lt;T&gt;</div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02768">2768</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02746">2746</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2764,7 +2806,7 @@ template&lt;class DataSourceType &gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02793">2793</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02771">2771</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2788,7 +2830,7 @@ template&lt;class DataSourceType &gt; </div>
 <li>If this <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a> has a DataSoource then it is flagged as having been updated such that it will be saved on the next call to <a class="el" href="#a0efb4a95bf69053312e10ff92065edd1">Object::save</a>. This is only necessary when string data is modified by reference by calling <a class="el" href="#aadb17c62d710d33819e05be73cdf767a">Object::as&lt;T&gt;</a> </li>
 </ul>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02990">2990</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02968">2968</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2818,7 +2860,7 @@ template&lt;class DataSourceType &gt; </div>
 <dl class="section examples"><dt>Examples</dt><dd><a class="el" href="examples_2rocksdb_8cpp-example.html#a2">examples/rocksdb.cpp</a>.</dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03007">3007</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02985">2985</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2839,7 +2881,7 @@ template&lt;class DataSourceType &gt; </div>
 <dl class="section examples"><dt>Examples</dt><dd><a class="el" href="examples_2rocksdb_8cpp-example.html#a3">examples/rocksdb.cpp</a>.</dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03044">3044</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03022">3022</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2858,7 +2900,7 @@ template&lt;class DataSourceType &gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03050">3050</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03028">3028</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2877,7 +2919,7 @@ template&lt;class DataSourceType &gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03056">3056</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03034">3034</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2896,7 +2938,7 @@ template&lt;class DataSourceType &gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03062">3062</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03040">3040</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2923,7 +2965,7 @@ template&lt;class DataSourceType &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00435">435</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00440">440</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2954,7 +2996,7 @@ template&lt;class DataSourceType &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00436">436</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00441">441</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -2981,7 +3023,7 @@ template&lt;class DataSourceType &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00437">437</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00442">442</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -3012,43 +3054,7 @@ template&lt;class DataSourceType &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01697">1697</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
-
-</div>
-</div>
-<a id="a3ebf08be29b9ce9018cf6f5409d3f54d" name="a3ebf08be29b9ce9018cf6f5409d3f54d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a3ebf08be29b9ce9018cf6f5409d3f54d">&#9670;&#160;</a></span>map_set_slice()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">void nodel::Object::map_set_slice </td>
-          <td>(</td>
-          <td class="paramtype">SortedMap &amp;</td>          <td class="paramname"><span class="paramname"><em>map</em>, </span></td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">is_integral auto</td>          <td class="paramname"><span class="paramname"><em>start</em>, </span></td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const <a class="el" href="classnodel_1_1_object.html">Object</a> &amp;</td>          <td class="paramname"><span class="paramname"><em>in_vals</em></span>&#160;)</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">protected</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02119">2119</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01723">1723</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -3079,7 +3085,7 @@ template&lt;class DataSourceType &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01824">1824</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01836">1836</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -3106,7 +3112,7 @@ template&lt;class DataSourceType &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01366">1366</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01392">1392</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -3135,7 +3141,7 @@ template&lt;class DataSourceType &gt; </div>
 
 <p>For internal use only. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01399">1399</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01425">1425</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -3164,9 +3170,9 @@ template&lt;class DataSourceType &gt; </div>
 
 <p>For internal use only. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01433">1433</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01459">1459</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l03098">nodel::DataSource::bind()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="_object_8h_source.html#l03076">nodel::DataSource::bind()</a>.</p>
 
 </div>
 </div>
@@ -3195,7 +3201,7 @@ template&lt;class DataSourceType &gt; </div>
 
 <p>For internal use only. </p>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01377">1377</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01403">1403</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -3218,7 +3224,8 @@ template&lt;&gt; </div>
 
 <p>Cast the data type stored in this <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a> to a bool. </p>
 <ul>
-<li>The following types can be cast to a bool: NIL, BOOL, INT, UINT, FLOAT, STR or DataSources with one of those types. <dl class="exception"><dt>Exceptions</dt><dd>
+<li>Casting a container to bool returns true if the size &gt; 0.</li>
+<li>Casting an <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a> with a <a class="el" href="classnodel_1_1_data_source.html" title="Base class for objects implementing external data access.">DataSource</a> is equivalent to casting the loaded value. <dl class="exception"><dt>Exceptions</dt><dd>
   <table class="exception">
     <tr><td class="paramname">WrongType</td><td></td></tr>
     <tr><td class="paramname">EmptyReference</td><td></td></tr>
@@ -3228,7 +3235,7 @@ template&lt;&gt; </div>
 </li>
 </ul>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01600">1600</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01626">1626</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -3261,7 +3268,7 @@ template&lt;&gt; </div>
 </li>
 </ul>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01623">1623</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01649">1649</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -3294,7 +3301,7 @@ template&lt;&gt; </div>
 </li>
 </ul>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01643">1643</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01669">1669</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -3327,7 +3334,7 @@ template&lt;&gt; </div>
 </li>
 </ul>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01662">1662</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01688">1688</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -3355,7 +3362,7 @@ template&lt;&gt; </div>
 <p>Indicates an object with a data type that is not reference counted. </p>
 <dl class="section see"><dt>See also</dt><dd>See <code>Object::ref_count</code> method. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00258">258</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00260">260</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -3379,7 +3386,7 @@ template&lt;&gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00451">451</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00456">456</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -3403,7 +3410,7 @@ template&lt;&gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00452">452</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00457">457</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
