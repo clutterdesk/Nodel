@@ -441,8 +441,10 @@ static int NodelObject_mp_ass_sub(PyObject* self, PyObject* key, PyObject* value
             if (value == NULL) {
                 self_obj.del(slice);
             } else {
-                Object nd_vals = support.to_object(value);
-                self_obj.set(slice, nd_vals);
+                auto nd_vals = support.to_object(value);
+                auto nd_val_list = nd_vals.as<ObjectList>();
+                nd_vals.clear();  // prevent copying
+                self_obj.set(slice, nd_val_list);
             }
         } else {
             auto nd_key = support.to_key(key);
