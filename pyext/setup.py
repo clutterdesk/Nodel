@@ -1,17 +1,28 @@
 from setuptools import Extension, setup
 import os
 
-nodel_root = '/Users/bdunnagan/git/Nodel'
-print('Nodel root directory: {}', nodel_root)
+nodel_include = os.environ.get('NODEL_INCLUDE')
+omap_include = os.environ.get('NODEL_OMAP_INCLUDE')
+fmt_include = os.environ.get('NODEL_FMT_INCLUDE')
+cpptrace_include = os.environ.get('NODEL_CPPTRACE_INCLUDE')
+rocksdb_include = os.environ.get('NODEL_ROCKSDB_INCLUDE')
 
-ordered_map_install = '/Users/bdunnagan/git/ordered-map/include'
-print('tsl/ordered_map directory: {}', ordered_map_install)
+fmt_lib = os.environ.get('NODEL_FMT_LIB')
+cpptrace_lib = os.environ.get('NODEL_CPPTRACE_LIB')
+dwarf_lib = os.environ.get('NODEL_DWARF_LIB')
+rocksdb_lib = os.environ.get('NODEL_ROCKSDB_LIB')
 
-fmt_install = '/Users/bdunnagan/git/fmt/include'
-print('fmt directory: {}', fmt_install)
-
-cpp_trace_install = '/Users/bdunnagan/git/cpptrace/include'
-print('cpp_trace directory: {}', cpp_trace_install)
+# nodel_root = os.path.realpath('..')
+# print('Nodel root directory: {}', nodel_root)
+#
+# ordered_map_install = '/Users/bdunnagan/git/ordered-map/include'
+# print('tsl/ordered_map directory: {}', ordered_map_install)
+#
+# fmt_install = '/Users/bdunnagan/git/fmt/include'
+# print('fmt directory: {}', fmt_install)
+#
+# cpp_trace_install = '/Users/bdunnagan/git/cpptrace/include'
+# print('cpp_trace directory: {}', cpp_trace_install)
 
 setup(
     ext_modules=[
@@ -26,24 +37,26 @@ setup(
                 'NodelTreeIter.cpp'
             ],
             include_dirs=[
-                os.path.join(nodel_root, 'include'),
-                ordered_map_install,
-                fmt_install,
-                cpp_trace_install
+                nodel_include,
+                omap_include,
+                fmt_include,
+                cpptrace_include
             ],
             extra_compile_args=[
                 '--std=c++20',
                 '-Wno-c99-designator'
             ],
             library_dirs=[
-                '/Users/bdunnagan/git/fmt',
-                '/usr/local/Cellar/dwarfutils/0.9.1/lib',
-                '/Users/bdunnagan/git/cpptrace/build'
+                fmt_lib,
+                cpptrace_lib,
             ],
             libraries=[
                 'fmt',
-                'dwarf',
                 'cpptrace'
+            ],
+            extra_link_args=[
+                dwarf_lib,
+                rocksdb_lib
             ]
         ),
     ]

@@ -54,9 +54,9 @@ find_path(ROCKSDB_INCLUDE_DIR rocksdb/db.h)
 #----------------------------------------------------------------------------
 get_cmake_property(_variableNames VARIABLES)
 list (SORT _variableNames)
-#foreach (_variableName ${_variableNames})
-#    message(STATUS "${_variableName}=${${_variableName}}")
-#endforeach()
+foreach (_variableName ${_variableNames})
+    message(STATUS "${_variableName}=${${_variableName}}")
+endforeach()
 
 
 #----------------------------------------------------------------------------
@@ -68,9 +68,9 @@ add_library(nodel INTERFACE)
 #----------------------------------------------------------------------------
 #-- Precompile Headers
 #----------------------------------------------------------------------------
-target_precompile_headers(nodel
-  PUBLIC nodel/core.h
-)
+#target_precompile_headers(nodel
+#  PUBLIC nodel/core.h
+#)
 
 
 #----------------------------------------------------------------------------
@@ -92,10 +92,6 @@ target_include_directories(nodel_test PRIVATE
     ${gtest_SOURCE_DIR}/include
 )
 
-#target_link_directories(nodel_test PRIVATE
-#    ${cpptrace_BINARY_DIR}
-#)
-    
 target_link_libraries(nodel_test PRIVATE ${rocksdb} fmt dwarf cpptrace::cpptrace gtest)
 
 add_custom_command(
@@ -112,11 +108,23 @@ find_package (Python3 COMPONENTS Interpreter Development)
 if (NOT Python3_FOUND)
 message(WARNING "Python3 not found. Unable to build Python C-API extension.")
 else()
+
 add_custom_command(
-    TARGET nodel_test POST_BUILD
-    COMMAND ${Python3_EXECUTABLE} -m build
+    TARGET nodel_test POST_BUILD 
+    COMMAND ${CMAKE_COMMAND} -E env 
+        NODEL_INCLUDE="${Nodel_SOURCE_DIR}/include"
+        NODEL_OMAP_INCLUDE="${tsl-ordered-map_SOURCE_DIR}/include"
+        NODEL_FMT_INCLUDE="${fmtlib_SOURCE_DIR}/include"
+        NODEL_CPPTRACE_INCLUDE="${cpptrace_SOURCE_DIR}/include"
+        NODEL_ROCKSDB_INCLUDE="${ROCKSDB_INCLUDE_DIR}"
+        NODEL_FMT_LIB="${fmtlib_BINARY_DIR}" 
+        NODEL_CPPTRACE_LIB="${cpptrace_BINARY_DIR}" 
+        NODEL_DWARF_LIB="${dwarf}" 
+        NODEL_ROCKSDB_LIB="${rocksdb}"
+        ${Python3_EXECUTABLE} -m build
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/pyext/
     COMMENT "Building Python C-API extension"
 )
+
 endif()
 
