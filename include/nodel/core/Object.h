@@ -2076,9 +2076,6 @@ inline ValueRange Object::iter_values(const Slice& slice) const {
 ///       of map items currently it slices keys, which is useful when a map
 ///       is used to represent a sparse list
 /// @param slice A slice of elements to retrieve.
-/// @note If this Object is a list or map then copies of the values will be
-///       returned. Use @ref Object::iter_values() when the values that will
-///       be returned may be strings, lists or maps.
 /// @return Returns a list Object with the (possibly copied) elements.
 /// @throws WrongType
 /// @throws EmptyReference
