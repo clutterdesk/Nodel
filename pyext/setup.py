@@ -28,6 +28,9 @@ setup(
     ext_modules=[
         Extension(
             name='nodel',
+            define_macros=[
+                ('PYNODEL_ROCKSDB', 1)
+            ],
             sources=[
                 'module.cpp', 
                 'NodelObject.cpp', 
@@ -39,6 +42,7 @@ setup(
             include_dirs=[
                 nodel_include,
                 omap_include,
+                rocksdb_include,
                 fmt_include,
                 cpptrace_include
             ],

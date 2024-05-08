@@ -722,9 +722,7 @@ constexpr auto reset_method_doc = \
 "Object.reset() -> None\n"
 "If object is bound (has data-source), then it's cleared and the data-source\n"
 "will re-load on the next data access. Any references to descendants will be\n"
-"orphaned, and cannot be re-loaded, themselves. In general, the `refresh`\n"
-"method is preferred for this reason. However, as of the writing of this\n"
-"doc-string, the `refresh` method is not yet implemented.";
+"orphaned, and cannot be re-loaded, themselves.";
 
 static PyObject* NodelObject_reset(PyObject* self, PyObject* args) {
     NodelObject* nd_self = (NodelObject*)self;
@@ -737,12 +735,30 @@ static PyObject* NodelObject_reset(PyObject* self, PyObject* args) {
     }
 }
 
+constexpr auto reset_key_method_doc = \
+"Reset the key of a sparse DataSource, clearing it and releasing memory resources.\n"
+"Object.reset_key(key) -> None\n"
+"If object is bound (has data-source), then the key is cleared and the data-source\n"
+"will re-load the key on the next access. Any references to descendants of the value\n"
+"of the key will be orphaned, and cannot be re-loaded, themselves.";
+
+static PyObject* NodelObject_reset_key(PyObject* self, PyObject* arg) {
+    NodelObject* nd_self = (NodelObject*)self;
+    try {
+        nd_self->obj.reset_key(support.to_key(arg));
+        Py_RETURN_NONE;
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
+}
+
 constexpr auto save_method_doc = \
 "Commit all updates to bound objects in the subtree whose root is this object.\n"
 "Object.save() -> None\n"
 "Objects that are not bound (do not have a data-source) are ignored.";
 
-static PyObject* NodelObject_save(PyObject* self, PyObject* args) {
+static PyObject* NodelObject_save(PyObject* self, PyObject*) {
     NodelObject* nd_self = (NodelObject*)self;
     try {
         nd_self->obj.save();
@@ -763,6 +779,7 @@ static PyMethodDef NodelObject_methods[] = {
     {"iter_tree",   (PyCFunction)NodelObject_iter_tree,   METH_NOARGS, PyDoc_STR(iter_tree_method_doc)},
     {"key",         (PyCFunction)NodelObject_key,         METH_NOARGS, PyDoc_STR(key_method_doc)},
     {"reset",       (PyCFunction)NodelObject_reset,       METH_NOARGS, PyDoc_STR(reset_method_doc)},
+    {"reset_key",   (PyCFunction)NodelObject_reset_key,   METH_O,      PyDoc_STR(reset_key_method_doc)},
     {"save",        (PyCFunction)NodelObject_save,        METH_NOARGS, PyDoc_STR(save_method_doc)},
     {NULL, NULL}
 };

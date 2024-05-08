@@ -37,8 +37,13 @@ constexpr auto mod_bind_doc = "Bind object with URI string/dict\n"
                               "uri - A URI string with a registered scheme";
 
 static PyObject* mod_bind(PyObject* mod, PyObject* arg) {
-    URI uri{support.to_object(arg)};
-    return (PyObject*)NodelObject_wrap(bind(uri));
+    try {
+        URI uri{support.to_object(arg)};
+        return (PyObject*)NodelObject_wrap(bind(uri));
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
 }
 
 constexpr auto mod_from_json_doc = "Parse JSON into an Object\n"
@@ -94,10 +99,10 @@ PyModuleDef nodel_module_def = {
 PyMODINIT_FUNC
 PyInit_nodel(void)
 {
-    filesystem::configure();
+    nodel::filesystem::configure();
 
 #ifdef PYNODEL_ROCKSDB
-    rocksdb::configure();
+    nodel::rocksdb::configure();
 #endif
 
     if (PyType_Ready(&NodelObjectType) < 0) return NULL;

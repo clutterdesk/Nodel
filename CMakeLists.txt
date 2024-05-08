@@ -109,8 +109,11 @@ if (NOT Python3_FOUND)
 message(WARNING "Python3 not found. Unable to build Python C-API extension.")
 else()
 
-add_custom_command(
-    TARGET nodel_test POST_BUILD 
+add_custom_target(
+    pyext ALL
+    DEPENDS nodel_test 
+            ${CMAKE_SOURCE_DIR}/pyext/setup.py
+            ${CMAKE_SOURCE_DIR}/pyext/setup.cfg
     COMMAND ${CMAKE_COMMAND} -E env 
         NODEL_INCLUDE="${Nodel_SOURCE_DIR}/include"
         NODEL_OMAP_INCLUDE="${tsl-ordered-map_SOURCE_DIR}/include"
@@ -121,6 +124,7 @@ add_custom_command(
         NODEL_CPPTRACE_LIB="${cpptrace_BINARY_DIR}" 
         NODEL_DWARF_LIB="${dwarf}" 
         NODEL_ROCKSDB_LIB="${rocksdb}"
+        PYNODEL_ROCKSDB=1
         ${Python3_EXECUTABLE} -m build
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/pyext/
     COMMENT "Building Python C-API extension"
