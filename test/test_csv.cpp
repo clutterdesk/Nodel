@@ -75,3 +75,22 @@ TEST(CsvParser, UnquotedWithSpaces) {
   EXPECT_EQ(obj.get(3).get(1), "George Elliot");
 }
 
+TEST(CsvParser, EmptyCell) {
+    std::stringstream stream{R"(
+        1,2,3
+        3,,4
+        ,,
+        ,,5
+    )"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    ASSERT_EQ(obj.size(), 4UL);
+    EXPECT_EQ(obj.get(0).size(), 3UL);
+    EXPECT_EQ(obj.get(1).size(), 3UL);
+    EXPECT_EQ(obj.get(2).size(), 3UL);
+    EXPECT_EQ(obj.get(3).size(), 3UL);
+    EXPECT_EQ(obj.get(0).get(0), 1);
+    EXPECT_EQ(obj.get(3).get(2), 5);
+}
+

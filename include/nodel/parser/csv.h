@@ -42,6 +42,19 @@ Object Parser<StreamType>::parse() {
     return table;
 }
 
+inline
+void save_row(ObjectList& table, ObjectList& row) {
+    if (row.size() == 1) {
+        auto col = row[0];
+        if (col.is_type<String>() && col.size() == 0)
+            row.clear();
+    }
+
+    if (row.size() > 0) {
+        table.push_back(row);
+    }
+}
+
 template <typename StreamType>
 bool Parser<StreamType>::parse_row(ObjectList& table) {
     ObjectList row;
@@ -50,13 +63,13 @@ bool Parser<StreamType>::parse_row(ObjectList& table) {
         if (!parse_column(row)) return false;
         consume_whitespace();
         if (m_it.done()) {
-            if (row.size() > 0) table.push_back(row);
+            save_row(table, row);
             return true;
         }
         char c = m_it.peek();
         switch (c) {
             case 0:    [[fallthrough]];
-            case '\n': m_it.next(); if (row.size() > 0) table.push_back(row); return true;
+            case '\n': m_it.next(); save_row(table, row); return true;
             case ',':  m_it.next(); break;
             default:   set_error("Expected comma or new-line"); return false;
         }
@@ -72,7 +85,7 @@ bool Parser<StreamType>::parse_column(ObjectList& row) {
     char c = m_it.peek();
     switch (c) {
         case 0:    break;
-        case ',':  row.push_back(""); m_it.next(); break;
+        case ',':  row.push_back(""); break;
         case '"':  [[fallthrough]];
         case '\'': {
             Object col = parse_quoted();
@@ -85,13 +98,6 @@ bool Parser<StreamType>::parse_column(ObjectList& row) {
             break;
         }
     }
-
-    if (row.size() == 1) {
-        auto col = row[0];
-        if (col.is_type<String>() && col.size() == 0)
-            row.clear();
-    }
-
     return true;
 }
 
@@ -132,7 +138,11 @@ Object Parser<StreamType>::parse_unquoted() {
         if (str.find('.') != std::string::npos) {
             return str_to_float(str);
         } else {
-            return str_to_int(str);
+            Int value;
+            const char* beg = str.data();
+            const char* end = beg + str.size();
+            auto [ptr, ec] = std::from_chars(beg, end, value);
+            if (ec == std::errc{}) return value;
         }
     }
 
@@ -147,7 +157,7 @@ void Parser<StreamType>::consume_whitespace() {
 template <typename StreamType>
 void Parser<StreamType>::set_error(const std::string& msg) {
     std::stringstream ss;
-    ss << msg << " at m_pos=" << m_it.consumed();
+    ss << msg << " at pos=" << m_it.consumed();
     m_error = ss.str();
 }
 
