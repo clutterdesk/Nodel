@@ -3456,12 +3456,12 @@ class Object::Subscript
 
     template <typename EnterPred>
     TreeRange<Object, NoPredicate, Predicate> iter_tree_if(EnterPred&& enter_pred) const {
-        return resolve().iter_tree(std::forward<EnterPred>(enter_pred));
+        return resolve().iter_tree_if(std::forward<EnterPred>(enter_pred));
     }
 
     template <typename VisitPred, typename EnterPred>
     TreeRange<Object, Predicate, Predicate> iter_tree_if(VisitPred&& visit_pred, EnterPred&& enter_pred) const {
-        return resolve().iter_tree(std::forward<VisitPred>(visit_pred), std::forward<EnterPred>(enter_pred));
+        return resolve().iter_tree_if(std::forward<VisitPred>(visit_pred), std::forward<EnterPred>(enter_pred));
     }
 
     const KeyList keys() const      { return resolve().keys(); }

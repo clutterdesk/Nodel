@@ -100,8 +100,8 @@ int main(int argc, char** argv) {
 
 ## Python Quick Start
 ```
-import nodel
-wd = nodel.bind("file://?path=.")
+import nodel as nd
+wd = nd.bind("file://?path=.")
 print(list(wd))
 ```
 
