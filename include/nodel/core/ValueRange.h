@@ -1,3 +1,5 @@
+/// @b License: @n Apache License v2.0
+/// @copyright Robert Dunnagan
 class ValueIterator
 {
 // NOTE: Implementing this requires copy-constructor, which requires

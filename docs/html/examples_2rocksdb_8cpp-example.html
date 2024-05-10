@@ -105,7 +105,8 @@ $(function(){initNavTree('examples_2rocksdb_8cpp-example.html',''); initResizabl
 <div class="contents">
 <p>This is an example of creating a RocksDB database from an Object, iterate of all the keys in the database, and iterate over a range of the keys.</p>
 <p>This is an example of creating a RocksDB database from an Object, iterate of all the keys in the database, and iterate over a range of the keys.To manage memory overhead, the Object is periodically saved and reset. A Stopwatch instance is used to report latencies.</p>
-<div class="fragment"><div class="line"><span class="preprocessor">#include &lt;nodel/core.h&gt;</span></div>
+<div class="fragment"><div class="line"> </div>
+<div class="line"><span class="preprocessor">#include &lt;nodel/core.h&gt;</span></div>
 <div class="line"><span class="preprocessor">#include &lt;nodel/rocksdb.h&gt;</span></div>
 <div class="line"><span class="preprocessor">#include &lt;nodel/support/Stopwatch.h&gt;</span></div>
 <div class="line"> </div>
@@ -115,31 +116,31 @@ $(function(){initNavTree('examples_2rocksdb_8cpp-example.html',''); initResizabl
 <div class="line"><span class="keyword">using namespace </span><a class="code hl_namespace" href="namespacenodel.html" title="Nodel namespace.">nodel</a>;</div>
 <div class="line"> </div>
 <div class="line"><span class="keywordtype">int</span> main(<span class="keywordtype">int</span> argc, <span class="keywordtype">char</span>** argv) {</div>
-<div class="line">    nodel::filesystem::configure();</div>
+<div class="line">    <a id="a0" name="a0"></a><a class="code hl_function" href="namespacenodel_1_1filesystem.html#ad5900704b379409c84745a08c229ad21" title="Configure Nodel filesystem.">nodel::filesystem::configure</a>();</div>
 <div class="line">    nodel::rocksdb::configure();</div>
 <div class="line"> </div>
 <div class="line">    std::filesystem::remove_all(<span class="stringliteral">&quot;nodel_example.rocksdb&quot;</span>);</div>
 <div class="line"> </div>
 <div class="line">    debug::Stopwatch swatch;</div>
 <div class="line">    swatch.start(<span class="stringliteral">&quot;Profile Creating Data Without DB Overhead&quot;</span>);</div>
-<div class="line">    <a id="_a0" name="_a0"></a><a class="code hl_class" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a> db = bind(<span class="stringliteral">&quot;rocksdb://?perm=rw&amp;path=nodel_example.rocksdb&quot;</span>);</div>
+<div class="line">    <a id="_a1" name="_a1"></a><a class="code hl_class" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a> db = bind(<span class="stringliteral">&quot;rocksdb://?perm=rw&amp;path=nodel_example.rocksdb&quot;</span>);</div>
 <div class="line">    db.reserve((<span class="keywordtype">size_t</span>)1e7);</div>
 <div class="line">    <span class="keywordflow">for</span> (<span class="keywordtype">size_t</span> i=0; i&lt;1e7; i++)</div>
-<div class="line">        db.<a id="a1" name="a1"></a><a class="code hl_function" href="classnodel_1_1_object.html#a3d3090c28e6bfc7b4f900ec86062b1d8" title="Overwrite (clobber) the stored data type of this Object.">set</a>(i, i);</div>
+<div class="line">        db.<a id="a2" name="a2"></a><a class="code hl_function" href="classnodel_1_1_object.html#a3d3090c28e6bfc7b4f900ec86062b1d8" title="Overwrite (clobber) the stored data type of this Object.">set</a>(i, i);</div>
 <div class="line">    <span class="keyword">auto</span> elapsed_without_save = swatch.finish();</div>
 <div class="line"> </div>
 <div class="line">    swatch.start(<span class="stringliteral">&quot;Profile Creating Data and Saving to DB&quot;</span>);</div>
 <div class="line">    db = bind(<span class="stringliteral">&quot;rocksdb://?perm=rw&amp;path=nodel_example.rocksdb&quot;</span>);</div>
 <div class="line">    <span class="keywordflow">for</span> (<span class="keywordtype">size_t</span> i=0; i&lt;1e7; i++)</div>
 <div class="line">        db.<a class="code hl_function" href="classnodel_1_1_object.html#a3d3090c28e6bfc7b4f900ec86062b1d8" title="Overwrite (clobber) the stored data type of this Object.">set</a>(i, i);</div>
-<div class="line">    db.<a id="a2" name="a2"></a><a class="code hl_function" href="classnodel_1_1_object.html#a0efb4a95bf69053312e10ff92065edd1" title="Save changes made in the subtree.">save</a>();</div>
+<div class="line">    db.<a id="a3" name="a3"></a><a class="code hl_function" href="classnodel_1_1_object.html#a0efb4a95bf69053312e10ff92065edd1" title="Save changes made in the subtree.">save</a>();</div>
 <div class="line">    <span class="keyword">auto</span> elapsed_with_save = swatch.finish();</div>
 <div class="line"> </div>
 <div class="line">    std::cout &lt;&lt; <span class="stringliteral">&quot;Nodel Overhead=&quot;</span> &lt;&lt; (100.0 * elapsed_without_save / elapsed_with_save) &lt;&lt; <span class="stringliteral">&quot;%&quot;</span>&lt;&lt; std::endl;</div>
 <div class="line"> </div>
 <div class="line">    swatch.start(<span class="stringliteral">&quot;Count keys&quot;</span>);</div>
-<div class="line">    db.<a id="a3" name="a3"></a>reset();</div>
-<div class="line">    <span class="keyword">auto</span> count = algo::count(db.<a id="a4" name="a4"></a><a class="code hl_function" href="classnodel_1_1_object.html#a336f5003895f468d597205fed10f15c3" title="Returns a range-like object over container Keys.">iter_keys</a>());</div>
+<div class="line">    db.<a id="a4" name="a4"></a>reset();</div>
+<div class="line">    <span class="keyword">auto</span> count = algo::count(db.<a id="a5" name="a5"></a><a class="code hl_function" href="classnodel_1_1_object.html#a336f5003895f468d597205fed10f15c3" title="Returns a range-like object over container Keys.">iter_keys</a>());</div>
 <div class="line">    swatch.finish();</div>
 <div class="line">    std::cout &lt;&lt; <span class="stringliteral">&quot;Total number of entries=&quot;</span> &lt;&lt; count &lt;&lt; std::endl;</div>
 <div class="line"> </div>

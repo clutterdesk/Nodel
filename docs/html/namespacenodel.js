@@ -1,5 +1,9 @@
 var namespacenodel =
 [
+    [ "filesystem", "namespacenodel_1_1filesystem.html", [
+      [ "default_registry", "namespacenodel_1_1filesystem.html#a9101ec3518c12a38ed5c63910639ade7", null ],
+      [ "configure", "namespacenodel_1_1filesystem.html#ad5900704b379409c84745a08c229ad21", null ]
+    ] ],
     [ "DataSource", "classnodel_1_1_data_source.html", "classnodel_1_1_data_source" ],
     [ "Key", "classnodel_1_1_key.html", "classnodel_1_1_key" ],
     [ "Object", "classnodel_1_1_object.html", "classnodel_1_1_object" ],

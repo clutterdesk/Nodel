@@ -1,3 +1,5 @@
+/// @b License: @n Apache License v2.0
+/// @copyright Robert Dunnagan
 #include <Python.h>
 
 #include <nodel/pyext/module.h>

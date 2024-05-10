@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.10.0"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Nodel: std::hash&lt; nodel::Key &gt;</title>
+<title>Nodel: nodel::filesystem Namespace Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript">var page_layout=1;</script>
 <script type="text/javascript" src="jquery.js"></script>
@@ -74,7 +74,7 @@ var searchBox = new SearchBox("searchBox", "search/",'.html');
 </div>
 <script type="text/javascript">
 /* @license magnet:?xt=urn:btih:d3d9a9a6595521f9666a5e94cc830dab83b65699&amp;dn=expat.txt MIT */
-$(function(){initNavTree('structstd_1_1hash_3_01nodel_1_1_key_01_4.html',''); initResizable(); });
+$(function(){initNavTree('namespacenodel_1_1filesystem.html',''); initResizable(); });
 /* @license-end */
 </script>
 <div id="doc-content">
@@ -101,60 +101,81 @@ $(function(){initNavTree('structstd_1_1hash_3_01nodel_1_1_key_01_4.html',''); in
 
 <div class="header">
   <div class="summary">
-<a href="#pub-methods">Public Member Functions</a> &#124;
-<a href="structstd_1_1hash_3_01nodel_1_1_key_01_4-members.html">List of all members</a>  </div>
-  <div class="headertitle"><div class="title">std::hash&lt; nodel::Key &gt;</div></div>
+<a href="#func-members">Functions</a>  </div>
+  <div class="headertitle"><div class="title">nodel::filesystem Namespace Reference</div></div>
 </div><!--header-->
 <div class="contents">
-
-<p><code>#include &lt;<a class="el" href="_key_8h_source.html">Key.h</a>&gt;</code></p>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>Key hash function support. </p>
-
-<p class="definition">Definition at line <a class="el" href="_key_8h_source.html#l00522">522</a> of file <a class="el" href="_key_8h_source.html">Key.h</a>.</p>
+<div class="textblock"><p><b>License:</b> <br  />
+ Apache License v2.0 </p>
+<dl class="section copyright"><dt>Copyright</dt><dd>Robert Dunnagan </dd></dl>
 </div><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
-Public Member Functions</h2></td></tr>
-<tr class="memitem:ad81cfce6be006b8d9812be76d12af811" id="r_ad81cfce6be006b8d9812be76d12af811"><td class="memItemLeft" align="right" valign="top">std::size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ad81cfce6be006b8d9812be76d12af811">operator()</a> (const <a class="el" href="classnodel_1_1_key.html">nodel::Key</a> &amp;key) const noexcept</td></tr>
-<tr class="separator:ad81cfce6be006b8d9812be76d12af811"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
+Functions</h2></td></tr>
+<tr class="memitem:a9101ec3518c12a38ed5c63910639ade7" id="r_a9101ec3518c12a38ed5c63910639ade7"><td class="memItemLeft" align="right" valign="top">Registry &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a9101ec3518c12a38ed5c63910639ade7">default_registry</a> ()</td></tr>
+<tr class="memdesc:a9101ec3518c12a38ed5c63910639ade7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the <em>thread-local</em> default registry.  <br /></td></tr>
+<tr class="separator:a9101ec3518c12a38ed5c63910639ade7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad5900704b379409c84745a08c229ad21" id="r_ad5900704b379409c84745a08c229ad21"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ad5900704b379409c84745a08c229ad21">configure</a> (<a class="el" href="structnodel_1_1_data_source_1_1_options.html">DataSource::Options</a> default_options={})</td></tr>
+<tr class="memdesc:ad5900704b379409c84745a08c229ad21"><td class="mdescLeft">&#160;</td><td class="mdescRight">Configure Nodel filesystem.  <br /></td></tr>
+<tr class="separator:ad5900704b379409c84745a08c229ad21"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<h2 class="groupheader">Member Function Documentation</h2>
-<a id="ad81cfce6be006b8d9812be76d12af811" name="ad81cfce6be006b8d9812be76d12af811"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad81cfce6be006b8d9812be76d12af811">&#9670;&#160;</a></span>operator()()</h2>
+<h2 class="groupheader">Function Documentation</h2>
+<a id="a9101ec3518c12a38ed5c63910639ade7" name="a9101ec3518c12a38ed5c63910639ade7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9101ec3518c12a38ed5c63910639ade7">&#9670;&#160;</a></span>default_registry()</h2>
 
 <div class="memitem">
 <div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">std::size_t std::hash&lt; <a class="el" href="classnodel_1_1_key.html">nodel::Key</a> &gt;::operator() </td>
+          <td class="memname">Registry &amp; nodel::filesystem::default_registry </td>
           <td>(</td>
-          <td class="paramtype">const <a class="el" href="classnodel_1_1_key.html">nodel::Key</a> &amp;</td>          <td class="paramname"><span class="paramname"><em>key</em></span></td><td>)</td>
-          <td> const</td>
+          <td class="paramname"><span class="paramname"></span></td><td>)</td>
+          <td></td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">noexcept</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_key_8h_source.html#l00524">524</a> of file <a class="el" href="_key_8h_source.html">Key.h</a>.</p>
+<p>Returns the <em>thread-local</em> default registry. </p>
+<p>Changes to the file associations in this registry will affect <em>all</em> Objects bound to the filesystem in the current thread. </p>
+
+<p class="definition">Definition at line <a class="el" href="filesystem_8h_source.html#l00039">39</a> of file <a class="el" href="filesystem_8h_source.html">filesystem.h</a>.</p>
 
 </div>
 </div>
-<hr/>The documentation for this struct was generated from the following file:<ul>
-<li>include/nodel/core/<a class="el" href="_key_8h_source.html">Key.h</a></li>
+<a id="ad5900704b379409c84745a08c229ad21" name="ad5900704b379409c84745a08c229ad21"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad5900704b379409c84745a08c229ad21">&#9670;&#160;</a></span>configure()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void nodel::filesystem::configure </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structnodel_1_1_data_source_1_1_options.html">DataSource::Options</a></td>          <td class="paramname"><span class="paramname"><em>default_options</em><span class="paramdefsep"> = </span><span class="paramdefval">{}</span></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Configure Nodel filesystem. </p>
+<ul>
+<li>Enable binding URI with the "file" scheme using nodel::bind(const String&amp; uri_spec, ...).</li>
+<li>By default, Objects bound to the filesystem have their <a class="el" href="classnodel_1_1_data_source.html" title="Base class for objects implementing external data access.">DataSource</a> mode set to read-only. See <a class="el" href="structnodel_1_1_data_source_1_1_options.html">DataSource::Options</a> for more information.</li>
+<li>Use URI query to set path when the path is relative (ex: <a href="file://?path=a/b">file://?path=a/b</a>). </li>
 </ul>
+<dl class="section examples"><dt>Examples</dt><dd><a class="el" href="examples_2rocksdb_8cpp-example.html#a0">examples/rocksdb.cpp</a>.</dd>
+</dl>
+
+<p class="definition">Definition at line <a class="el" href="filesystem_8h_source.html#l00056">56</a> of file <a class="el" href="filesystem_8h_source.html">filesystem.h</a>.</p>
+
+</div>
+</div>
 </div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacestd.html">std</a></li><li class="navelem"><a class="el" href="structstd_1_1hash_3_01nodel_1_1_key_01_4.html">hash&lt; nodel::Key &gt;</a></li>
+    <li class="navelem"><a class="el" href="namespacenodel.html">nodel</a></li><li class="navelem"><a class="el" href="namespacenodel_1_1filesystem.html">filesystem</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.10.0 </li>
   </ul>
 </div>

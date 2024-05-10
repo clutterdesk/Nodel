@@ -1,3 +1,5 @@
+/// @b License: @n Apache License v2.0
+/// @copyright Robert Dunnagan
 #pragma once
 
 #include "Registry.h"

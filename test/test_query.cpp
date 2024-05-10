@@ -1,3 +1,5 @@
+/// @b License: @n Apache License v2.0
+/// @copyright Robert Dunnagan
 #include <gtest/gtest.h>
 #include <fmt/format.h>
 #include <unordered_set>
