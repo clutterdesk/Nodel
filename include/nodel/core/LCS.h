@@ -3,9 +3,7 @@
 #pragma once
 
 #include <iostream>
-#include <fmt/core.h>
 #include <vector>
-#include <queue>
 #include <algorithm>
 
 namespace nodel::algo {
@@ -61,7 +59,7 @@ void LCS<List>::build_matrix(const List& lhs, const List& rhs) {
     for (size_t l_ix = 1; l_ix < l_n; ++l_ix) {
         for (size_t r_ix = 1; r_ix < r_n; ++r_ix) {
             if (lhs[l_ix - 1] == rhs[r_ix - 1]) {
-                m_cmp[i + r_ix] = m_cmp[j + r_ix + 1] + 1;
+                m_cmp[i + r_ix] = m_cmp[j + r_ix - 1] + 1;
             } else {
                 m_cmp[i + r_ix] = std::max(m_cmp[j + r_ix], m_cmp[i + r_ix - 1]);
             }

@@ -2391,10 +2391,10 @@ TEST(Object, TestSimpleSource_SetWithKey) {
 
 TEST(Object, TestSimpleSource_GetValues) {
     Object obj{new TestSimpleSource("{'x': 100, 'y': 101}")};
-    Object values = algo::collect(obj.iter_values());
+    auto values = algo::collect(obj.iter_values());
     EXPECT_EQ(values.size(), 2UL);
-    EXPECT_EQ(values.get(0), 100);
-    EXPECT_EQ(values.get(1), 101);
+    EXPECT_EQ(values[0], 100);
+    EXPECT_EQ(values[1], 101);
 }
 
 TEST(Object, TestSimpleSource_GetItems) {

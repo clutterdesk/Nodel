@@ -30,23 +30,33 @@ size_t count(InRange&& range) {
 }
 
 inline
-Object collect(ItemRange&& range) {
-    OrderedMap map;
+KeyList collect(KeyRange&& range) {
+    KeyList keys;
     auto it = range.begin();
     auto end = range.end();
     for (; it != end; ++it)
-        map.insert(*it);
-    return map;
+        keys.push_back(*it);
+    return keys;
 }
 
 inline
-Object collect(ValueRange&& range) {
-    ObjectList list;
+ObjectList collect(ValueRange&& range) {
+    ObjectList objs;
     auto it = range.begin();
     auto end = range.end();
     for (; it != end; ++it)
-        list.push_back(*it);
-    return list;
+        objs.push_back(*it);
+    return objs;
+}
+
+inline
+ItemList collect(ItemRange&& range) {
+    ItemList items;
+    auto it = range.begin();
+    auto end = range.end();
+    for (; it != end; ++it)
+        items.push_back(*it);
+    return items;
 }
 
 } // namespace nodel::algo
