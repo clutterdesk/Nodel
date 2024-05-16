@@ -127,7 +127,7 @@ $(function(){initNavTree('classnodel_1_1_data_source.html',''); initResizable();
 <li>A <a class="el" href="classnodel_1_1_data_source.html" title="Base class for objects implementing external data access.">DataSource</a> implementation can be hierarchical and populate a container with Objects that, themselves, have DataSources. This is how the filesystem DataSources work. </li>
 </ul>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00810">810</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00813">813</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 </div><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
@@ -151,15 +151,22 @@ Public Types</h2></td></tr>
 <br />
  }</td></tr>
 <tr class="separator:a6b36e1291bbbb63ddc3206fc8af933ac"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acba399b967b27ebf65dd12b126d10819" id="r_acba399b967b27ebf65dd12b126d10819"><td class="memItemLeft" align="right" valign="top">enum class &#160;</td><td class="memItemRight" valign="bottom"><b>Multilevel</b> { <br />
+&#160;&#160;<b>NO</b>
+, <br />
+&#160;&#160;<b>YES</b>
+<br />
+ }</td></tr>
+<tr class="separator:acba399b967b27ebf65dd12b126d10819"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab2ee0e25704f109c5be2a17e7bdc8246" id="r_ab2ee0e25704f109c5be2a17e7bdc8246"><td class="memItemLeft" align="right" valign="top">using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ab2ee0e25704f109c5be2a17e7bdc8246">ReprIX</a> = Object::ReprIX</td></tr>
 <tr class="separator:ab2ee0e25704f109c5be2a17e7bdc8246"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:af6ac7656141319cc04a2f01325b096db" id="r_af6ac7656141319cc04a2f01325b096db"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#af6ac7656141319cc04a2f01325b096db">DataSource</a> (Kind kind, Origin origin, bool multi_level=false)</td></tr>
-<tr class="separator:af6ac7656141319cc04a2f01325b096db"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a32438e946eb4a908f32f893a27f3722e" id="r_a32438e946eb4a908f32f893a27f3722e"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a32438e946eb4a908f32f893a27f3722e">DataSource</a> (Kind kind, ReprIX repr_ix, Origin origin, bool multi_level=false)</td></tr>
-<tr class="separator:a32438e946eb4a908f32f893a27f3722e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a14fe9cdf8dc9e886ab37844e0d4f1320" id="r_a14fe9cdf8dc9e886ab37844e0d4f1320"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a14fe9cdf8dc9e886ab37844e0d4f1320">DataSource</a> (Kind kind, Origin origin, Multilevel multi_level=Multilevel::NO)</td></tr>
+<tr class="separator:a14fe9cdf8dc9e886ab37844e0d4f1320"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa5df63531764de13a1afbb22d52ba3d2" id="r_aa5df63531764de13a1afbb22d52ba3d2"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#aa5df63531764de13a1afbb22d52ba3d2">DataSource</a> (Kind kind, ReprIX repr_ix, Origin origin, Multilevel multi_level=Multilevel::NO)</td></tr>
+<tr class="separator:aa5df63531764de13a1afbb22d52ba3d2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1ea98e2b138deb422e631d34576fa0b5" id="r_a1ea98e2b138deb422e631d34576fa0b5"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="classnodel_1_1_object.html">Object</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a1ea98e2b138deb422e631d34576fa0b5">get_cached</a> (const <a class="el" href="classnodel_1_1_object.html">Object</a> &amp;target) const</td></tr>
 <tr class="separator:a1ea98e2b138deb422e631d34576fa0b5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a460c5e3dbe41cb831d42fcd85090064e" id="r_a460c5e3dbe41cb831d42fcd85090064e"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a460c5e3dbe41cb831d42fcd85090064e">size</a> (const <a class="el" href="classnodel_1_1_object.html">Object</a> &amp;target)</td></tr>
@@ -241,6 +248,8 @@ Protected Member Functions</h2></td></tr>
 <tr class="separator:addc2840572af269ce9c6ac0cf3a286c2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3e0eca90a4ca89cf225d67b476a4f5d9" id="r_a3e0eca90a4ca89cf225d67b476a4f5d9"><td class="memItemLeft" align="right" valign="top">virtual std::unique_ptr&lt; ItemIterator &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a3e0eca90a4ca89cf225d67b476a4f5d9">item_iter</a> (const Slice &amp;)</td></tr>
 <tr class="separator:a3e0eca90a4ca89cf225d67b476a4f5d9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab1be3440c0f574f558b24c6806e383be" id="r_ab1be3440c0f574f558b24c6806e383be"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ab1be3440c0f574f558b24c6806e383be">free_resources</a> ()</td></tr>
+<tr class="separator:ab1be3440c0f574f558b24c6806e383be"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Member Typedef Documentation</h2>
 <a id="ab2ee0e25704f109c5be2a17e7bdc8246" name="ab2ee0e25704f109c5be2a17e7bdc8246"></a>
@@ -255,7 +264,7 @@ Protected Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00856">856</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00859">859</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -280,7 +289,7 @@ Protected Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00858">858</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00861">861</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -304,13 +313,37 @@ Protected Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00859">859</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00862">862</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+
+</div>
+</div>
+<a id="acba399b967b27ebf65dd12b126d10819" name="acba399b967b27ebf65dd12b126d10819"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acba399b967b27ebf65dd12b126d10819">&#9670;&#160;</a></span>Multilevel</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">enum class nodel::DataSource::Multilevel</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">strong</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00863">863</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
 <h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
-<a id="af6ac7656141319cc04a2f01325b096db" name="af6ac7656141319cc04a2f01325b096db"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#af6ac7656141319cc04a2f01325b096db">&#9670;&#160;</a></span>DataSource() <span class="overload">[1/2]</span></h2>
+<a id="a14fe9cdf8dc9e886ab37844e0d4f1320" name="a14fe9cdf8dc9e886ab37844e0d4f1320"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a14fe9cdf8dc9e886ab37844e0d4f1320">&#9670;&#160;</a></span>DataSource() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -328,17 +361,17 @@ Protected Member Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">bool</td>          <td class="paramname"><span class="paramname"><em>multi_level</em><span class="paramdefsep"> = </span><span class="paramdefval">false</span></span>&#160;)</td>
+          <td class="paramtype">Multilevel</td>          <td class="paramname"><span class="paramname"><em>multi_level</em><span class="paramdefsep"> = </span><span class="paramdefval">Multilevel::NO</span></span>&#160;)</td>
         </tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00904">904</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00908">908</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
-<a id="a32438e946eb4a908f32f893a27f3722e" name="a32438e946eb4a908f32f893a27f3722e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a32438e946eb4a908f32f893a27f3722e">&#9670;&#160;</a></span>DataSource() <span class="overload">[2/2]</span></h2>
+<a id="aa5df63531764de13a1afbb22d52ba3d2" name="aa5df63531764de13a1afbb22d52ba3d2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa5df63531764de13a1afbb22d52ba3d2">&#9670;&#160;</a></span>DataSource() <span class="overload">[2/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -361,12 +394,12 @@ Protected Member Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">bool</td>          <td class="paramname"><span class="paramname"><em>multi_level</em><span class="paramdefsep"> = </span><span class="paramdefval">false</span></span>&#160;)</td>
+          <td class="paramtype">Multilevel</td>          <td class="paramname"><span class="paramname"><em>multi_level</em><span class="paramdefsep"> = </span><span class="paramdefval">Multilevel::NO</span></span>&#160;)</td>
         </tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00914">914</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00918">918</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -393,7 +426,7 @@ Protected Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00924">924</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00928">928</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -469,7 +502,7 @@ Protected Member Functions</h2></td></tr>
 </dl>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="uri_8h_source.html">nodel/core/uri.h</a>. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00936">936</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00940">940</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -508,7 +541,7 @@ Protected Member Functions</h2></td></tr>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00945">945</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00949">949</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -590,7 +623,7 @@ Protected Member Functions</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Returns the value of the key, or nil. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00961">961</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00965">965</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -677,7 +710,7 @@ Protected Member Functions</h2></td></tr>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00973">973</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00977">977</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -720,7 +753,7 @@ Protected Member Functions</h2></td></tr>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00979">979</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00983">983</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -770,7 +803,7 @@ Protected Member Functions</h2></td></tr>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00988">988</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00992">992</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -801,7 +834,7 @@ Protected Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03395">3395</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03402">3402</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -837,7 +870,7 @@ Protected Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03402">3402</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03409">3409</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -873,7 +906,7 @@ Protected Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03408">3408</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03415">3415</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -904,7 +937,7 @@ Protected Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03414">3414</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03421">3421</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -931,7 +964,7 @@ Protected Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00996">996</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01000">1000</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -958,7 +991,7 @@ Protected Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00997">997</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01001">1001</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -985,7 +1018,7 @@ Protected Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l00998">998</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01002">1002</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1012,7 +1045,7 @@ Protected Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01000">1000</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01004">1004</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1039,7 +1072,7 @@ Protected Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01001">1001</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01005">1005</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1066,7 +1099,34 @@ Protected Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01002">1002</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01006">1006</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+
+</div>
+</div>
+<a id="ab1be3440c0f574f558b24c6806e383be" name="ab1be3440c0f574f558b24c6806e383be"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab1be3440c0f574f558b24c6806e383be">&#9670;&#160;</a></span>free_resources()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual void nodel::DataSource::free_resources </td>
+          <td>(</td>
+          <td class="paramname"><span class="paramname"></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">protected</span><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01008">1008</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1085,7 +1145,7 @@ Protected Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03098">3098</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03104">3104</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1104,7 +1164,7 @@ Protected Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03103">3103</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03109">3109</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1127,7 +1187,7 @@ Protected Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03130">3130</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03136">3136</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1146,7 +1206,7 @@ Protected Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01010">1010</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01016">1016</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1165,7 +1225,7 @@ Protected Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01011">1011</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01017">1017</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1184,7 +1244,7 @@ Protected Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01013">1013</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01019">1019</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1203,7 +1263,7 @@ Protected Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01014">1014</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01020">1020</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1222,7 +1282,7 @@ Protected Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03156">3156</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03162">3162</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1241,7 +1301,7 @@ Protected Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01017">1017</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01023">1023</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1260,7 +1320,7 @@ Protected Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01018">1018</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01024">1024</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1279,7 +1339,7 @@ Protected Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01019">1019</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l01025">1025</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1298,7 +1358,7 @@ Protected Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l02997">2997</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03003">3003</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1317,7 +1377,7 @@ Protected Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03004">3004</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03010">3010</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1336,7 +1396,7 @@ Protected Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03010">3010</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03016">3016</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>
@@ -1370,7 +1430,7 @@ Protected Member Functions</h2></td></tr>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03075">3075</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_object_8h_source.html#l03081">3081</a> of file <a class="el" href="_object_8h_source.html">Object.h</a>.</p>
 
 </div>
 </div>

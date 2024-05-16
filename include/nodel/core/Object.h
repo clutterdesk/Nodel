@@ -203,27 +203,30 @@ class Object // : public debug::Object
       };
 
   private:
-    template <typename T> ReprIX get_repr_ix() const;
-    template <> ReprIX get_repr_ix<bool>() const       { return BOOL; }
-    template <> ReprIX get_repr_ix<Int>() const        { return INT; }
-    template <> ReprIX get_repr_ix<UInt>() const       { return UINT; }
-    template <> ReprIX get_repr_ix<Float>() const      { return FLOAT; }
-    template <> ReprIX get_repr_ix<String>() const     { return STR; }
-    template <> ReprIX get_repr_ix<ObjectList>() const { return LIST; }
-    template <> ReprIX get_repr_ix<SortedMap>() const  { return SMAP; }
-    template <> ReprIX get_repr_ix<OrderedMap>() const { return OMAP; }
+    template <typename T> ReprIX get_repr_ix() const {
+        if constexpr (std::is_same<T, bool>::value)            return BOOL;
+        else if constexpr (std::is_same<T, Int>::value)        return INT;
+        else if constexpr (std::is_same<T, UInt>::value)       return UINT;
+        else if constexpr (std::is_same<T, Float>::value)      return FLOAT;
+        else if constexpr (std::is_same<T, String>::value)     return STR;
+        else if constexpr (std::is_same<T, ObjectList>::value) return LIST;
+        else if constexpr (std::is_same<T, SortedMap>::value)  return SMAP;
+        else if constexpr (std::is_same<T, OrderedMap>::value) return OMAP;
+    }
 
-    template <typename T> T get_repr() const requires is_byvalue<T>;
-    template <> bool get_repr<bool>() const     { return m_repr.b; }
-    template <> Int get_repr<Int>() const       { return m_repr.i; }
-    template <> UInt get_repr<UInt>() const     { return m_repr.u; }
-    template <> Float get_repr<Float>() const   { return m_repr.f; }
+    template <typename T> T get_repr() const requires is_byvalue<T> {
+        if constexpr (std::is_same<T, bool>::value)            { return m_repr.b; }
+        else if constexpr (std::is_same<T, Int>::value)        { return m_repr.i; }
+        else if constexpr (std::is_same<T, UInt>::value)       { return m_repr.u; }
+        else if constexpr (std::is_same<T, Float>::value)      { return m_repr.f; }
+    }
 
-    template <typename T> T& get_repr() requires is_byvalue<T>;
-    template <> bool& get_repr<bool>()     { return m_repr.b; }
-    template <> Int& get_repr<Int>()       { return m_repr.i; }
-    template <> UInt& get_repr<UInt>()     { return m_repr.u; }
-    template <> Float& get_repr<Float>()   { return m_repr.f; }
+    template <typename T> T& get_repr() requires is_byvalue<T> {
+        if constexpr (std::is_same<T, bool>::value)            { return m_repr.b; }
+        else if constexpr (std::is_same<T, Int>::value)        { return m_repr.i; }
+        else if constexpr (std::is_same<T, UInt>::value)       { return m_repr.u; }
+        else if constexpr (std::is_same<T, Float>::value)      { return m_repr.f; }
+    }
 
     template <typename T> const T& get_repr() const requires std::is_same<T, String>::value { return std::get<0>(*m_repr.ps); }
     template <typename T> T& get_repr() requires std::is_same<T, String>::value             { return std::get<0>(*m_repr.ps); }
@@ -857,6 +860,7 @@ class DataSource
 
     enum class Kind { SPARSE, COMPLETE };  // SPARSE -> big key/value source, COMPLETE -> all keys present once cached
     enum class Origin { SOURCE, MEMORY };  // SOURCE -> created while reading source, MEMORY -> created by program
+    enum class Multilevel { NO, YES };
 
     struct Mode : public Flags<uint8_t> {
         FLAG8 READ = 1;
@@ -901,7 +905,7 @@ class DataSource
     };
 
     // TODO: comment
-    DataSource(Kind kind, Origin origin, bool multi_level=false)
+    DataSource(Kind kind, Origin origin, Multilevel multi_level=Multilevel::NO)
       : m_parent{Object::NIL}
       , m_cache{Object::EMPTY}
       , m_kind{kind}
@@ -911,7 +915,7 @@ class DataSource
       , m_unsaved{origin == Origin::MEMORY}
     {}
 
-    DataSource(Kind kind, ReprIX repr_ix, Origin origin, bool multi_level=false)
+    DataSource(Kind kind, ReprIX repr_ix, Origin origin, Multilevel multi_level=Multilevel::NO)
       : m_parent{Object::NIL}
       , m_cache{repr_ix}
       , m_kind{kind}
@@ -1001,6 +1005,8 @@ class DataSource
     virtual std::unique_ptr<ValueIterator> value_iter(const Slice&) { return nullptr; }
     virtual std::unique_ptr<ItemIterator> item_iter(const Slice&)   { return nullptr; }
 
+    virtual void free_resources() {}
+
   public:
     const Object& get_cached(const Object& target) const;
 
@@ -1016,7 +1022,7 @@ class DataSource
 
     bool is_fully_cached() const { return m_fully_cached; }
     bool is_sparse() const       { return m_kind == Kind::SPARSE; }
-    bool is_multi_level() const  { return m_multi_level; }
+    bool is_multi_level() const  { return m_multi_level == Multilevel::YES; }
 
     void report_read_error(std::string&& error);
     void report_write_error(std::string&& error);
@@ -1062,7 +1068,7 @@ class DataSource
     Object m_cache;
     Kind m_kind;
     ReprIX m_repr_ix;
-    bool m_multi_level = false;  // true if container values may have DataSources
+    Multilevel m_multi_level = Multilevel::NO;  // true if container values may have DataSources
     bool m_fully_cached = false;
     bool m_unsaved = false;
     bool m_read_failed = false;
@@ -1165,7 +1171,7 @@ inline
 Object::Object(DataSourcePtr ptr) : m_repr{ptr}, m_fields{DSRC} {}  // DataSource ownership transferred
 
 inline
-Object::Object(const ObjectList& list) : m_repr{new IRCList({}, NoParent{})}, m_fields{LIST} {
+Object::Object(const ObjectList& list) : m_repr{new IRCList(ObjectList{}, NoParent{})}, m_fields{LIST} {
     auto& my_list = std::get<0>(*m_repr.pl);
     for (auto value : list) {
         value = value.copy();
@@ -1175,7 +1181,7 @@ Object::Object(const ObjectList& list) : m_repr{new IRCList({}, NoParent{})}, m_
 }
 
 inline
-Object::Object(const SortedMap& map) : m_repr{new IRCMap({}, NoParent{})}, m_fields{SMAP} {
+Object::Object(const SortedMap& map) : m_repr{new IRCMap(SortedMap{}, NoParent{})}, m_fields{SMAP} {
     auto& my_map = std::get<0>(*m_repr.psm);
     for (auto [key, value]: map) {
         value = value.copy();
@@ -1185,7 +1191,7 @@ Object::Object(const SortedMap& map) : m_repr{new IRCMap({}, NoParent{})}, m_fie
 }
 
 inline
-Object::Object(const OrderedMap& map) : m_repr{new IRCOMap({}, NoParent{})}, m_fields{OMAP} {
+Object::Object(const OrderedMap& map) : m_repr{new IRCOMap(OrderedMap{}, NoParent{})}, m_fields{OMAP} {
     auto& my_map = std::get<0>(*m_repr.pom);
     for (auto [key, value]: map) {
         value = value.copy();
@@ -1265,9 +1271,9 @@ Object::Object(ReprIX type) : m_fields{(uint8_t)type} {
         case UINT:  m_repr.u = 0; break;
         case FLOAT: m_repr.f = 0.0; break;
         case STR:   m_repr.ps = new IRCString{"", NoParent{}}; break;
-        case LIST:  m_repr.pl = new IRCList{{}, NoParent{}}; break;
-        case SMAP:  m_repr.psm = new IRCMap{{}, NoParent{}}; break;
-        case OMAP:  m_repr.pom = new IRCOMap{{}, NoParent{}}; break;
+        case LIST:  m_repr.pl = new IRCList{ObjectList{}, NoParent{}}; break;
+        case SMAP:  m_repr.psm = new IRCMap{SortedMap{}, NoParent{}}; break;
+        case OMAP:  m_repr.pom = new IRCOMap{OrderedMap{}, NoParent{}}; break;
         case DEL:   m_repr.z = nullptr; break;
         default:      throw wrong_type(type);
     }
@@ -2229,7 +2235,7 @@ bool Object::operator == (const Object& obj) const {
 
     switch (m_fields.repr_ix) {
         case NIL: {
-            if (obj.m_fields.repr_ix == NIL) return true;
+            return obj.m_fields.repr_ix == NIL;
         }
         case BOOL: {
             switch (obj.m_fields.repr_ix)
@@ -2891,7 +2897,7 @@ template <class ValueType, typename VisitPred, typename EnterPred>
 class Object::TreeRange
 {
   public:
-    using TreeIterator = TreeIterator<ValueType, VisitPred, EnterPred>;
+    using Iterator = TreeIterator<ValueType, VisitPred, EnterPred>;
 
   public:
     TreeRange() = default;  // python creates, then assigns
@@ -2903,8 +2909,8 @@ class Object::TreeRange
         m_list.push_back(object);
     }
 
-    TreeIterator begin() { return TreeIterator{this, m_list}; }
-    TreeIterator end()   { return TreeIterator{this}; }
+    Iterator begin() { return TreeIterator{this, m_list}; }
+    Iterator end()   { return TreeIterator{this}; }
 
     bool should_visit(const Object& obj) const { return !m_visit_pred || m_visit_pred(obj); }
     bool should_enter(const Object& obj) const { return !m_enter_pred || m_enter_pred(obj); }
@@ -3329,6 +3335,7 @@ void DataSource::save(const Object& target) {
 
 inline
 void DataSource::reset() {
+    free_resources();
     m_fully_cached = false;
     m_unsaved = false;
     m_read_failed = false;

@@ -287,11 +287,12 @@ class Key
 
     /// Unchecked access to the the backing data
     /// @tparam T One of the data types defined in the Repr union.
-    template <typename T> T as() const requires is_byvalue<T>;
-    template <> bool as<bool>() const     { return m_repr.b; }
-    template <> Int as<Int>() const       { return m_repr.i; }
-    template <> UInt as<UInt>() const     { return m_repr.u; }
-    template <> Float as<Float>() const   { return m_repr.f; }
+    template <typename T> T as() const requires is_byvalue<T> {
+        if constexpr (std::is_same<T, bool>::value)          { return m_repr.b; }
+        else if constexpr (std::is_same<T, Int>::value)      { return m_repr.i; }
+        else if constexpr (std::is_same<T, UInt>::value)     { return m_repr.u; }
+        else if constexpr (std::is_same<T, Float>::value)    { return m_repr.f; }
+    }
 
     template <typename T> const T& as() const requires std::is_same<T, StringView>::value {
         if (m_repr_ix != STR) throw wrong_type(m_repr_ix);
@@ -467,13 +468,14 @@ class Key
         m_repr_ix = NIL;
     }
 
-    template <typename T> ReprIX get_repr_ix() const;
-    template <> ReprIX get_repr_ix<bool>() const     { return BOOL; }
-    template <> ReprIX get_repr_ix<Int>() const      { return INT; }
-    template <> ReprIX get_repr_ix<UInt>() const     { return UINT; }
-    template <> ReprIX get_repr_ix<Float>() const    { return FLOAT; }
-    template <> ReprIX get_repr_ix<intern_t>() const { return STR; }
-    template <> ReprIX get_repr_ix<String>() const   { return STR; }
+    template <typename T> ReprIX get_repr_ix() const {
+        if constexpr (std::is_same<T, bool>::value)          return BOOL;
+        else if constexpr (std::is_same<T, Int>::value)      return INT;
+        else if constexpr (std::is_same<T, UInt>::value)     return UINT;
+        else if constexpr (std::is_same<T, Float>::value)    return FLOAT;
+        else if constexpr (std::is_same<T, intern_t>::value) return STR;
+        else if constexpr (std::is_same<T, String>::value)   return STR;
+    }
 
   private:
     Repr m_repr;
