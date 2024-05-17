@@ -52,14 +52,15 @@ setup(
             ],
             library_dirs=[
                 fmt_lib,
-                cpptrace_lib,
+                dwarf_lib,
+                cpptrace_lib
             ],
             libraries=[
                 'fmt',
+                'dwarf',
                 'cpptrace'
             ],
             extra_link_args=[
-                dwarf_lib,
                 rocksdb_lib
             ]
         ),
