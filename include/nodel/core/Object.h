@@ -157,7 +157,7 @@ class Object // : public debug::Object
         OMAP,    // ordered map
         DSRC,    // DataSource
         DEL,     // indicates deleted key in sparse data-store
-        INVALID = 31
+        ERROR = 31
     };
 
   protected:
@@ -242,20 +242,20 @@ class Object // : public debug::Object
     /// @param repr_ix The value of the ReprIX enumeration.
     static std::string_view type_name(uint8_t repr_ix) {
       switch (repr_ix) {
-          case EMPTY:   return "empty";
-          case NIL:     return "nil";
-          case BOOL:    return "bool";
-          case INT:     return "int";
-          case UINT:    return "uint";
-          case FLOAT:   return "double";
-          case STR:     return "string";
-          case LIST:    return "list";
-          case SMAP:    return "sorted-map";
-          case OMAP:    return "ordered-map";
-          case DSRC:    return "data-source";
-          case DEL:     return "deleted";
-          case INVALID: return "invalid";
-          default:      return "<undefined>";
+          case EMPTY: return "empty";
+          case NIL:   return "nil";
+          case BOOL:  return "bool";
+          case INT:   return "int";
+          case UINT:  return "uint";
+          case FLOAT: return "double";
+          case STR:   return "string";
+          case LIST:  return "list";
+          case SMAP:  return "sorted-map";
+          case OMAP:  return "ordered-map";
+          case DSRC:  return "data-source";
+          case DEL:   return "deleted";
+          case ERROR: return "error";
+          default:    return "<undefined>";
       }
     }
 
@@ -598,9 +598,10 @@ class OPath
         return result;
     }
 
-    void reverse() { std::reverse(m_keys.begin(), m_keys.end()); }
-    KeyList keys() { return m_keys; }
-    Key tail()     { return m_keys[m_keys.size() - 1]; }
+    void reverse()       { std::reverse(m_keys.begin(), m_keys.end()); }
+    KeyList& keys()      { return m_keys; }
+    KeyList keys() const { return m_keys; }
+    Key leaf()           { return m_keys[m_keys.size() - 1]; }
 
     Iterator begin() { return m_keys.begin(); }
     Iterator end() { return m_keys.end(); }
@@ -1144,6 +1145,7 @@ Object::Object(const Object& other) : m_fields{other.m_fields} {
         case SMAP:  m_repr.psm = other.m_repr.psm; inc_ref_count(); break;
         case OMAP:  m_repr.pom = other.m_repr.pom; inc_ref_count(); break;
         case DSRC:  m_repr.ds = other.m_repr.ds; m_repr.ds->inc_ref_count(); break;
+        case ERROR: m_repr.ps = other.m_repr.ps; inc_ref_count(); break;
     }
 }
 
@@ -1161,6 +1163,7 @@ Object::Object(Object&& other) : m_fields{other.m_fields} {
         case SMAP:  m_repr.psm = other.m_repr.psm; break;
         case OMAP:  m_repr.pom = other.m_repr.pom; break;
         case DSRC:  m_repr.ds = other.m_repr.ds; break;
+        case ERROR: m_repr.ps = other.m_repr.ps; break;
     }
 
     other.m_fields.repr_ix = EMPTY;
@@ -1275,7 +1278,8 @@ Object::Object(ReprIX type) : m_fields{(uint8_t)type} {
         case SMAP:  m_repr.psm = new IRCMap{SortedMap{}, NoParent{}}; break;
         case OMAP:  m_repr.pom = new IRCOMap{OrderedMap{}, NoParent{}}; break;
         case DEL:   m_repr.z = nullptr; break;
-        default:      throw wrong_type(type);
+        case ERROR: m_repr.ps = new IRCString{"", NoParent{}}; break;
+        default:    throw wrong_type(type);
     }
 }
 
@@ -1379,7 +1383,7 @@ T& Object::as() requires is_byvalue<T> {
 /// @throw Throws a WrongType exception if the stored data type does not match
 template <typename T>
 T& Object::as() requires std::is_same<T, String>::value {
-    if (m_fields.repr_ix == get_repr_ix<T>()) return get_repr<T>();
+    if (m_fields.repr_ix == get_repr_ix<T>() || m_fields.repr_ix == ERROR) return get_repr<T>();
     else if (m_fields.repr_ix == DSRC) return dsrc_read().as<T>();
     throw wrong_type(m_fields.repr_ix);
 }
@@ -1584,6 +1588,7 @@ String Object::to_str() const {
         case SMAP:  [[fallthrough]];
         case OMAP:  return to_json();
         case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->to_str(*this);
+        case ERROR: return std::get<0>(*m_repr.ps);
         default:    throw wrong_type(m_fields.repr_ix);
     }
 }
@@ -1617,7 +1622,7 @@ bool Object::is_deleted() const {
 ///         Object does not have a DataSource.
 inline
 bool Object::is_valid() const {
-    if (m_fields.repr_ix == INVALID)
+    if (m_fields.repr_ix == ERROR)
         return false;
     else if (m_fields.repr_ix == DSRC)
         return m_repr.ds->is_valid(*this);
@@ -2614,7 +2619,7 @@ Object Object::copy() const {
         case OMAP:  return std::get<0>(*m_repr.pom);  // TODO: long-hand deep-copy, instead of using stack
         case DSRC:  return m_repr.ds->copy(*this, DataSource::Origin::MEMORY);
         case DEL:   return DEL;
-        default:      throw wrong_type(m_fields.repr_ix);
+        default:    throw wrong_type(m_fields.repr_ix);
     }
 }
 
@@ -2626,7 +2631,8 @@ refcnt_t Object::ref_count() const {
         case SMAP:  return std::get<1>(*m_repr.psm).m_fields.ref_count;
         case OMAP:  return std::get<1>(*m_repr.pom).m_fields.ref_count;
         case DSRC:  return m_repr.ds->ref_count();
-        default:      return no_ref_count;
+        case ERROR: return std::get<1>(*m_repr.ps).m_fields.ref_count;
+        default:    return no_ref_count;
     }
 }
 
@@ -2641,7 +2647,8 @@ void Object::inc_ref_count() const {
         case SMAP:  ++(std::get<1>(*self.m_repr.psm).m_fields.ref_count); break;
         case OMAP:  ++(std::get<1>(*self.m_repr.pom).m_fields.ref_count); break;
         case DSRC:  m_repr.ds->inc_ref_count(); break;
-        default:      break;
+        case ERROR: ++(std::get<1>(*self.m_repr.ps).m_fields.ref_count); break;
+        default:    break;
     }
 }
 
@@ -2694,6 +2701,14 @@ void Object::dec_ref_count() const {
             }
             break;
         }
+        case ERROR: {
+            auto p_irc = self.m_repr.ps;
+            if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
+                std::get<1>(*p_irc).m_fields.repr_ix = NIL;  // clear parent (should never be set)
+                delete p_irc;
+            }
+            break;
+        }
         default:
             break;
     }
@@ -2743,6 +2758,17 @@ Object& Object::operator = (const Object& other) {
             inc_ref_count();
             break;
         }
+        case DEL: {
+            m_repr.z = nullptr;
+            break;
+        }
+        case ERROR: {
+            m_repr.ps = other.m_repr.ps;
+            inc_ref_count();
+            break;
+        }
+        default:
+            throw wrong_type(m_fields.repr_ix);
     }
     return *this;
 }
@@ -2764,6 +2790,9 @@ Object& Object::operator = (Object&& other) {
         case SMAP:  m_repr.psm = other.m_repr.psm; break;
         case OMAP:  m_repr.pom = other.m_repr.pom; break;
         case DSRC:  m_repr.ds = other.m_repr.ds; break;
+        case DEL:   m_repr.z = nullptr; break;
+        case ERROR: m_repr.ps = other.m_repr.ps; break;
+        default:    throw wrong_type(m_fields.repr_ix);
     }
 
     other.m_fields.repr_ix = EMPTY;
@@ -3400,6 +3429,7 @@ void DataSource::insure_fully_cached(const Object& target) {
 
 inline
 void DataSource::read_set(const Object& target, const Object& value) {
+    ASSERT(value.type() != Object::ERROR);
     // TODO: Have data-source return all keys at once, so we know whether we're performing
     // a fresh load, or a refresh.
     m_cache.set(value);
@@ -3407,12 +3437,14 @@ void DataSource::read_set(const Object& target, const Object& value) {
 
 inline
 void DataSource::read_set(const Object& target, const Key& key, const Object& value) {
+    ASSERT(value.type() != Object::ERROR);
     m_cache.set(key, value);
     value.set_parent(target);
 }
 
 inline
 void DataSource::read_set(const Object& target, Key&& key, const Object& value) {
+    ASSERT(value.type() != Object::ERROR);
     m_cache.set(std::forward<Key>(key), value);
     value.set_parent(target);
 }
@@ -3582,6 +3614,20 @@ inline
 std::ostream& operator<< (std::ostream& ostream, const Object::Subscript<OPath>& sub) {
     ostream << sub.resolve().to_str();
     return ostream;
+}
+
+inline
+Object make_error(const String& message) {
+    Object obj = Object::ERROR;
+    obj.as<String>() = message;
+    return obj;
+}
+
+inline
+Object make_error(String&& message) {
+    Object obj = Object::ERROR;
+    obj.as<String>().swap(message);
+    return obj;
 }
 
 namespace test {

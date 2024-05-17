@@ -3,9 +3,11 @@
 #pragma once
 
 #include <nodel/filesystem/Directory.h>
-#include <nodel/filesystem/JsonFile.h>
-#include <nodel/filesystem/CsvFile.h>
-#include <nodel/filesystem/GenericFile.h>
+#include <nodel/filesystem/SerialFile.h>
+#include <nodel/serializer/CsvSerializer.h>
+#include <nodel/serializer/JsonSerializer.h>
+#include <nodel/serializer/StringSerializer.h>
+#include <nodel/filesystem/ZipFile.h>
 
 namespace nodel::filesystem {
 
@@ -22,10 +24,11 @@ extern thread_local Registry default_registry;
 inline
 void init_default_registry() {
     default_registry.set_directory_default<SubDirectory>();
-    default_registry.set_file_default<GenericFile>();
-    default_registry.associate<JsonFile>(".json");
-    default_registry.associate<CsvFile>(".csv");
-    default_registry.associate<GenericFile>(".txt");
+    default_registry.set_file_default(new StringSerializer());
+    default_registry.associate(".json", new JsonSerializer());
+    default_registry.associate(".csv", new CsvSerializer());
+    default_registry.associate(".txt", new StringSerializer());
+    default_registry.associate<ZipFile>(".zip");
 }
 
 } // namespace impl

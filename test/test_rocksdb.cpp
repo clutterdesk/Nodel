@@ -13,7 +13,9 @@
 #include <nodel/support/Finally.h>
 
 using namespace nodel;
+
 namespace db = ::rocksdb;
+namespace nodeldb = nodel::rocksdb;
 using DB = nodel::rocksdb::DB;
 
 namespace {
@@ -33,28 +35,28 @@ void build_db() {
     db::Status status = db::DB::Open(options, "test_data/test.rocksdb", &db);
     check_status(status);
 
-    status = db->Put(db::WriteOptions(), serialize(Key{false}), serialize(Object{false}));
+    status = db->Put(db::WriteOptions(), nodeldb::serialize(Key{false}), nodeldb::serialize(Object{false}));
     check_status(status);
 
-    status = db->Put(db::WriteOptions(), serialize(Key{true}), serialize(Object{true}));
+    status = db->Put(db::WriteOptions(), nodeldb::serialize(Key{true}), nodeldb::serialize(Object{true}));
     check_status(status);
 
-    status = db->Put(db::WriteOptions(), serialize(Key{-7}), serialize(Object{-7}));
+    status = db->Put(db::WriteOptions(), nodeldb::serialize(Key{-7}), nodeldb::serialize(Object{-7}));
     check_status(status);
 
-    status = db->Put(db::WriteOptions(), serialize(Key{7ULL}), serialize(Object{7ULL}));
+    status = db->Put(db::WriteOptions(), nodeldb::serialize(Key{7ULL}), nodeldb::serialize(Object{7ULL}));
     check_status(status);
 
-    status = db->Put(db::WriteOptions(), serialize(Key{3.1415926}), serialize(Object{3.1415926}));
+    status = db->Put(db::WriteOptions(), nodeldb::serialize(Key{3.1415926}), nodeldb::serialize(Object{3.1415926}));
     check_status(status);
 
-    status = db->Put(db::WriteOptions(), serialize("tea"_key), serialize(Object{"tea"}));
+    status = db->Put(db::WriteOptions(), nodeldb::serialize("tea"_key), nodeldb::serialize(Object{"tea"}));
     check_status(status);
 
-    status = db->Put(db::WriteOptions(), serialize("list"_key), serialize("[1, 2, 3]"_json));
+    status = db->Put(db::WriteOptions(), nodeldb::serialize("list"_key), nodeldb::serialize("[1, 2, 3]"_json));
     check_status(status);
 
-    status = db->Put(db::WriteOptions(), serialize("map"_key), serialize("{'x': [1], 'y': [2]}"_json));
+    status = db->Put(db::WriteOptions(), nodeldb::serialize("map"_key), nodeldb::serialize("{'x': [1], 'y': [2]}"_json));
     check_status(status);
 
     delete db;

@@ -2,6 +2,8 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
+#include "SerialFile.h"
+
 #include <nodel/support/Ref.h>
 #include <nodel/core/Object.h>
 
@@ -34,17 +36,23 @@ class Registry
     template <class T> void set_directory_default();
     template <class T> void associate(const String& extension);
 
-    Factory get_association(const std::filesystem::path& path) const;
+    void set_file_default(const Ref<Serializer>&);
+    void associate(const String& ext, const Ref<Serializer>&);
 
-    DataSource* create(const Object&, const std::filesystem::path&, Origin) const;
+    bool has_association(const std::filesystem::path& path) const;
+    const Ref<Serializer> get_serializer(const std::filesystem::path& path) const;
+
+    DataSource* create_if_defined(const Object&, const std::filesystem::path&, Origin) const;
     DataSource* create(const Object&, const std::filesystem::path&, Origin, bool is_directory) const;
 
     bool is_empty() const;
 
   protected:
-    std::unordered_map<String, Factory> m_ext_map;
+    std::unordered_map<String, Factory> m_ext_factory_map;
+    std::unordered_map<String, Ref<Serializer>> m_ext_serial_map;
     Factory m_dir_default;
     Factory m_file_default;
+    Ref<Serializer> m_serial_default;
 
   private:
     refcnt_t m_ref_count;
@@ -65,7 +73,7 @@ void Registry::set_directory_default(const Factory& factory) {
 
 inline
 void Registry::associate(const String& ext, const Factory& factory) {
-    m_ext_map[ext] = factory;
+    m_ext_factory_map[ext] = factory;
 }
 
 template <class T>
@@ -80,39 +88,60 @@ void Registry::set_directory_default() {
 
 template <class T>
 void Registry::associate(const String& ext) {
-    m_ext_map[ext] = [] (const Object&, const std::filesystem::path&, Origin origin) { return new T(origin); };
+    m_ext_factory_map[ext] = [] (const Object&, const std::filesystem::path&, Origin origin) { return new T(origin); };
 }
 
 inline
-Registry::Factory Registry::get_association(const std::filesystem::path& path) const {
+void Registry::set_file_default(const Ref<Serializer>& r_serial) {
+    m_serial_default = r_serial;
+
+    set_file_default([r_serial] (const Object&, const std::filesystem::path&, Origin origin) {
+        return new SerialFile(r_serial, origin);
+    });
+}
+
+inline
+void Registry::associate(const String& ext, const Ref<Serializer>& r_serial) {
+    m_ext_serial_map[ext] = r_serial;
+}
+
+inline
+bool Registry::has_association(const std::filesystem::path& path) const {
     auto ext = path.extension().string();
-    if (auto it = m_ext_map.find(ext); it != m_ext_map.end()) {
+    return m_ext_serial_map.find(ext) != m_ext_serial_map.end()
+           || m_ext_factory_map.find(ext) != m_ext_factory_map.end();
+}
+
+inline
+const Ref<Serializer> Registry::get_serializer(const std::filesystem::path& path) const {
+    auto ext = path.extension().string();
+    if (auto it = m_ext_serial_map.find(ext); it != m_ext_serial_map.end()) {
         return it->second;
     }
-    return {};
+    return m_serial_default;
 }
 
 inline
-DataSource* Registry::create(const Object& target, const std::filesystem::path& path, Origin origin) const {
+DataSource* Registry::create_if_defined(const Object& target, const std::filesystem::path& path, Origin origin) const {
     auto ext = path.extension().string();
-    if (auto it = m_ext_map.find(ext); it != m_ext_map.end()) {
+    if (auto it = m_ext_factory_map.find(ext); it != m_ext_factory_map.end()) {
         return it->second(target, path, origin);
+    } else if (auto it = m_ext_serial_map.find(ext); it != m_ext_serial_map.end()) {
+        return new SerialFile(it->second, origin);
     }
     return nullptr;
 }
 
 inline
 DataSource* Registry::create(const Object& target, const std::filesystem::path& path, Origin origin, bool is_directory) const {
-    auto ext = path.extension().string();
-    if (auto it = m_ext_map.find(ext); it != m_ext_map.end()) {
-        return it->second(target, path, origin);
-    }
+    auto p_ds = create_if_defined(target, path, origin);
+    if (p_ds != nullptr) return p_ds;
     return is_directory? m_dir_default(target, path, origin): m_file_default(target, path, origin);
 }
 
 inline
 bool Registry::is_empty() const {
-    return !m_file_default && !m_dir_default && m_ext_map.size() == 0;
+    return !m_file_default && !m_dir_default && m_ext_factory_map.size() == 0;
 }
 
 } // namespace nodel::filesystem

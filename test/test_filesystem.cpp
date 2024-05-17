@@ -165,7 +165,7 @@ TEST(Filesystem, CreateJsonFile) {
     Finally cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
 
     Object test_data = new Directory(new Registry{default_registry()}, wd, DataSource::Origin::SOURCE);
-    Object new_file = new JsonFile();
+    Object new_file = new SerialFile(new JsonSerializer());
     new_file.set(json::parse("{'tea': 'Assam, please'}"));
     test_data.set(new_file_name, new_file);
     test_data.save();
@@ -184,7 +184,7 @@ TEST(Filesystem, CreateCsvFile) {
     Finally cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
 
     Object test_data = new Directory(new Registry{default_registry()}, wd, DataSource::Origin::SOURCE);
-    Object new_file = new CsvFile();
+    Object new_file = new SerialFile(new CsvSerializer());
     new_file.set(0, json::parse("['a', 'b']"));
     new_file.set(1, json::parse("[0, 1]"));
     new_file.set(2, json::parse("[2, 3]"));
@@ -205,7 +205,7 @@ TEST(Filesystem, UpdateJsonFile) {
     Finally cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
 
     Object test_data = new Directory(new Registry{default_registry()}, wd, DataSource::Origin::SOURCE);
-    Object new_file = new JsonFile();
+    Object new_file = new SerialFile(new JsonSerializer());
     new_file.set(json::parse("{'tea': 'Assam, please'}"));
     test_data.set(new_file_name, new_file);
     test_data.save();
@@ -247,21 +247,6 @@ TEST(Filesystem, CopyFileToAnotherDirectory) {
 TEST(Filesystem, Bind) {
     Object wd = bind("file://?path=."_uri);
     EXPECT_TRUE(wd.get("test_data"_key) != nil);
-}
-
-TEST(Filesystem, BindWithDataSourceType) {
-    Object wd = bind("file://?perm=rw&path=."_uri);
-    auto path = filesystem::path(wd);
-
-    Finally cleanup{[&path] () {
-        std::filesystem::remove(path / "test_data" / "dummy.txt");
-    }};
-
-    wd["test_data['dummy.txt']"_path] = bind<JsonFile>("tea");
-    wd.save();
-
-    wd.reset();
-    EXPECT_EQ(wd["test_data['dummy.txt']"_path], "\"tea\"");
 }
 
 TEST(Filesystem, LookupDataSourceForNewFile) {

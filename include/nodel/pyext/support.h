@@ -264,7 +264,7 @@ Object Support::to_object(PyObject* po) {
             PyErr_Clear();
             return PyLong_AsUnsignedLongLong(po);
         } else {
-            return Object::INVALID;
+            return make_error("Integer conversion error");
         }
     } else if (PyBool_Check(po)) {
         return po == Py_True;

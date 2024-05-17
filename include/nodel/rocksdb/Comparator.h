@@ -4,7 +4,7 @@
 
 #include <rocksdb/db.h>
 #include <nodel/core/Object.h>
-#include <nodel/core/serialize.h>
+#include <nodel/rocksdb/serialize.h>
 
 
 namespace nodel::rocksdb {

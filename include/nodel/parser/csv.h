@@ -30,7 +30,7 @@ class Parser
     void set_error(const std::string&);
 
   private:
-    nodel::parse::StreamAdapter<StreamType> m_it;
+    parse::StreamAdapter<StreamType> m_it;
     std::string m_error;
 };
 
@@ -40,7 +40,7 @@ Object Parser<StreamType>::parse() {
     ObjectList table;
     while (!m_it.done())
         if (!parse_row(table))
-            return nil;
+            return make_error(m_error);
     return table;
 }
 
@@ -166,43 +166,6 @@ void Parser<StreamType>::set_error(const std::string& msg) {
 } // namespace impl
 
 
-struct ParseError
-{
-    size_t error_offset = 0;
-    std::string error_message;
-
-    std::string to_str() const {
-        if (error_message.size() > 0) {
-            std::stringstream ss;
-            ss << "CSV parse error at " << error_offset << ": " << error_message;
-            return ss.str();
-        }
-        return "";
-    }
-};
-
-
-inline
-Object parse(std::string&& str, std::optional<ParseError>& error) {
-    std::istringstream in{std::forward<std::string>(str)};
-    impl::Parser parser{in};
-    Object result = parser.parse();
-    if (result == nil) {
-        error = ParseError{parser.pos(), std::move(parser.error())};
-    }
-    return result;
-}
-
-inline
-Object parse(std::string&& str, std::string& error) {
-    std::optional<ParseError> parse_error;
-    Object result = parse(std::forward<std::string>(str), parse_error);
-    if (parse_error) {
-        error = parse_error->to_str();
-    }
-    return result;
-}
-
 inline
 Object parse(std::string&& str) {
     std::istringstream in{std::forward<std::string>(str)};
@@ -211,21 +174,15 @@ Object parse(std::string&& str) {
 }
 
 inline
-Object parse_file(const std::string& file_name, std::string& error) {
+Object parse_file(const std::string& file_name) {
     std::ifstream f_in{file_name, std::ios::in};
     if (!f_in.is_open()) {
         std::stringstream ss;
         ss << "Error opening file: " << file_name;
-        error = ss.str();
-        return nil;
+        return make_error(ss.str());
     } else {
         impl::Parser parser{f_in};
-        Object result = parser.parse();
-        if (result == nil) {
-            ParseError parse_error{parser.pos(), std::move(parser.error())};
-            error = parse_error.to_str();
-        }
-        return result;
+        return parser.parse();
     }
 }
 

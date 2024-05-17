@@ -119,6 +119,8 @@ std::filesystem::path path(const Object& obj) {
     return fpath;
 }
 
+#include "SerialFileImpl.h"
+
 // TODO: move to predicate.h?
 struct RegexFilter
 {
@@ -155,7 +157,7 @@ bool looks_like_directory(const Ref<Registry>& r_reg, const std::filesystem::pat
     if (!nodel::is_map(obj)) return false;
     for (auto& key : obj.iter_keys()) {
         auto path = parent_path / key.to_str();
-        return (bool)r_reg->get_association(path);
+        return r_reg->has_association(path);
     }
     return parent_path.extension().string() == "";
 }
@@ -177,7 +179,7 @@ void SubDirectory::write(const Object& target, const Object& cache) {
             auto& key = item.first;
             auto obj = item.second;
             auto item_path = fpath / key.to_str();
-            auto p_ds = r_reg->create(target, item_path, DataSource::Origin::MEMORY);
+            auto p_ds = r_reg->create_if_defined(target, item_path, DataSource::Origin::MEMORY);
             if (p_ds == nullptr && looks_like_directory(r_reg, item_path, obj))
                 p_ds = r_reg->create(target, item_path, DataSource::Origin::MEMORY, true);
 

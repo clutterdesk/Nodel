@@ -64,7 +64,7 @@ TEST(Json, ParseNumberRangeError) {
   std::stringstream stream{"1000000000000000000000"};
   Parser parser{StreamAdapter{stream}};
   EXPECT_FALSE(parser.parse_number());
-  EXPECT_TRUE(parser.m_error_message.length() > 0);
+  EXPECT_FALSE(parser.m_curr.is_valid());
 }
 
 TEST(Json, ParseNumberFloat) {
@@ -145,9 +145,7 @@ TEST(Json, ParseSingleQuotedString) {
 }
 
 TEST(Json, ParseUnterminatedString) {
-    std::string err;
-    EXPECT_TRUE(json::parse("'tea", err) == nil);
-    EXPECT_TRUE(err.size());
+    EXPECT_FALSE(json::parse("'tea").is_valid());
 }
 
 TEST(Json, ParseTypeStringSingleQuote) {
@@ -208,24 +206,22 @@ TEST(Json, ParseExample1) {
 }
 
 TEST(Json, ParseExampleFile) {
-    std::string error;
-    Object example = json::parse_file("test_data/example.json", error);
-    EXPECT_EQ(error, "");
+    Object example = json::parse_file("test_data/example.json");
+    EXPECT_TRUE(example.is_valid());
     EXPECT_TRUE(example.is_type<OrderedMap>());
     EXPECT_EQ(example.get("favorite"_key), "Assam");
 }
 
 TEST(Json, ParseLargeExample1File) {
-    std::string error;
-    Object example = json::parse_file("test_data/large_example_1.json", error);
-    EXPECT_EQ(error, "");
+    Object example = json::parse_file("test_data/large_example_1.json");
+    EXPECT_TRUE(example.is_valid());
     EXPECT_TRUE(example.is_type<ObjectList>());
 }
 
 TEST(Json, ParseLargeExample2File) {
     std::string error;
-    Object example = json::parse_file("test_data/large_example_2.json", error);
-    EXPECT_EQ(error, "");
+    Object example = json::parse_file("test_data/large_example_2.json");
+    EXPECT_TRUE(example.is_valid());
     EXPECT_TRUE(example.is_type<OrderedMap>());
 }
 
@@ -234,31 +230,28 @@ TEST(Json, ParseLargeExample2File) {
 //
 TEST(Json, ParseListErrantColon) {
     std::stringstream stream{R"(["a", :"b", "c"])"};
-  Parser parser{StreamAdapter{stream}};
+    Parser parser{StreamAdapter{stream}};
     EXPECT_FALSE(parser.parse_object());
-    EXPECT_NE(parser.m_error_message, "");
-    EXPECT_EQ(parser.m_error_offset, 6UL);
+    EXPECT_FALSE(parser.m_curr.is_valid());
 }
 
 TEST(Json, ParseListDoubleComma) {
     std::stringstream stream{R"(["a",, "b"])"};
-  Parser parser{StreamAdapter{stream}};
+    Parser parser{StreamAdapter{stream}};
     EXPECT_FALSE(parser.parse_object());
-    EXPECT_NE(parser.m_error_message, "");
-    EXPECT_EQ(parser.m_error_offset, 5UL);
+    EXPECT_FALSE(parser.m_curr.is_valid());
 }
 
 TEST(Json, ParseMapDoubleComma) {
     std::stringstream stream{R"({"a": [1],, "b"})"};
-  Parser parser{StreamAdapter{stream}};
+    Parser parser{StreamAdapter{stream}};
     EXPECT_FALSE(parser.parse_object());
-    EXPECT_NE(parser.m_error_message, "");
-    EXPECT_EQ(parser.m_error_offset, 10UL);
+    EXPECT_FALSE(parser.m_curr.is_valid());
 }
 
 TEST(Json, ParseErrorBadNumberInList) {
   std::stringstream stream{"[2x]"};
-  Parser parser1{StreamAdapter{stream}};
-  EXPECT_FALSE(parser1.parse_list());
-  EXPECT_EQ(parser1.m_error_offset, 2UL);
+  Parser parser{StreamAdapter{stream}};
+  parser.parse_list();
+  EXPECT_FALSE(parser.m_curr.is_valid());
 }

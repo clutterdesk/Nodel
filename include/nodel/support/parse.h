@@ -32,12 +32,23 @@ class StreamAdapter  // TODO: replace with std::stream_iterator?
 
   private:
     void fill() {
-        m_pos += m_buf_size;
-        m_stream.read(m_buf.data(), m_buf.size());
-        m_buf_size = m_stream.gcount();
-        m_buf_pos = 0;
-        if (m_buf_size < m_buf.size())
-            m_buf[m_buf_size++] = 0;
+        if (!m_stream.good()) {
+            m_buf_size = 0;
+            m_buf_pos = 0;
+        } else {
+            m_stream.read(m_buf.data(), m_buf.size());
+            auto n_read = m_stream.gcount();
+            if (n_read == 0) {
+                m_buf_size = 0;
+                m_buf_pos = 0;
+            } else {
+                m_pos += n_read;
+                m_buf_size = n_read;
+                m_buf_pos = 0;
+                if (m_buf_size < m_buf.size())
+                    m_buf[m_buf_size++] = 0;
+            }
+        }
     }
 
   private:

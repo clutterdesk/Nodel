@@ -55,8 +55,6 @@ struct Parser
     StreamType m_it;
     Object m_curr;
     std::string m_scratch{32};
-    size_t m_error_offset = 0;
-    std::string m_error_message;
 };
 
 template <typename StreamType>
@@ -90,16 +88,15 @@ Object::ReprIX Parser<StreamType>::parse_type() {
         default:
             break;
     }
-    return Object::INVALID;  // TODO: BAD is not supported
+    return Object::ERROR;
 }
 
 template <typename StreamType>
 bool Parser<StreamType>::parse_object()
 {
+    m_curr = nil;
     if (!parse_object('\0')) {
-        if (m_error_message.size() == 0) {
-            m_error_message = "No object in json stream";
-        }
+        if (m_curr == nil) m_curr = make_error("No object in json stream");
         return false;
     }
     return true;
@@ -359,66 +356,18 @@ Object::ReprIX Parser<StreamType>::get_map_type() const {
 template <typename StreamType>
 void Parser<StreamType>::create_error(const std::string& message)
 {
-    m_error_message = message;
-    m_error_offset = m_it.consumed();
+    std::stringstream ss;
+    ss << "JSON parse error at " << m_it.consumed() << ": " << message;
+    m_curr = make_error(ss.str());
 }
 
 } // namespace impl
 
 
-struct Error
-{
-    size_t error_offset = 0;
-    std::string error_message;
-
-    std::string to_str() const {
-        if (error_message.size() > 0) {
-            std::stringstream ss;
-            ss << "JSON parse error at " << error_offset << ": " << error_message;
-            return ss.str();
-        }
-        return "";
-    }
-};
-
-
-inline
-Object parse(const Options& options, const std::string_view& str, std::optional<Error>& error) {
-    impl::Parser parser{options, nodel::parse::StringStreamAdapter{str}};
-    if (!parser.parse_object()) {
-        error = Error{parser.m_error_offset, std::move(parser.m_error_message)};
-        return nil;
-    }
-    return parser.m_curr;
-}
-
-inline
-Object parse(const std::string_view& str, std::optional<Error>& error) {
-    return parse({}, str, error);
-}
-
-inline
-Object parse(const Options& options, const std::string_view& str, std::string& error) {
-    std::optional<nodel::json::Error> parse_error;
-    Object result = parse(options, str, parse_error);
-    if (parse_error) {
-        error = parse_error->to_str();
-        return nil;
-    }
-    return result;
-}
-
-inline
-Object parse(const std::string_view& str, std::string& error) {
-    return parse({}, str, error);
-}
-
 inline
 Object parse(const Options& options, const std::string_view& str) {
     impl::Parser parser{options, nodel::parse::StringStreamAdapter{str}};
-    if (!parser.parse_object()) {
-        throw parse::SyntaxError(str, parser.m_error_offset, parser.m_error_message);
-    }
+    parser.parse_object();
     return parser.m_curr;
 }
 
@@ -428,27 +377,22 @@ Object parse(const std::string_view& str) {
 }
 
 inline
-Object parse_file(const Options& options, const std::string& file_name, std::string& error) {
+Object parse_file(const Options& options, const std::string& file_name) {
     std::ifstream f_in{file_name, std::ios::in};
     if (!f_in.is_open()) {
         std::stringstream ss;
         ss << "Error opening file: " << file_name;
-        error = ss.str();
-        return nil;
+        return make_error(ss.str());
     } else {
         impl::Parser parser{options, nodel::parse::StreamAdapter{f_in}};
-        if (!parser.parse_object()) {
-            Error parse_error{parser.m_error_offset, std::move(parser.m_error_message)};
-            error = parse_error.to_str();
-            return nil;
-        }
+        parser.parse_object();
         return parser.m_curr;
     }
 }
 
 inline
-Object parse_file(const std::string& file_name, std::string& error) {
-    return parse_file({}, file_name, error);
+Object parse_file(const std::string& file_name) {
+    return parse_file({}, file_name);
 }
 
 } // namespace json

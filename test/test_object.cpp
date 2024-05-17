@@ -255,13 +255,6 @@ TEST(Object, ToStr) {
       FAIL();
   } catch (...) {
   }
-
-  try {
-      Object obj{Object::INVALID};
-      obj.to_str();
-      FAIL();
-  } catch (...) {
-  }
 }
 
 TEST(Object, ToKey) {
@@ -2184,6 +2177,13 @@ TEST(Object, IterListKeyClosedClosedIntSlice) {
     for (auto& key : obj.iter_keys({{0, Endpoint::Kind::CLOSED}, {3, Endpoint::Kind::CLOSED}}))
         actual.push_back(key);
     EXPECT_EQ(actual, expect);
+}
+
+TEST(Object, Error) {
+    Object obj = make_error("BADNESS!");
+    EXPECT_FALSE(obj.is_valid());
+    EXPECT_EQ(obj.to_str(), "BADNESS!");
+    EXPECT_EQ(obj.type(), Object::ERROR);
 }
 
 

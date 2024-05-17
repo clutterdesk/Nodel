@@ -3,7 +3,7 @@
 #pragma once
 
 #include <nodel/core/Object.h>
-#include <nodel/core/serialize.h>
+#include <nodel/rocksdb/serialize.h>
 #include <nodel/filesystem/Directory.h>
 #include <nodel/parser/json.h>
 

@@ -13,13 +13,14 @@ namespace nodel::filesystem {
 class File : public DataSource
 {
   public:
-    File(Kind kind, Origin origin) : DataSource(kind, origin) {
-        set_mode(mode() | Mode::INHERIT);
-    }
+    File(Kind kind, Origin origin, Multilevel mlvl)
+    : DataSource(kind, origin, mlvl) { set_mode(mode() | Mode::INHERIT); }
 
-    File(Kind kind, ReprIX repr_ix, Origin origin) : DataSource(kind, repr_ix, origin) {
-        set_mode(mode() | Mode::INHERIT);
-    }
+    File(Kind kind, ReprIX repr_ix, Origin origin, Multilevel mlvl)
+    : DataSource(kind, repr_ix, origin, mlvl) { set_mode(mode() | Mode::INHERIT); }
+
+    File(Kind kind, Origin origin)                 : File(kind, origin, Multilevel::NO) {}
+    File(Kind kind, ReprIX repr_ix, Origin origin) : File(kind, repr_ix, origin, Multilevel::NO) {}
 
     void configure(const Object& uri) override { DataSource::configure(uri); };
 

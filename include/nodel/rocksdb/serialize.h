@@ -2,14 +2,13 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include "Key.h"
-#include "Object.h"
+#include <nodel/core/Object.h>
 #include <nodel/support/string.h>
 #include <nodel/parser/json.h>
 
 #include <sstream>
 
-namespace nodel {
+namespace nodel::rocksdb {
 
 inline
 std::string serialize(const Key& key) {
