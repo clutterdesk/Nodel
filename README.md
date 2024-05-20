@@ -30,10 +30,6 @@ bound object is accessed using one of the `nodel::Object` methods.
 
 Nodel Objects are reference counted. A `nodel::Object` instance is a reference to its underying data.
 
-Nodel is a header-only library with no required dependencies. This means that your program must
-instantiate certain macros and call the `configure` function of the subsystems it uses.  See the
-"Quick Start" below for a complete example.
-
 If you link with cpptrace, Nodel exceptions will contain backtraces.
 
 Nodel provides its own homegrown JSON and CSV parsers, both of which are stream-based and reduce
