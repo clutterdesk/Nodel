@@ -10,40 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
 #----------------------------------------------------------------------------
-#-- Fetch Dependencies
-#----------------------------------------------------------------------------
-include(FetchContent)
-
-FetchContent_Declare(
-  tsl-ordered-map
-  GIT_REPOSITORY https://github.com/Tessil/ordered-map.git
-  GIT_TAG        v1.1.0        
-)
-
-FetchContent_Declare(
-  fmtlib
-  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-  GIT_TAG        10.2.1
-)
-
-FetchContent_Declare(
-  cpptrace
-  GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
-  GIT_TAG        v0.5.2
-)
-
-FetchContent_Declare(
-  googletest
-  GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG        release-1.8.1
-)
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-
-FetchContent_MakeAvailable(tsl-ordered-map fmtlib cpptrace googletest)
-
-
-#----------------------------------------------------------------------------
-#-- Other Dependencies
+#-- Dependencies
 #----------------------------------------------------------------------------
 find_library(dwarf dwarf)
 find_library(rocksdb rocksdb)
