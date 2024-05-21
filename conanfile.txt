@@ -2,6 +2,7 @@
 cpptrace/0.5.4
 libdwarf/0.9.1
 fmt/10.2.1
+speedb/2.8.0
 tsl-ordered-map/1.1.0
 zlib/1.2.11
 gtest/1.14.0

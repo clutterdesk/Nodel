@@ -12,9 +12,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #----------------------------------------------------------------------------
 #-- Dependencies
 #----------------------------------------------------------------------------
-find_library(dwarf dwarf)
-find_library(rocksdb rocksdb)
-find_path(ROCKSDB_INCLUDE_DIR rocksdb/db.h)
+find_package(cpptrace)
+find_package(dwarf)
+find_package(fmt REQUIRED)
+find_package(speedb)
+find_package(tsl-ordered-map REQUIRED)
+find_package(zlib REQUIRED)
+find_package(gtest REQUIRED)
 
 #----------------------------------------------------------------------------
 #-- Dump All Vars
@@ -27,39 +31,44 @@ endforeach()
 
 
 #----------------------------------------------------------------------------
-#-- Nodel Header-only Target
+#-- Nodel Library Target
 #----------------------------------------------------------------------------
-add_library(nodel INTERFACE)
+file(GLOB NODEL_SRC nodel/**/*.h nodel/**/*.cpp)
+add_library(nodel_lib STATIC ${NODEL_SRC})
 
-
-#----------------------------------------------------------------------------
-#-- Precompile Headers
-#----------------------------------------------------------------------------
-#target_precompile_headers(nodel
-#  PUBLIC nodel/core.h
-#)
-
+target_compile_features(nodel_lib PRIVATE cxx_std_20)
+target_link_libraries(nodel_lib PRIVATE cpptrace dwarf fmt speeddb tsl-ordered-map zlib)
 
 #----------------------------------------------------------------------------
 #-- Nodel Unit Test
 #----------------------------------------------------------------------------
-file(GLOB NODEL_TEST_SRC test/*.cpp include/**/*.h)
+file(GLOB NODEL_TEST_SRC test/*.cpp nodel/**/*.h nodel/**/*.cpp)
 add_executable(nodel_test ${NODEL_TEST_SRC})
 
-add_dependencies(nodel_test nodel)
+add_dependencies(nodel_test nodel_lib)
 
 target_compile_features(nodel_test PRIVATE cxx_std_20)
 
-target_include_directories(nodel_test PRIVATE 
+target_include_directories(nodel_test PRIVATE
     ${Nodel_SOURCE_DIR}/include
-    ${tsl-ordered-map_SOURCE_DIR}/include
-    ${ROCKSDB_INCLUDE_DIR}
-    ${cpptrace_SOURCE_DIR}/include
-    ${fmtlib_SOURCE_DIR}/include
-    ${gtest_SOURCE_DIR}/include
+    ${cpptrace_INCLUDE_DIRS}
+    ${libdwarf_INCLUDE_DIRS}
+    ${fmt_INCLUDE_DIRS}
+    ${speedb_INCLUDE_DIRS}
+    ${tsl-ordered-map_INCLUDE_DIRS}
+    ${zlib_INCLUDE_DIRS}
+    ${gtest_INCLUDE_DIRS}    
 )
 
-target_link_libraries(nodel_test PRIVATE ${rocksdb} fmt dwarf cpptrace::cpptrace gtest)
+target_link_libraries(nodel_test PRIVATE
+    ${cpptrace_LIBRARIES} 
+    ${libdwarf_LIBRARIES} 
+    ${fmt_LIBRARIES} 
+    ${speedb_LIBRARIES} 
+    ${tsl-ordered-map_LIBRARIES} 
+    ${zlib_LIBRARIES} 
+    ${gtest_LIBRARIES} 
+)
 
 add_custom_command(
     TARGET nodel_test POST_BUILD
@@ -78,7 +87,7 @@ else()
 
 add_custom_target(
     pyext ALL
-    DEPENDS nodel_test 
+    DEPENDS nodel_lib
             ${CMAKE_SOURCE_DIR}/pyext/setup.py
             ${CMAKE_SOURCE_DIR}/pyext/setup.cfg
     COMMAND ${CMAKE_COMMAND} -E env 
