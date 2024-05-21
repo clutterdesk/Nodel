@@ -3,7 +3,7 @@
 #pragma once
 
 #include <Python.h>
-#include <nodel/core/Object.h>
+#include <nodel/core/Object.hxx>
 
 extern "C" {
 

@@ -7,10 +7,10 @@
 #include <rocksdb/db.h>
 #include <fmt/core.h>
 
-#include <nodel/core.h>
-#include <nodel/rocksdb.h>
-#include <nodel/filesystem.h>
-#include <nodel/support/Finally.h>
+#include <nodel/core.hxx>
+#include <nodel/rocksdb.hxx>
+#include <nodel/filesystem.hxx>
+#include <nodel/support/Finally.hxx>
 
 using namespace nodel;
 

@@ -2,7 +2,7 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include "Serializer.h"
+#include "Serializer.hxx"
 
 #include <iostream>
 

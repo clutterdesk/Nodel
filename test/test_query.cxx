@@ -4,12 +4,12 @@
 #include <fmt/format.h>
 #include <unordered_set>
 
-#include <nodel/core/Object.h>
-#include <nodel/core/Query.h>
-#include <nodel/core/Query.h>
-#include <nodel/core/bind.h>
-#include <nodel/filesystem.h>
-#include <nodel/fmt_support.h>
+#include <nodel/core/Object.hxx>
+#include <nodel/core/Query.hxx>
+#include <nodel/core/Query.hxx>
+#include <nodel/core/bind.hxx>
+#include <nodel/filesystem.hxx>
+#include <nodel/fmt_support.hxx>
 
 using namespace nodel;
 

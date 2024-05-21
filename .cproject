@@ -183,6 +183,7 @@
 									<listOptionValue builtIn="false" value="z"/>
 									<listOptionValue builtIn="false" value="dwarf"/>
 									<listOptionValue builtIn="false" value="cpptrace"/>
+									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="ziplib"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="macosx.cpp.link.option.paths.701087797" name="Library search path (-L)" superClass="macosx.cpp.link.option.paths" valueType="libPaths">
 									<listOptionValue builtIn="false" value="/Users/bdunnagan/git/fmt"/>
@@ -192,6 +193,7 @@
 									<listOptionValue builtIn="false" value="/usr/local/Cellar/rocksdb/8.11.3/lib"/>
 									<listOptionValue builtIn="false" value="/Users/bdunnagan/git/cpptrace/build"/>
 									<listOptionValue builtIn="false" value="/usr/local/Cellar/dwarfutils/0.9.1/lib"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Nodel/deps/ziplib/Bin}&quot;"/>
 								</option>
 								<option id="macosx.cpp.link.option.flags.738501338" name="Linker flags" superClass="macosx.cpp.link.option.flags" value="-ftest-coverage -fprofile-arcs" valueType="string"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="macosx.cpp.link.option.other.322619616" name="Other options (-Xlinker [option])" superClass="macosx.cpp.link.option.other" valueType="stringList"/>
@@ -212,8 +214,8 @@
 									<listOptionValue builtIn="false" value="/usr/local/Cellar/glog/0.6.0/include/"/>
 									<listOptionValue builtIn="false" value="/usr/local/Cellar/rocksdb/8.11.3/include"/>
 									<listOptionValue builtIn="false" value="/Users/bdunnagan/git/cpptrace/include"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Nodel/include}&quot;"/>
 									<listOptionValue builtIn="false" value="/Users/bdunnagan/git/ziplib/Source"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Nodel/}&quot;"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.optimization.level.1573635175" name="Optimization Level" superClass="gnu.cpp.compiler.option.optimization.level" useByScannerDiscovery="false" value="gnu.cpp.compiler.optimization.level.none" valueType="enumerated"/>
 								<option defaultValue="gnu.cpp.compiler.debugging.level.max" id="gnu.cpp.compiler.option.debugging.level.1968287119" name="Debug Level" superClass="gnu.cpp.compiler.option.debugging.level" useByScannerDiscovery="false" value="gnu.cpp.compiler.debugging.level.default" valueType="enumerated"/>

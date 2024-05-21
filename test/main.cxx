@@ -5,10 +5,10 @@
 #include <stdlib.h>
 #include <string_view>
 
-#include <nodel/core.h>
-#include <nodel/filesystem.h>
+#include <nodel/core.hxx>
+#include <nodel/filesystem.hxx>
 //#include <fmt/core.h>
-//#include <nodel/support/leak_detect.h>
+//#include <nodel/support/leak_detect.hxx>
 
 NODEL_INIT_CORE;
 NODEL_INIT_FILESYSTEM;

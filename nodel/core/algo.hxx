@@ -2,7 +2,8 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include "Object.h"
+#include <nodel/core/Object.hxx>
+
 #include <cctype>
 #include <cstdlib>
 #include <algorithm>

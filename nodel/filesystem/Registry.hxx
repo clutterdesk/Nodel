@@ -2,10 +2,10 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include "SerialFile.h"
+#include <nodel/filesystem/SerialFile.hxx>
 
-#include <nodel/support/Ref.h>
-#include <nodel/core/Object.h>
+#include <nodel/support/Ref.hxx>
+#include <nodel/core/Object.hxx>
 
 #include <filesystem>
 #include <functional>

@@ -2,14 +2,14 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include "Registry.h"
-#include "File.h"
+#include <nodel/filesystem/Registry.hxx>
+#include <nodel/filesystem/File.hxx>
 
-#include <nodel/support/string.h>
-#include <nodel/support/Ref.h>
-#include <nodel/core/algo.h>
-#include <nodel/core/Object.h>
-#include <nodel/core/uri.h>
+#include <nodel/support/string.hxx>
+#include <nodel/support/Ref.hxx>
+#include <nodel/core/algo.hxx>
+#include <nodel/core/Object.hxx>
+#include <nodel/core/uri.hxx>
 
 #include <filesystem>
 #include <regex>
@@ -119,7 +119,7 @@ std::filesystem::path path(const Object& obj) {
     return fpath;
 }
 
-#include "SerialFileImpl.h"
+#include "SerialFileImpl.hxx"
 
 // TODO: move to predicate.h?
 struct RegexFilter

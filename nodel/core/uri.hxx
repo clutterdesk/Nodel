@@ -2,8 +2,8 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include <nodel/core/Object.h>
-#include <nodel/support/types.h>
+#include <nodel/core/Object.hxx>
+#include <nodel/support/types.hxx>
 #include <regex>
 #include <sstream>
 #include <unordered_map>

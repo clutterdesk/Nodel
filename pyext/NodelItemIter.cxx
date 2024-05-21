@@ -2,10 +2,10 @@
 /// @copyright Robert Dunnagan
 #include <Python.h>
 
-#include <nodel/pyext/module.h>
-#include <nodel/pyext/NodelObject.h>
-#include <nodel/pyext/NodelItemIter.h>
-#include <nodel/pyext/support.h>
+#include <nodel/pyext/module.hxx>
+#include <nodel/pyext/NodelObject.hxx>
+#include <nodel/pyext/NodelItemIter.hxx>
+#include <nodel/pyext/support.hxx>
 
 extern "C" {
 

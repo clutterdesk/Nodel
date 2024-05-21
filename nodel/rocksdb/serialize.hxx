@@ -2,9 +2,9 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include <nodel/core/Object.h>
-#include <nodel/support/string.h>
-#include <nodel/parser/json.h>
+#include <nodel/core/Object.hxx>
+#include <nodel/support/string.hxx>
+#include <nodel/parser/json.hxx>
 
 #include <sstream>
 

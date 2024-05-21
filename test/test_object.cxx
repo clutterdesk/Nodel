@@ -4,9 +4,9 @@
 #include <fmt/format.h>
 #include <algorithm>
 
-#include <nodel/core/Object.h>
-#include <nodel/core.h>
-#include <nodel/parser/json.h>
+#include <nodel/core/Object.hxx>
+#include <nodel/core.hxx>
+#include <nodel/parser/json.hxx>
 
 using namespace nodel;
 

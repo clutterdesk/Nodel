@@ -2,9 +2,9 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include <nodel/core/Object.h>
-#include <nodel/support/parse.h>
-#include <nodel/support/exception.h>
+#include <nodel/core/Object.hxx>
+#include <nodel/support/parse.hxx>
+#include <nodel/support/exception.hxx>
 
 #include <ctype.h>
 #include <cstdlib>

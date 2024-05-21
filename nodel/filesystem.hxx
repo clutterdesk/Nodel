@@ -2,12 +2,12 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include <nodel/filesystem/Directory.h>
-#include <nodel/filesystem/SerialFile.h>
-#include <nodel/serializer/CsvSerializer.h>
-#include <nodel/serializer/JsonSerializer.h>
-#include <nodel/serializer/StringSerializer.h>
-#include <nodel/filesystem/ZipFile.h>
+#include <nodel/filesystem/Directory.hxx>
+#include <nodel/filesystem/SerialFile.hxx>
+#include <nodel/serializer/CsvSerializer.hxx>
+#include <nodel/serializer/JsonSerializer.hxx>
+#include <nodel/serializer/StringSerializer.hxx>
+#include <nodel/filesystem/ZipFile.hxx>
 
 namespace nodel::filesystem {
 

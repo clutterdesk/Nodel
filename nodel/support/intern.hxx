@@ -4,7 +4,7 @@
 
 #include <unordered_set>
 #include <string_view>
-#include <nodel/support/types.h>
+#include <nodel/support/types.hxx>
 
 namespace nodel {
 

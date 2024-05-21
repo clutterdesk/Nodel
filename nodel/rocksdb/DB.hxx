@@ -2,13 +2,13 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include <nodel/core/Object.h>
-#include <nodel/rocksdb/serialize.h>
-#include <nodel/filesystem/Directory.h>
-#include <nodel/parser/json.h>
+#include <nodel/core/Object.hxx>
+#include <nodel/rocksdb/serialize.hxx>
+#include <nodel/filesystem/Directory.hxx>
+#include <nodel/parser/json.hxx>
 
-#include "Comparator.h"
-#include "DBManager.h"
+#include <nodel/rocksdb/Comparator.hxx>
+#include <nodel/rocksdb/DBManager.hxx>
 
 #include <rocksdb/db.h>
 #include <filesystem>

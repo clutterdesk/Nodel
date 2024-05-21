@@ -2,9 +2,9 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include <nodel/core/Object.h>
-#include <nodel/filesystem/Directory.h>
-#include <nodel/support/Finally.h>
+#include <nodel/core/Object.hxx>
+#include <nodel/filesystem/Directory.hxx>
+#include <nodel/support/Finally.hxx>
 
 #include <ZipLib/ZipFile.h>
 

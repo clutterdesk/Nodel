@@ -2,7 +2,7 @@
 /// @copyright Robert Dunnagan
 #include <gtest/gtest.h>
 #include <fmt/core.h>
-#include <nodel/support/intern.h>
+#include <nodel/support/intern.hxx>
 
 using namespace nodel;
 

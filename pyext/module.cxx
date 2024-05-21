@@ -2,20 +2,20 @@
 /// @copyright Robert Dunnagan
 #include <Python.h>
 
-#include <nodel/pyext/module.h>
-#include <nodel/pyext/NodelObject.h>
-#include <nodel/pyext/NodelKeyIter.h>
-#include <nodel/pyext/NodelValueIter.h>
-#include <nodel/pyext/NodelItemIter.h>
-#include <nodel/pyext/NodelTreeIter.h>
-#include <nodel/pyext/support.h>
-#include <nodel/support/intern.h>
-#include <nodel/parser/json.h>
-#include <nodel/core.h>
-#include <nodel/filesystem.h>
+#include <nodel/pyext/module.hxx>
+#include <nodel/pyext/NodelObject.hxx>
+#include <nodel/pyext/NodelKeyIter.hxx>
+#include <nodel/pyext/NodelValueIter.hxx>
+#include <nodel/pyext/NodelItemIter.hxx>
+#include <nodel/pyext/NodelTreeIter.hxx>
+#include <nodel/pyext/support.hxx>
+#include <nodel/support/intern.hxx>
+#include <nodel/parser/json.hxx>
+#include <nodel/core.hxx>
+#include <nodel/filesystem.hxx>
 
 #ifdef PYNODEL_ROCKSDB
-#include <nodel/rocksdb.h>
+#include <nodel/rocksdb.hxx>
 #endif
 
 NODEL_INIT_CORE;

@@ -2,8 +2,8 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include <nodel/support/types.h>
-#include <nodel/support/exception.h>
+#include <nodel/support/types.hxx>
+#include <nodel/support/exception.hxx>
 
 namespace nodel {
 

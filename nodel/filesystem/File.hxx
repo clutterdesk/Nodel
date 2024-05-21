@@ -2,7 +2,7 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include <nodel/core/Object.h>
+#include <nodel/core/Object.hxx>
 #include <sstream>
 
 namespace nodel::filesystem {

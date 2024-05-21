@@ -1,6 +1,6 @@
 /// @b License: @n Apache License v2.0
 /// @copyright Robert Dunnagan
-#include <nodel/core.h>
+#include <nodel/core.hxx>
 
 NODEL_INIT_CORE;
 

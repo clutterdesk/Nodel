@@ -3,8 +3,8 @@
 #pragma once
 
 #include <fmt/format.h>
-#include <nodel/core/Key.h>
-#include <nodel/core/Object.h>
+#include <nodel/core/Key.hxx>
+#include <nodel/core/Object.hxx>
 
 namespace fmt {
 

@@ -3,9 +3,9 @@
 #pragma once
 
 #include <Python.h>
-#include <nodel/core/Key.h>
-#include <nodel/core/Object.h>
-#include <nodel/support/logging.h>
+#include <nodel/core/Key.hxx>
+#include <nodel/core/Object.hxx>
+#include <nodel/support/logging.hxx>
 
 namespace nodel {
 

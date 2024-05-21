@@ -2,11 +2,11 @@
 /// @copyright Robert Dunnagan
 #include <gtest/gtest.h>
 #include <fmt/format.h>
-#include <nodel/core.h>
+#include <nodel/core.hxx>
 #include <filesystem>
 
-#include <nodel/support/Finally.h>
-#include <nodel/filesystem.h>
+#include <nodel/support/Finally.hxx>
+#include <nodel/filesystem.hxx>
 
 using namespace nodel;
 using namespace nodel::filesystem;

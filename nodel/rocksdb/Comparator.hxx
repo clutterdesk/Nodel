@@ -3,8 +3,8 @@
 #pragma once
 
 #include <rocksdb/db.h>
-#include <nodel/core/Object.h>
-#include <nodel/rocksdb/serialize.h>
+#include <nodel/core/Object.hxx>
+#include <nodel/rocksdb/serialize.hxx>
 
 
 namespace nodel::rocksdb {

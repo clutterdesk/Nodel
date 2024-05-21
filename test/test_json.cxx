@@ -3,8 +3,8 @@
 #include <gtest/gtest.h>
 #include <sstream>
 
-#include <nodel/parser/json.h>
-#include <nodel/support/Stopwatch.h>
+#include <nodel/parser/json.hxx>
+#include <nodel/support/Stopwatch.hxx>
 
 using namespace nodel;
 using namespace nodel::json;

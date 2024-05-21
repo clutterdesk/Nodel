@@ -33,7 +33,7 @@ endforeach()
 #----------------------------------------------------------------------------
 #-- Nodel Library Target
 #----------------------------------------------------------------------------
-file(GLOB NODEL_SRC nodel/**/*.h nodel/**/*.cpp)
+file(GLOB NODEL_SRC nodel/**/*.hxx nodel/**/*.cxx)
 add_library(nodel_lib STATIC ${NODEL_SRC})
 
 target_compile_features(nodel_lib PRIVATE cxx_std_20)
@@ -42,7 +42,7 @@ target_link_libraries(nodel_lib PRIVATE cpptrace dwarf fmt speeddb tsl-ordered-m
 #----------------------------------------------------------------------------
 #-- Nodel Unit Test
 #----------------------------------------------------------------------------
-file(GLOB NODEL_TEST_SRC test/*.cpp nodel/**/*.h nodel/**/*.cpp)
+file(GLOB NODEL_TEST_SRC test/*.cxx nodel/**/*.hxx nodel/**/*.cxx)
 add_executable(nodel_test ${NODEL_TEST_SRC})
 
 add_dependencies(nodel_test nodel_lib)
@@ -92,11 +92,11 @@ add_custom_target(
             ${CMAKE_SOURCE_DIR}/pyext/setup.cfg
     COMMAND ${CMAKE_COMMAND} -E env 
         NODEL_INCLUDE="${Nodel_SOURCE_DIR}/include"
-        NODEL_OMAP_INCLUDE="${tsl-ordered-map_SOURCE_DIR}/include"
-        NODEL_FMT_INCLUDE="${fmtlib_SOURCE_DIR}/include"
-        NODEL_CPPTRACE_INCLUDE="${cpptrace_SOURCE_DIR}/include"
-        NODEL_ROCKSDB_INCLUDE="${ROCKSDB_INCLUDE_DIR}"
-        NODEL_FMT_LIB="${fmtlib_BINARY_DIR}" 
+        NODEL_OMAP_INCLUDE="${tsl-ordered-map_INCLUDE_DIRS}"
+        NODEL_FMT_INCLUDE="${fmt_INCLUDE_DIRS}"
+        NODEL_CPPTRACE_INCLUDE="${cpptrace_INCLUDE_DIRS}"
+        NODEL_ROCKSDB_INCLUDE="${speedb_INCLUDE_DIRS}"
+        NODEL_FMT_LIB="${fmt_INCLUDE_DIRS}" 
         NODEL_CPPTRACE_LIB="${cpptrace_BINARY_DIR}" 
         NODEL_DWARF_LIB="${dwarf}" 
         NODEL_ROCKSDB_LIB="${rocksdb}"

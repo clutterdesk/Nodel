@@ -23,16 +23,16 @@
 #include <memory>
 #include <type_traits>
 
-#include "Oid.h"
-#include "Key.h"
-#include "Slice.h"
+#include "Oid.hxx"
+#include "Key.hxx"
+#include "Slice.hxx"
 
-#include <nodel/support/Flags.h>
-#include <nodel/support/logging.h>
-#include <nodel/support/string.h>
-#include <nodel/support/exception.h>
-#include <nodel/support/parse.h>
-#include <nodel/support/types.h>
+#include <nodel/support/Flags.hxx>
+#include <nodel/support/logging.hxx>
+#include <nodel/support/string.hxx>
+#include <nodel/support/exception.hxx>
+#include <nodel/support/parse.hxx>
+#include <nodel/support/types.hxx>
 
 
 namespace nodel {
@@ -2050,9 +2050,9 @@ size_t Object::size() const {
 }
 
 
-#include "KeyRange.h"
-#include "ValueRange.h"
-#include "ItemRange.h"
+#include "KeyRange.hxx"
+#include "ValueRange.hxx"
+#include "ItemRange.hxx"
 
 /// Returns a range-like object over container Keys
 inline KeyRange Object::iter_keys() const {

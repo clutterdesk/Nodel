@@ -7,8 +7,8 @@
 #include <charconv>
 #include <iomanip>
 
-#include <nodel/support/types.h>
-#include <nodel/support/exception.h>
+#include <nodel/support/types.hxx>
+#include <nodel/support/exception.hxx>
 
 namespace nodel {
 

@@ -2,11 +2,11 @@
 /// @copyright Robert Dunnagan
 #include <Python.h>
 
-#include <nodel/pyext/module.h>
-#include <nodel/pyext/NodelObject.h>
-#include <nodel/pyext/NodelTreeIter.h>
-#include <nodel/pyext/support.h>
-#include <nodel/support/logging.h>
+#include <nodel/pyext/module.hxx>
+#include <nodel/pyext/NodelObject.hxx>
+#include <nodel/pyext/NodelTreeIter.hxx>
+#include <nodel/pyext/support.hxx>
+#include <nodel/support/logging.hxx>
 
 extern "C" {
 

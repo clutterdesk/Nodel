@@ -2,9 +2,9 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include "Key.h"
-#include "Object.h"
-#include "algo.h"
+#include "Key.hxx"
+#include "Object.hxx"
+#include "algo.hxx"
 
 #include <deque>
 

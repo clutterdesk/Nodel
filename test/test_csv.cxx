@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <fmt/format.h>
-#include <nodel/parser/csv.h>
+#include <nodel/parser/csv.hxx>
 
 using namespace nodel;
 using namespace nodel::csv;

@@ -2,7 +2,7 @@
 /// @copyright Robert Dunnagan
 #include <gtest/gtest.h>
 #include <fmt/core.h>
-#include <nodel/core/uri.h>
+#include <nodel/core/uri.hxx>
 
 using namespace nodel;
 

@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 #include <fmt/core.h>
 
-#include <nodel/support/Ref.h>
+#include <nodel/support/Ref.hxx>
 
 using namespace nodel;
 

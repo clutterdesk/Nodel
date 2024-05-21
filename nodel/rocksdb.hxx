@@ -2,9 +2,9 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include <nodel/rocksdb/DB.h>
-#include <nodel/filesystem.h>
-#include <nodel/support/logging.h>
+#include <nodel/rocksdb/DB.hxx>
+#include <nodel/filesystem.hxx>
+#include <nodel/support/logging.hxx>
 
 using namespace nodel;
 using Registry = filesystem::Registry;

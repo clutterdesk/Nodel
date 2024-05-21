@@ -3,7 +3,7 @@
 #pragma once
 
 #include <Python.h>
-#include <nodel/core/Object.h>
+#include <nodel/core/Object.hxx>
 
 using TreeRange = nodel::Object::TreeRange<nodel::Object, nodel::NoPredicate, nodel::NoPredicate>;
 using TreeIterator = nodel::TreeIterator<nodel::Object, nodel::NoPredicate, nodel::NoPredicate>;

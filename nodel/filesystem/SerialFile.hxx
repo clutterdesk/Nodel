@@ -2,11 +2,11 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include "File.h"
+#include <nodel/filesystem/File.hxx>
 
-#include <nodel/core/Object.h>
-#include <nodel/support/Ref.h>
-#include <nodel/serializer/Serializer.h>
+#include <nodel/core/Object.hxx>
+#include <nodel/support/Ref.hxx>
+#include <nodel/serializer/Serializer.hxx>
 
 #include <fstream>
 

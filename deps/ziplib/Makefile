@@ -1,6 +1,6 @@
 # Final names of binaries
 EXECUTABLE = Bin/zipsample
-SO_LIBRARY = Bin/libzip.so
+SO_LIBRARY = Bin/libziplib.dylib
 
 # C & C++ compiler
 #CC       = gcc
@@ -37,7 +37,7 @@ $(EXECUTABLE): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) Source/Sample/Main.cpp -o $@ $^
 
 $(SO_LIBRARY): $(OBJS)
-	$(CXX) $(LDFLAGS) -shared -o $@ $^
+	$(CXX) $(LDFLAGS) -dynamiclib -o $@ $^
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@

@@ -1,8 +1,8 @@
 /// @b License: @n Apache License v2.0
 /// @copyright Robert Dunnagan
-#include <nodel/core.h>
-#include <nodel/rocksdb.h>
-#include <nodel/support/Stopwatch.h>
+#include <nodel/core.hxx>
+#include <nodel/rocksdb.hxx>
+#include <nodel/support/Stopwatch.hxx>
 
 NODEL_INIT_CORE;
 NODEL_INIT_FILESYSTEM;

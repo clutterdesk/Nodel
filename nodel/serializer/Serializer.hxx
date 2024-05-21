@@ -2,9 +2,9 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include <nodel/parser/csv.h>
-#include <nodel/core/Object.h>
-#include <nodel/support/Ref.h>
+#include <nodel/parser/csv.hxx>
+#include <nodel/core/Object.hxx>
+#include <nodel/support/Ref.hxx>
 
 #include <iostream>
 

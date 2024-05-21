@@ -3,9 +3,9 @@
 /** @file */
 #pragma once
 
-#include <nodel/core/Object.h>
-#include <nodel/core/uri.h>
-#include <nodel/support/exception.h>
+#include <nodel/core/Object.hxx>
+#include <nodel/core/uri.hxx>
+#include <nodel/support/exception.hxx>
 #include <sstream>
 
 namespace nodel {

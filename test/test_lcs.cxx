@@ -3,8 +3,8 @@
 #include <gtest/gtest.h>
 
 #include <fmt/format.h>
-#include <nodel/core/LCS.h>
-#include <nodel/core.h>
+#include <nodel/core/LCS.hxx>
+#include <nodel/core.hxx>
 
 using namespace nodel;
 using namespace nodel::algo;

@@ -2,7 +2,7 @@
 /// @copyright Robert Dunnagan
 #include <gtest/gtest.h>
 #include <fmt/core.h>
-#include <nodel/core/Key.h>
+#include <nodel/core/Key.hxx>
 #include <tsl/ordered_map.h>
 
 using namespace nodel;

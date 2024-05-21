@@ -9,12 +9,12 @@
 #include <iomanip>
 #include <ctime>
 
-#include <nodel/support/logging.h>
-#include <nodel/support/string.h>
-#include <nodel/support/integer.h>
-#include <nodel/support/intern.h>
-#include <nodel/support/exception.h>
-#include <nodel/support/types.h>
+#include <nodel/support/logging.hxx>
+#include <nodel/support/string.hxx>
+#include <nodel/support/integer.hxx>
+#include <nodel/support/intern.hxx>
+#include <nodel/support/exception.hxx>
+#include <nodel/support/types.hxx>
 
 using namespace std::literals::string_literals;
 using namespace std::literals::string_view_literals;

@@ -2,10 +2,10 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include "Serializer.h"
+#include "Serializer.hxx"
 
-#include <nodel/support/parse.h>
-#include <nodel/parser/json.h>
+#include <nodel/support/parse.hxx>
+#include <nodel/parser/json.hxx>
 
 #include <iostream>
 

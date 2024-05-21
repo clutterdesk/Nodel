@@ -2,10 +2,10 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include "Serializer.h"
+#include "Serializer.hxx"
 
-#include <nodel/parser/csv.h>
-#include <nodel/core/Object.h>
+#include <nodel/parser/csv.hxx>
+#include <nodel/core/Object.hxx>
 
 #include <iostream>
 
