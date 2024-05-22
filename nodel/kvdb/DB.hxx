@@ -3,17 +3,17 @@
 #pragma once
 
 #include <nodel/core/Object.hxx>
-#include <nodel/rocksdb/serialize.hxx>
+#include <nodel/kvdb/serialize.hxx>
 #include <nodel/filesystem/Directory.hxx>
 #include <nodel/parser/json.hxx>
 
-#include <nodel/rocksdb/Comparator.hxx>
-#include <nodel/rocksdb/DBManager.hxx>
+#include <nodel/kvdb/Comparator.hxx>
+#include <nodel/kvdb/DBManager.hxx>
 
 #include <rocksdb/db.h>
 #include <filesystem>
 
-namespace nodel::rocksdb {
+namespace nodel::kvdb {
 
 /////////////////////////////////////////////////////////////////////////////
 /// A simple key/value store backed by RocksDB.
@@ -296,7 +296,7 @@ inline
 void DB::open(const std::filesystem::path& path, bool create_if_missing) {
     ASSERT(mp_db == nullptr);
     m_options.create_if_missing = create_if_missing;
-    m_options.comparator = new nodel::rocksdb::Comparator();
+    m_options.comparator = new nodel::kvdb::Comparator();
     auto status = DBManager::get_instance().open(m_options, path.string(), mp_db);
     if (!status.ok()) {
         report_read_error(status.ToString());
@@ -405,5 +405,5 @@ void DB::commit(const Object& target, const Object& data, const KeyList& del_key
     m_update_all = false;
 }
 
-} // nodel::rocksdb namespace
+} // nodel::kvdb namespace
 

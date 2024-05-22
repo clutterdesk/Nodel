@@ -3,11 +3,11 @@
 #pragma once
 
 #include <rocksdb/db.h>
+#include <rocksdb/comparator.h>
 #include <nodel/core/Object.hxx>
-#include <nodel/rocksdb/serialize.hxx>
+#include <nodel/kvdb/serialize.hxx>
 
-
-namespace nodel::rocksdb {
+namespace nodel::kvdb {
 
 class Comparator : public ::rocksdb::Comparator
 {
@@ -72,4 +72,4 @@ bool Comparator::IsSameLengthImmediateSuccessor(const Slice& s, const Slice& t) 
     return false;
 }
 
-} // namespace nodel::rocksdb
+} // namespace nodel::kvdb

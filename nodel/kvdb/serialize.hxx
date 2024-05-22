@@ -8,7 +8,7 @@
 
 #include <sstream>
 
-namespace nodel::rocksdb {
+namespace nodel::kvdb {
 
 inline
 std::string serialize(const Key& key) {
@@ -69,5 +69,5 @@ bool deserialize(const std::string_view& data, Object& value) {
     return true;
 }
 
-}  // nodel namespace
+}  // nodel::kvdb namespace
 

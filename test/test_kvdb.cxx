@@ -8,15 +8,15 @@
 #include <fmt/core.h>
 
 #include <nodel/core.hxx>
-#include <nodel/rocksdb.hxx>
 #include <nodel/filesystem.hxx>
+#include <nodel/kvdb.hxx>
 #include <nodel/support/Finally.hxx>
 
 using namespace nodel;
 
 namespace db = ::rocksdb;
-namespace nodeldb = nodel::rocksdb;
-using DB = nodel::rocksdb::DB;
+namespace nodeldb = nodel::kvdb;
+using DB = nodel::kvdb::DB;
 
 namespace {
 
@@ -31,8 +31,8 @@ void build_db() {
     db::DB* db;
     db::Options options;
     options.create_if_missing = true;
-    options.comparator = new nodel::rocksdb::Comparator();
-    db::Status status = db::DB::Open(options, "test_data/test.rocksdb", &db);
+    options.comparator = new nodel::kvdb::Comparator();
+    db::Status status = db::DB::Open(options, "test_data/test.kvdb", &db);
     check_status(status);
 
     status = db->Put(db::WriteOptions(), nodeldb::serialize(Key{false}), nodeldb::serialize(Object{false}));
@@ -63,13 +63,13 @@ void build_db() {
 }
 
 void delete_db() {
-    std::filesystem::remove_all("test_data/test.rocksdb");
+    std::filesystem::remove_all("test_data/test.kvdb");
 
     using namespace std::chrono_literals;
-    for(int retry=0; retry < 8 && std::filesystem::exists("test_data/test.rocksdb"); ++retry) {
+    for(int retry=0; retry < 8 && std::filesystem::exists("test_data/test.kvdb"); ++retry) {
         std::this_thread::sleep_for(250ms);
         DEBUG("retry {}", retry);
-        std::filesystem::remove_all("test_data/test.rocksdb");
+        std::filesystem::remove_all("test_data/test.kvdb");
     }
 }
 
@@ -77,7 +77,7 @@ TEST(DB, Values) {
     build_db();
     Finally finally{ []() { delete_db(); } };
 
-    Object kst = new DB("test_data/test.rocksdb", DataSource::Origin::SOURCE);
+    Object kst = new DB("test_data/test.kvdb", DataSource::Origin::SOURCE);
     EXPECT_EQ(kst.get(true), Object{true});
     EXPECT_EQ(kst.get(-7), Object{-7});
     EXPECT_EQ(kst.get(7UL), Object{7UL});
@@ -91,12 +91,12 @@ TEST(DB, Save) {
     build_db();
     Finally finally{ []() { delete_db(); } };
 
-    Object kst = new DB("test_data/test.rocksdb", DataSource::Origin::SOURCE);
+    Object kst = new DB("test_data/test.kvdb", DataSource::Origin::SOURCE);
     kst.set("tmp_1"_key, "tmp_1");
     kst.set("tmp_2"_key, json::parse("[1, 2]"));
     kst.save();
 
-    Object kst_2 = new DB("test_data/test.rocksdb", DataSource::Origin::SOURCE);
+    Object kst_2 = new DB("test_data/test.kvdb", DataSource::Origin::SOURCE);
     EXPECT_EQ(kst_2.get("tmp_1"_key), "tmp_1");
     EXPECT_EQ(kst_2.get("tmp_2"_key).to_json(), "[1, 2]");
 
@@ -113,7 +113,7 @@ TEST(DB, IterKeys) {
     build_db();
     Finally finally{ []() { delete_db(); } };
 
-    Object kst = new DB("test_data/test.rocksdb", DataSource::Origin::SOURCE);
+    Object kst = new DB("test_data/test.kvdb", DataSource::Origin::SOURCE);
     KeyList keys;
     for (auto& key : kst.iter_keys()) {
         keys.push_back(key);
@@ -134,7 +134,7 @@ TEST(DB, IterValues) {
     build_db();
     Finally finally{ []() { delete_db(); } };
 
-    Object kst = new DB("test_data/test.rocksdb", DataSource::Origin::SOURCE);
+    Object kst = new DB("test_data/test.kvdb", DataSource::Origin::SOURCE);
     ObjectList values;
     for (auto& value : kst.iter_values()) {
         values.push_back(value);
@@ -155,7 +155,7 @@ TEST(DB, IterItems) {
     build_db();
     Finally finally{ []() { delete_db(); } };
 
-    Object kst = new DB("test_data/test.rocksdb", DataSource::Origin::SOURCE);
+    Object kst = new DB("test_data/test.kvdb", DataSource::Origin::SOURCE);
     ItemList items;
     for (auto& item : kst.iter_items()) {
         items.push_back(item);
@@ -173,10 +173,10 @@ TEST(DB, IterItems) {
 TEST(DB, BugIterNewUnsavedDB) {
     Finally finally{ []() { delete_db(); } };
 
-    nodel::rocksdb::configure();
+    nodel::kvdb::configure();
 
     Object data = "{'x': 1, 'y': 2}"_json;
-    Object db = bind("rocksdb://?perm=rw&path=test_data/test.rocksdb", data);
+    Object db = bind("kvdb://?perm=rw&path=test_data/test.kvdb", data);
     for (auto& key : db.iter_keys()) {
         DEBUG("{}", key.to_str());
     }
@@ -190,12 +190,12 @@ TEST(DB, FilesystemIntegration) {
     auto wd = std::filesystem::current_path() / "test_data";
 
     Ref<Registry> r_reg = new nodel::filesystem::Registry{default_registry()};
-    r_reg->associate<DB>(".rocksdb");
+    r_reg->associate<DB>(".kvdb");
 
     Object test_data = new Directory(r_reg, wd, DataSource::Origin::SOURCE);
-    ASSERT_TRUE(test_data.get("test.rocksdb"_key) != nil);
-    ASSERT_TRUE(test_data.get("test.rocksdb"_key).data_source<DB>() != nullptr);
-    EXPECT_EQ(test_data.get("test.rocksdb"_key).get("tea"_key), "tea");
+    ASSERT_TRUE(test_data.get("test.kvdb"_key) != nil);
+    ASSERT_TRUE(test_data.get("test.kvdb"_key).data_source<DB>() != nullptr);
+    EXPECT_EQ(test_data.get("test.kvdb"_key).get("tea"_key), "tea");
 }
 
 } // end namespace

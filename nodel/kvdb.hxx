@@ -2,14 +2,14 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include <nodel/rocksdb/DB.hxx>
+#include <nodel/kvdb/DB.hxx>
 #include <nodel/filesystem.hxx>
 #include <nodel/support/logging.hxx>
 
 using namespace nodel;
 using Registry = filesystem::Registry;
 
-namespace nodel::rocksdb {
+namespace nodel::kvdb {
 
 struct Options
 {
@@ -22,19 +22,19 @@ struct Options
     ::rocksdb::Options db;
     ::rocksdb::ReadOptions db_read;
     ::rocksdb::WriteOptions db_write;
-    std::string db_ext = ".rocksdb";
+    std::string db_ext = ".kvdb";
 };
 
 /////////////////////////////////////////////////////////////////////////////
-/// Enable and configure the URI "rocksdb" scheme.
-/// - Enable binding URI with the "rocksdb" scheme using nodel::bind(const String& uri_spec, ...).
-/// - Create directory association for ".rocksdb" in the default registry.
+/// Enable and configure the URI "kvdb" scheme.
+/// - Enable binding URI with the "kvdb" scheme using nodel::bind(const String& uri_spec, ...).
+/// - Create directory association for ".kvdb" in the default registry.
 /// @see nodel::bind(const String&, Object)
 /////////////////////////////////////////////////////////////////////////////
 inline
 void configure(Options options={}) {
-    register_uri_scheme("rocksdb", [options] (const URI& uri, DataSource::Origin origin) -> DataSource* {
-        auto p_ds = new rocksdb::DB(origin);
+    register_uri_scheme("kvdb", [options] (const URI& uri, DataSource::Origin origin) -> DataSource* {
+        auto p_ds = new kvdb::DB(origin);
         p_ds->set_options(options.base);
         p_ds->set_db_options(options.db);
         p_ds->set_read_options(options.db_read);
@@ -42,7 +42,7 @@ void configure(Options options={}) {
         return p_ds;
     });
 
-    filesystem::default_registry().associate<rocksdb::DB>(options.db_ext);
+    filesystem::default_registry().associate<kvdb::DB>(options.db_ext);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -54,14 +54,14 @@ void configure(Options options={}) {
 /// @note The extension is registered for the entire tree.
 /////////////////////////////////////////////////////////////////////////////
 inline
-void register_directory_extension(const Object& fs_obj, const std::string& ext = ".rocksdb") {
+void register_directory_extension(const Object& fs_obj, const std::string& ext = ".kvdb") {
     Ref<Registry> r_reg = filesystem::get_registry(fs_obj);
     if (!r_reg) {
         WARN("Argument must be a filesystem directory object.");
         return;
     }
-    r_reg->associate<rocksdb::DB>(ext);
+    r_reg->associate<kvdb::DB>(ext);
 }
 
-} // namespace nodel::rocksdb
+} // namespace nodel::kvdb
 

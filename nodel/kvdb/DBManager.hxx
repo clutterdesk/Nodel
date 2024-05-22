@@ -10,7 +10,7 @@
 namespace db = rocksdb;
 using namespace nodel;
 
-namespace nodel::rocksdb {
+namespace nodel::kvdb {
 
 class DBManager
 {
@@ -74,4 +74,4 @@ DBManager& DBManager::get_instance() {
     return instance;
 }
 
-} // nodel::rocksdb namespace
+} // nodel::kvdb namespace
