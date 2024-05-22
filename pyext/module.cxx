@@ -15,7 +15,7 @@
 #include <nodel/filesystem.hxx>
 
 #ifdef PYNODEL_ROCKSDB
-#include <nodel/rocksdb.hxx>
+#include <nodel/kvdb.hxx>
 #endif
 
 NODEL_INIT_CORE;
@@ -98,12 +98,9 @@ static PyObject* mod_from_json(PyObject* mod, PyObject* arg) {
 
     NodelObject* obj = (NodelObject*)po.get();
     std::string_view spec{c_str, (std::string_view::size_type)size};
-    std::optional<json::Error> err;
-    obj->obj = json::parse(spec, err);
-
-    if (err) {
-        std::string msg = parse::SyntaxError::make_message(spec, err->error_offset, err->error_message);
-        PyErr_SetString(PyExc_ValueError, msg.data());
+    obj->obj = json::parse(spec);
+    if (!obj->obj.is_valid()) {
+        PyErr_SetString(PyExc_ValueError, obj->obj.to_str().data());
         return NULL;
     }
 
@@ -386,7 +383,7 @@ PyInit_nodel(void)
     nodel::filesystem::configure();
 
 #ifdef PYNODEL_ROCKSDB
-    nodel::rocksdb::configure();
+    nodel::kvdb::configure();
 #endif
 
     if (PyType_Ready(&NodelObjectType) < 0) return NULL;

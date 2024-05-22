@@ -1,13 +1,17 @@
 from setuptools import Extension, setup
 import os
+import re
 
-nodel_pyext_include = os.environ.get('NODEL_PYEXT_INCLUDE')
-nodel_pyext_lib = os.environ.get('NODEL_PYEXT_LIB')
+nodel_wflags = re.split(r'\s+', os.environ.get('NODEL_WFLAGS'))
+nodel_pyext_include = re.split(r'\s+', os.environ.get('NODEL_PYEXT_INCLUDE'))
+nodel_pyext_lib_path = re.split(r'\s+', os.environ.get('NODEL_PYEXT_LIB_PATH'))
 
+print('~' * 100)
+print(os.getcwd())
 print('~' * 100)
 print(nodel_pyext_include);
 print('~' * 100)
-print(nodel_pyext_lib);
+print(nodel_pyext_lib_path);
 print('~' * 100)
 
 setup(
@@ -18,40 +22,31 @@ setup(
                 ('PYNODEL_ROCKSDB', 1)
             ],
             sources=[
-                'module.cpp', 
-                'NodelObject.cpp', 
-                'NodelKeyIter.cpp',
-                'NodelValueIter.cpp',
-                'NodelItemIter.cpp',
-                'NodelTreeIter.cpp'
+                'module.cxx', 
+                'NodelObject.cxx', 
+                'NodelKeyIter.cxx',
+                'NodelValueIter.cxx',
+                'NodelItemIter.cxx',
+                'NodelTreeIter.cxx'
             ],
             include_dirs=[
-                nodel_include,
-                omap_include,
-                rocksdb_include,
-                fmt_include,
-                cpptrace_include
+                *nodel_pyext_include
             ],
             extra_compile_args=[
                 '--std=c++20',
-                '-Wno-c99-designator'
-                '-Wno-tautological-undefined-compare'
-                '-Wdeprecated-declarations'
-
+                '-Wno-c99-designator',
+                *nodel_wflags
             ],
             library_dirs=[
-                fmt_lib,
-                dwarf_lib,
-                cpptrace_lib
+                *nodel_pyext_lib_path
             ],
             libraries=[
                 'fmt',
                 'dwarf',
-                'cpptrace'
+                'cpptrace',
+                'speedb'
             ],
-            extra_link_args=[
-                rocksdb_lib
-            ]
+            extra_link_args=[]
         ),
     ]
 )
