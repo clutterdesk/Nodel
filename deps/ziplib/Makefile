@@ -1,6 +1,6 @@
 # Final names of binaries
 EXECUTABLE = Bin/zipsample
-SO_LIBRARY = Bin/libziplib.dylib
+SO_LIBRARY = Bin/libziplib.a
 
 # C & C++ compiler
 #CC       = gcc
