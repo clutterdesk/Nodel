@@ -81,7 +81,7 @@ target_link_libraries(nodel_test PRIVATE
     ${Nodel_SOURCE_DIR}/deps/fmt/build/libfmt.a
     ${Nodel_SOURCE_DIR}/deps/speedb/build/libspeedb.a
     ${Nodel_SOURCE_DIR}/deps/gtest/build/lib/libgtest.a
-    ${zstd_LIB_DIRS_RELEASE}
+    ${Nodel_SOURCE_DIR}/deps/zstd/lib/libzstd.a
 )
 
 add_custom_command(
