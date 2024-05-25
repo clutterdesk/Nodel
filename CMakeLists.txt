@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.28.0)
+cmake_minimum_required(VERSION 3.12.0)
 
 project(Nodel
     VERSION 0.1.0
@@ -8,10 +8,67 @@ project(Nodel
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+include(FetchContent)
+
+#----------------------------------------------------------------------------
+# Dependency: cpptrace
+#----------------------------------------------------------------------------
+set(CPPTRACE_GET_SYMBOLS_WITH_LIBDWARF ON)
+set(CPPTRACE_BUILD_SHARED OFF)
+
+FetchContent_Declare(
+  cpptrace
+  GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+  GIT_TAG        v0.5.4
+)
+
+#----------------------------------------------------------------------------
+# Dependency: fmtlib
+#----------------------------------------------------------------------------
+FetchContent_Declare(
+  fmtlib
+  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+  GIT_TAG        10.2.1
+)
+
+#----------------------------------------------------------------------------
+# Dependency: Tesseil/ordered-map
+#----------------------------------------------------------------------------
+FetchContent_Declare(
+  tsl-ordered-map
+  GIT_REPOSITORY https://github.com/Tessil/ordered-map.git
+  GIT_TAG        v1.1.0        
+)
+
+#----------------------------------------------------------------------------
+# Dependency: googletest
+#----------------------------------------------------------------------------
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG        release-1.8.1
+)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(cpptrace fmtlib tsl-ordered-map googletest)
+
+
+#----------------------------------------------------------------------------
+# Dependency: speedb (LOCAL, statically linked)
+#----------------------------------------------------------------------------
+execute_process(COMMAND ${CMAKE} -B build 
+                WORKING_DIRECTORY deps/speedb)
+execute_process(COMMAND ${CMAKE} --build build -tgt speedb --parallel 
+                WORKING_DIRECTORY deps/speedb)
+
+
+#----------------------------------------------------------------------------
+# Dependency: ZipLib (LOCAL, statically linked)
+#----------------------------------------------------------------------------
 set(CMAKE_PREFIX_PATH deps)
+find_program(MAKE make)
+execute_process(COMMAND ${MAKE} WORKING_DIRECTORY deps/ziplib)
 
-
-find_package(zstd)
 
 #----------------------------------------------------------------------------
 #-- Dump All Vars
@@ -32,15 +89,6 @@ set(NODEL_WFLAGS
     -Wno-enum-conversion  # ziplib
 )
 
-#----------------------------------------------------------------------------
-#-- Nodel Library Target
-#----------------------------------------------------------------------------
-#file(GLOB NODEL_SRC nodel/**/*.hxx nodel/**/*.cxx)
-#add_library(nodel_lib STATIC ${NODEL_SRC})
-
-#target_compile_features(nodel_lib PRIVATE cxx_std_20)
-#target_link_libraries(nodel_lib PRIVATE cpptrace dwarf fmt speeddb tsl-ordered-map zlib)
-
 
 #----------------------------------------------------------------------------
 #-- Nodel Unit Test
@@ -60,28 +108,23 @@ file(GLOB NODEL_TEST_SRC
 )
 
 add_executable(nodel_test ${NODEL_TEST_SRC})
-#add_dependencies(nodel_test nodel_lib)
 target_compile_features(nodel_test PRIVATE cxx_std_20)
 target_compile_options(nodel_test PRIVATE ${NODEL_WFLAGS})
-target_compile_options(nodel_test PRIVATE -fPIC -pthread)
+target_compile_options(nodel_test PRIVATE -pthread)
 
 target_include_directories(nodel_test PRIVATE
     ${Nodel_SOURCE_DIR}
-    ${Nodel_SOURCE_DIR}/deps/cpptrace/include
-    ${Nodel_SOURCE_DIR}/deps/fmt/include
     ${Nodel_SOURCE_DIR}/deps/speedb/include
-    ${Nodel_SOURCE_DIR}/deps/tsl_ordered_map/include
+    ${tsl-ordered-map_SOURCE_DIR}/include
     ${Nodel_SOURCE_DIR}/deps/ziplib/Source
-    ${Nodel_SOURCE_DIR}/deps/gtest/googletest/include
+    ${gtest_SOURCE_DIR}/include
 )
 
 target_link_libraries(nodel_test PRIVATE
-    ${Nodel_SOURCE_DIR}/deps/cpptrace/build/libcpptrace.a
-    ${Nodel_SOURCE_DIR}/deps/libdwarf/build/src/lib/libdwarf/libdwarf.a
-    ${Nodel_SOURCE_DIR}/deps/fmt/build/libfmt.a
+    cpptrace::cpptrace
+    fmt::fmt
+    gtest
     ${Nodel_SOURCE_DIR}/deps/speedb/build/libspeedb.a
-    ${Nodel_SOURCE_DIR}/deps/gtest/build/lib/libgtest.a
-    ${Nodel_SOURCE_DIR}/deps/zstd/lib/libzstd.a
 )
 
 add_custom_command(
