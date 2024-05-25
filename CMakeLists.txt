@@ -56,10 +56,12 @@ FetchContent_MakeAvailable(cpptrace fmtlib tsl-ordered-map googletest)
 #----------------------------------------------------------------------------
 # Dependency: speedb (LOCAL, statically linked)
 #----------------------------------------------------------------------------
-execute_process(COMMAND ${CMAKE} -B build 
+message(STATUS "Building Speedb ------------------------------------------------------------")
+execute_process(COMMAND ${CMAKE_COMMAND} -B build -G Ninja 
                 WORKING_DIRECTORY deps/speedb)
-execute_process(COMMAND ${CMAKE} --build build -tgt speedb --parallel 
+execute_process(COMMAND ${CMAKE_COMMAND} --build build --target speedb 
                 WORKING_DIRECTORY deps/speedb)
+message(STATUS "----------------------------------------------------------------------------")
 
 
 #----------------------------------------------------------------------------
