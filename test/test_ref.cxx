@@ -9,23 +9,28 @@ using namespace nodel;
 
 struct Thing
 {
+    Thing() = default;
     Thing(refcnt_t ref_count) : m_ref_count(ref_count) {}
     refcnt_t m_ref_count;
 };
 
+TEST(Ref, RefCountShouldBeOneAfterCreation) {
+    Ref<Thing> r_thing = new Thing(3);
+    EXPECT_EQ(r_thing.ref_count(), 1);
+}
+
 TEST(Ref, CreateAndDelete) {
-    auto p_thing = new Thing(1);
-    while (1) {
+    auto p_thing = new Thing();
+    /* block scope */ {
       Ref<Thing> r_thing = p_thing;
-      EXPECT_EQ(p_thing->m_ref_count, 2UL);
-      break;
+      p_thing->m_ref_count = 2;
     }
     EXPECT_EQ(p_thing->m_ref_count, 1UL);
     delete p_thing;
 }
 
 TEST(Ref, CopyRefCountIntegrity) {
-    auto p_thing = new Thing(0);
+    auto p_thing = new Thing();
     Ref<Thing> r_thing = p_thing;
     EXPECT_EQ(p_thing->m_ref_count, 1UL);
     Ref<Thing> r_copy{r_thing};
@@ -33,26 +38,25 @@ TEST(Ref, CopyRefCountIntegrity) {
 }
 
 TEST(Ref, MoveRefCountIntegrity) {
-    auto p_thing = new Thing(1);
+    auto p_thing = new Thing();
     Ref<Thing> r_thing = p_thing;
-    EXPECT_EQ(p_thing->m_ref_count, 2UL);
+    p_thing->m_ref_count = 2;
     Ref<Thing> r_copy{std::move(r_thing)};
     EXPECT_EQ(p_thing->m_ref_count, 2UL);
 }
 
 TEST(Ref, CopyAssignRefCountIntegrity) {
-    auto p1 = new Thing(1);
-    auto p2 = new Thing(1);
-    while (1) {
+    auto p1 = new Thing();
+    auto p2 = new Thing();
+    /* block scope */ {
         Ref<Thing> r1{p1};
         Ref<Thing> r2{p2};
-        EXPECT_EQ(r1->m_ref_count, 2UL);
-        EXPECT_EQ(r2->m_ref_count, 2UL);
+        r1->m_ref_count = 2;
+        r2->m_ref_count = 2;
 
         r2 = r1;
         EXPECT_EQ(p1->m_ref_count, 3UL);
         EXPECT_EQ(p2->m_ref_count, 1UL);
-        break;
     }
     EXPECT_EQ(p1->m_ref_count, 1UL);
     EXPECT_EQ(p2->m_ref_count, 1UL);
@@ -61,18 +65,17 @@ TEST(Ref, CopyAssignRefCountIntegrity) {
 }
 
 TEST(Ref, MoveAssignRefCountIntegrity) {
-    auto p1 = new Thing(1);
-    auto p2 = new Thing(1);
-    while (1) {
+    auto p1 = new Thing();
+    auto p2 = new Thing();
+    /* block scope */ {
         Ref<Thing> r1{p1};
         Ref<Thing> r2{p2};
-        EXPECT_EQ(r1->m_ref_count, 2UL);
-        EXPECT_EQ(r2->m_ref_count, 2UL);
+        r1->m_ref_count = 2;
+        r2->m_ref_count = 2;
 
         r2 = std::move(r1);
         EXPECT_EQ(p1->m_ref_count, 2UL);
         EXPECT_EQ(p2->m_ref_count, 1UL);
-        break;
     }
     EXPECT_EQ(p1->m_ref_count, 1UL);
     EXPECT_EQ(p2->m_ref_count, 1UL);
@@ -82,7 +85,7 @@ TEST(Ref, MoveAssignRefCountIntegrity) {
 
 TEST(Ref, AssignToEmpty) {
     Ref<Thing> r1;
-    Ref<Thing> r2{new Thing{1}};
+    Ref<Thing> r2{new Thing()};
     EXPECT_TRUE((bool)r2);
     r1 = r2;
     EXPECT_TRUE((bool)r1);

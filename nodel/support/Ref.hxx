@@ -12,7 +12,7 @@ class Ref
 {
   public:
     Ref() : m_ptr{nullptr} {}
-    Ref(T* ptr) : m_ptr(ptr) { inc_ref_count(); }
+    Ref(T* ptr) : m_ptr(ptr) { if (m_ptr != nullptr) m_ptr->m_ref_count = 1; }
     ~Ref() { if (m_ptr != nullptr) dec_ref_count(); }
 
     Ref(const Ref& other) {
