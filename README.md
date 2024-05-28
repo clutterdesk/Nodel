@@ -101,6 +101,13 @@ wd = nd.bind("file://?path=.")
 print(list(wd))
 ```
 
+In the Python extension, the keys of map objects can be accessed as if they were *attributes*, for convenience.
+In other words, `map.foo` is the equivalent to `map['foo']`, for any key that is also a valid Python identifier -
+see [Python Attribute Syntax](https://docs.python.org/3/reference/expressions.html#attribute-references).  For
+this reason, the methods of the C++ Nodel Object are implemented as free functions in the `nodel` namespace in
+Python - for example, `nodel.iter_values` as opposed to `Object::iter_values`.  Use `dir(nodel)` to see the available 
+functions and `help(nodel.<function>)` for documentation.
+
 ## API Documentation and Examples
 [Nodel API documentation](https://clutterdesk.github.io/Nodel)
 
