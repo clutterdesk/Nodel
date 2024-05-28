@@ -71,15 +71,9 @@ set(CMAKE_PREFIX_PATH deps)
 find_program(MAKE make)
 execute_process(COMMAND ${MAKE} WORKING_DIRECTORY deps/ziplib)
 
-
 #----------------------------------------------------------------------------
-#-- Dump All Vars
+# Dependency: dwarf (included with cpptrace)
 #----------------------------------------------------------------------------
-get_cmake_property(_variableNames VARIABLES)
-list (SORT _variableNames)
-foreach (_variableName ${_variableNames})
-    message(STATUS "${_variableName}=${${_variableName}}")
-endforeach()
 
 
 #----------------------------------------------------------------------------
@@ -96,14 +90,6 @@ set(NODEL_WFLAGS
 #-- Nodel Unit Test
 #----------------------------------------------------------------------------
 file(GLOB NODEL_TEST_SRC 
-    deps/ziplib/Source/ZipLib/extlibs/zlib/*.c
-    deps/ziplib/Source/ZipLib/extlibs/lzma/unix/*.c
-    deps/ziplib/Source/ZipLib/extlibs/bzip2/*.h
-    deps/ziplib/Source/ZipLib/extlibs/bzip2/*.c
-    deps/ziplib/Source/ZipLib/*.h
-    deps/ziplib/Source/ZipLib/*.cpp
-    deps/ziplib/Source/ZipLib/detail/h.cpp
-    deps/ziplib/Source/ZipLib/detail/*.cpp
     nodel/**/*.hxx 
     nodel/**/*.cxx 
     test/*.cxx
@@ -126,58 +112,68 @@ target_link_libraries(nodel_test PRIVATE
     cpptrace::cpptrace
     fmt::fmt
     gtest
+    ${Nodel_SOURCE_DIR}/deps/ziplib/Bin/libziplib.a
     ${Nodel_SOURCE_DIR}/deps/speedb/build/libspeedb.a
 )
 
 add_custom_command(
     TARGET nodel_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/test_data/ $<TARGET_FILE_DIR:nodel_test>/test_data/
-)
+)                 
+
                        
-                       
-if (0)                       
 #----------------------------------------------------------------------------
 #-- Python C-API Extension
 #----------------------------------------------------------------------------
 find_package (Python3 COMPONENTS Interpreter Development)
 
 if (NOT Python3_FOUND)
-message(WARNING "Python3 not found. Unable to build Python C-API extension.")
+    message(WARNING "Python3 not found. Unable to build Python C-API extension.")
+
 else()
 
-set(NODEL_PYEXT_INCLUDE
-    ${Nodel_SOURCE_DIR}
-    ${cpptrace_INCLUDE_DIRS}
-    ${libdwarf_INCLUDE_DIRS}
-    ${fmt_INCLUDE_DIRS}
-    ${Nodel_SOURCE_DIR}/deps/speedb/include
-    ${tsl-ordered-map_INCLUDE_DIRS}
-    ${Nodel_SOURCE_DIR}/deps/ziplib/Source
-    ${zlib_INCLUDE_DIRS}
-)
-
-set(NODEL_PYEXT_LIB_PATH
-    ${cpptrace_LIB_DIRS_RELEASE}
-    ${libdwarf_LIB_DIRS_RELEASE}    
-    ${fmt_LIB_DIRS_RELEASE}
-    ${Nodel_SOURCE_DIR}/deps/speedb/build
-    ${zlib_LIB_DIRS_RELEASE}
-)
-
-add_custom_target(
-    pyext ALL
-    DEPENDS nodel_test
-            ${CMAKE_SOURCE_DIR}/pyext/setup.py
-            ${CMAKE_SOURCE_DIR}/pyext/setup.cfg
-    COMMAND ${CMAKE_COMMAND} -E env
-        NODEL_WFLAGS="${NODEL_WFLAGS}" 
-        NODEL_PYEXT_INCLUDE="${NODEL_PYEXT_INCLUDE}"
-        NODEL_PYEXT_LIB_PATH="${NODEL_PYEXT_LIB_PATH}"
-        ${Python3_EXECUTABLE} -m build
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/pyext/
-    COMMENT "Building Python C-API extension"
-)
-
+    set(NODEL_PYEXT_INCLUDE
+        deps/ziplib/Source/ZipLib
+        deps/ziplib/Source/ZipLib/extlibs
+        deps/ziplib/Source/ZipLib/detail
+        ${Nodel_SOURCE_DIR}
+        ${Nodel_SOURCE_DIR}/deps/ziplib/Source
+        ${cpptrace_SOURCE_DIR}/include
+        ${fmtlib_SOURCE_DIR}/include
+        ${tsl-ordered-map_SOURCE_DIR}/include
+        ${Nodel_SOURCE_DIR}/deps/speedb/include
+    )
+    
+    set(NODEL_PYEXT_LIB_PATH
+        ${Nodel_SOURCE_DIR}/build/_deps/cpptrace-build
+        ${Nodel_SOURCE_DIR}/build/_deps/fmtlib-build
+        ${Nodel_SOURCE_DIR}/deps/ziplib/Bin
+        ${Nodel_SOURCE_DIR}/deps/speedb/build
+        ${libdwarf_BINARY_DIR}/src/lib/libdwarf
+        ${zstd_BINARY_DIR}/lib
+    )
+    
+    add_custom_target(
+        pyext ALL
+        DEPENDS nodel_test
+                ${CMAKE_SOURCE_DIR}/pyext/setup.py
+                ${CMAKE_SOURCE_DIR}/pyext/setup.cfg
+        COMMAND ${CMAKE_COMMAND} -E env
+            NODEL_WFLAGS="${NODEL_WFLAGS}" 
+            NODEL_PYEXT_INCLUDE="${NODEL_PYEXT_INCLUDE}"
+            NODEL_PYEXT_LIB_PATH="${NODEL_PYEXT_LIB_PATH}"
+            ${Python3_EXECUTABLE} -m build
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/pyext/
+        COMMENT "Building Python C-API extension"
+    )
 endif()
-endif()
 
+
+#----------------------------------------------------------------------------
+#-- Dump All Vars
+#----------------------------------------------------------------------------
+get_cmake_property(_variableNames VARIABLES)
+list (SORT _variableNames)
+foreach (_variableName ${_variableNames})
+    message(STATUS "${_variableName}=${${_variableName}}")
+endforeach()

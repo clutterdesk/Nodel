@@ -3,12 +3,18 @@ EXECUTABLE = Bin/zipsample
 SO_LIBRARY = Bin/libziplib.a
 
 # C & C++ compiler
+AR        = llvm-ar
 #CC       = gcc
 #CXX      = g++-4.8
 CC        = clang
 CXX       = clang++
-CFLAGS    = -fPIC -Wno-enum-conversion -O3
-CXXFLAGS  = -fPIC -std=c++11 -O3
+CFLAGS    = -Wno-enum-conversion -O3
+CFLAGS    += -Wno-deprecated-non-prototype 
+CXXFLAGS  = -std=c++11 -O3
+CXXFLAGS  += -Wno-tautological-undefined-compare \
+             -Wno-deprecated-declarations \
+             -Wno-enum-conversion \
+	     -Wno-deprecated-non-prototype
 
 # Linker flags
 LDFLAGS   = -pthread
@@ -37,7 +43,8 @@ $(EXECUTABLE): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) Source/Sample/Main.cpp -o $@ $^
 
 $(SO_LIBRARY): $(OBJS)
-	$(CXX) $(LDFLAGS) -dynamiclib -o $@ $^
+	$(AR) rc $@ $^
+#	$(CXX) $(LDFLAGS) -o $@ $^
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
