@@ -43,15 +43,6 @@ FetchContent_Declare(
 )
 
 #----------------------------------------------------------------------------
-# Dependency: lz4
-#----------------------------------------------------------------------------
-FetchContent_Declare(
-  lz4
-  GIT_REPOSITORY https://github.com/lz4/lz4.git
-  GIT_TAG v1.9.4        
-)
-
-#----------------------------------------------------------------------------
 # Dependency: googletest
 #----------------------------------------------------------------------------
 FetchContent_Declare(
@@ -61,7 +52,7 @@ FetchContent_Declare(
 )
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
-FetchContent_MakeAvailable(cpptrace fmtlib tsl-ordered-map lz4 googletest)
+FetchContent_MakeAvailable(cpptrace fmtlib tsl-ordered-map googletest)
 
 
 #----------------------------------------------------------------------------
@@ -75,13 +66,20 @@ set(NODEL_WFLAGS
 
 
 #----------------------------------------------------------------------------
+# Dependency: lz4 (LOCAL, statically linked)
+#----------------------------------------------------------------------------
+add_custom_target(nodel_lz4
+                  COMMAND ${MAKE} lib -j ${CMAKE_BUILD_PARALLEL_LEVEL}
+                  COMMENT "Build LZ4 static library"
+                  WORKING_DIRECTORY ${Nodel_SOURCE_DIR}/deps/lz4)
+
+#----------------------------------------------------------------------------
 # Dependency: speedb (LOCAL, statically linked)
 #----------------------------------------------------------------------------
 add_custom_target(nodel_speedb
                   COMMAND ${MAKE} static_lib -j ${CMAKE_BUILD_PARALLEL_LEVEL}
                   COMMENT "Build Speedb static library"
                   WORKING_DIRECTORY ${Nodel_SOURCE_DIR}/deps/speedb)
-
 
 #----------------------------------------------------------------------------
 # Dependency: ZipLib (LOCAL, statically linked)
@@ -102,7 +100,7 @@ file(GLOB NODEL_TEST_SRC
 )
 
 add_executable(nodel_test ${NODEL_TEST_SRC})
-add_dependencies(nodel_test nodel_speedb nodel_ziplib)
+add_dependencies(nodel_test nodel_lz4 nodel_speedb nodel_ziplib)
 target_compile_features(nodel_test PRIVATE cxx_std_20)
 target_compile_options(nodel_test PRIVATE ${NODEL_WFLAGS})
 target_compile_options(nodel_test PRIVATE -pthread)
@@ -116,7 +114,9 @@ target_include_directories(nodel_test PRIVATE
 )
 
 target_link_libraries(nodel_test PRIVATE
+    snappy
     ${Nodel_SOURCE_DIR}/deps/ziplib/Bin/libziplib.a
+    ${Nodel_SOURCE_DIR}/deps/lz4/lib/liblz4.a
     ${Nodel_SOURCE_DIR}/deps/speedb/libspeedb.a
     cpptrace::cpptrace
     fmt::fmt
