@@ -93,7 +93,6 @@ endif()
 file(GLOB NODEL_TEST_SRC 
     nodel/**/*.hxx 
     nodel/**/*.cxx 
-    test/*.cxx
     test/main.cxx
     test/test_csv.cxx
     test/test_filesystem.cxx
