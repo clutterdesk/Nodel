@@ -66,22 +66,6 @@ set(NODEL_WFLAGS
 
 
 #----------------------------------------------------------------------------
-# Dependency: lz4 (LOCAL, statically linked)
-#----------------------------------------------------------------------------
-add_custom_target(nodel_lz4
-                  COMMAND ${MAKE} lib -j ${CMAKE_BUILD_PARALLEL_LEVEL}
-                  COMMENT "Build LZ4 static library"
-                  WORKING_DIRECTORY ${Nodel_SOURCE_DIR}/deps/lz4)
-
-#----------------------------------------------------------------------------
-# Dependency: speedb (LOCAL, statically linked)
-#----------------------------------------------------------------------------
-add_custom_target(nodel_speedb
-                  COMMAND ${MAKE} static_lib -j ${CMAKE_BUILD_PARALLEL_LEVEL}
-                  COMMENT "Build Speedb static library"
-                  WORKING_DIRECTORY ${Nodel_SOURCE_DIR}/deps/speedb)
-
-#----------------------------------------------------------------------------
 # Dependency: ZipLib (LOCAL, statically linked)
 #----------------------------------------------------------------------------
 add_custom_target(nodel_ziplib
@@ -91,37 +75,63 @@ add_custom_target(nodel_ziplib
 
 
 #----------------------------------------------------------------------------
+# Optional Dependency: rocksdb (pre-installed)
+#----------------------------------------------------------------------------
+find_package(rocksdb 9.2 CONFIG)
+if (rocksdb_FOUND)
+    get_target_property(ROCKSDB_INCLUDE RocksDB::rocksdb INTERFACE_INCLUDE_DIRECTORIES)
+    get_target_property(ROCKSDB_LIBRARY RocksDB::rocksdb LOCATION)
+endif()
+
+
+#----------------------------------------------------------------------------
 #-- Nodel Unit Test
 #----------------------------------------------------------------------------
 file(GLOB NODEL_TEST_SRC 
     nodel/**/*.hxx 
     nodel/**/*.cxx 
     test/*.cxx
+    test/main.cxx
+    test/test_csv.cxx
+    test/test_filesystem.cxx
+    test/test_intern.cxx
+    test/test_json.cxx
+    test/test_key.cxx
+    test/test_lcs.cxx
+    test/test_object.cxx
+    test/test_query.cxx
+    test/test_ref.cxx
+    test/test_uri.cxx    
 )
 
+message(WARNING ${NODEL_TEST_SRC})
+
 add_executable(nodel_test ${NODEL_TEST_SRC})
-add_dependencies(nodel_test nodel_lz4 nodel_speedb nodel_ziplib)
+add_dependencies(nodel_test nodel_ziplib)
 target_compile_features(nodel_test PRIVATE cxx_std_20)
 target_compile_options(nodel_test PRIVATE ${NODEL_WFLAGS})
 target_compile_options(nodel_test PRIVATE -pthread)
 
 target_include_directories(nodel_test PRIVATE
     ${Nodel_SOURCE_DIR}
-    ${Nodel_SOURCE_DIR}/deps/speedb/include
     ${tsl-ordered-map_SOURCE_DIR}/include
     ${Nodel_SOURCE_DIR}/deps/ziplib/Source
     ${gtest_SOURCE_DIR}/include
 )
 
 target_link_libraries(nodel_test PRIVATE
-    snappy
     ${Nodel_SOURCE_DIR}/deps/ziplib/Bin/libziplib.a
-    ${Nodel_SOURCE_DIR}/deps/lz4/lib/liblz4.a
-    ${Nodel_SOURCE_DIR}/deps/speedb/libspeedb.a
     cpptrace::cpptrace
     fmt::fmt
     gtest
 )
+
+if (rocksdb_FOUND)
+    set(NODEL_TEST_SRC ${NODEL_TEST_SRC} test/test_kvdb.cxx)
+    target_include_directories(nodel_test PRIVATE ${ROCKSDB_INCLUDE})
+    target_link_libraries(nodel_test PRIVATE RocksDB::rocksdb)
+endif()
+
 
 #----------------------------------------------------------------------------
 # Copy test_data/ directory
@@ -148,25 +158,28 @@ else()
         ${cpptrace_SOURCE_DIR}/include
         ${fmtlib_SOURCE_DIR}/include
         ${tsl-ordered-map_SOURCE_DIR}/include
-        ${Nodel_SOURCE_DIR}/deps/speedb/include
     )
     
     set(NODEL_PYEXT_LIB_PATH
         ${Nodel_SOURCE_DIR}/build/_deps/cpptrace-build
         ${Nodel_SOURCE_DIR}/build/_deps/fmtlib-build
         ${Nodel_SOURCE_DIR}/deps/ziplib/Bin
-        ${Nodel_SOURCE_DIR}/deps/speedb/build
         ${libdwarf_BINARY_DIR}/src/lib/libdwarf
         ${zstd_BINARY_DIR}/lib
     )
+    
+    if (rocksdb_FOUND)
+        set(NODEL_PYEXT_INCLUDE ${NODEL_PYEXT_INCLUDE} ${ROCKSDB_INCLUDE})
+        get_filename_component(ROCKSDB_LIB_PATH ${ROCKSDB_LIBRARY} DIRECTORY)
+        set(NODEL_PYEXT_LIB_PATH ${NODEL_PYEXT_LIB_PATH} ${ROCKSDB_LIB_PATH}) 
+    endif()
     
     add_custom_target(
         pyext ALL
         DEPENDS nodel_test
                 ${CMAKE_SOURCE_DIR}/pyext/setup.py
                 ${CMAKE_SOURCE_DIR}/pyext/setup.cfg
-        COMMAND ${CMAKE_COMMAND} -E env
-            NODEL_WFLAGS="${NODEL_WFLAGS}" 
+        COMMAND ${CMAKE_COMMAND} -E env 
             NODEL_PYEXT_INCLUDE="${NODEL_PYEXT_INCLUDE}"
             NODEL_PYEXT_LIB_PATH="${NODEL_PYEXT_LIB_PATH}"
             ${Python3_EXECUTABLE} -m build
@@ -180,9 +193,9 @@ endif()
 #-- Dump All Vars
 #----------------------------------------------------------------------------
 if (0)
-get_cmake_property(_variableNames VARIABLES)
-list (SORT _variableNames)
-foreach (_variableName ${_variableNames})
-    message(STATUS "${_variableName}=${${_variableName}}")
-endforeach()
+    get_cmake_property(_variableNames VARIABLES)
+    list (SORT _variableNames)
+    foreach (_variableName ${_variableNames})
+        message(STATUS "${_variableName}=${${_variableName}}")
+    endforeach()
 endif()

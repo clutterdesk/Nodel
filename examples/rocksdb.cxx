@@ -17,14 +17,14 @@ int main(int argc, char** argv) {
 
     debug::Stopwatch swatch;
     swatch.start("Profile Creating Data Without DB Overhead");
-    Object db = bind("rocksdb://?perm=rw&path=nodel_example.rocksdb");
+    Object db = bind("kvdb://?perm=rw&path=nodel_example.rocksdb");
     db.reserve((size_t)1e7);
     for (size_t i=0; i<1e7; i++)
         db.set(i, i);
     auto elapsed_without_save = swatch.finish();
 
     swatch.start("Profile Creating Data and Saving to DB");
-    db = bind("rocksdb://?perm=rw&path=nodel_example.rocksdb");
+    db = bind("kvdb://?perm=rw&path=nodel_example.rocksdb");
     for (size_t i=0; i<1e7; i++)
         db.set(i, i);
     db.save();
