@@ -3,11 +3,11 @@ EXECUTABLE = Bin/zipsample
 SO_LIBRARY = Bin/libziplib.a
 
 # C & C++ compiler
-AR        = llvm-ar
-#CC       = gcc
-#CXX      = g++-4.8
-CC        = clang
-CXX       = clang++
+AR        ?= ar
+#CC       ?= gcc
+#CXX      ?= g++-4.8
+CC        ?= clang
+CXX       ?= clang++
 CFLAGS    = -Wno-enum-conversion -O3
 CFLAGS    += -Wno-deprecated-non-prototype 
 CXXFLAGS  = -std=c++11 -O3
