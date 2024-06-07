@@ -103,7 +103,8 @@ file(GLOB NODEL_TEST_SRC
     test/test_object.cxx
     test/test_query.cxx
     test/test_ref.cxx
-    test/test_uri.cxx    
+    test/test_uri.cxx
+    test/test_zip.cxx    
 )
 
 message(WARNING ${NODEL_TEST_SRC})

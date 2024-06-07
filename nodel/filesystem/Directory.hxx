@@ -153,13 +153,11 @@ void SubDirectory::read(const Object& target) {
 }
 
 inline
-bool looks_like_directory(const Ref<Registry>& r_reg, const std::filesystem::path& parent_path, const Object& obj) {
+bool looks_like_directory(const Ref<Registry>& r_reg, const std::filesystem::path& path, const Object& obj) {
     if (!nodel::is_map(obj)) return false;
-    for (auto& key : obj.iter_keys()) {
-        auto path = parent_path / key.to_str();
-        return r_reg->has_association(path);
-    }
-    return parent_path.extension().string() == "";
+    if (!r_reg->has_association(path)) return true;
+    auto p_ds = r_reg->create_if_defined(obj, path, DataSource::Origin::MEMORY);
+    return dynamic_cast<SubDirectory*>(p_ds);
 }
 
 inline
@@ -175,6 +173,7 @@ void SubDirectory::write(const Object& target, const Object& cache) {
 
     // apply correct data-source to new files/directories
     for (auto& item: cache.iter_items()) {
+        // TODO: check for non-filesystem data-source
         if (!has_data_source(item.second)) {
             auto& key = item.first;
             auto obj = item.second;

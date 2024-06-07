@@ -6,32 +6,11 @@
 #include <nodel/filesystem/Directory.hxx>
 #include <nodel/support/Finally.hxx>
 
+#include <queue>
 #include <ZipLib/ZipFile.h>
 
 namespace nodel {
 namespace filesystem {
-
-namespace impl {
-
-class ZipFileEntry : public File
-{
-  public:
-    ZipFileEntry(const ZipArchiveEntry::Ptr& p_entry, Origin origin)
-    : File(Kind::COMPLETE, origin, Multilevel::NO), mp_entry{p_entry}
-    { set_mode(mode() | Mode::INHERIT); }
-
-    ZipFileEntry(const ZipArchiveEntry::Ptr& p_entry) : ZipFileEntry(p_entry, DataSource::Origin::SOURCE) {}
-
-    DataSource* new_instance(const Object& target, Origin origin) const override { return new ZipFileEntry(mp_entry, origin); }
-
-    void read(const Object& target) override;
-    void write(const Object& target, const Object& cache) override;
-
-  private:
-    ZipArchiveEntry::Ptr mp_entry;
-};
-
-}  // namespace impl
 
 class ZipFile : public File
 {
@@ -50,6 +29,31 @@ class ZipFile : public File
   private:
     ZipArchive::Ptr mp_zip;
 };
+
+
+namespace impl {
+
+class ZipFileEntry : public File
+{
+  public:
+    ZipFileEntry(const ZipArchiveEntry::Ptr& p_entry, Origin origin)
+    : File(Kind::COMPLETE, origin, Multilevel::NO), mp_entry{p_entry}
+    { set_mode(mode() | Mode::INHERIT); }
+
+    ZipFileEntry(const ZipArchiveEntry::Ptr& p_entry) : ZipFileEntry(p_entry, DataSource::Origin::SOURCE) {}
+
+    DataSource* new_instance(const Object& target, Origin origin) const override { return new ZipFileEntry(mp_entry, origin); }
+
+    void read(const Object& target) override;
+    void write(const Object& target, const Object& cache) override {}
+
+  private:
+    ZipArchiveEntry::Ptr mp_entry;
+
+  friend class nodel::filesystem::ZipFile;
+};
+
+}  // namespace impl
 
 
 inline
@@ -109,7 +113,69 @@ void ZipFile::read(const Object& target) {
 inline
 void ZipFile::write(const Object& target, const Object& cache) {
     auto fpath = path(target);
-    report_write_error(fpath, "Not implemented, yet");
+    auto r_reg = get_registry(target);
+
+    std::vector<std::stringstream*> streams;
+    Finally finally{ [&streams] () {
+        for (auto p_stream : streams)
+            delete p_stream;
+    }};
+
+    // create new archive
+    free_resources();
+    mp_zip = ZipArchive::Create();
+
+    // prime stack
+    std::queue<std::pair<OPath, Object>> fifo;
+    for (auto& child: target.iter_values())
+        fifo.push(std::make_pair(child.path(target), child));
+
+    // save entries
+    while (!fifo.empty()) {
+        auto item = fifo.front();
+        auto& rel_path = item.first;
+        auto obj = item.second;
+        fifo.pop();
+
+        std::filesystem::path rel_fpath;
+        for (const auto& key : rel_path)
+            rel_fpath /= key.to_str();
+
+        auto item_fpath = fpath / rel_fpath;
+
+        auto p_ds = obj.data_source<impl::ZipFileEntry>();
+        if (p_ds == nullptr) {
+            auto p_entry = mp_zip->CreateEntry(rel_fpath.string());
+            if (looks_like_directory(r_reg, item_fpath, obj)) {
+                p_entry->SetAttributes(ZipArchiveEntry::Attributes::Directory);
+            }
+
+            p_ds = new impl::ZipFileEntry(p_entry, Origin::MEMORY);
+            p_ds->set_options(options());
+            p_ds->bind(obj);
+        }
+
+        if (p_ds->mp_entry->IsDirectory()) {
+            for (auto& item: obj.iter_items())
+                fifo.push(std::make_pair(OPath{rel_path, item.first}, item.second));
+        } else {
+            if (r_reg->has_association(item_fpath)) {
+                auto r_serial = r_reg->get_serializer(item_fpath);
+                std::stringstream* p_stream = new std::stringstream();
+                streams.push_back(p_stream);
+                r_serial->write(*p_stream, obj);
+                p_ds->mp_entry->SetCompressionStream(*p_stream);
+            }
+        }
+    }
+
+    // save archive
+    std::ofstream f_out{fpath, std::ios::out};
+
+    mp_zip->WriteToStream(f_out);
+
+    if (f_out.bad()) report_write_error(fpath, strerror(errno));
+    if (f_out.fail()) report_write_error(fpath, "ostream::fail()");
 }
 
 inline
@@ -140,12 +206,6 @@ void impl::ZipFileEntry::read(const Object& target) {
             read_set(target, obj);
         }
     }
-}
-
-inline
-void impl::ZipFileEntry::write(const Object& target, const Object& cache) {
-    auto fpath = path(target);
-    report_write_error(fpath, "Not implemented, yet");
 }
 
 } // namespace filesystem
