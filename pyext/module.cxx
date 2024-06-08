@@ -107,6 +107,30 @@ static PyObject* mod_from_json(PyObject* mod, PyObject* arg) {
     return po.get_clear();
 }
 
+constexpr auto clear_method_doc =
+"Removes all elements from a container.\n"
+"nodel.clear(obj) -> None\n"
+"This method does nothing if the object is not a container.";
+
+static PyObject* mod_clear(PyObject* mod, PyObject* arg) {
+    NodelObject* nd_self = as_nodel_object(arg);
+    if (nd_self == NULL) return NULL;
+    nd_self->obj.clear();
+    Py_RETURN_NONE;
+}
+
+constexpr auto del_from_parent_method_doc =
+"Removes this object from its parent container.\n"
+"nodel.clear(obj) -> None\n"
+"This method does nothing if the object does not have a parent.";
+
+static PyObject* mod_del_from_parent(PyObject* mod, PyObject* arg) {
+    NodelObject* nd_self = as_nodel_object(arg);
+    if (nd_self == NULL) return NULL;
+    nd_self->obj.del_from_parent();
+    Py_RETURN_NONE;
+}
+
 constexpr auto root_method_doc =
 "Returns the root of the tree containing the argument.\n"
 "nodel.root(obj) -> Object\n"
@@ -344,6 +368,7 @@ static PyObject* mod_is_same(PyObject* mod, PyObject* const* args, Py_ssize_t na
 static PyMethodDef nodel_methods[] = {
     {"bind",        (PyCFunction)mod_bind,                METH_O,        PyDoc_STR(mod_bind_doc)},
     {"from_json",   (PyCFunction)mod_from_json,           METH_O,        PyDoc_STR(mod_from_json_doc)},
+    {"clear",       (PyCFunction)mod_clear,               METH_O,        PyDoc_STR(clear_method_doc)},
     {"root",        (PyCFunction)mod_root,                METH_O,        PyDoc_STR(root_method_doc)},
     {"parent",      (PyCFunction)mod_parent,              METH_O,        PyDoc_STR(parent_method_doc)},
     {"iter_keys",   (PyCFunction)mod_iter_keys,           METH_O,        PyDoc_STR(iter_keys_method_doc)},
