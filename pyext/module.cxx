@@ -335,7 +335,7 @@ static PyObject* mod_save(PyObject* mod, PyObject* arg) {
     try {
         nd_self->obj.save();
         Py_RETURN_NONE;
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -396,7 +396,7 @@ static PyObject* mod_is_int(PyObject* mod, PyObject* arg) {
     try {
         if (nd_self->obj.type() == Object::ReprIX::INT || nd_self->obj.type() == Object::ReprIX::UINT) Py_RETURN_TRUE;
         Py_RETURN_FALSE;
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -420,7 +420,7 @@ static PyObject* mod_is_map(PyObject* mod, PyObject* arg) {
     try {
         if (nd_self->obj.type() == Object::ReprIX::OMAP || nd_self->obj.type() == Object::ReprIX::SMAP) Py_RETURN_TRUE;
         Py_RETURN_FALSE;
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }

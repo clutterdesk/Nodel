@@ -634,21 +634,24 @@ static PyObject* NodelObject_getattro(PyObject* self, PyObject* name) {
     Object& self_obj = nd_self->obj;
     try {
         return (PyObject*)NodelObject_wrap(self_obj.get(support.to_key(name)));
-    } catch (const WrongType& exc) {
+    } catch (const WrongType& ex) {
         python::raise_type_error(self_obj);
+    } catch (const std::exception& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
     }
 
     return NULL;
 }
 
 static int NodelObject_setattro(PyObject* self, PyObject* name, PyObject* val) {
-    // TODO: Write/Clobber exceptions
-
     NodelObject* nd_self = (NodelObject*)self;
     Object& self_obj = nd_self->obj;
     auto nd_key = support.to_key(name);
     try {
-        if (NodelObject_CheckExact(val)) {
+        if (val == NULL) {
+            self_obj.del(nd_key);
+        } else if (NodelObject_CheckExact(val)) {
+            self_obj.set(nd_key, ((NodelObject*)val)->obj);
         } else if (val == Py_None) {
             self_obj.set(nd_key, nil);
         } else {
@@ -657,8 +660,10 @@ static int NodelObject_setattro(PyObject* self, PyObject* name, PyObject* val) {
             self_obj.set(nd_key, nd_val);
         }
         return 0;
-    } catch (const WrongType& exc) {
+    } catch (const WrongType& ex) {
         python::raise_type_error(self_obj);
+    } catch (const std::exception& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
     }
 
     return -1;
