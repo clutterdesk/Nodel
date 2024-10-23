@@ -364,6 +364,67 @@ static PyObject* mod_is_same(PyObject* mod, PyObject* const* args, Py_ssize_t na
     if (lhs->obj.is(rhs->obj)) Py_RETURN_TRUE; else Py_RETURN_FALSE;
 }
 
+static PyObject* is_type(PyObject* mod, PyObject* arg, Object::ReprIX repr_ix) {
+    NodelObject* nd_self = as_nodel_object(arg);
+    if (nd_self == NULL) return NULL;
+
+    try {
+        if (nd_self->obj.type() == repr_ix) Py_RETURN_TRUE;
+        Py_RETURN_FALSE;
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
+}
+
+constexpr auto is_nil_method_doc = \
+    "True, if the type of the object is NIL.\n"
+    "Although NIL is similar to Python None, since all types are represented by the C++\n"
+    "nodel::Object classm, a simple test using 'is None' will not work.";
+
+static PyObject* mod_is_nil(PyObject* mod, PyObject* arg) { return is_type(mod, arg, Object::ReprIX::NIL); }
+
+constexpr auto is_bool_method_doc = "True, if the type of the object is a boolean.\n";
+static PyObject* mod_is_bool(PyObject* mod, PyObject* arg) { return is_type(mod, arg, Object::ReprIX::BOOL); }
+
+constexpr auto is_int_method_doc = "True, if the type of the object is a signed or unsigned integer.\n";
+
+static PyObject* mod_is_int(PyObject* mod, PyObject* arg) {
+    NodelObject* nd_self = as_nodel_object(arg);
+    if (nd_self == NULL) return NULL;
+
+    try {
+        if (nd_self->obj.type() == Object::ReprIX::INT || nd_self->obj.type() == Object::ReprIX::UINT) Py_RETURN_TRUE;
+        Py_RETURN_FALSE;
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
+}
+
+constexpr auto is_float_method_doc = "True, if the type of the object is a float.\n";
+static PyObject* mod_is_float(PyObject* mod, PyObject* arg) { return is_type(mod, arg, Object::ReprIX::FLOAT); }
+
+constexpr auto is_list_method_doc = "True, if the type of the object is a list.\n";
+static PyObject* mod_is_list(PyObject* mod, PyObject* arg) { return is_type(mod, arg, Object::ReprIX::LIST); }
+
+constexpr auto is_str_method_doc = "True, if the type of the object is a string.\n";
+static PyObject* mod_is_str(PyObject* mod, PyObject* arg) { return is_type(mod, arg, Object::ReprIX::STR); }
+
+constexpr auto is_map_method_doc = "True, if the type of the object is any type of map.\n";
+
+static PyObject* mod_is_map(PyObject* mod, PyObject* arg) {
+    NodelObject* nd_self = as_nodel_object(arg);
+    if (nd_self == NULL) return NULL;
+
+    try {
+        if (nd_self->obj.type() == Object::ReprIX::OMAP || nd_self->obj.type() == Object::ReprIX::SMAP) Py_RETURN_TRUE;
+        Py_RETURN_FALSE;
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
+}
 
 static PyMethodDef nodel_methods[] = {
     {"bind",        (PyCFunction)mod_bind,                METH_O,        PyDoc_STR(mod_bind_doc)},
@@ -380,6 +441,13 @@ static PyMethodDef nodel_methods[] = {
     {"reset_key",   (PyCFunction)mod_reset_key,           METH_FASTCALL, PyDoc_STR(reset_key_method_doc)},
     {"save",        (PyCFunction)mod_save,                METH_O,        PyDoc_STR(save_method_doc)},
     {"is_same",     (PyCFunction)mod_is_same,             METH_FASTCALL, PyDoc_STR(is_same_method_doc)},
+    {"is_nil",      (PyCFunction)mod_is_nil,              METH_O,        PyDoc_STR(is_nil_method_doc)},
+    {"is_bool",     (PyCFunction)mod_is_bool,             METH_O,        PyDoc_STR(is_bool_method_doc)},
+    {"is_int",      (PyCFunction)mod_is_int,              METH_O,        PyDoc_STR(is_int_method_doc)},
+    {"is_float",    (PyCFunction)mod_is_float,            METH_O,        PyDoc_STR(is_float_method_doc)},
+    {"is_str",      (PyCFunction)mod_is_str,              METH_O,        PyDoc_STR(is_str_method_doc)},
+    {"is_list",     (PyCFunction)mod_is_list,             METH_O,        PyDoc_STR(is_list_method_doc)},
+    {"is_map",      (PyCFunction)mod_is_map,              METH_O,        PyDoc_STR(is_map_method_doc)},
     {NULL, NULL, 0, NULL}
 };
 
@@ -426,34 +494,6 @@ PyInit_nodel(void)
         Py_DECREF(module);
         return NULL;
     }
-
-//    Py_INCREF(&NodelKeyIterType);
-//    if (PyModule_AddObject(module, "_KeyIter", (PyObject*)&NodelKeyIterType) < 0) {
-//        Py_DECREF(&NodelKeyIterType);
-//        Py_DECREF(module);
-//        return NULL;
-//    }
-//
-//    Py_INCREF(&NodelValueIterType);
-//    if (PyModule_AddObject(module, "_ValueIter", (PyObject*)&NodelValueIterType) < 0) {
-//        Py_DECREF(&NodelValueIterType);
-//        Py_DECREF(module);
-//        return NULL;
-//    }
-//
-//    Py_INCREF(&NodelItemIterType);
-//    if (PyModule_AddObject(module, "_ItemIter", (PyObject*)&NodelItemIterType) < 0) {
-//        Py_DECREF(&NodelItemIterType);
-//        Py_DECREF(module);
-//        return NULL;
-//    }
-//
-//    Py_INCREF(&NodelTreeIterType);
-//    if (PyModule_AddObject(module, "_TreeIter", (PyObject*)&NodelTreeIterType) < 0) {
-//        Py_DECREF(&NodelTreeIterType);
-//        Py_DECREF(module);
-//        return NULL;
-//    }
 
     nodel_sentinel = PyObject_CallMethodOneArg(module, PyUnicode_InternFromString("Object"), PyUnicode_InternFromString("sentinel"));
 
