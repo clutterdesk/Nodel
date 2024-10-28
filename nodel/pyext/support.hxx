@@ -130,8 +130,8 @@ struct Support
 inline
 PyObject* Support::to_str(const Key& key) {
     switch (key.m_repr_ix) {
-        case Key::NIL:   return PyUnicode_FromString("nil");
-        case Key::BOOL:  return python::to_str(key.m_repr.b);
+        case Key::NIL:   return PyUnicode_FromString("None");
+        case Key::BOOL:  return PyUnicode_FromString((key.m_repr.b)? "True": "False");
         case Key::INT:   return python::to_str(key.m_repr.i);
         case Key::UINT:  return python::to_str(key.m_repr.u);
         case Key::FLOAT: return python::to_str(key.m_repr.f);
@@ -149,8 +149,8 @@ PyObject* Support::to_str(const Key& key) {
 inline
 PyObject* Support::to_str(const Object& obj) {
     switch (obj.m_fields.repr_ix) {
-        case Object::NIL:   return PyUnicode_FromString("nil");
-        case Object::BOOL:  return python::to_str(obj.m_repr.b);
+        case Object::NIL:   return PyUnicode_FromString("None");
+        case Object::BOOL:  return PyUnicode_FromString((obj.m_repr.b)? "True": "False");
         case Object::INT:   return python::to_str(obj.m_repr.i);
         case Object::UINT:  return python::to_str(obj.m_repr.u);
         case Object::FLOAT: return python::to_str(obj.m_repr.f);
@@ -255,7 +255,7 @@ Object Support::to_object(PyObject* po) {
         Py_ssize_t size;
         const char* buf = PyUnicode_AsUTF8AndSize(po, &size);
         return String{buf, (String::size_type)size};
-    } else if (PyLong_Check(po)) {
+    } else if (PyLong_CheckExact(po)) {
         int overflow;
         Int v = PyLong_AsLongLongAndOverflow(po, &overflow);
         if (overflow == 0) {

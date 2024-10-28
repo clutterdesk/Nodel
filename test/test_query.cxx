@@ -148,9 +148,10 @@ TEST(Query, FindFiles) {
     Query query;
     query.add_steps({Axis::SUBTREE, nil, is_txt_file});
     ObjectList result = query.eval(wd["test_data"_key]);
-    Object found = Object::LIST;
+    std::set<String> found;
     for (auto& obj : result)
-        found.set(found.size(), obj.path().to_str());
-    EXPECT_EQ(found.size(), 1UL);
-    EXPECT_EQ(found.get(0), "test_data[\"example.txt\"]");
+        found.insert(obj.path().to_str());
+    EXPECT_EQ(found.size(), 2UL);
+    std::set<String> expected = {"test_data[\"example.txt\"]", "test_data[\"example.zip\"][\"example.txt\"]"};
+    EXPECT_EQ(found, expected);
 }
