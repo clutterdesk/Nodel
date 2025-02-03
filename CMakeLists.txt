@@ -5,6 +5,8 @@ project(Nodel
     DESCRIPTION "Fast Dynamic Object with Optional Data Source"
     LANGUAGES C CXX)
 
+#enable_testing()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_PREFIX_PATH deps)
@@ -144,6 +146,17 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/test_data/ $<TARGET_FILE_DIR:nodel_test>/test_data/
 )                 
 
+
+#----------------------------------------------------------------------------
+#-- Dump All Vars
+#----------------------------------------------------------------------------
+if (1)
+    get_cmake_property(_variableNames VARIABLES)
+    list (SORT _variableNames)
+    foreach (_variableName ${_variableNames})
+        message(STATUS "${_variableName}=${${_variableName}}")
+    endforeach()
+endif()
                        
 #----------------------------------------------------------------------------
 #-- Python C-API Extension
@@ -176,29 +189,20 @@ else()
         get_filename_component(ROCKSDB_LIB_PATH ${ROCKSDB_LIBRARY} DIRECTORY)
         set(NODEL_PYEXT_LIB_PATH ${NODEL_PYEXT_LIB_PATH} ${ROCKSDB_LIB_PATH}) 
     endif()
-    
+        
     add_custom_target(
         pyext ALL
         DEPENDS nodel_test
                 ${CMAKE_SOURCE_DIR}/pyext/setup.py
                 ${CMAKE_SOURCE_DIR}/pyext/setup.cfg
+        COMMAND ${Python3_EXECUTABLE} -m venv ${CMAKE_CACHEFILE_DIR}/venv
+        COMMAND python3 -m pip install setuptools build
         COMMAND ${CMAKE_COMMAND} -E env 
             NODEL_PYEXT_INCLUDE="${NODEL_PYEXT_INCLUDE}"
             NODEL_PYEXT_LIB_PATH="${NODEL_PYEXT_LIB_PATH}"
-            ${Python3_EXECUTABLE} -m build
+            python3 -m build
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/pyext/
         COMMENT "Building Python C-API extension"
     )
 endif()
 
-
-#----------------------------------------------------------------------------
-#-- Dump All Vars
-#----------------------------------------------------------------------------
-if (0)
-    get_cmake_property(_variableNames VARIABLES)
-    list (SORT _variableNames)
-    foreach (_variableName ${_variableNames})
-        message(STATUS "${_variableName}=${${_variableName}}")
-    endforeach()
-endif()
