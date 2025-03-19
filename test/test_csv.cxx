@@ -96,3 +96,14 @@ TEST(CsvParser, EmptyCell) {
     EXPECT_EQ(obj.get(3).get(2), 5);
 }
 
+TEST(CsvParser, CellWithHyphen) {
+    std::stringstream stream{R"(
+        2025-03-19, '1 boiled egg, oatmeal'
+    )"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    ASSERT_EQ(obj.size(), 1UL);
+    EXPECT_EQ(obj.get(0).size(), 2UL);
+    EXPECT_EQ(obj.get(0).get(0), "2025-03-19");
+}
