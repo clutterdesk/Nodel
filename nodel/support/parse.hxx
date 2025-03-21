@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <array>
+#include <iomanip>
+#include <nodel/support/exception.hxx>
 
 namespace nodel::parse {
 

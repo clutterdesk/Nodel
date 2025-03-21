@@ -3,6 +3,8 @@
 #pragma once
 
 #include <exception>
+#include <string>
+#include <sstream>
 
 #define ASSERT(cond) { if (!(cond)) throw ::nodel::Assert{#cond}; }
 

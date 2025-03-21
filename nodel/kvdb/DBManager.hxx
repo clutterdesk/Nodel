@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <filesystem>
 #include <nodel/support/types.hxx>
+#include <nodel/support/Ref.hxx>
 
 namespace db = rocksdb;
 using namespace nodel;

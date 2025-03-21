@@ -3,6 +3,7 @@
 #pragma once
 
 #include <limits>
+#include <nodel/support/types.hxx>
 
 namespace nodel {
 

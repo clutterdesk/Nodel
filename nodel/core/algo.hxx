@@ -6,7 +6,6 @@
 
 #include <cctype>
 #include <cstdlib>
-#include <algorithm>
 
 namespace nodel::algo {
 

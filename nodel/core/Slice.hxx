@@ -2,6 +2,7 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
+#include <nodel/core/Key.hxx>
 #include <nodel/support/types.hxx>
 #include <nodel/support/string.hxx>
 #include <nodel/support/exception.hxx>

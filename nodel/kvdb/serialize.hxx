@@ -6,8 +6,6 @@
 #include <nodel/support/string.hxx>
 #include <nodel/parser/json.hxx>
 
-#include <sstream>
-
 namespace nodel::kvdb {
 
 inline

@@ -2,6 +2,7 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
+#include <assert.h>
 #include <string>
 #include <sstream>
 #include <charconv>

@@ -2,7 +2,6 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include <iostream>
 #include <vector>
 #include <algorithm>
 

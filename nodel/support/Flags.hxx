@@ -2,13 +2,14 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
+#include <cstddef>
 
 template <typename T>
 struct Flags
 {
     constexpr Flags(T value) : m_value{value} {}
 
-    Flags<T>& operator = (const Flags<size_t>& flag) { m_value = flag.m_value; }
+    Flags<T>& operator = (const Flags<std::size_t>& flag) { m_value = flag.m_value; }
     bool operator == (const Flags& flags) { return m_value == flags.m_value; }
 
     Flags<T> operator |= (Flags flags) { return m_value |= flags.m_value; }

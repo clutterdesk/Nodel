@@ -6,7 +6,6 @@
 #include <nodel/support/parse.hxx>
 #include <nodel/support/exception.hxx>
 
-#include <ctype.h>
 #include <cstdlib>
 #include <cerrno>
 #include <sstream>

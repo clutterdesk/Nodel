@@ -3,7 +3,6 @@
 #pragma once
 
 #include <unordered_set>
-#include <string_view>
 #include <nodel/support/types.hxx>
 
 namespace nodel {
@@ -18,8 +17,8 @@ class intern_t
     intern_t()                               : m_str{""} {}
 
     bool operator == (intern_t other) const          { return m_str == other.m_str; }
-    bool operator == (const String& other) const     { return other == m_str; }
-    bool operator == (const StringView& other) const { return other == m_str; }
+    bool operator == (const String& other) const     { return m_str == other; }
+    bool operator == (const StringView& other) const { return m_str == other; }
     bool operator == (const char* other) const       { return m_str == other; }
 
     const StringView& data() const { return m_str; }

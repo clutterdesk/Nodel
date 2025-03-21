@@ -4,7 +4,6 @@
 
 #include "Key.hxx"
 #include "Object.hxx"
-#include "algo.hxx"
 
 #include <deque>
 

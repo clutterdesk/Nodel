@@ -5,7 +5,6 @@
 #include <nodel/core/Object.hxx>
 #include <nodel/support/types.hxx>
 #include <regex>
-#include <sstream>
 #include <unordered_map>
 #include <mutex>
 
