@@ -119,7 +119,11 @@ struct Support
     static PyObject* to_str(const Object& obj);
     static PyObject* to_str(const std::pair<Key, Object>& item);
 
+    static PyObject* to_num(const Object& obj);
     static PyObject* to_py(const Key& key);
+    static PyObject* to_py(const Object& obj);
+
+    static double to_double(PyObject* po);
 
     static Key to_key(PyObject* po);
     static Slice to_slice(PyObject* po);
@@ -170,6 +174,20 @@ PyObject* Support::to_str(const Object& obj) {
 }
 
 inline
+PyObject* Support::to_num(const Object& obj) {
+    switch (obj.m_fields.repr_ix) {
+        //case Object::BOOL:  if (obj.m_repr.b) Py_RETURN_ONE; else Py_RETURN_ZERO;
+        case Object::INT:   return PyLong_FromLongLong(obj.m_repr.i);
+        case Object::UINT:  return PyLong_FromUnsignedLongLong(obj.m_repr.u);
+        case Object::FLOAT: return PyFloat_FromDouble(obj.m_repr.f);
+        default: {
+            PyErr_SetString(PyExc_ValueError, "nodel::Object is not a number");
+            return NULL;
+        }
+    }
+}
+
+inline
 PyObject* Support::to_py(const Key& key) {
     switch (key.m_repr_ix) {
         case Key::NIL:   Py_RETURN_NONE;
@@ -185,6 +203,58 @@ PyObject* Support::to_py(const Key& key) {
             PyErr_SetString(PyExc_ValueError, "Invalid nodel::Key type");
             return NULL;
         }
+    }
+}
+
+inline
+PyObject* Support::to_py(const Object& obj) {
+    switch (obj.m_fields.repr_ix) {
+        case Object::NIL:   Py_RETURN_NONE;
+        case Object::BOOL:  if (obj.m_repr.b) Py_RETURN_TRUE; else Py_RETURN_FALSE;
+        case Object::INT:   return PyLong_FromLongLong(obj.m_repr.i);
+        case Object::UINT:  return PyLong_FromUnsignedLongLong(obj.m_repr.u);
+        case Object::FLOAT: return PyFloat_FromDouble(obj.m_repr.f);
+        case Object::STR: {
+            auto& str = std::get<0>(*obj.m_repr.ps);
+            return python::to_str(str);
+        }
+        case Object::LIST: {
+            Py_ssize_t size = obj.size();
+            PyObject* py_list = PyList_New(size);
+            if (py_list == NULL) return NULL;
+            for (Py_ssize_t i = 0; i < size; ++i) {
+                PyObject* item = to_py(obj.get(i));
+                if (item == NULL) {
+                    Py_DECREF(py_list);
+                    return NULL;
+                }
+                PyList_SET_ITEM(py_list, i, item);  // steals reference
+            }
+            return py_list;
+        }
+        case Object::OMAP: {
+        }
+        case Object::SMAP: {
+        }
+        default: {
+            PyErr_SetString(PyExc_ValueError, "Invalid nodel::Key type");
+            return NULL;
+        }
+    }
+}
+
+inline
+double Support::to_double(PyObject* po) {
+    if (PyFloat_Check(po)) {
+        return PyFloat_AsDouble(po);
+    } else if (PyLong_Check(po)) {
+        RefMgr float_ref = PyNumber_Float(po);
+        return PyFloat_AsDouble(float_ref.get());
+    } else if (NodelObject_CheckExact(po)) {
+        NodelObject* nd_obj = (NodelObject*)po;
+        return nd_obj->obj.as<double>();
+    } else {
+        return 0;
     }
 }
 

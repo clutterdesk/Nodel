@@ -13,6 +13,8 @@
 #include <nodel/parser/json.hxx>
 #include <nodel/support/logging.hxx>
 
+#include <cmath>
+
 extern "C" {
 
 using namespace nodel;
@@ -64,78 +66,150 @@ static bool require_subscript(const Object& obj, const Key& key) {
 
 //-----------------------------------------------------------------------------
 // NodelObject Number Protocol
+//
+// In the future, a better implementation would be to precompile the python code and
+// convert these operations by first casting the NodelObject to a number.
 //-----------------------------------------------------------------------------
 
-static PyObject* NodelObject_add(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* num_to_py(NodelObject* nd_obj) {
+    auto& obj = nd_obj->obj;
+    switch (obj.type()) {
+        case Object::INT:   return PyLong_FromLongLong(obj.as<Int>());
+        case Object::UINT:  return PyLong_FromUnsignedLongLong(obj.as<UInt>());
+        case Object::FLOAT: return PyFloat_FromDouble(obj.as<Float>());
+        default: {
+            python::raise_error(PyExc_ValueError, "Expected a numeric Object");
+            return NULL;
+        }
+    }
 }
 
-static PyObject* NodelObject_subtract(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_add(PyObject* arg1, PyObject* arg2) {
+    if (!NodelObject_CheckExact(arg1))
+        return NodelObject_add(arg2, arg1);
+
+    NodelObject* nd_obj = (NodelObject*)arg1;
+    PyObject* x = num_to_py(nd_obj);
+    if (x == NULL) return NULL;
+    return PyNumber_Add(x, arg2);
 }
 
-static PyObject* NodelObject_multiply(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_subtract(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg1)) {
+        NodelObject* nd_obj = (NodelObject*)arg1;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Subtract(val, arg2);
+    } else {
+        NodelObject* nd_obj = (NodelObject*)arg2;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Subtract(arg1, val);
+    }
 }
 
-static PyObject* NodelObject_remainder(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_multiply(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg1)) {
+        NodelObject* nd_obj = (NodelObject*)arg1;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Multiply(val, arg2);
+    } else {
+        NodelObject* nd_obj = (NodelObject*)arg2;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Multiply(arg1, val);
+    }
 }
 
-static PyObject* NodelObject_divmod(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_remainder(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg1)) {
+        NodelObject* nd_obj = (NodelObject*)arg1;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Remainder(val, arg2);
+    } else {
+        NodelObject* nd_obj = (NodelObject*)arg2;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Remainder(arg1, val);
+    }
 }
 
-static PyObject* NodelObject_power(PyObject* self, PyObject* arg1, PyObject* arg2) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_divmod(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg1)) {
+        NodelObject* nd_obj = (NodelObject*)arg1;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Divmod(val, arg2);
+    } else {
+        NodelObject* nd_obj = (NodelObject*)arg2;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Divmod(arg1, val);
+    }
+}
+
+static PyObject* NodelObject_power(PyObject* arg1, PyObject* arg2, PyObject* arg3) {
+    if (NodelObject_CheckExact(arg3)) {
+        RefMgr ref = num_to_py((NodelObject*)arg3);
+        return PyNumber_InPlacePower(arg1, arg2, ref.get());
+    } else if (NodelObject_CheckExact(arg1)) {
+        NodelObject* nd_obj = (NodelObject*)arg1;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Power(val, arg2, arg3);
+    } else {
+        NodelObject* nd_obj = (NodelObject*)arg2;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Power(arg1, val, arg3);
+    }
 }
 
 static PyObject* NodelObject_negative(PyObject* self) {
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
     if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+
+    switch (self_obj.type()) {
+        case Object::INT: return PyLong_FromLongLong(-self_obj.as<Int>());
+        case Object::UINT: return PyLong_FromLongLong(-self_obj.as<UInt>());
+        case Object::FLOAT: return PyFloat_FromDouble(-self_obj.as<Float>());
+        default:
+            python::raise_error(PyExc_ValueError, "Invalid operation");
+            return NULL;
+    }
 }
 
 static PyObject* NodelObject_positive(PyObject* self) {
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
     if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+
+    switch (self_obj.type()) {
+        case Object::INT: return PyLong_FromLongLong(self_obj.as<Int>());
+        case Object::UINT: return PyLong_FromUnsignedLongLong(self_obj.as<UInt>());
+        case Object::FLOAT: return PyFloat_FromDouble(self_obj.as<Float>());
+        default:
+            python::raise_error(PyExc_ValueError, "Invalid operation");
+            return NULL;
+    }
 }
 
 static PyObject* NodelObject_absolute(PyObject* self) {
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
     if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+
+    switch (self_obj.type()) {
+        case Object::INT: return PyLong_FromLongLong(std::abs(self_obj.as<Int>()));
+        case Object::UINT: return PyLong_FromUnsignedLongLong(self_obj.as<UInt>());
+        case Object::FLOAT: return PyFloat_FromDouble(std::abs(self_obj.as<Float>()));
+        default:
+            python::raise_error(PyExc_ValueError, "Invalid operation");
+            return NULL;
+    }
 }
 
 static int NodelObject_bool(PyObject* self) {
@@ -148,48 +222,84 @@ static PyObject* NodelObject_invert(PyObject* self) {
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
     if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+
+    switch (self_obj.type()) {
+        case Object::INT: return PyLong_FromLongLong(~self_obj.as<Int>());
+        case Object::UINT: return PyLong_FromUnsignedLongLong(~self_obj.as<UInt>());
+        default:
+            python::raise_error(PyExc_ValueError, "Invalid operation");
+            return NULL;
+    }
 }
 
-static PyObject* NodelObject_lshift(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_lshift(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg1)) {
+        NodelObject* nd_obj = (NodelObject*)arg1;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Lshift(val, arg2);
+    } else {
+        NodelObject* nd_obj = (NodelObject*)arg2;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Lshift(arg1, val);
+    }
 }
 
-static PyObject* NodelObject_rshift(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_rshift(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg1)) {
+        NodelObject* nd_obj = (NodelObject*)arg1;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Rshift(val, arg2);
+    } else {
+        NodelObject* nd_obj = (NodelObject*)arg2;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Rshift(arg1, val);
+    }
 }
 
-static PyObject* NodelObject_and(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_and(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg1)) {
+        NodelObject* nd_obj = (NodelObject*)arg1;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_And(val, arg2);
+    } else {
+        NodelObject* nd_obj = (NodelObject*)arg2;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_And(arg1, val);
+    }
 }
 
-static PyObject* NodelObject_xor(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_xor(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg1)) {
+        NodelObject* nd_obj = (NodelObject*)arg1;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Xor(val, arg2);
+    } else {
+        NodelObject* nd_obj = (NodelObject*)arg2;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Xor(arg1, val);
+    }
 }
 
-static PyObject* NodelObject_or(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_or(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg1)) {
+        NodelObject* nd_obj = (NodelObject*)arg1;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Or(val, arg2);
+    } else {
+        NodelObject* nd_obj = (NodelObject*)arg2;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_Or(arg1, val);
+    }
 }
 
 static PyObject* NodelObject_int(PyObject* self) {
@@ -218,116 +328,635 @@ static PyObject* NodelObject_float(PyObject* self) {
     return NULL;
 }
 
-static PyObject* NodelObject_inplace_add(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_inplace_add(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg2)) {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return NodelObject_inplace_add(arg1, ref.get());
+    } else if (NodelObject_CheckExact(arg1)) {
+        auto nd_obj = (NodelObject*)arg1;
+        auto& obj = nd_obj->obj;
+        switch (obj.type()) {
+            case Object::INT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<Int>() += PyLong_AsLongLong(arg2);
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    obj = obj.as<Int>() + PyFloat_AsDouble(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::UINT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<UInt>() += PyLong_AsLongLong(arg2);
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    obj = obj.as<UInt>() + PyFloat_AsDouble(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::FLOAT: {
+                obj.as<Float>() += support.to_double(arg2);
+                break;
+            }
+            default: {
+                python::raise_error(PyExc_ValueError, "Invalid operation");
+                return NULL;
+            }
+        }
+        Py_INCREF(arg1);
+        return arg1;
+    } else {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return PyNumber_InPlaceAdd(arg1, ref.get());
+    }
 }
 
-static PyObject* NodelObject_inplace_subtract(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_inplace_subtract(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg2)) {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return NodelObject_inplace_subtract(arg1, ref.get());
+    } else if (NodelObject_CheckExact(arg1)) {
+        auto nd_obj = (NodelObject*)arg1;
+        auto& obj = nd_obj->obj;
+        switch (obj.type()) {
+            case Object::INT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<Int>() -= PyLong_AsLongLong(arg2);
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    obj = obj.as<Int>() - PyFloat_AsDouble(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::UINT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<UInt>() -= PyLong_AsLongLong(arg2);
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    obj = obj.as<UInt>() - PyFloat_AsDouble(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::FLOAT: {
+                obj.as<Float>() -= support.to_double(arg2);
+                break;
+            }
+            default: {
+                python::raise_error(PyExc_ValueError, "Invalid operation");
+                return NULL;
+            }
+        }
+        Py_INCREF(arg1);
+        return arg1;
+    } else {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return PyNumber_InPlaceSubtract(arg1, ref.get());
+    }
 }
 
-static PyObject* NodelObject_inplace_multiply(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_inplace_multiply(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg2)) {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return NodelObject_inplace_multiply(arg1, ref.get());
+    } else if (NodelObject_CheckExact(arg1)) {
+        auto nd_obj = (NodelObject*)arg1;
+        auto& obj = nd_obj->obj;
+        switch (obj.type()) {
+            case Object::INT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<Int>() *= PyLong_AsLongLong(arg2);
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    obj = obj.as<Int>() * PyFloat_AsDouble(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::UINT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<UInt>() *= PyLong_AsLongLong(arg2);
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    obj = obj.as<UInt>() * PyFloat_AsDouble(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::FLOAT: {
+                obj.as<Float>() *= support.to_double(arg2);
+                break;
+            }
+            default: {
+                python::raise_error(PyExc_ValueError, "Invalid operation");
+                return NULL;
+            }
+        }
+        Py_INCREF(arg1);
+        return arg1;
+    } else {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return PyNumber_InPlaceMultiply(arg1, ref.get());
+    }
 }
 
-static PyObject* NodelObject_inplace_remainder(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_inplace_remainder(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg2)) {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return NodelObject_inplace_remainder(arg1, ref.get());
+    } else if (NodelObject_CheckExact(arg1)) {
+        auto nd_obj = (NodelObject*)arg1;
+        auto& obj = nd_obj->obj;
+        switch (obj.type()) {
+            case Object::INT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<Int>() %= PyLong_AsLongLong(arg2);
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    auto y = PyFloat_AsDouble(arg2);
+                    auto rem = std::remainder(obj.as<Int>(), y);
+                    obj = (rem < 0)? rem + y: rem;
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::UINT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<UInt>() -= PyLong_AsLongLong(arg2);
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    auto y = PyFloat_AsDouble(arg2);
+                    auto rem = std::remainder(obj.as<UInt>(), y);
+                    obj = (rem < 0)? rem + y: rem;
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::FLOAT: {
+                obj.as<Float>() -= support.to_double(arg2);
+                break;
+            }
+            default: {
+                python::raise_error(PyExc_ValueError, "Invalid operation");
+                return NULL;
+            }
+        }
+        Py_INCREF(arg1);
+        return arg1;
+    } else {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return PyNumber_InPlaceRemainder(arg1, ref.get());
+    }
 }
 
-static PyObject* NodelObject_inplace_power(PyObject* self, PyObject* arg1, PyObject* arg2) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_inplace_power(PyObject* arg1, PyObject* arg2, PyObject* arg3) {
+    if (NodelObject_CheckExact(arg2)) {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return NodelObject_inplace_power(arg1, ref.get(), arg3);
+    } else if (NodelObject_CheckExact(arg1)) {
+        double d_arg3;
+        if (arg3 != Py_None) {
+            if (NodelObject_CheckExact(arg3)) {
+                RefMgr ref = num_to_py((NodelObject*)arg3);
+                return PyNumber_InPlacePower(arg1, arg2, ref.get());
+            } else if (PyLong_Check(arg3)) {
+                RefMgr ref = PyNumber_Float(arg3);
+                d_arg3 = PyFloat_AsDouble(ref.get());
+            } else {
+                d_arg3 = PyFloat_AsDouble(arg3);
+            }
+        }
+
+        auto nd_obj = (NodelObject*)arg1;
+        auto& obj = nd_obj->obj;
+        switch (obj.type()) {
+            case Object::INT: {
+                if (PyLong_Check(arg2)) {
+                    auto val = std::pow(obj.as<Int>(), PyLong_AsLongLong(arg2));
+                    if (arg3 != Py_None) val = std::remainder(val, d_arg3);
+                    obj = val;
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    auto val = std::pow(obj.as<Int>(), PyLong_AsDouble(arg2));
+                    if (arg3 != Py_None) val = std::remainder(val, d_arg3);
+                    obj = val;
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::UINT: {
+                if (PyLong_Check(arg2)) {
+                    auto val = std::pow(obj.as<UInt>(), PyLong_AsLongLong(arg2));
+                    if (arg3 != Py_None) val = std::remainder(val, d_arg3);
+                    obj = val;
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    auto val = std::pow(obj.as<UInt>(), PyLong_AsDouble(arg2));
+                    if (arg3 != Py_None) val = std::remainder(val, d_arg3);
+                    obj = val;
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::FLOAT: {
+                auto val = std::pow(obj.as<Float>(), support.to_double(arg2));
+                if (arg3 != Py_None) val = std::remainder(val, d_arg3);
+                obj = val;
+                break;
+            }
+            default: {
+                python::raise_error(PyExc_ValueError, "Invalid operation");
+                return NULL;
+            }
+        }
+        Py_INCREF(arg1);
+        return arg1;
+    } else {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return PyNumber_InPlacePower(arg1, ref.get(), arg3);
+    }}
+
+static PyObject* NodelObject_inplace_lshift(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg2)) {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return NodelObject_inplace_lshift(arg1, ref.get());
+    } else if (NodelObject_CheckExact(arg1)) {
+        auto nd_obj = (NodelObject*)arg1;
+        auto& obj = nd_obj->obj;
+        switch (obj.type()) {
+            case Object::INT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<Int>() <<= PyLong_AsLongLong(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::UINT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<UInt>() <<= PyLong_AsLongLong(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            default: {
+                python::raise_error(PyExc_ValueError, "Invalid operation");
+                return NULL;
+            }
+        }
+        Py_INCREF(arg1);
+        return arg1;
+    } else {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return PyNumber_InPlaceLshift(arg1, ref.get());
+    }
 }
 
-static PyObject* NodelObject_inplace_lshift(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_inplace_rshift(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg2)) {
+            RefMgr ref = num_to_py((NodelObject*)arg2);
+            return NodelObject_inplace_rshift(arg1, ref.get());
+    } else if (NodelObject_CheckExact(arg1)) {
+        auto nd_obj = (NodelObject*)arg1;
+        auto& obj = nd_obj->obj;
+        switch (obj.type()) {
+            case Object::INT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<Int>() >>= PyLong_AsLongLong(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::UINT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<UInt>() >>= PyLong_AsLongLong(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            default: {
+                python::raise_error(PyExc_ValueError, "Invalid operation");
+                return NULL;
+            }
+        }
+        Py_INCREF(arg1);
+        return arg1;
+    } else {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return PyNumber_InPlaceRshift(arg1, ref.get());
+    }
 }
 
-static PyObject* NodelObject_inplace_rshift(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_inplace_and(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg2)) {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return NodelObject_inplace_and(arg1, ref.get());
+    } else if (NodelObject_CheckExact(arg1)) {
+        auto nd_obj = (NodelObject*)arg1;
+        auto& obj = nd_obj->obj;
+        switch (obj.type()) {
+            case Object::INT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<Int>() &= PyLong_AsLongLong(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::UINT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<UInt>() &= PyLong_AsLongLong(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            default: {
+                python::raise_error(PyExc_ValueError, "Invalid operation");
+                return NULL;
+            }
+        }
+        Py_INCREF(arg1);
+        return arg1;
+    } else {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return PyNumber_InPlaceAnd(arg1, ref.get());
+    }
 }
 
-static PyObject* NodelObject_inplace_and(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_inplace_xor(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg2)) {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return NodelObject_inplace_xor(arg1, ref.get());
+    } else if (NodelObject_CheckExact(arg1)) {
+        auto nd_obj = (NodelObject*)arg1;
+        auto& obj = nd_obj->obj;
+        switch (obj.type()) {
+            case Object::INT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<Int>() ^= PyLong_AsLongLong(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::UINT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<UInt>() ^= PyLong_AsLongLong(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            default: {
+                python::raise_error(PyExc_ValueError, "Invalid operation");
+                return NULL;
+            }
+        }
+        Py_INCREF(arg1);
+        return arg1;
+    } else {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return PyNumber_InPlaceXor(arg1, ref.get());
+    }
 }
 
-static PyObject* NodelObject_inplace_xor(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_inplace_or(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg2)) {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return NodelObject_inplace_or(arg1, ref.get());
+    } else if (NodelObject_CheckExact(arg1)) {
+        auto nd_obj = (NodelObject*)arg1;
+        auto& obj = nd_obj->obj;
+        switch (obj.type()) {
+            case Object::INT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<Int>() |= PyLong_AsLongLong(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::UINT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<UInt>() |= PyLong_AsLongLong(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            default: {
+                python::raise_error(PyExc_ValueError, "Invalid operation");
+                return NULL;
+            }
+        }
+        Py_INCREF(arg1);
+        return arg1;
+    } else {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return PyNumber_InPlaceOr(arg1, ref.get());
+    }
 }
 
-static PyObject* NodelObject_inplace_or(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_floor_divide(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg1)) {
+        NodelObject* nd_obj = (NodelObject*)arg1;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_FloorDivide(val, arg2);
+    } else {
+        NodelObject* nd_obj = (NodelObject*)arg2;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_FloorDivide(arg1, val);
+    }
 }
 
-static PyObject* NodelObject_floor_divide(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_true_divide(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg1)) {
+        NodelObject* nd_obj = (NodelObject*)arg1;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_TrueDivide(val, arg2);
+    } else {
+        NodelObject* nd_obj = (NodelObject*)arg2;
+        PyObject* val = num_to_py(nd_obj);
+        if (val == NULL) return NULL;
+        return PyNumber_TrueDivide(arg1, val);
+    }
 }
 
-static PyObject* NodelObject_true_divide(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_inplace_floor_divide(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg2)) {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return NodelObject_inplace_floor_divide(arg1, ref.get());
+    } else if (NodelObject_CheckExact(arg1)) {
+        auto nd_obj = (NodelObject*)arg1;
+        auto& obj = nd_obj->obj;
+        switch (obj.type()) {
+            case Object::INT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<Int>() /= PyLong_AsLongLong(arg2);
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    obj = std::floor(obj.as<Int>() / PyFloat_AsDouble(arg2));
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::UINT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<UInt>() /= PyLong_AsLongLong(arg2);
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    obj = std::floor(obj.as<UInt>() / PyFloat_AsDouble(arg2));
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::FLOAT: {
+                if (PyLong_Check(arg2)) {
+                    obj = std::floor(obj.as<Float>() / PyLong_AsLongLong(arg2));
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    obj = std::floor(obj.as<Float>() / PyFloat_AsDouble(arg2));
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            default: {
+                python::raise_error(PyExc_ValueError, "Invalid operation");
+                return NULL;
+            }
+        }
+        Py_INCREF(arg1);
+        return arg1;
+    } else {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return PyNumber_InPlaceFloorDivide(arg1, ref.get());
+    }
 }
 
-static PyObject* NodelObject_inplace_floor_divide(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
-}
-
-static PyObject* NodelObject_inplace_true_divide(PyObject* self, PyObject* arg) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (!require_number(self_obj)) return NULL;
-    python::raise_error(PyExc_RuntimeError, "Not implemented, yet");
-    return NULL;
+static PyObject* NodelObject_inplace_true_divide(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg2)) {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return NodelObject_inplace_true_divide(arg1, ref.get());
+    } else if (NodelObject_CheckExact(arg1)) {
+        auto nd_obj = (NodelObject*)arg1;
+        auto& obj = nd_obj->obj;
+        switch (obj.type()) {
+            case Object::INT: {
+                if (PyLong_Check(arg2)) {
+                    obj = obj.as<Int>() / (double)PyLong_AsLongLong(arg2);
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    obj = obj.as<Int>() / PyFloat_AsDouble(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::UINT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<UInt>() /= PyLong_AsLongLong(arg2);
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    obj = obj.as<UInt>() / PyFloat_AsDouble(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            case Object::FLOAT: {
+                if (PyLong_Check(arg2)) {
+                    obj.as<Float>() /= PyLong_AsLongLong(arg2);
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    obj = obj.as<Float>() / PyFloat_AsDouble(arg2);
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
+                break;
+            }
+            default: {
+                python::raise_error(PyExc_ValueError, "Invalid operation");
+                return NULL;
+            }
+        }
+        Py_INCREF(arg1);
+        return arg1;
+    } else {
+        RefMgr ref = num_to_py((NodelObject*)arg2);
+        return PyNumber_InPlaceTrueDivide(arg1, ref.get());
+    }
 }
 
 static PyObject* NodelObject_index(PyObject* self) {
@@ -612,14 +1241,18 @@ static PyObject* NodelObject_richcompare(PyObject* self, PyObject* other, int op
         if (PyErr_Occurred()) return NULL;
     }
 
-    switch (op) {
-        case Py_LT: if (nd_self->obj <  obj) Py_RETURN_TRUE; else Py_RETURN_FALSE;
-        case Py_LE: if (nd_self->obj <= obj) Py_RETURN_TRUE; else Py_RETURN_FALSE;
-        case Py_EQ: if (nd_self->obj == obj) Py_RETURN_TRUE; else Py_RETURN_FALSE;
-        case Py_NE: if (nd_self->obj != obj) Py_RETURN_TRUE; else Py_RETURN_FALSE;
-        case Py_GT: if (nd_self->obj >  obj) Py_RETURN_TRUE; else Py_RETURN_FALSE;
-        case Py_GE: if (nd_self->obj >= obj) Py_RETURN_TRUE; else Py_RETURN_FALSE;
-        default:    break;
+    try {
+        switch (op) {
+            case Py_LT: if (nd_self->obj <  obj) Py_RETURN_TRUE; else Py_RETURN_FALSE;
+            case Py_LE: if (nd_self->obj <= obj) Py_RETURN_TRUE; else Py_RETURN_FALSE;
+            case Py_EQ: if (nd_self->obj == obj) Py_RETURN_TRUE; else Py_RETURN_FALSE;
+            case Py_NE: if (nd_self->obj != obj) Py_RETURN_TRUE; else Py_RETURN_FALSE;
+            case Py_GT: if (nd_self->obj >  obj) Py_RETURN_TRUE; else Py_RETURN_FALSE;
+            case Py_GE: if (nd_self->obj >= obj) Py_RETURN_TRUE; else Py_RETURN_FALSE;
+            default:    break;
+        }
+    } catch (const WrongType& ex) {
+        PyErr_SetString(PyExc_TypeError, ex.what());
     }
     return NULL;
 }
@@ -670,7 +1303,13 @@ static int NodelObject_setattro(PyObject* self, PyObject* name, PyObject* val) {
 }
 
 static PyObject* NodelObject_iter(PyObject* self) {
-    return iter_keys(self);
+    NodelObject* nd_self = (NodelObject*)self;
+    Object& self_obj = nd_self->obj;
+    if (is_map(self_obj)) {
+        return iter_keys(self);
+    } else {
+        return iter_values(self);
+    }
 }
 
 

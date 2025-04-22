@@ -43,7 +43,9 @@ NodelObject* wrap(PyObject* mod, const Object& obj) {
 
 inline
 NodelObject* as_nodel_object(PyObject* arg) {
-    return NodelObject_CheckExact(arg)? (NodelObject*)arg: NULL;
+    if (NodelObject_CheckExact(arg)) return (NodelObject*)arg;
+    PyErr_SetString(PyExc_ValueError, "Expected a NodelObject");
+    return NULL;
 }
 
 PyObject* iter_keys(PyObject* arg) {
@@ -56,6 +58,27 @@ PyObject* iter_keys(PyObject* arg) {
 
     try {
         nit->range = nd_self->obj.iter_keys();
+        nit->it = nit->range.begin();
+        nit->end = nit->range.end();
+
+        Py_INCREF(nit);
+        return (PyObject*)nit;
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
+}
+
+PyObject* iter_values(PyObject* arg) {
+    NodelObject* nd_self = as_nodel_object(arg);
+    if (nd_self == NULL) return NULL;
+
+    NodelValueIter* nit = (NodelValueIter*)NodelValueIterType.tp_alloc(&NodelValueIterType, 0);
+    if (nit == NULL) return NULL;
+    if (NodelValueIterType.tp_init((PyObject*)nit, NULL, NULL) == -1) return NULL;
+
+    try {
+        nit->range = nd_self->obj.iter_values();
         nit->it = nit->range.begin();
         nit->end = nit->range.end();
 
