@@ -94,9 +94,9 @@ PyObject* iter_values(PyObject* arg) {
 // Module methods
 //-----------------------------------------------------------------------------
 
-constexpr auto mod_bind_doc = "Bind object with URI string/dict\n"
-                              "bind(uri) -> Object\n"
-                              "uri - A URI string with a registered scheme";
+constexpr auto bind_doc = "Bind object with URI string/dict\n"
+                          "bind(uri) -> Object\n"
+                          "uri - A URI string with a registered scheme";
 
 static PyObject* mod_bind(PyObject* mod, PyObject* arg) {
     try {
@@ -108,8 +108,8 @@ static PyObject* mod_bind(PyObject* mod, PyObject* arg) {
     }
 }
 
-constexpr auto mod_from_json_doc = "Parse JSON into an Object\n"
-                                   "from_json(json) -> Object";
+constexpr auto from_json_doc = "Parse JSON into an Object\n"
+                               "from_json(json) -> Object";
 
 static PyObject* mod_from_json(PyObject* mod, PyObject* arg) {
     Py_ssize_t size;
@@ -130,7 +130,7 @@ static PyObject* mod_from_json(PyObject* mod, PyObject* arg) {
     return po.get_clear();
 }
 
-constexpr auto clear_method_doc =
+constexpr auto clear_doc =
 "Removes all elements from a container.\n"
 "nodel.clear(obj) -> None\n"
 "This method does nothing if the object is not a container.";
@@ -142,7 +142,7 @@ static PyObject* mod_clear(PyObject* mod, PyObject* arg) {
     Py_RETURN_NONE;
 }
 
-constexpr auto del_from_parent_method_doc =
+constexpr auto del_from_parent_doc =
 "Removes this object from its parent container.\n"
 "nodel.clear(obj) -> None\n"
 "This method does nothing if the object does not have a parent.";
@@ -154,7 +154,7 @@ static PyObject* mod_del_from_parent(PyObject* mod, PyObject* arg) {
     Py_RETURN_NONE;
 }
 
-constexpr auto root_method_doc =
+constexpr auto root_doc =
 "Returns the root of the tree containing the argument.\n"
 "nodel.root(obj) -> Object\n"
 "Returns the root of the tree, which may be the argument.";
@@ -165,7 +165,7 @@ static PyObject* mod_root(PyObject* mod, PyObject* arg) {
     return (PyObject*)wrap(mod, nd_self->obj.root());
 }
 
-constexpr auto parent_method_doc =
+constexpr auto parent_doc =
 "Returns the parent of the argument.\n"
 "nodel.parent(obj) -> Object\n"
 "If the argument is the root of the tree, then nil is returned.\n"
@@ -177,7 +177,7 @@ static PyObject* mod_parent(PyObject* mod, PyObject* arg) {
     return (PyObject*)wrap(mod, nd_self->obj.parent());
 }
 
-constexpr auto iter_keys_method_doc =
+constexpr auto iter_keys_doc =
 "Returns an iterator over the keys of the argument.\n"
 "nodel.iter_keys(obj) -> iterator\n"
 "If the argument is any kind of map, then this method returns an iterator over\n"
@@ -191,7 +191,7 @@ static PyObject* mod_iter_keys(PyObject* mod, PyObject* arg) {
     return iter_keys(arg);
 }
 
-constexpr auto iter_values_method_doc =
+constexpr auto iter_values_doc =
 "Returns an iterator over the values (Object instances) of the argument.\n"
 "nodel.iter_values(obj) -> iterator\n"
 "If the argument is any kind of map, then this method returns an iterator over\n"
@@ -222,7 +222,7 @@ static PyObject* mod_iter_values(PyObject* mod, PyObject* arg) {
     }
 }
 
-constexpr auto iter_items_method_doc =
+constexpr auto iter_items_doc =
 "Returns an iterator over the items of the argument.\n"
 "nodel.iter_items(obj) -> iterator\n"
 "If the argument is any kind of map, then this method returns an iterator over\n"
@@ -253,7 +253,7 @@ static PyObject* mod_iter_items(PyObject* mod, PyObject* arg) {
     }
 }
 
-constexpr auto iter_tree_method_doc =
+constexpr auto iter_tree_doc =
 "Returns an iterator of the sub-tree whose root is the argument.\n"
 "nodel.iter_tree(obj) -> iterator\n"
 "A tree iterator iterates over the values (instances of Object) throughout\n"
@@ -284,7 +284,7 @@ static PyObject* mod_iter_tree(PyObject* mod, PyObject* arg) {
     }
 }
 
-constexpr auto key_method_doc =
+constexpr auto key_doc =
 "Returns the key/index of the argument within its parent.\n"
 "nodel.key(obj) -> any\n"
 "Returns nil or the key/index of the argument.";
@@ -301,7 +301,7 @@ static PyObject* mod_key(PyObject* mod, PyObject* arg) {
     }
 }
 
-constexpr auto reset_method_doc = \
+constexpr auto reset_doc = \
 "Reset a bound object, clearing it and releasing memory resources.\n"
 "nodel.reset(obj) -> None\n"
 "If the argument is bound (has data-source), then it's cleared and the data-source\n"
@@ -321,7 +321,7 @@ static PyObject* mod_reset(PyObject* mod, PyObject* arg) {
     }
 }
 
-constexpr auto reset_key_method_doc = \
+constexpr auto reset_key_doc = \
 "Reset the key of a sparse DataSource, clearing it and releasing memory resources.\n"
 "nodel.reset_key(obj, key) -> None\n"
 "If the object is bound (has data-source), then the key is cleared and the data-source\n"
@@ -346,7 +346,7 @@ static PyObject* mod_reset_key(PyObject* self, PyObject* const* args, Py_ssize_t
     }
 }
 
-constexpr auto save_method_doc = \
+constexpr auto save_doc = \
 "Commit all updates to bound objects in the subtree whose root is the argument.\n"
 "nodel.save(obj) -> None\n"
 "Objects that are not bound (do not have a data-source) are ignored.";
@@ -364,13 +364,28 @@ static PyObject* mod_save(PyObject* mod, PyObject* arg) {
     }
 }
 
-constexpr auto is_same_method_doc =
+constexpr auto is_bound_doc =
+"Returns True if the argument is a Nodel Object that has a data-source.";
+
+static PyObject* mod_is_bound(PyObject* mod, PyObject* arg) {
+    NodelObject* nd_self = as_nodel_object(arg);
+    if (nd_self == NULL) return NULL;
+    try {
+        if (nodel::has_data_source(nd_self->obj)) Py_RETURN_TRUE;
+        Py_RETURN_FALSE;
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
+}
+
+constexpr auto is_same_doc =
 "True, if the first and second arguments are the same Object.\n"
 "nodel.is_same(l_obj, r_obj) -> bool\n"
 "Since the backing C++ class, Object, is a reference, the Python keyword, 'is', will return\n"
 "False even if two instances of the C++ Object class point to the same data.\n Therefore,\n"
 "this function should always be used to test that two Nodel Objects are the same Object.\n"
-"Returns True if the two Nodel Object instances point to the same data";
+"Returns True if the two Nodel Object instances point to the same data.";
 
 static PyObject* mod_is_same(PyObject* mod, PyObject* const* args, Py_ssize_t nargs) {
     if (nargs != 2) {
@@ -400,17 +415,17 @@ static PyObject* is_type(PyObject* mod, PyObject* arg, Object::ReprIX repr_ix) {
     }
 }
 
-constexpr auto is_nil_method_doc = \
+constexpr auto is_nil_doc = \
     "True, if the type of the object is NIL.\n"
     "Although NIL is similar to Python None, since all types are represented by the C++\n"
     "nodel::Object classm, a simple test using 'is None' will not work.";
 
 static PyObject* mod_is_nil(PyObject* mod, PyObject* arg) { return is_type(mod, arg, Object::ReprIX::NIL); }
 
-constexpr auto is_bool_method_doc = "True, if the type of the object is a boolean.\n";
+constexpr auto is_bool_doc = "True, if the type of the object is a boolean.\n";
 static PyObject* mod_is_bool(PyObject* mod, PyObject* arg) { return is_type(mod, arg, Object::ReprIX::BOOL); }
 
-constexpr auto is_int_method_doc = "True, if the type of the object is a signed or unsigned integer.\n";
+constexpr auto is_int_doc = "True, if the type of the object is a signed or unsigned integer.\n";
 
 static PyObject* mod_is_int(PyObject* mod, PyObject* arg) {
     NodelObject* nd_self = as_nodel_object(arg);
@@ -425,16 +440,16 @@ static PyObject* mod_is_int(PyObject* mod, PyObject* arg) {
     }
 }
 
-constexpr auto is_float_method_doc = "True, if the type of the object is a float.\n";
+constexpr auto is_float_doc = "True, if the type of the object is a float.\n";
 static PyObject* mod_is_float(PyObject* mod, PyObject* arg) { return is_type(mod, arg, Object::ReprIX::FLOAT); }
 
-constexpr auto is_list_method_doc = "True, if the type of the object is a list.\n";
+constexpr auto is_list_doc = "True, if the type of the object is a list.\n";
 static PyObject* mod_is_list(PyObject* mod, PyObject* arg) { return is_type(mod, arg, Object::ReprIX::LIST); }
 
-constexpr auto is_str_method_doc = "True, if the type of the object is a string.\n";
+constexpr auto is_str_doc = "True, if the type of the object is a string.\n";
 static PyObject* mod_is_str(PyObject* mod, PyObject* arg) { return is_type(mod, arg, Object::ReprIX::STR); }
 
-constexpr auto is_map_method_doc = "True, if the type of the object is any type of map.\n";
+constexpr auto is_map_doc = "True, if the type of the object is any type of map.\n";
 
 static PyObject* mod_is_map(PyObject* mod, PyObject* arg) {
     NodelObject* nd_self = as_nodel_object(arg);
@@ -449,10 +464,10 @@ static PyObject* mod_is_map(PyObject* mod, PyObject* arg) {
     }
 }
 
-constexpr auto is_native_method_doc = "True, if the object is an opaque wrapper for a native Python object.\n";
+constexpr auto is_native_doc = "True, if the object is an opaque wrapper for a native Python object.\n";
 static PyObject* mod_is_native(PyObject* mod, PyObject* arg) { return is_type(mod, arg, Object::ReprIX::ANY); }
 
-constexpr auto native_method_doc = \
+constexpr auto native_doc = \
     "Convert the object into a native python type.\n"
     "Currently, map types are not supported.\n";
 
@@ -462,7 +477,7 @@ static PyObject* mod_native(PyObject* mod, PyObject* arg) {
     return support.to_py(nd_self->obj);
 }
 
-constexpr auto ref_count_method_doc = \
+constexpr auto ref_count_doc = \
     "Returns the reference count of a Nodel Object.\n";
 
 static PyObject* mod_ref_count(PyObject* mod, PyObject* arg) {
@@ -472,30 +487,31 @@ static PyObject* mod_ref_count(PyObject* mod, PyObject* arg) {
 }
 
 static PyMethodDef nodel_methods[] = {
-    {"bind",        (PyCFunction)mod_bind,                METH_O,        PyDoc_STR(mod_bind_doc)},
-    {"from_json",   (PyCFunction)mod_from_json,           METH_O,        PyDoc_STR(mod_from_json_doc)},
-    {"clear",       (PyCFunction)mod_clear,               METH_O,        PyDoc_STR(clear_method_doc)},
-    {"root",        (PyCFunction)mod_root,                METH_O,        PyDoc_STR(root_method_doc)},
-    {"parent",      (PyCFunction)mod_parent,              METH_O,        PyDoc_STR(parent_method_doc)},
-    {"iter_keys",   (PyCFunction)mod_iter_keys,           METH_O,        PyDoc_STR(iter_keys_method_doc)},
-    {"iter_values", (PyCFunction)mod_iter_values,         METH_O,        PyDoc_STR(iter_values_method_doc)},
-    {"iter_items",  (PyCFunction)mod_iter_items,          METH_O,        PyDoc_STR(iter_items_method_doc)},
-    {"iter_tree",   (PyCFunction)mod_iter_tree,           METH_O,        PyDoc_STR(iter_tree_method_doc)},
-    {"key",         (PyCFunction)mod_key,                 METH_O,        PyDoc_STR(key_method_doc)},
-    {"reset",       (PyCFunction)mod_reset,               METH_O,        PyDoc_STR(reset_method_doc)},
-    {"reset_key",   (PyCFunction)mod_reset_key,           METH_FASTCALL, PyDoc_STR(reset_key_method_doc)},
-    {"save",        (PyCFunction)mod_save,                METH_O,        PyDoc_STR(save_method_doc)},
-    {"is_same",     (PyCFunction)mod_is_same,             METH_FASTCALL, PyDoc_STR(is_same_method_doc)},
-    {"is_nil",      (PyCFunction)mod_is_nil,              METH_O,        PyDoc_STR(is_nil_method_doc)},
-    {"is_bool",     (PyCFunction)mod_is_bool,             METH_O,        PyDoc_STR(is_bool_method_doc)},
-    {"is_int",      (PyCFunction)mod_is_int,              METH_O,        PyDoc_STR(is_int_method_doc)},
-    {"is_float",    (PyCFunction)mod_is_float,            METH_O,        PyDoc_STR(is_float_method_doc)},
-    {"is_str",      (PyCFunction)mod_is_str,              METH_O,        PyDoc_STR(is_str_method_doc)},
-    {"is_list",     (PyCFunction)mod_is_list,             METH_O,        PyDoc_STR(is_list_method_doc)},
-    {"is_map",      (PyCFunction)mod_is_map,              METH_O,        PyDoc_STR(is_map_method_doc)},
-    {"is_native",   (PyCFunction)mod_is_native,           METH_O,        PyDoc_STR(is_native_method_doc)},
-    {"native",      (PyCFunction)mod_native,              METH_O,        PyDoc_STR(native_method_doc)},
-    {"ref_count",   (PyCFunction)mod_ref_count,           METH_O,        PyDoc_STR(ref_count_method_doc)},
+    {"bind",        (PyCFunction)mod_bind,                METH_O,        PyDoc_STR(bind_doc)},
+    {"from_json",   (PyCFunction)mod_from_json,           METH_O,        PyDoc_STR(from_json_doc)},
+    {"clear",       (PyCFunction)mod_clear,               METH_O,        PyDoc_STR(clear_doc)},
+    {"root",        (PyCFunction)mod_root,                METH_O,        PyDoc_STR(root_doc)},
+    {"parent",      (PyCFunction)mod_parent,              METH_O,        PyDoc_STR(parent_doc)},
+    {"iter_keys",   (PyCFunction)mod_iter_keys,           METH_O,        PyDoc_STR(iter_keys_doc)},
+    {"iter_values", (PyCFunction)mod_iter_values,         METH_O,        PyDoc_STR(iter_values_doc)},
+    {"iter_items",  (PyCFunction)mod_iter_items,          METH_O,        PyDoc_STR(iter_items_doc)},
+    {"iter_tree",   (PyCFunction)mod_iter_tree,           METH_O,        PyDoc_STR(iter_tree_doc)},
+    {"key",         (PyCFunction)mod_key,                 METH_O,        PyDoc_STR(key_doc)},
+    {"reset",       (PyCFunction)mod_reset,               METH_O,        PyDoc_STR(reset_doc)},
+    {"reset_key",   (PyCFunction)mod_reset_key,           METH_FASTCALL, PyDoc_STR(reset_key_doc)},
+    {"save",        (PyCFunction)mod_save,                METH_O,        PyDoc_STR(save_doc)},
+    {"is_bound",    (PyCFunction)mod_is_bound,            METH_O,        PyDoc_STR(is_bound_doc)},
+    {"is_same",     (PyCFunction)mod_is_same,             METH_FASTCALL, PyDoc_STR(is_same_doc)},
+    {"is_nil",      (PyCFunction)mod_is_nil,              METH_O,        PyDoc_STR(is_nil_doc)},
+    {"is_bool",     (PyCFunction)mod_is_bool,             METH_O,        PyDoc_STR(is_bool_doc)},
+    {"is_int",      (PyCFunction)mod_is_int,              METH_O,        PyDoc_STR(is_int_doc)},
+    {"is_float",    (PyCFunction)mod_is_float,            METH_O,        PyDoc_STR(is_float_doc)},
+    {"is_str",      (PyCFunction)mod_is_str,              METH_O,        PyDoc_STR(is_str_doc)},
+    {"is_list",     (PyCFunction)mod_is_list,             METH_O,        PyDoc_STR(is_list_doc)},
+    {"is_map",      (PyCFunction)mod_is_map,              METH_O,        PyDoc_STR(is_map_doc)},
+    {"is_native",   (PyCFunction)mod_is_native,           METH_O,        PyDoc_STR(is_native_doc)},
+    {"native",      (PyCFunction)mod_native,              METH_O,        PyDoc_STR(native_doc)},
+    {"ref_count",   (PyCFunction)mod_ref_count,           METH_O,        PyDoc_STR(ref_count_doc)},
     {NULL, NULL, 0, NULL}
 };
 
