@@ -1267,7 +1267,9 @@ static PyObject* NodelObject_getattro(PyObject* self, PyObject* name) {
     NodelObject* nd_self = (NodelObject*)self;
     Object& self_obj = nd_self->obj;
     try {
-        return (PyObject*)NodelObject_wrap(self_obj.get(support.to_key(name)));
+        Object attr_value = self_obj.get(support.to_key(name));
+        if (attr_value.is_nil()) Py_RETURN_NONE;
+        return (PyObject*)NodelObject_wrap(attr_value);
     } catch (const WrongType& ex) {
         python::raise_type_error(self_obj);
     } catch (const std::exception& ex) {

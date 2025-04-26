@@ -374,6 +374,8 @@ class Object
     OPath path() const;
     OPath path(const Object& root) const;
 
+    bool is_nil() const { return m_fields.repr_ix == NIL; }
+
     template <typename T>
     bool is_type() const;
 
@@ -2724,18 +2726,20 @@ void Object::inc_ref_count() const {
     Object& self = *const_cast<Object*>(this);
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case STR:   ++(std::get<1>(*self.m_repr.ps).m_fields.ref_count); break;
+        case STR:
+            //DEBUG("inc_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(self.m_repr.ps), std::get<1>(*self.m_repr.ps).m_fields.ref_count + 1);
+            ++(std::get<1>(*self.m_repr.ps).m_fields.ref_count); break;
         case LIST:
-            DEBUG("inc_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(self.m_repr.pl), std::get<1>(*self.m_repr.pl).m_fields.ref_count - 1);
+            //DEBUG("inc_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(self.m_repr.pl), std::get<1>(*self.m_repr.pl).m_fields.ref_count + 1);
             ++(std::get<1>(*self.m_repr.pl).m_fields.ref_count); break;
         case SMAP:
-            DEBUG("inc_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(self.m_repr.psm), std::get<1>(*self.m_repr.psm).m_fields.ref_count - 1);
+            //DEBUG("inc_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(self.m_repr.psm), std::get<1>(*self.m_repr.psm).m_fields.ref_count + 1);
             ++(std::get<1>(*self.m_repr.psm).m_fields.ref_count); break;
         case OMAP:
-            DEBUG("inc_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(self.m_repr.pom), std::get<1>(*self.m_repr.pom).m_fields.ref_count - 1);
+            //DEBUG("inc_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(self.m_repr.pom), std::get<1>(*self.m_repr.pom).m_fields.ref_count + 1);
             ++(std::get<1>(*self.m_repr.pom).m_fields.ref_count); break;
         case ANY:
-            DEBUG("inc_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(self.m_repr.pany), self.m_repr.pany->get_parent().m_fields.ref_count - 1);
+            //DEBUG("inc_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(self.m_repr.pany), self.m_repr.pany->get_parent().m_fields.ref_count + 1);
             ++(self.m_repr.pany->get_parent().m_fields.ref_count); break;
         case DSRC:  m_repr.ds->inc_ref_count(); break;
         case ERROR: ++(std::get<1>(*self.m_repr.ps).m_fields.ref_count); break;
@@ -2749,7 +2753,7 @@ void Object::dec_ref_count() const {
     switch (m_fields.repr_ix) {
         case STR: {
             auto p_irc = self.m_repr.ps;
-            DEBUG("dec_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(p_irc), std::get<1>(*p_irc).m_fields.ref_count - 1);
+            //DEBUG("dec_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(p_irc), std::get<1>(*p_irc).m_fields.ref_count - 1);
             if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
                 std::get<1>(*p_irc).m_fields.repr_ix = NIL;  // clear parent
                 delete p_irc;
@@ -2758,7 +2762,7 @@ void Object::dec_ref_count() const {
         }
         case LIST: {
             auto p_irc = self.m_repr.pl;
-            DEBUG("dec_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(p_irc), std::get<1>(*p_irc).m_fields.ref_count - 1);
+            //DEBUG("dec_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(p_irc), std::get<1>(*p_irc).m_fields.ref_count - 1);
             if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
                 std::get<1>(*p_irc).m_fields.repr_ix = NIL;  // clear parent
                 for (auto& value : std::get<0>(*p_irc))
@@ -2769,7 +2773,7 @@ void Object::dec_ref_count() const {
         }
         case SMAP: {
             auto p_irc = self.m_repr.psm;
-            DEBUG("dec_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(p_irc), std::get<1>(*p_irc).m_fields.ref_count - 1);
+            //DEBUG("dec_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(p_irc), std::get<1>(*p_irc).m_fields.ref_count - 1);
             if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
                 std::get<1>(*p_irc).m_fields.repr_ix = NIL;  // clear parent
                 for (auto& item : std::get<0>(*p_irc))
@@ -2780,7 +2784,7 @@ void Object::dec_ref_count() const {
         }
         case OMAP: {
             auto p_irc = self.m_repr.pom;
-            DEBUG("dec_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(p_irc), std::get<1>(*p_irc).m_fields.ref_count - 1);
+            //DEBUG("dec_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(p_irc), std::get<1>(*p_irc).m_fields.ref_count - 1);
             if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
                 std::get<1>(*p_irc).m_fields.repr_ix = NIL;  // clear parent
                 for (auto& item : std::get<0>(*p_irc))
@@ -2791,7 +2795,7 @@ void Object::dec_ref_count() const {
         }
         case ANY: {
             auto p_opaque = self.m_repr.pany;
-            DEBUG("dec_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(p_opaque), p_opaque->get_parent().m_fields.ref_count - 1);
+            //DEBUG("dec_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(p_opaque), p_opaque->get_parent().m_fields.ref_count - 1);
             if (--(p_opaque->get_parent().m_fields.ref_count) == 0) {
                 p_opaque->get_parent().m_fields.repr_ix = NIL;
                 delete p_opaque;

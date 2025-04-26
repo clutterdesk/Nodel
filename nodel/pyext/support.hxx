@@ -116,8 +116,8 @@ void raise_type_error(const Object& obj) {
 class PyOpaque : public nodel::Opaque
 {
   public:
-    PyOpaque(PyObject* po) : m_po(po) { DEBUG("PyOpaque({:x})", (uint64_t)po); Py_XINCREF(po); }
-    ~PyOpaque() override { DEBUG("~PyOpaque({:x})", (uint64_t)m_po); Py_XDECREF(m_po); m_po = nullptr; }
+    PyOpaque(PyObject* po) : m_po(po) {}
+    ~PyOpaque() override { Py_XDECREF(m_po); m_po = nullptr; }
 
     Opaque* clone() override { return new PyOpaque{m_po}; }
 

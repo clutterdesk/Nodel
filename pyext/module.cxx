@@ -462,6 +462,15 @@ static PyObject* mod_native(PyObject* mod, PyObject* arg) {
     return support.to_py(nd_self->obj);
 }
 
+constexpr auto ref_count_method_doc = \
+    "Returns the reference count of a Nodel Object.\n";
+
+static PyObject* mod_ref_count(PyObject* mod, PyObject* arg) {
+    NodelObject* nd_self = as_nodel_object(arg);
+    if (nd_self == NULL) return NULL;
+    return PyLong_FromUnsignedLongLong(nd_self->obj.ref_count());
+}
+
 static PyMethodDef nodel_methods[] = {
     {"bind",        (PyCFunction)mod_bind,                METH_O,        PyDoc_STR(mod_bind_doc)},
     {"from_json",   (PyCFunction)mod_from_json,           METH_O,        PyDoc_STR(mod_from_json_doc)},
@@ -486,6 +495,7 @@ static PyMethodDef nodel_methods[] = {
     {"is_map",      (PyCFunction)mod_is_map,              METH_O,        PyDoc_STR(is_map_method_doc)},
     {"is_native",   (PyCFunction)mod_is_native,           METH_O,        PyDoc_STR(is_native_method_doc)},
     {"native",      (PyCFunction)mod_native,              METH_O,        PyDoc_STR(native_method_doc)},
+    {"ref_count",   (PyCFunction)mod_ref_count,           METH_O,        PyDoc_STR(ref_count_method_doc)},
     {NULL, NULL, 0, NULL}
 };
 
