@@ -449,6 +449,19 @@ static PyObject* mod_is_map(PyObject* mod, PyObject* arg) {
     }
 }
 
+constexpr auto is_native_method_doc = "True, if the object is an opaque wrapper for a native Python object.\n";
+static PyObject* mod_is_native(PyObject* mod, PyObject* arg) { return is_type(mod, arg, Object::ReprIX::ANY); }
+
+constexpr auto native_method_doc = \
+    "Convert the object into a native python type.\n"
+    "Currently, map types are not supported.\n";
+
+static PyObject* mod_native(PyObject* mod, PyObject* arg) {
+    NodelObject* nd_self = as_nodel_object(arg);
+    if (nd_self == NULL) return NULL;
+    return support.to_py(nd_self->obj);
+}
+
 static PyMethodDef nodel_methods[] = {
     {"bind",        (PyCFunction)mod_bind,                METH_O,        PyDoc_STR(mod_bind_doc)},
     {"from_json",   (PyCFunction)mod_from_json,           METH_O,        PyDoc_STR(mod_from_json_doc)},
@@ -471,6 +484,8 @@ static PyMethodDef nodel_methods[] = {
     {"is_str",      (PyCFunction)mod_is_str,              METH_O,        PyDoc_STR(is_str_method_doc)},
     {"is_list",     (PyCFunction)mod_is_list,             METH_O,        PyDoc_STR(is_list_method_doc)},
     {"is_map",      (PyCFunction)mod_is_map,              METH_O,        PyDoc_STR(is_map_method_doc)},
+    {"is_native",   (PyCFunction)mod_is_native,           METH_O,        PyDoc_STR(is_native_method_doc)},
+    {"native",      (PyCFunction)mod_native,              METH_O,        PyDoc_STR(native_method_doc)},
     {NULL, NULL, 0, NULL}
 };
 

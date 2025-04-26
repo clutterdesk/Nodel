@@ -50,37 +50,37 @@ std::optional<std::string_view> to_string_view(PyObject* po) {
 
 inline
 PyObject* to_str(int32_t value) {
-    auto py_int = PyLong_FromLong(value);
-    if (py_int == NULL) return NULL;
-    return PyObject_Str(py_int);
+    RefMgr py_int = PyLong_FromLong(value);
+    if (py_int.get() == NULL) return NULL;
+    return PyObject_Str(py_int.get());
 }
 
 inline
 PyObject* to_str(int64_t value) {
-    auto py_int = PyLong_FromLongLong(value);
-    if (py_int == NULL) return NULL;
-    return PyObject_Str(py_int);
+    RefMgr py_int = PyLong_FromLongLong(value);
+    if (py_int.get() == NULL) return NULL;
+    return PyObject_Str(py_int.get());
 }
 
 inline
 PyObject* to_str(uint32_t value) {
-    auto py_int = PyLong_FromUnsignedLong(value);
-    if (py_int == NULL) return NULL;
-    return PyObject_Str(py_int);
+    RefMgr py_int = PyLong_FromUnsignedLong(value);
+    if (py_int.get() == NULL) return NULL;
+    return PyObject_Str(py_int.get());
 }
 
 inline
 PyObject* to_str(uint64_t value) {
-    auto py_int = PyLong_FromUnsignedLongLong(value);
-    if (py_int == NULL) return NULL;
-    return PyObject_Str(py_int);
+    RefMgr py_int = PyLong_FromUnsignedLongLong(value);
+    if (py_int.get() == NULL) return NULL;
+    return PyObject_Str(py_int.get());
 }
 
 inline
 PyObject* to_str(double value) {
-    auto py_int = PyFloat_FromDouble(value);
-    if (py_int == NULL) return NULL;
-    return PyObject_Str(py_int);
+    RefMgr py_int = PyFloat_FromDouble(value);
+    if (py_int.get() == NULL) return NULL;
+    return PyObject_Str(py_int.get());
 }
 
 inline
@@ -113,10 +113,37 @@ void raise_type_error(const Object& obj) {
     raise_error(PyExc_TypeError, fmt::format("Invalid nodel::Object type: {}", obj.type_name()));
 }
 
+class PyOpaque : public nodel::Opaque
+{
+  public:
+    PyOpaque(PyObject* po) : m_po(po) { DEBUG("PyOpaque({:x})", (uint64_t)po); Py_XINCREF(po); }
+    ~PyOpaque() override { DEBUG("~PyOpaque({:x})", (uint64_t)m_po); Py_XDECREF(m_po); m_po = nullptr; }
+
+    Opaque* clone() override { return new PyOpaque{m_po}; }
+
+    nodel::String str() override {
+        RefMgr r_str{PyObject_Str(m_po)};
+        Py_ssize_t c_str_len;
+        auto c_str = PyUnicode_AsUTF8AndSize(r_str.get(), &c_str_len);
+        if (c_str_len == -1) throw std::runtime_error{"PyUnicode_AsUTF8AndSize failed unexpectedly"};
+        return {c_str, (std::string::size_type)c_str_len};
+    }
+
+    nodel::String repr() override {
+        RefMgr r_str{PyObject_Repr(m_po)};
+        Py_ssize_t c_str_len;
+        auto c_str = PyUnicode_AsUTF8AndSize(r_str.get(), &c_str_len);
+        if (c_str_len == -1) throw std::runtime_error{"PyUnicode_AsUTF8AndSize failed unexpectedly"};
+        return {c_str, (std::string::size_type)c_str_len};
+    }
+
+    PyObject* m_po;
+};
+
 struct Support
 {
     static PyObject* to_str(const Key& key);
-    static PyObject* to_str(const Object& obj);
+    static PyObject* to_str_repr(const Object& obj, bool repr);
     static PyObject* to_str(const std::pair<Key, Object>& item);
 
     static PyObject* to_num(const Object& obj);
@@ -128,6 +155,8 @@ struct Support
     static Key to_key(PyObject* po);
     static Slice to_slice(PyObject* po);
     static Object to_object(PyObject* po);
+
+    static void clear_parent(const Object&);
 };
 
 
@@ -151,7 +180,7 @@ PyObject* Support::to_str(const Key& key) {
 }
 
 inline
-PyObject* Support::to_str(const Object& obj) {
+PyObject* Support::to_str_repr(const Object& obj, bool repr) {
     switch (obj.m_fields.repr_ix) {
         case Object::NIL:   return PyUnicode_FromString("None");
         case Object::BOOL:  return PyUnicode_FromString((obj.m_repr.b)? "True": "False");
@@ -160,12 +189,22 @@ PyObject* Support::to_str(const Object& obj) {
         case Object::FLOAT: return python::to_str(obj.m_repr.f);
         case Object::STR: {
             const auto& str = std::get<0>(*obj.m_repr.ps);
-            return python::to_str(StringView{str.data(), str.size()});
+            if (repr) {
+                std::stringstream ss;
+                ss << std::quoted(str.data());
+                return python::to_str(ss.str());  // TODO: use ss.view() when available
+            } else {
+                return python::to_str(StringView{str.data(), str.size()});
+            }
         }
         case Object::LIST:  [[fallthrough]];
         case Object::SMAP:  [[fallthrough]];
         case Object::OMAP:  return python::to_str(obj.to_json());
-        case Object::DSRC:  return python::to_str(const_cast<DataSourcePtr>(obj.m_repr.ds)->to_str(obj));
+        case Object::ANY:   return repr? PyObject_Repr(obj.as<PyOpaque>().m_po): PyObject_Str(obj.as<PyOpaque>().m_po);
+        case Object::DSRC:  {
+            if (repr) python::to_str(const_cast<DataSourcePtr>(obj.m_repr.ds)->to_json(obj));
+            else return python::to_str(const_cast<DataSourcePtr>(obj.m_repr.ds)->to_str(obj));
+        }
         default: {
             PyErr_SetString(PyExc_ValueError, "Invalid nodel::Object type");
             return NULL;
@@ -232,10 +271,13 @@ PyObject* Support::to_py(const Object& obj) {
             }
             return py_list;
         }
-        case Object::OMAP: {
+        case Object::ANY: {
+            PyObject* po = obj.as<PyOpaque>().m_po;
+            Py_INCREF(po);
+            return po;
         }
-        case Object::SMAP: {
-        }
+        case Object::OMAP:
+        case Object::SMAP:
         default: {
             PyErr_SetString(PyExc_ValueError, "Invalid nodel::Key type");
             return NULL;
@@ -365,11 +407,13 @@ Object Support::to_object(PyObject* po) {
     } else if (NodelObject_CheckExact(po)) {
         return ((NodelObject*)po)->obj;
     } else {
-        RefMgr val_type = (PyObject*)PyObject_Type(po);
-        RefMgr type_str = PyObject_Str(val_type);
-        PyErr_Format(PyExc_TypeError, "%S", (PyObject*)type_str);
-        return {};
+        return std::unique_ptr<nodel::Opaque>{new PyOpaque{po}};
     }
+}
+
+inline
+void Support::clear_parent(const Object& object) {
+    object.clear_parent();
 }
 
 } // namespace python

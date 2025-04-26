@@ -3,6 +3,7 @@
 /** @file */
 #pragma once
 
+#include <any>
 #include <limits>
 #include <string>
 #include <string_view>
@@ -61,6 +62,7 @@ struct InvalidPath : public NodelException
 
 class URI;
 class Object;
+class Opaque;
 class OPath;
 class DataSource;
 class KeyIterator;
@@ -96,6 +98,8 @@ using IRCMapPtr = IRCMap*;
 using IRCOMapPtr = IRCOMap*;
 using DataSourcePtr = DataSource*;
 
+using OpaquePtr = Opaque*;
+
 namespace test { class DataSourceTestInterface; }
 
 
@@ -117,6 +121,7 @@ namespace test { class DataSourceTestInterface; }
 ///     - list             (a recursive list of Objects)
 ///     - ordered map      (an insertion ordered map, Key -> Object)
 ///     - sorted map       (a sorted map, Key -> Object)
+///     - any              (std::any)
 /// - The NIL, BOOL, INT, UINT and FLOAT data types are stored in the Object
 ///   by-value.  Objects containing these types do not have a reference count,
 ///   or a parent.
@@ -134,7 +139,8 @@ namespace test { class DataSourceTestInterface; }
 /// - Compiling with `NODEL_ARCH=32` on 32-bit architectures will reduce the
 ///   size of Object instances from 16-bytes to 8-bytes.
 /////////////////////////////////////////////////////////////////////////////
-class Object // : public debug::Object
+
+class Object
 {
   public:
     template <class T> class Subscript;
@@ -152,6 +158,7 @@ class Object // : public debug::Object
         LIST,
         SMAP,    // sorted map
         OMAP,    // ordered map
+        ANY,     // any object
         DSRC,    // DataSource
         DEL,     // indicates deleted key in sparse data-store
         ERROR = 31
@@ -168,6 +175,7 @@ class Object // : public debug::Object
           Repr(IRCListPtr p)    : pl{p} {}
           Repr(IRCMapPtr p)     : psm{p} {}
           Repr(IRCOMapPtr p)    : pom{p} {}
+          Repr(OpaquePtr p)     : pany{p} {}
           Repr(DataSourcePtr p) : ds{p} {}
 
           void*         z;
@@ -179,6 +187,7 @@ class Object // : public debug::Object
           IRCListPtr    pl;
           IRCMapPtr     psm;
           IRCOMapPtr    pom;
+          OpaquePtr     pany;
           DataSourcePtr ds;
       };
 
@@ -209,6 +218,7 @@ class Object // : public debug::Object
         else if constexpr (std::is_same<T, ObjectList>::value) return LIST;
         else if constexpr (std::is_same<T, SortedMap>::value)  return SMAP;
         else if constexpr (std::is_same<T, OrderedMap>::value) return OMAP;
+        else if constexpr (std::is_base_of<Opaque, T>::value)  return ANY;
     }
 
     template <typename T> T get_repr() const requires is_byvalue<T> {
@@ -250,6 +260,7 @@ class Object // : public debug::Object
           case SMAP:  return "sorted-map";
           case OMAP:  return "ordered-map";
           case DSRC:  return "data-source";
+          case ANY:   return "opaque";
           case DEL:   return "deleted";
           case ERROR: return "error";
           default:    return "<undefined>";
@@ -285,6 +296,9 @@ class Object // : public debug::Object
     Object(is_like_Int auto v)         : m_repr{(Int)v}, m_fields{INT} {}
     /// From unsigned integer value
     Object(is_like_UInt auto v)        : m_repr{(UInt)v}, m_fields{UINT} {}
+    /// Opaque object
+    Object(std::unique_ptr<Opaque>& p_opaque)  : m_repr{p_opaque.release()}, m_fields{ANY} {}
+    Object(std::unique_ptr<Opaque>&& p_opaque) : m_repr{p_opaque.release()}, m_fields{ANY} {}
 
     /// Create an Object with a DataSource (Use @ref nodel::bind, instead)
     /// - This is a low-level interface. Prefer using one of the @ref nodel::bind
@@ -378,8 +392,14 @@ class Object // : public debug::Object
     template <typename T>
     T& as() requires std::is_same<T, String>::value;
 
+//    template <typename T>
+//    T as() const requires std::is_same<T, ObjectList>::value;
+
     template <typename T>
-    T as() const requires std::is_same<T, ObjectList>::value;
+    T& as();
+
+    template <typename T>
+    const T& as() const;
 
     bool is_empty() const;
     bool is_deleted() const;
@@ -401,7 +421,8 @@ class Object // : public debug::Object
     Object set(const Object&);
     Object set(const Key&, const Object&);
     Object set(const OPath&, const Object&);
-    void set(const Slice&, const ObjectList&);
+    void set(const Slice&, const Object&);
+    void set(const Slice&, ValueRange&&);
     Object insert(const Key&, const Object&);
 
     void del(const Key&);
@@ -445,7 +466,6 @@ class Object // : public debug::Object
 
   protected:
     static bool norm_index(is_like_Int auto& index, UInt size);
-    void map_set_slice(SortedMap& map, const Slice& slice, const ObjectList& in_vals);
     Object list_set(const Key& key, const Object& in_val);
 
     Object dsrc_read() const;
@@ -474,6 +494,25 @@ class Object // : public debug::Object
   template <class ValueType, typename VisitPred, typename EnterPred> friend class TreeIterator;
 
   friend bool has_data_source(const Object&);
+};
+
+
+class Opaque
+{
+  public:
+    virtual ~Opaque() = default;
+    virtual Opaque* clone() = 0;
+    virtual String str() = 0;
+    virtual String repr() = 0;
+
+    virtual bool equals(const Object& obj) {
+        return obj.type() == Object::ANY && &(obj.as<Opaque>()) == this;
+    }
+
+    Object& get_parent() { return m_parent; }
+
+  private:
+    Object m_parent{nil};
 };
 
 
@@ -1033,7 +1072,8 @@ class DataSource
     void set(const Object& target, const Object& in_val);
     Object set(const Object& target, const Key& key, const Object& in_val);
     Object set(const Object& target, Key&& key, const Object& in_val);
-    void set(const Object& target, const Slice& key, const ObjectList& in_vals);
+    void set(const Object& target, const Slice& key, const Object& obj);
+    void set(const Object& target, const Slice& key, ValueRange&&);
     void del(const Object& target, const Key& key);
     void del(const Object& target, const Slice& slice);
     void clear(const Object& target);
@@ -1048,6 +1088,11 @@ class DataSource
     String to_str(const Object& target) {
         insure_fully_cached(target);
         return m_cache.to_str();
+    }
+
+    String to_json(const Object& target) {
+        insure_fully_cached(target);
+        return m_cache.to_json();
     }
 
     const Key key_of(const Object& obj) { return m_cache.key_of(obj); }
@@ -1141,6 +1186,7 @@ Object::Object(const Object& other) : m_fields{other.m_fields} {
         case LIST:  m_repr.pl = other.m_repr.pl; inc_ref_count(); break;
         case SMAP:  m_repr.psm = other.m_repr.psm; inc_ref_count(); break;
         case OMAP:  m_repr.pom = other.m_repr.pom; inc_ref_count(); break;
+        case ANY:   m_repr.pany = other.m_repr.pany; inc_ref_count(); break;
         case DSRC:  m_repr.ds = other.m_repr.ds; m_repr.ds->inc_ref_count(); break;
         case ERROR: m_repr.ps = other.m_repr.ps; inc_ref_count(); break;
     }
@@ -1159,6 +1205,7 @@ Object::Object(Object&& other) : m_fields{other.m_fields} {
         case LIST:  m_repr.pl = other.m_repr.pl; break;
         case SMAP:  m_repr.psm = other.m_repr.psm; break;
         case OMAP:  m_repr.pom = other.m_repr.pom; break;
+        case ANY:   m_repr.pany = other.m_repr.pany; break;
         case DSRC:  m_repr.ds = other.m_repr.ds; break;
         case ERROR: m_repr.ps = other.m_repr.ps; break;
     }
@@ -1284,7 +1331,7 @@ inline
 Object::ReprIX Object::type() const {
     switch (m_fields.repr_ix) {
         case DSRC: return m_repr.ds->type(*this);
-        default:     return (ReprIX)m_fields.repr_ix;
+        default:   return (ReprIX)m_fields.repr_ix;
     }
 }
 
@@ -1309,6 +1356,7 @@ Object Object::parent() const {
         case LIST:  return std::get<1>(*m_repr.pl);
         case SMAP:  return std::get<1>(*m_repr.psm);
         case OMAP:  return std::get<1>(*m_repr.pom);
+        case ANY:   return m_repr.pany->get_parent();
         case DSRC:  return m_repr.ds->m_parent;
         default:    return nil;
     }
@@ -1385,15 +1433,15 @@ T& Object::as() requires std::is_same<T, String>::value {
     throw wrong_type(m_fields.repr_ix);
 }
 
-/// Get a copy of the elements in this list Object.
-/// @tparam T ObjectList
-/// This method returns a copy of the Objects in the list to prevent untracked
-/// modifications that might violate invariants.
-/// @return Returns a copy of the list.
 template <typename T>
-T Object::as() const requires std::is_same<T, ObjectList>::value {
-    if (m_fields.repr_ix == get_repr_ix<T>()) return get_repr<T>();
-    else if (m_fields.repr_ix == DSRC) return dsrc_read().as<T>();
+T& Object::as() {
+    if (m_fields.repr_ix == ANY) return *dynamic_cast<T*>(m_repr.pany);
+    throw wrong_type(m_fields.repr_ix);
+}
+
+template <typename T>
+const T& Object::as() const {
+    if (m_fields.repr_ix == ANY) return *dynamic_cast<T*>(m_repr.pany);
     throw wrong_type(m_fields.repr_ix);
 }
 
@@ -1453,6 +1501,11 @@ void Object::set_parent(const Object& new_parent) const {
             parent.weak_refer_to(new_parent);
             break;
         }
+        case ANY: {
+            auto& parent = m_repr.pany->get_parent();
+            parent.weak_refer_to(new_parent);
+            break;
+        }
         case DSRC: {
             m_repr.ds->m_parent.weak_refer_to(new_parent);
             break;
@@ -1484,6 +1537,11 @@ void Object::clear_parent() const {
         }
         case OMAP: {
             auto& parent = std::get<1>(*m_repr.pom);
+            parent.m_fields.repr_ix = NIL;
+            break;
+        }
+        case ANY: {
+            auto& parent = m_repr.pany->get_parent();
             parent.m_fields.repr_ix = NIL;
             break;
         }
@@ -1584,6 +1642,7 @@ String Object::to_str() const {
         case LIST:  [[fallthrough]];
         case SMAP:  [[fallthrough]];
         case OMAP:  return to_json();
+        case ANY:   return m_repr.pany->str();
         case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->to_str(*this);
         case ERROR: return std::get<0>(*m_repr.ps);
         default:    throw wrong_type(m_fields.repr_ix);
@@ -1905,7 +1964,7 @@ Object Object::set(const Key& key, const Object& in_val) {
             return out_val;
         }
         case DSRC: return m_repr.ds->set(*this, key, in_val);
-        default:     throw wrong_type(m_fields.repr_ix);
+        default:   throw wrong_type(m_fields.repr_ix);
     }
 }
 
@@ -2117,7 +2176,25 @@ ObjectList Object::get(const Slice& slice) const {
 /// @throws WrongType
 /// @throws EmptyReference
 inline
-void Object::set(const Slice& slice, const ObjectList& in_vals) {
+void Object::set(const Slice& slice, const Object& obj) {
+    set(slice, obj.iter_values());
+}
+
+/// Set a slice of values from an iterator.
+/// @param slice An interval (slice) of keys.
+/// @param in_vals The iterator from which values will be taken.
+/// - If the number of values in @p in_vals is greater than the elements addressed
+///   by @p slice, then the extra elements in in_vals are ignored.
+/// - If the number of values in @p in_vals is less than the elements addressed by
+///   by @p slice, then the extra elements address by the @p slice are removed.
+/// - This method can be used with an sorted map Object to behave like a sparse array.
+///   However, the start and stop must be explicitly specified in the slice.  If any
+///   of the slice parameters are negative, a std::out_of_range exception is thrown.
+/// @throws std::out_of_range
+/// @throws WrongType
+/// @throws EmptyReference
+inline
+void Object::set(const Slice& slice, ValueRange&& in_vals) {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
         case LIST: {
@@ -2194,7 +2271,7 @@ void Object::set(const Slice& slice, const ObjectList& in_vals) {
             }
             break;
         }
-        case DSRC: m_repr.ds->set(*this, slice, in_vals); break;
+        case DSRC: m_repr.ds->set(*this, slice, std::forward<ValueRange>(in_vals)); break;
         default:   throw wrong_type(m_fields.repr_ix);
     }
 }
@@ -2302,6 +2379,9 @@ bool Object::operator == (const Object& obj) const {
                     return false;
             }
             return true;
+        }
+        case ANY: {
+            return m_repr.pany->equals(obj);
         }
         case DSRC: return m_repr.ds->get_cached(*this) == obj;
         default:     throw wrong_type(m_fields.repr_ix);
@@ -2554,7 +2634,8 @@ void Object::to_json(std::ostream& os) const {
             case LIST:  os << ((event & WalkDF::BEGIN_PARENT)? '[': ']'); break;
             case SMAP:  [[fallthrough]];
             case OMAP:  os << ((event & WalkDF::BEGIN_PARENT)? '{': '}'); break;
-            default:      throw wrong_type(object.m_fields.repr_ix);
+            case ANY:   os << object.m_repr.pany->repr(); break;
+            default:    throw wrong_type(object.m_fields.repr_ix);
         }
     };
 
@@ -2567,7 +2648,7 @@ Oid Object::id() const {
     auto repr_ix = m_fields.repr_ix;
     switch (repr_ix) {
         case EMPTY: throw empty_reference();
-        case NIL:  return Oid::nil();
+        case NIL:   return Oid::nil();
         case BOOL:  return Oid{repr_ix, m_repr.b};
         case INT:   return Oid{repr_ix, *((uint64_t*)(&m_repr.i))};
         case UINT:  return Oid{repr_ix, m_repr.u};;
@@ -2576,6 +2657,7 @@ Oid Object::id() const {
         case LIST:  return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.pl)))};
         case SMAP:  return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.pom)))};
         case OMAP:  return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.pom)))};
+        case ANY:   return Oid{repr_ix, (uint64_t)(m_repr.pany)};
         case DSRC:  return Oid{repr_ix, (uint64_t)(m_repr.ds)};
         default:      throw wrong_type(m_fields.repr_ix);
     }
@@ -2596,6 +2678,7 @@ bool Object::is(const Object& other) const {
         case LIST:  return m_repr.pl == other.m_repr.pl;
         case SMAP:  return m_repr.psm == other.m_repr.psm;
         case OMAP:  return m_repr.pom == other.m_repr.pom;
+        case ANY:   return m_repr.pany == other.m_repr.pany;
         case DSRC:  return m_repr.ds == other.m_repr.ds;
         default:      throw wrong_type(m_fields.repr_ix);
     }
@@ -2614,6 +2697,7 @@ Object Object::copy() const {
         case LIST:  return std::get<0>(*m_repr.pl);   // TODO: long-hand deep-copy, instead of using stack
         case SMAP:  return std::get<0>(*m_repr.psm);  // TODO: long-hand deep-copy, instead of using stack
         case OMAP:  return std::get<0>(*m_repr.pom);  // TODO: long-hand deep-copy, instead of using stack
+        case ANY:   return m_repr.pany->clone();
         case DSRC:  return m_repr.ds->copy(*this, DataSource::Origin::MEMORY);
         case DEL:   return DEL;
         default:    throw wrong_type(m_fields.repr_ix);
@@ -2627,6 +2711,7 @@ refcnt_t Object::ref_count() const {
         case LIST:  return std::get<1>(*m_repr.pl).m_fields.ref_count;
         case SMAP:  return std::get<1>(*m_repr.psm).m_fields.ref_count;
         case OMAP:  return std::get<1>(*m_repr.pom).m_fields.ref_count;
+        case ANY:   return m_repr.pany->get_parent().m_fields.ref_count;
         case DSRC:  return m_repr.ds->ref_count();
         case ERROR: return std::get<1>(*m_repr.ps).m_fields.ref_count;
         default:    return no_ref_count;
@@ -2640,9 +2725,18 @@ void Object::inc_ref_count() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
         case STR:   ++(std::get<1>(*self.m_repr.ps).m_fields.ref_count); break;
-        case LIST:  ++(std::get<1>(*self.m_repr.pl).m_fields.ref_count); break;
-        case SMAP:  ++(std::get<1>(*self.m_repr.psm).m_fields.ref_count); break;
-        case OMAP:  ++(std::get<1>(*self.m_repr.pom).m_fields.ref_count); break;
+        case LIST:
+            DEBUG("inc_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(self.m_repr.pl), std::get<1>(*self.m_repr.pl).m_fields.ref_count - 1);
+            ++(std::get<1>(*self.m_repr.pl).m_fields.ref_count); break;
+        case SMAP:
+            DEBUG("inc_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(self.m_repr.psm), std::get<1>(*self.m_repr.psm).m_fields.ref_count - 1);
+            ++(std::get<1>(*self.m_repr.psm).m_fields.ref_count); break;
+        case OMAP:
+            DEBUG("inc_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(self.m_repr.pom), std::get<1>(*self.m_repr.pom).m_fields.ref_count - 1);
+            ++(std::get<1>(*self.m_repr.pom).m_fields.ref_count); break;
+        case ANY:
+            DEBUG("inc_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(self.m_repr.pany), self.m_repr.pany->get_parent().m_fields.ref_count - 1);
+            ++(self.m_repr.pany->get_parent().m_fields.ref_count); break;
         case DSRC:  m_repr.ds->inc_ref_count(); break;
         case ERROR: ++(std::get<1>(*self.m_repr.ps).m_fields.ref_count); break;
         default:    break;
@@ -2655,6 +2749,7 @@ void Object::dec_ref_count() const {
     switch (m_fields.repr_ix) {
         case STR: {
             auto p_irc = self.m_repr.ps;
+            DEBUG("dec_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(p_irc), std::get<1>(*p_irc).m_fields.ref_count - 1);
             if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
                 std::get<1>(*p_irc).m_fields.repr_ix = NIL;  // clear parent
                 delete p_irc;
@@ -2663,6 +2758,7 @@ void Object::dec_ref_count() const {
         }
         case LIST: {
             auto p_irc = self.m_repr.pl;
+            DEBUG("dec_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(p_irc), std::get<1>(*p_irc).m_fields.ref_count - 1);
             if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
                 std::get<1>(*p_irc).m_fields.repr_ix = NIL;  // clear parent
                 for (auto& value : std::get<0>(*p_irc))
@@ -2673,6 +2769,7 @@ void Object::dec_ref_count() const {
         }
         case SMAP: {
             auto p_irc = self.m_repr.psm;
+            DEBUG("dec_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(p_irc), std::get<1>(*p_irc).m_fields.ref_count - 1);
             if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
                 std::get<1>(*p_irc).m_fields.repr_ix = NIL;  // clear parent
                 for (auto& item : std::get<0>(*p_irc))
@@ -2683,11 +2780,21 @@ void Object::dec_ref_count() const {
         }
         case OMAP: {
             auto p_irc = self.m_repr.pom;
+            DEBUG("dec_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(p_irc), std::get<1>(*p_irc).m_fields.ref_count - 1);
             if (--(std::get<1>(*p_irc).m_fields.ref_count) == 0) {
                 std::get<1>(*p_irc).m_fields.repr_ix = NIL;  // clear parent
                 for (auto& item : std::get<0>(*p_irc))
                     item.second.clear_parent();
                 delete p_irc;
+            }
+            break;
+        }
+        case ANY: {
+            auto p_opaque = self.m_repr.pany;
+            DEBUG("dec_ref_count({}:{:x}) -> {}", type_name(), (uint64_t)(p_opaque), p_opaque->get_parent().m_fields.ref_count - 1);
+            if (--(p_opaque->get_parent().m_fields.ref_count) == 0) {
+                p_opaque->get_parent().m_fields.repr_ix = NIL;
+                delete p_opaque;
             }
             break;
         }
@@ -2750,6 +2857,11 @@ Object& Object::operator = (const Object& other) {
             inc_ref_count();
             break;
         }
+        case ANY: {
+            m_repr.pany = other.m_repr.pany;
+            inc_ref_count();
+            break;
+        }
         case DSRC: {
             m_repr.ds = other.m_repr.ds;
             inc_ref_count();
@@ -2786,6 +2898,7 @@ Object& Object::operator = (Object&& other) {
         case LIST:  m_repr.pl = other.m_repr.pl; break;
         case SMAP:  m_repr.psm = other.m_repr.psm; break;
         case OMAP:  m_repr.pom = other.m_repr.pom; break;
+        case ANY:   m_repr.pany = other.m_repr.pany; break;
         case DSRC:  m_repr.ds = other.m_repr.ds; break;
         case DEL:   m_repr.z = nullptr; break;
         case ERROR: m_repr.ps = other.m_repr.ps; break;
@@ -3251,7 +3364,7 @@ Object DataSource::set(const Object& target, Key&& key, const Object& in_val) {
 }
 
 inline
-void DataSource::set(const Object& target, const Slice& slice, const ObjectList& in_vals) {
+void DataSource::set(const Object& target, const Slice& slice, ValueRange&& in_vals) {
     Mode mode = resolve_mode();
     if (!(mode & Mode::WRITE)) throw WriteProtect();
 
@@ -3261,7 +3374,7 @@ void DataSource::set(const Object& target, const Slice& slice, const ObjectList&
     } else {
         insure_fully_cached(target);
     }
-    m_cache.set(slice, in_vals);
+    m_cache.set(slice, std::forward<ValueRange>(in_vals));
     for (auto val : m_cache.get(slice))
         val.set_parent(target);
 }
@@ -3402,6 +3515,7 @@ void DataSource::insure_fully_cached(const Object& target) {
 
         m_fully_cached = true;
 
+        // NOTE: These are the only types that are allowed a nested level of caching
         switch (m_cache.m_fields.repr_ix) {
             case Object::LIST: {
                 for (auto& value : std::get<0>(*m_cache.m_repr.pl))
@@ -3535,11 +3649,12 @@ class Object::Subscript
     Object get(const OPath& path) const      { return resolve().get(path); }
     ObjectList get(const Slice& slice) const { return resolve().get(slice); }
 
-    Object set(const Object& obj)                        { return resolve().set(obj); }
-    Object set(const Key& key, const Object& obj)        { return resolve().set(key, obj); }
-    Object set(const OPath& key, const Object& obj)      { return resolve().set(key, obj); }
-    void set(const Slice& slice, const ObjectList& list) { return resolve().set(slice, list); }
-    Object insert(const Key& key, const Object& obj)     { return resolve().insert(key, obj); }
+    Object set(const Object& obj)                    { return resolve().set(obj); }
+    Object set(const Key& key, const Object& obj)    { return resolve().set(key, obj); }
+    Object set(const OPath& key, const Object& obj)  { return resolve().set(key, obj); }
+    void set(const Slice& slice, const Object& obj)  { return resolve().set(slice, obj); }
+    void set(const Slice& slice, ValueRange&& iter) { return resolve().set(slice, std::forward<ValueRange>(iter)); }
+    Object insert(const Key& key, const Object& obj) { return resolve().insert(key, obj); }
 
     void del(const Key& key)     { resolve().del(key); }
     void del(const OPath& path)  { resolve().del(path); }

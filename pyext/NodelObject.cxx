@@ -1073,9 +1073,9 @@ static int NodelObject_mp_ass_sub(PyObject* self, PyObject* key, PyObject* value
                 self_obj.del(slice);
             } else {
                 auto nd_vals = support.to_object(value);
-                auto nd_val_list = nd_vals.as<ObjectList>();
-                nd_vals.clear();  // prevent copying
-                self_obj.set(slice, nd_val_list);
+                for (auto& nd_val : nd_vals.iter_values())
+                    support.clear_parent(nd_val);  // prevent copying
+                self_obj.set(slice, nd_vals);
             }
         } else {
             auto nd_key = support.to_key(key);
@@ -1215,11 +1215,12 @@ static void NodelObject_dealloc(PyObject* self) {
 
 static PyObject* NodelObject_str(PyObject* self) {
     NodelObject* nd_self = (NodelObject*)self;
-    return support.to_str(nd_self->obj);
+    return support.to_str_repr(nd_self->obj, false);
 }
 
-static PyObject* NodelObject_repr(PyObject* arg) {
-    return NodelObject_str(arg);
+static PyObject* NodelObject_repr(PyObject* self) {
+    NodelObject* nd_self = (NodelObject*)self;
+    return support.to_str_repr(nd_self->obj, true);
 }
 
 static PyObject* NodelObject_richcompare(PyObject* self, PyObject* other, int op) {

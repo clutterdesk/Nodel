@@ -21,6 +21,15 @@ struct TestObject : public Object
     using Object::m_repr;
 };
 
+class TestOpaque : public Opaque
+{
+  public:
+    Opaque* clone() override { return new TestOpaque{}; }
+    String str() override { return "TestOpaque"; }
+    String repr() override { return "'TestOpaque'"; }
+};
+
+
 TEST(Object, TypeName) {
     EXPECT_EQ(Object{}.type_name(), "empty");
     EXPECT_EQ(Object{nil}.type_name(), "nil");
@@ -828,7 +837,7 @@ TEST(Object, ListSet) {
 TEST(Object, ListSetSlice) {
   Object obj = "[10, 11, 12, 13, 14]"_json;
 
-  obj.set("1:3"_slice, {101, 102});
+  obj.set("1:3"_slice, "[101, 102]"_json);
   ASSERT_EQ(obj.size(), 5UL);
   EXPECT_EQ(obj.get(0), 10);
   EXPECT_EQ(obj.get(1), 101);
@@ -836,14 +845,14 @@ TEST(Object, ListSetSlice) {
   EXPECT_EQ(obj.get(3), 13);
   EXPECT_EQ(obj.get(4), 14);
 
-  obj.set("1:4"_slice, {1001, 1002});
+  obj.set("1:4"_slice, "[1001, 1002]"_json);
   ASSERT_EQ(obj.size(), 4UL);
   EXPECT_EQ(obj.get(0), 10);
   EXPECT_EQ(obj.get(1), 1001);
   EXPECT_EQ(obj.get(2), 1002);
   EXPECT_EQ(obj.get(3), 14);
 
-  obj.set("1:2"_slice, {10001, 10002});
+  obj.set("1:2"_slice, "[10001, 10002]"_json);
   ASSERT_EQ(obj.size(), 5UL);
   EXPECT_EQ(obj.get(0), 10);
   EXPECT_EQ(obj.get(1), 10001);
@@ -852,7 +861,7 @@ TEST(Object, ListSetSlice) {
   EXPECT_EQ(obj.get(4), 14);
 
   obj = "[10, 11, 12, 13, 14]"_json;
-  obj.set(":"_slice, {100, 101, 102, 103, 104});
+  obj.set(":"_slice, "[100, 101, 102, 103, 104]"_json);
   ASSERT_EQ(obj.size(), 5UL);
   EXPECT_EQ(obj.get(0), 100);
   EXPECT_EQ(obj.get(1), 101);
@@ -861,7 +870,7 @@ TEST(Object, ListSetSlice) {
   EXPECT_EQ(obj.get(4), 104);
 
   obj = "[[1], [2], [3], [4], [5]]"_json;
-  obj.set("::2"_slice, "[[10], [30], [50]]"_json.as<ObjectList>());
+  obj.set("::2"_slice, "[[10], [30], [50]]"_json);
   ASSERT_EQ(obj.size(), 5UL);
   EXPECT_EQ(obj.get(0).get(0), 10);
   EXPECT_EQ(obj.get(1).get(0), 2);
@@ -873,7 +882,7 @@ TEST(Object, ListSetSlice) {
   EXPECT_TRUE(obj.get(4).parent().is(obj));
 
   obj = "[10, 11, 12, 13, 14]"_json;
-  obj.set("1::3"_slice, {101, 104, 107});
+  obj.set("1::3"_slice, "[101, 104, 107]"_json);
   ASSERT_EQ(obj.size(), 5UL);
   EXPECT_EQ(obj.get(0), 10);
   EXPECT_EQ(obj.get(1), 101);
@@ -882,7 +891,7 @@ TEST(Object, ListSetSlice) {
   EXPECT_EQ(obj.get(4), 104);
 
   obj = "[10, 11, 12, 13, 14]"_json;
-  obj.set("3:1:-1"_slice, {103, 102});
+  obj.set("3:1:-1"_slice, "[103, 102]"_json);
   ASSERT_EQ(obj.size(), 5UL);
   EXPECT_EQ(obj.get(0), 10);
   EXPECT_EQ(obj.get(1), 11);
@@ -891,7 +900,7 @@ TEST(Object, ListSetSlice) {
   EXPECT_EQ(obj.get(4), 14);
 
   obj = "[10, 11, 12, 13, 14]"_json;
-  obj.set("3:1:-1"_slice, {103, 102, 101});
+  obj.set("3:1:-1"_slice, "[103, 102, 101]"_json);
   ASSERT_EQ(obj.size(), 6UL);
   EXPECT_EQ(obj.get(0), 10);
   EXPECT_EQ(obj.get(1), 11);
@@ -901,7 +910,7 @@ TEST(Object, ListSetSlice) {
   EXPECT_EQ(obj.get(5), 14);
 
   obj = "[10, 11, 12, 13, 14]"_json;
-  obj.set("1::-1"_slice, {103, 102, 101});
+  obj.set("1::-1"_slice, "[103, 102, 101]"_json);
   ASSERT_EQ(obj.size(), 6UL);
   EXPECT_EQ(obj.get(0), 101);
   EXPECT_EQ(obj.get(1), 102);
@@ -911,14 +920,14 @@ TEST(Object, ListSetSlice) {
   EXPECT_EQ(obj.get(5), 14);
 
   obj = "[10, 11, 12, 13, 14]"_json;
-  obj.set("::-1"_slice, {103, 102, 101});
+  obj.set("::-1"_slice, "[103, 102, 101]"_json);
   ASSERT_EQ(obj.size(), 3UL);
   EXPECT_EQ(obj.get(0), 101);
   EXPECT_EQ(obj.get(1), 102);
   EXPECT_EQ(obj.get(2), 103);
 
   obj = "[10, 11, 12, 13, 14]"_json;
-  obj.set("::-2"_slice, {104, 102, 100});
+  obj.set("::-2"_slice, "[104, 102, 100]"_json);
   ASSERT_EQ(obj.size(), 5UL);
   EXPECT_EQ(obj.get(0), 100);
   EXPECT_EQ(obj.get(1), 11);
@@ -927,7 +936,7 @@ TEST(Object, ListSetSlice) {
   EXPECT_EQ(obj.get(4), 104);
 
   obj = "[10, 11, 12, 13, 14]"_json;
-  obj.set("::-2"_slice, {104, 102, 100, 90});
+  obj.set("::-2"_slice, "[104, 102, 100, 90]"_json);
   ASSERT_EQ(obj.size(), 5UL);
   EXPECT_EQ(obj.get(0), 100);
   EXPECT_EQ(obj.get(1), 11);
@@ -936,7 +945,7 @@ TEST(Object, ListSetSlice) {
   EXPECT_EQ(obj.get(4), 104);
 
   obj = "[10, 11, 12, 13, 14]"_json;
-  obj.set("::-2"_slice, {104, 102});
+  obj.set("::-2"_slice, "[104, 102]"_json);
   ASSERT_EQ(obj.size(), 4UL);
   EXPECT_EQ(obj.get(0), 11);
   EXPECT_EQ(obj.get(1), 102);
@@ -990,7 +999,7 @@ TEST(Object, OrderedMapGetNotFound) {
 
 TEST(Object, SortedMapSetSlice) {
     Object obj = Object::SMAP;
-    obj.set("0:3"_slice, {1, 2, 3});
+    obj.set("0:3"_slice, "[1, 2, 3]"_json);
     ASSERT_EQ(obj.size(), 3UL);
     EXPECT_EQ(obj.get(0), 1);
     EXPECT_EQ(obj.get(1), 2);
@@ -1108,7 +1117,7 @@ TEST(Object, SortedMapSetSliceSameLen) {
     for (int i=0; i<5; i++)
         obj.set(i, i + 10);
 
-    obj.set("1:3"_slice, {101, 102});
+    obj.set("1:3"_slice, "[101, 102]"_json);
 
     ASSERT_EQ(obj.size(), 5UL);
     EXPECT_EQ(obj.get(0), 10);
@@ -1123,7 +1132,7 @@ TEST(Object, SortedMapSetSliceShorter) {
     for (int i=0; i<5; i++)
         obj.set(i, i + 10);
 
-    obj.set("1:4"_slice, {101, 102});
+    obj.set("1:4"_slice, "[101, 102]"_json);
 
     ASSERT_EQ(obj.size(), 4UL);
     EXPECT_EQ(obj.get(0), 10);
@@ -1137,7 +1146,7 @@ TEST(Object, SortedMapSetSliceLonger) {
     for (int i=0; i<5; i++)
         obj.set(i, i + 10);
 
-    obj.set("1:3"_slice, {101, 102, 103});
+    obj.set("1:3"_slice, "[101, 102, 103]"_json);
 
     ASSERT_EQ(obj.size(), 5UL);
     EXPECT_EQ(obj.get(0), 10);
@@ -1153,22 +1162,22 @@ TEST(Object, SortedMapIllegalSlice) {
         obj.set(i, i + 10);
 
     // noop
-    obj.set(":"_slice, {101, 102});
+    obj.set(":"_slice, "[101, 102]"_json);
 
     try {
-      obj.set("-2:"_slice, {101, 102});
+      obj.set("-2:"_slice, "[101, 102]"_json);
       FAIL();
     } catch (const std::out_of_range& ex) {
     }
 
     try {
-      obj.set(":-1"_slice, {101, 102});
+      obj.set(":-1"_slice, "[101, 102]"_json);
       FAIL();
     } catch (const std::out_of_range& ex) {
     }
 
     try {
-      obj.set("::-1"_slice, {101, 102});
+      obj.set("::-1"_slice, "[101, 102]"_json);
       FAIL();
     } catch (const std::out_of_range& ex) {
     }
@@ -1222,6 +1231,17 @@ TEST(Object, SortedMapGetKey) {
     EXPECT_EQ(obj.get("z"_key).key(), "z"_key);
     EXPECT_EQ(obj.get("z"_key).get(0).key(), 0);
     EXPECT_EQ(obj.get("z"_key).get(1).key(), 1);
+}
+
+TEST(Object, Opaque) {
+    std::unique_ptr<Opaque> p_any{new TestOpaque{}};
+    Object any{p_any};
+    EXPECT_TRUE(any == any);
+    auto& r_any = any.as<TestOpaque>();
+    EXPECT_EQ(r_any.str(), "TestOpaque");
+    Object map = "{}"_json;
+    map["x"_key] = any;
+    EXPECT_TRUE(any.parent().is(map));
 }
 
 TEST(Object, SubscriptResolution) {

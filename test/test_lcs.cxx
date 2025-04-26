@@ -68,7 +68,8 @@ TEST(LCS, ObjectList) {
     Object rhs = "['apricot', 'carrot', 'banana', 'orange', 'peach']"_json;
     LCS<ObjectList> lcs_search;
     ObjectList lcs;
-    auto len = lcs_search.search(lhs.as<ObjectList>(), rhs.as<ObjectList>(), &lcs);
+//    auto len = lcs_search.search(lhs.as<ObjectList>(), rhs.as<ObjectList>(), &lcs);
+    auto len = lcs_search.search(collect(lhs.iter_values()), collect(rhs.iter_values()), &lcs);
     ASSERT_EQ(len, 2UL);
     EXPECT_EQ(Object{lcs}, "['carrot', 'orange']"_json);
 }
