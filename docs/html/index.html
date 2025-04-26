@@ -113,14 +113,13 @@ $(function(){initNavTree('index.html',''); initResizable(); });
 <li><code>std::map&lt;Key, Object&gt;</code></li>
 <li><code>tsl::ordered_map&lt;Key, Object&gt;</code></li>
 </ul>
-<p>A Nodel Object may be "bound" to a class derived from <code><a class="el" href="classnodel_1_1_data_source.html" title="Base class for objects implementing external data access.">nodel::DataSource</a></code>, which loads data on-demand from an external storage location into memory. <br  />
+<p>A Nodel Object may be "bound" to a class derived from <code>nodel::DataSource</code>, which loads data on-demand from an external storage location into memory. <br  />
 </p>
-<p>Nodel data sources are selected and configured by calling the <code><a class="el" href="namespacenodel.html#a941da699233ba625dc79f42aef1b952d" title="Bind an Object to the specified external storage location.">nodel::bind</a></code> function with a URI that identifies the scheme of a data-source implementation, with the remaining elements of the URI interpreted by the data-source implementation. URI schemes are extensible.</p>
+<p>Nodel data sources are selected and configured by calling the <code>nodel::bind</code> function with a URI that identifies the scheme of a data-source implementation, with the remaining elements of the URI interpreted by the data-source implementation. URI schemes are extensible.</p>
 <p>The following code binds an Object to the current working directory:</p>
 <div class="fragment"><div class="line">auto wd = nodel::bind(&quot;file://?path=.&quot;);</div>
-</div><!-- fragment --><p>The Nodel filesystem data-source (see include/nodel/filesystem/Directory.h) represents a directory with a <code>tsl::ordered_map&lt;Key, Object&gt;</code>, where the keys are the file names, and the values are Objects bound to a <code>nodel::filesystem::File</code> data-source. A data-source load operation is triggered when a bound object is accessed using one of the <code><a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">nodel::Object</a></code> methods.</p>
-<p>Nodel Objects are reference counted. A <code><a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">nodel::Object</a></code> instance is a reference to its underying data.</p>
-<p>Nodel is a header-only library with no required dependencies. This means that your program must instantiate certain macros and call the <code>configure</code> function of the subsystems it uses. See the "Quick Start" below for a complete example.</p>
+</div><!-- fragment --><p>The Nodel filesystem data-source (see include/nodel/filesystem/Directory.h) represents a directory with a <code>tsl::ordered_map&lt;Key, Object&gt;</code>, where the keys are the file names, and the values are Objects bound to a <code>nodel::filesystem::File</code> data-source. A data-source load operation is triggered when a bound object is accessed using one of the <code>nodel::Object</code> methods.</p>
+<p>Nodel Objects are reference counted. A <code>nodel::Object</code> instance is a reference to its underying data.</p>
 <p>If you link with cpptrace, Nodel exceptions will contain backtraces.</p>
 <p>Nodel provides its own homegrown JSON and CSV parsers, both of which are stream-based and reduce external dependencies.</p>
 <p>Nodel includes two example DataSource implementations - one for the filesystem, and one for RocksDB. The filesystem DataSource collection is extensible and a the RocksDB DataSource additionally provides integration with the filesystem DataSource. In this way, you can navigate through data stored in json files, csv files, text files, binary files, as well as RocksDB databases, with a unified data model.</p>
@@ -157,10 +156,9 @@ $(function(){initNavTree('index.html',''); initResizable(); });
 <div class="fragment"><div class="line">import nodel as nd</div>
 <div class="line">wd = nd.bind(&quot;file://?path=.&quot;)</div>
 <div class="line">print(list(wd))</div>
-</div><!-- fragment --><h1>API Documentation and Examples</h1>
+</div><!-- fragment --><p>In the Python extension, the keys of map objects can be accessed as if they were <em>attributes</em>, for convenience. In other words, <code>map.foo</code> is the equivalent to &lsquo;map['foo&rsquo;]<code>, for any key that is also a valid Python identifier - see [Python Attribute Syntax](<a href="https://docs.python.org/3/reference/expressions.html">https://docs.python.org/3/reference/expressions.html</a>#attribute-references). For this reason, the methods of the C++ Nodel Object are implemented as free functions in the</code>nodel<code>namespace in Python - for example,</code>nodel.iter_values<code>as opposed to</code>Object::iter_values<code>. Use</code>dir(nodel)<code>to see the available functions and</code>help(nodel.&lt;function&gt;)` for documentation.</p>
+<h1>API Documentation and Examples</h1>
 <p><a href="https://clutterdesk.github.io/Nodel">Nodel API documentation</a></p>
-<h2>Optional Dependencies</h2>
-<p>TBD</p>
 <h2>Similar Projects</h2>
 <p>See Niels Lohmann project, <a href="https://github.com/nlohmann/json">json</a>. </p>
 </div></div><!-- PageDoc -->
