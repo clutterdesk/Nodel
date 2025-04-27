@@ -18,9 +18,9 @@ class RefMgr
     RefMgr(PyObject* ref) : m_ref{ref}     {}
     ~RefMgr()                              { Py_XDECREF(m_ref); }
 
-    void clear()          { m_ref = nullptr; }
-    PyObject* get() const { return m_ref; }
-    PyObject* get_clear() { PyObject* ref = get(); clear(); return ref; }
+    void clear()            { m_ref = nullptr; }
+    PyObject* get() const   { return m_ref; }
+    PyObject* get_clear()   { PyObject* ref = get(); clear(); return ref; }
     operator PyObject* () const { return m_ref; }  // implicit cast
 
   private:
@@ -191,8 +191,9 @@ PyObject* Support::to_str_repr(const Object& obj, bool repr) {
             const auto& str = std::get<0>(*obj.m_repr.ps);
             if (repr) {
                 std::stringstream ss;
-                ss << std::quoted(str.data());
-                return python::to_str(ss.str());  // TODO: use ss.view() when available
+                ss << std::quoted(str);
+                auto str = ss.str();  // TODO: use ss.view() when available
+                return python::to_str(StringView{str.data(), str.size()});
             } else {
                 return python::to_str(StringView{str.data(), str.size()});
             }

@@ -153,7 +153,7 @@ static PyObject* NodelObject_divmod(PyObject* arg1, PyObject* arg2) {
 static PyObject* NodelObject_power(PyObject* arg1, PyObject* arg2, PyObject* arg3) {
     if (NodelObject_CheckExact(arg3)) {
         RefMgr ref = num_to_py((NodelObject*)arg3);
-        return PyNumber_InPlacePower(arg1, arg2, ref.get());
+        return PyNumber_Power(arg1, arg2, ref.get());
     } else if (NodelObject_CheckExact(arg1)) {
         NodelObject* nd_obj = (NodelObject*)arg1;
         PyObject* val = num_to_py(nd_obj);
@@ -506,7 +506,7 @@ static PyObject* NodelObject_inplace_remainder(PyObject* arg1, PyObject* arg2) {
             }
             case Object::UINT: {
                 if (PyLong_Check(arg2)) {
-                    obj.as<UInt>() -= PyLong_AsLongLong(arg2);
+                    obj.as<UInt>() %= PyLong_AsLongLong(arg2);
                     break;
                 } else if (PyFloat_Check(arg2)) {
                     auto y = PyFloat_AsDouble(arg2);
@@ -520,7 +520,20 @@ static PyObject* NodelObject_inplace_remainder(PyObject* arg1, PyObject* arg2) {
                 break;
             }
             case Object::FLOAT: {
-                obj.as<Float>() -= support.to_double(arg2);
+                if (PyLong_Check(arg2)) {
+                    auto y = PyLong_AsLongLong(arg2);
+                    auto rem = std::remainder(obj.as<Float>(), y);
+                    obj = (rem < 0)? rem + y: rem;
+                    break;
+                } else if (PyFloat_Check(arg2)) {
+                    auto y = PyFloat_AsDouble(arg2);
+                    auto rem = std::remainder(obj.as<UInt>(), y);
+                    obj = (rem < 0)? rem + y: rem;
+                    break;
+                } else {
+                    python::raise_error(PyExc_ValueError, "Invalid argument type");
+                    return NULL;
+                }
                 break;
             }
             default: {
@@ -537,77 +550,17 @@ static PyObject* NodelObject_inplace_remainder(PyObject* arg1, PyObject* arg2) {
 }
 
 static PyObject* NodelObject_inplace_power(PyObject* arg1, PyObject* arg2, PyObject* arg3) {
-    if (NodelObject_CheckExact(arg2)) {
-        RefMgr ref = num_to_py((NodelObject*)arg2);
-        return NodelObject_inplace_power(arg1, ref.get(), arg3);
-    } else if (NodelObject_CheckExact(arg1)) {
-        double d_arg3;
-        if (arg3 != Py_None) {
-            if (NodelObject_CheckExact(arg3)) {
-                RefMgr ref = num_to_py((NodelObject*)arg3);
-                return PyNumber_InPlacePower(arg1, arg2, ref.get());
-            } else if (PyLong_Check(arg3)) {
-                RefMgr ref = PyNumber_Float(arg3);
-                d_arg3 = PyFloat_AsDouble(ref.get());
-            } else {
-                d_arg3 = PyFloat_AsDouble(arg3);
-            }
-        }
-
+    if (NodelObject_CheckExact(arg1)) {
+        PyObject* result = NodelObject_power(arg1, arg2, arg3);
+        if (result == NULL) return NULL;
         auto nd_obj = (NodelObject*)arg1;
-        auto& obj = nd_obj->obj;
-        switch (obj.type()) {
-            case Object::INT: {
-                if (PyLong_Check(arg2)) {
-                    auto val = std::pow(obj.as<Int>(), PyLong_AsLongLong(arg2));
-                    if (arg3 != Py_None) val = std::remainder(val, d_arg3);
-                    obj = val;
-                    break;
-                } else if (PyFloat_Check(arg2)) {
-                    auto val = std::pow(obj.as<Int>(), PyLong_AsDouble(arg2));
-                    if (arg3 != Py_None) val = std::remainder(val, d_arg3);
-                    obj = val;
-                    break;
-                } else {
-                    python::raise_error(PyExc_ValueError, "Invalid argument type");
-                    return NULL;
-                }
-                break;
-            }
-            case Object::UINT: {
-                if (PyLong_Check(arg2)) {
-                    auto val = std::pow(obj.as<UInt>(), PyLong_AsLongLong(arg2));
-                    if (arg3 != Py_None) val = std::remainder(val, d_arg3);
-                    obj = val;
-                    break;
-                } else if (PyFloat_Check(arg2)) {
-                    auto val = std::pow(obj.as<UInt>(), PyLong_AsDouble(arg2));
-                    if (arg3 != Py_None) val = std::remainder(val, d_arg3);
-                    obj = val;
-                    break;
-                } else {
-                    python::raise_error(PyExc_ValueError, "Invalid argument type");
-                    return NULL;
-                }
-                break;
-            }
-            case Object::FLOAT: {
-                auto val = std::pow(obj.as<Float>(), support.to_double(arg2));
-                if (arg3 != Py_None) val = std::remainder(val, d_arg3);
-                obj = val;
-                break;
-            }
-            default: {
-                python::raise_error(PyExc_ValueError, "Invalid operation");
-                return NULL;
-            }
-        }
+        nd_obj->obj = support.to_object(result);
         Py_INCREF(arg1);
         return arg1;
     } else {
-        RefMgr ref = num_to_py((NodelObject*)arg2);
-        return PyNumber_InPlacePower(arg1, ref.get(), arg3);
-    }}
+        return NodelObject_power(arg1, arg2, arg3);
+    }
+}
 
 static PyObject* NodelObject_inplace_lshift(PyObject* arg1, PyObject* arg2) {
     if (NodelObject_CheckExact(arg2)) {
