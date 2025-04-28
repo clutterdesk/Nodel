@@ -1214,6 +1214,11 @@ TEST(Object, SetReplaceInParent) {
     EXPECT_EQ(obj.get("x"_key), "Y");
 }
 
+TEST(Object, Is) {
+    Object obj = json::parse("{'x': [{'u': 1}, {'u': 2}]}");
+    EXPECT_TRUE(obj.get("x[1]"_path).parent().is(obj.get("x"_key)));
+}
+
 TEST(Object, OrderedMapGetKey) {
     Object obj = json::parse("{'x': 'X', 'y': 'Y', 'z': ['Z0', 'Z1']}");
     EXPECT_EQ(obj.get("x"_key).key(), "x"_key);
