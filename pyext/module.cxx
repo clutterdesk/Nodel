@@ -138,7 +138,12 @@ constexpr auto clear_doc =
 static PyObject* mod_clear(PyObject* mod, PyObject* arg) {
     NodelObject* nd_self = as_nodel_object(arg);
     if (nd_self == NULL) return NULL;
-    nd_self->obj.clear();
+    try {
+        nd_self->obj.clear();
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
     Py_RETURN_NONE;
 }
 
@@ -150,7 +155,12 @@ constexpr auto del_from_parent_doc =
 static PyObject* mod_del_from_parent(PyObject* mod, PyObject* arg) {
     NodelObject* nd_self = as_nodel_object(arg);
     if (nd_self == NULL) return NULL;
-    nd_self->obj.del_from_parent();
+    try {
+        nd_self->obj.del_from_parent();
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
     Py_RETURN_NONE;
 }
 
@@ -162,7 +172,12 @@ constexpr auto root_doc =
 static PyObject* mod_root(PyObject* mod, PyObject* arg) {
     NodelObject* nd_self = as_nodel_object(arg);
     if (nd_self == NULL) return NULL;
-    return (PyObject*)wrap(mod, nd_self->obj.root());
+    try {
+        return (PyObject*)wrap(mod, nd_self->obj.root());
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
 }
 
 constexpr auto parent_doc =
@@ -174,7 +189,12 @@ constexpr auto parent_doc =
 static PyObject* mod_parent(PyObject* mod, PyObject* arg) {
     NodelObject* nd_self = as_nodel_object(arg);
     if (nd_self == NULL) return NULL;
-    return (PyObject*)wrap(mod, nd_self->obj.parent());
+    try {
+        return (PyObject*)wrap(mod, nd_self->obj.parent());
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
 }
 
 constexpr auto iter_keys_doc =
@@ -188,7 +208,12 @@ constexpr auto iter_keys_doc =
 "Returns an iterator over the keys of the argument.";
 
 static PyObject* mod_iter_keys(PyObject* mod, PyObject* arg) {
-    return iter_keys(arg);
+    try {
+        return iter_keys(arg);
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
 }
 
 constexpr auto iter_values_doc =
