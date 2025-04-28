@@ -51,18 +51,13 @@ static PyObject* NodelItemIter_iter(PyObject* self) {
 }
 
 static PyObject* NodelItemIter_iter_next(PyObject* self) {
-    DEBUG("1");
     NodelItemIter* nd_self = (NodelItemIter*)self;
-    DEBUG("2");
     if (nd_self->it == nd_self->end) return NULL;  // StopIteration implied
-    DEBUG("3");
     auto item = *nd_self->it;
     RefMgr key = support.to_py(item.first);
     RefMgr val = (PyObject*)NodelObject_wrap(item.second);
-    DEBUG("4");
     PyObject* next = PyTuple_Pack(2, (PyObject*)key, (PyObject*)val);
     ++nd_self->it;
-    DEBUG("5");
     return next;
 }
 
