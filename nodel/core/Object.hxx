@@ -2083,11 +2083,26 @@ inline
 void Object::clear() {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
-        case STR:   return std::get<0>(*m_repr.ps).clear();
-        case LIST:  return std::get<0>(*m_repr.pl).clear();
-        case SMAP:  return std::get<0>(*m_repr.psm).clear();
-        case OMAP:  return std::get<0>(*m_repr.pom).clear();
-        case DSRC:  return m_repr.ds->clear(*this);
+        case STR:   std::get<0>(*m_repr.ps).clear(); break;
+        case LIST: {
+            for (auto& obj : std::get<0>(*m_repr.pl))
+                obj.clear_parent();
+            std::get<0>(*m_repr.pl).clear();
+            break;
+        }
+        case SMAP: {
+            for (auto& item : std::get<0>(*m_repr.psm))
+                item.second.clear_parent();
+            std::get<0>(*m_repr.psm).clear();
+            break;
+        }
+        case OMAP: {
+            for (auto& item : std::get<0>(*m_repr.pom))
+                item.second.clear_parent();
+            std::get<0>(*m_repr.pom).clear();
+            break;
+        }
+        case DSRC:  m_repr.ds->clear(*this); break;
         default:    throw wrong_type(m_fields.repr_ix);
     }
 }
@@ -3245,7 +3260,8 @@ void DataSource::bind(Object& obj) {
 
 inline
 const Object& DataSource::get_cached(const Object& target) const {
-    const_cast<DataSource*>(this)->insure_fully_cached(target); return m_cache;
+    const_cast<DataSource*>(this)->insure_fully_cached(target);
+    return m_cache;
 }
 
 inline
@@ -3421,24 +3437,20 @@ void DataSource::del(const Object& target, const Slice& slice) {
 
 inline
 void DataSource::clear(const Object& target) {
+    if (is_sparse()) throw DataSourceError("Sparse data-sources cannot be cleared.");
+
     Mode mode = resolve_mode();
     if (!(mode & Mode::WRITE)) throw WriteProtect();
-    if (is_sparse() && !(mode & Mode::CLOBBER)) throw ClobberProtect();
 
+    insure_fully_cached(target);
+    m_cache.clear();
     set_unsaved(true);
-    if (is_sparse()) {
-        for (const auto& key : m_cache.iter_keys())
-            m_cache.set(key, Object::DEL);
-    } else {
-        m_cache.clear();
-        m_fully_cached = true;
-    }
 }
 
 inline
 void DataSource::save(const Object& target) {
     if (!(resolve_mode() & Mode::WRITE)) throw WriteProtect();
-    if (m_cache.m_fields.repr_ix == Object::EMPTY) return;
+    if (m_cache.is_empty()) return;
 
     if (m_unsaved) {
         m_write_failed = false;
