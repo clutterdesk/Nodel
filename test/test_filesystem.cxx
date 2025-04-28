@@ -302,3 +302,20 @@ TEST(Filesystem, InvalidCsvFile) {
 TEST(Filesystem, InvalidJsonFile) {
     test_invalid_file("example.json");
 }
+
+TEST(Filesystem, Clear) {
+    Object wd = bind("file://?path=test_data&perm=rw"_uri);
+    EXPECT_FALSE(wd.get("example.csv"_key).is_nil());
+    wd.clear();
+    EXPECT_TRUE(wd.get("example.csv"_key).is_nil());
+    wd.reset();
+    EXPECT_FALSE(wd.get("example.csv"_key).is_nil());
+}
+
+TEST(Filesystem, TooManyPathsInURI) {
+    try {
+        bind("file:///?path=."_uri);
+        FAIL();
+    } catch (NodelException e) {
+    }
+}

@@ -218,9 +218,11 @@ void Directory::configure(const Object& uri) {
     SubDirectory::configure(uri);
 
     auto path = uri.get("path"_key);
-    if (path == nil || path.to_str() == "")
+    auto query_path = uri.get("query.path"_path);
+    if (path.size() > 0 && query_path.size() > 0)
+        throw NodelException("URI specifies path twice");
+    if (query_path.size() > 0)
         path = uri.get("query.path"_path);
-
     if (path != nil) m_path = path.to_str();
 }
 
