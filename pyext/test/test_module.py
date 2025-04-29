@@ -1,5 +1,6 @@
 import math
 import os
+import shutil
 import sys
 import unittest
 import urllib.parse
@@ -100,6 +101,78 @@ class TestModule(unittest.TestCase):
         self.assertTrue('test_module.py' not in wd)
         nd.reset(wd)
         self.assertTrue('test_module.py' in wd)
+
+    def test_reset_key(self):
+        # TODO
+        pass
+
+    def test_save(self):
+        try:
+            path = urllib.parse.quote(os.path.dirname(__file__))
+            wd = nd.bind(f'file://?path={path}&perm=rw')
+            wd.tmp = {}
+            nd.save(wd)
+            wd = nd.bind(f'file://?path={path}&perm=r')
+            self.assertTrue(nd.is_map(wd.tmp))
+        finally:
+            shutil.rmtree(os.path.join(path, 'tmp'))                               
+    
+    def test_save_deep(self):
+        try:
+            path = urllib.parse.quote(os.path.dirname(__file__))
+            wd = nd.bind(f'file://?path={path}&perm=rw')
+            wd.tmp = {}
+            wd.tmp['tea.txt'] = 'FTGFOP'
+            nd.save(wd)
+            wd = nd.bind(f'file://?path={path}&perm=r')
+            self.assertEqual(wd.tmp['tea.txt'], 'FTGFOP')
+        finally:
+            shutil.rmtree(os.path.join(path, 'tmp'))                               
+
+    def test_is_bound(self):
+        path = urllib.parse.quote(os.path.dirname(__file__))
+        wd = nd.bind(f'file://?path={path}&perm=rw')
+        self.assertTrue(nd.is_bound(wd))
+        
+    def test_is_same(self):
+        d = nd.Object({})
+        self.assertTrue(nd.is_same(d, d))
+        
+    def test_is_nil(self):
+        d = nd.Object(None)
+        self.assertTrue(nd.is_nil(d))
+        
+    def test_is_bool(self):
+        d = nd.Object(True)
+        self.assertTrue(nd.is_bool(d))
+        
+    def test_is_int(self):
+        d = nd.Object(sys.maxsize)
+        self.assertTrue(nd.is_int(d))
+
+    def test_is_float(self):
+        d = nd.Object(2.18)
+        self.assertTrue(nd.is_float(d))
+        
+    def test_is_str(self):
+        d = nd.Object('tea')
+        self.assertTrue(nd.is_str(d))
+        
+    def test_is_list(self):
+        d = nd.Object([])
+        self.assertTrue(nd.is_list(d))
+        
+    def test_is_map(self):
+        d = nd.Object({})
+        self.assertTrue(nd.is_map(d))
+        
+    def test_is_native(self):
+        d = nd.Object((1, 2))
+        self.assertTrue(nd.is_native(d))
+        
+    def test_ref_count(self):
+        d = nd.Object([])
+        self.assertEqual(nd.ref_count(d), 1)
         
         
 if __name__ == '__main__':

@@ -1070,6 +1070,7 @@ class DataSource
     void bind(Object& obj);
 
   private:
+    void update_parent_in_cache(const Object&);
     DataSource* copy(const Object& target, Origin origin) const;
     void set(const Object& target, const Object& in_val);
     Object set(const Object& target, const Key& key, const Object& in_val);
@@ -1216,8 +1217,11 @@ Object::Object(Object&& other) : m_fields{other.m_fields} {
     other.m_repr.z = nullptr;
 }
 
+// DataSource ownership transferred
 inline
-Object::Object(DataSourcePtr ptr) : m_repr{ptr}, m_fields{DSRC} {}  // DataSource ownership transferred
+Object::Object(DataSourcePtr ptr) : m_repr{ptr}, m_fields{DSRC} {
+    if (ptr != nullptr) ptr->update_parent_in_cache(*this);
+}
 
 inline
 Object::Object(const ObjectList& list) : m_repr{new IRCList(ObjectList{}, NoParent{})}, m_fields{LIST} {
@@ -3152,9 +3156,8 @@ void Object::save() {
     };
 
     auto tree_range = iter_tree_if(has_data_source, enter_pred);
-    for (const auto& obj : tree_range) {
+    for (const auto& obj : tree_range)
         obj.m_repr.ds->save(obj);
-    }
 }
 
 inline
@@ -3324,6 +3327,14 @@ DataSource::Mode DataSource::resolve_mode() const {
         mode = m_parent.m_repr.ds->resolve_mode();
     }
     return mode;
+}
+
+inline
+void DataSource::update_parent_in_cache(const Object& parent) {
+    if (!m_cache.is_empty() && is_container(m_cache)) {
+        for (auto& obj : m_cache.iter_values())
+            obj.set_parent(parent);
+    }
 }
 
 inline

@@ -1205,6 +1205,14 @@ TEST(Object, GetParentOfEmpty) {
     }
 }
 
+TEST(Object, SetDeepSetParent) {
+    Object root = json::parse("{}");
+    Object subtree = json::parse("{'y': {}}");
+    root.set("x"_key, subtree);
+    EXPECT_TRUE(subtree.parent().is(root));
+    EXPECT_TRUE(subtree["y"_key].parent().is(subtree));
+}
+
 TEST(Object, SetReplaceInParent) {
     Object obj = json::parse("{'x': 'X'}");
     EXPECT_EQ(obj.get("x"_key), "X");

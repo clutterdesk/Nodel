@@ -503,7 +503,10 @@ static PyObject* mod_native(PyObject* mod, PyObject* arg) {
 }
 
 constexpr auto ref_count_doc = \
-    "Returns the reference count of a Nodel Object.\n";
+    "Returns the reference count of a Nodel Object.\n"
+    "Note that this reference count represents the count of references to the underlying\n"
+    "nodel::Object instance, which is independent of the Python reference count for the\n"
+    "associated Python object.\n";
 
 static PyObject* mod_ref_count(PyObject* mod, PyObject* arg) {
     NodelObject* nd_self = as_nodel_object(arg);

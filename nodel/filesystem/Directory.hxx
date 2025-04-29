@@ -177,14 +177,14 @@ void SubDirectory::write(const Object& target, const Object& cache) {
         if (!has_data_source(item.second)) {
             auto& key = item.first;
             auto obj = item.second;
-            auto item_path = fpath / key.to_str();
-            auto p_ds = r_reg->create_if_defined(target, item_path, DataSource::Origin::MEMORY);
-            if (p_ds == nullptr && looks_like_directory(r_reg, item_path, obj))
-                p_ds = r_reg->create(target, item_path, DataSource::Origin::MEMORY, true);
+            auto item_fpath = fpath / key.to_str();
+            auto p_ds = r_reg->create_if_defined(target, item_fpath, DataSource::Origin::MEMORY);
+            if (p_ds == nullptr && looks_like_directory(r_reg, item_fpath, obj))
+                p_ds = r_reg->create(target, item_fpath, DataSource::Origin::MEMORY, true);
 
             if (p_ds == nullptr) {
                 std::stringstream ss;
-                ss << "No association for object with path: " << item_path.string();
+                ss << "No association for object with path: " << item_fpath.string();
                 report_write_error(ss.str());
                 return;
             }
