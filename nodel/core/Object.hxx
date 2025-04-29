@@ -71,7 +71,7 @@ class ItemIterator;
 class KeyRange;
 class ValueRange;
 class ItemRange;
-class LineRange;
+class AncestorRange;
 
 struct NoPredicate {};
 using Predicate = std::function<bool(const Object&)>;
@@ -354,7 +354,7 @@ class Object
     ItemRange iter_items(const Slice&) const;
     ValueRange iter_values(const Slice&) const;
 
-    LineRange iter_line() const;
+    AncestorRange iter_ancestor() const;
 
     TreeRange<Object, NoPredicate, NoPredicate> iter_tree() const;
 
@@ -484,7 +484,7 @@ class Object
   friend class KeyIterator;
   friend class ValueIterator;
   friend class ItemIterator;
-  friend class LineRange;
+  friend class AncestorRange;
   friend class KeyRange;
   friend class ValueRange;
   friend class ItemRange;
@@ -2937,23 +2937,23 @@ DataSourceType* Object::data_source() const {
 }
 
 
-class LineIterator
+class AncestorIterator
 {
   public:
-    LineIterator(const Object& object) : m_object{object} {}
-    LineIterator(Object&& object) : m_object{std::forward<Object>(object)} {}
+    AncestorIterator(const Object& object) : m_object{object} {}
+    AncestorIterator(Object&& object) : m_object{std::forward<Object>(object)} {}
 
-    LineIterator(const LineIterator&) = default;
-    LineIterator(LineIterator&&) = default;
+    AncestorIterator(const AncestorIterator&) = default;
+    AncestorIterator(AncestorIterator&&) = default;
 
-    LineIterator& operator ++ () {
+    AncestorIterator& operator ++ () {
         m_object.refer_to(m_object.parent());
         if (m_object == nil) m_object.release();
         return *this;
     }
     Object operator * () const { return m_object; }
-    bool operator == (const LineIterator& other) const {
-        // m_object may be empty - see LineRange::end
+    bool operator == (const AncestorIterator& other) const {
+        // m_object may be empty - see AncestorRange::end
         if (m_object.is_empty()) return other.m_object.is_empty();
         return !other.m_object.is_empty() && m_object.is(other.m_object);
     }
@@ -2962,19 +2962,19 @@ class LineIterator
 };
 
 
-class LineRange
+class AncestorRange
 {
   public:
-    LineRange(const Object& object) : m_object{object} {}
-    LineIterator begin() const { return m_object; }
-    LineIterator end() const   { return Object{}; }
+    AncestorRange(const Object& object) : m_object{object} {}
+    AncestorIterator begin() const { return m_object; }
+    AncestorIterator end() const   { return Object{}; }
   private:
     Object m_object;
 };
 
 /// Iterate this Object and its ancestors
 inline
-LineRange Object::iter_line() const {
+AncestorRange Object::iter_ancestor() const {
     return *this;
 }
 
@@ -3609,7 +3609,7 @@ class Object::Subscript
     KeyRange iter_keys() const     { return resolve().iter_keys(); }
     ItemRange iter_items() const   { return resolve().iter_items(); }
     ValueRange iter_values() const { return resolve().iter_values(); }
-    LineRange iter_line() const    { return resolve().iter_line(); }
+    AncestorRange iter_ancestor() const    { return resolve().iter_ancestor(); }
 
     KeyRange iter_keys(const Slice& slice) const     { return resolve().iter_keys(slice); }
     ItemRange iter_items(const Slice& slice) const   { return resolve().iter_items(slice); }

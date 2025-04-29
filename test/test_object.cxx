@@ -1344,7 +1344,7 @@ TEST(Object, KeyOfWrongType) {
 TEST(Object, LineageRange) {
     Object obj = json::parse(R"({"a": {"b": ["Assam", "Ceylon"]}})");
     ObjectList ancestors;
-    for (auto anc : obj.get("a"_key).get("b"_key).get(1).iter_line())
+    for (auto anc : obj.get("a"_key).get("b"_key).get(1).iter_ancestor())
         ancestors.push_back(anc);
     EXPECT_EQ(ancestors.size(), 4UL);
     EXPECT_TRUE(ancestors[0].is(obj.get("a"_key).get("b"_key).get(1)));

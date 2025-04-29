@@ -219,6 +219,23 @@ TEST(Filesystem, UpdateJsonFile) {
     EXPECT_EQ(test_data.get(new_file_name).get("tea"_key), "Assam, thanks!");
 }
 
+TEST(Filesystem, CreateDirectoryWithJsonFile) {
+    std::string new_file_name = "new_file.json";
+    auto wd = std::filesystem::current_path() / "test_data";
+
+    Finally cleanup{ [&wd, &new_file_name] () { std::filesystem::remove(wd / new_file_name); } };
+
+    Object test_data = new Directory(new Registry{default_registry()}, wd, DataSource::Origin::SOURCE);
+    test_data["tmp"_key] = json::parse("{'tea.txt': 'FTGFOP'}");
+    test_data.save();
+
+    Object test_data_2 = new Directory(new Registry{default_registry()}, wd, DataSource::Origin::SOURCE);
+    EXPECT_EQ(test_data_2.get("tmp"_key).get("tea.txt"_key), "FTGFOP");
+
+    test_data.reset();
+    EXPECT_EQ(test_data.get("tmp"_key).get("tea.txt"_key), "FTGFOP");
+}
+
 TEST(Filesystem, CopyFileToAnotherDirectory) {
     auto wd = std::filesystem::current_path() / "test_data";
 
