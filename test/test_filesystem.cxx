@@ -219,7 +219,7 @@ TEST(Filesystem, UpdateJsonFile) {
     EXPECT_EQ(test_data.get(new_file_name).get("tea"_key), "Assam, thanks!");
 }
 
-TEST(Filesystem, CreateDirectoryWithJsonFile1) {
+TEST(Filesystem, SaveNewDeep1) {
     auto path = std::filesystem::current_path() / "test_data";
 
     Finally cleanup{ [&path] () { std::filesystem::remove_all(path / "tmp"); } };
@@ -237,7 +237,7 @@ TEST(Filesystem, CreateDirectoryWithJsonFile1) {
     EXPECT_EQ(test_data.get("tmp"_key).get("tea.txt"_key), "FTGFOP");
 }
 
-TEST(Filesystem, CreateDirectoryWithJsonFile2) {
+TEST(Filesystem, SaveNewDeep2) {
     auto path = std::filesystem::current_path() / "test_data";
 
     Finally cleanup{ [&path] () { std::filesystem::remove_all(path / "tmp"); } };
@@ -253,6 +253,24 @@ TEST(Filesystem, CreateDirectoryWithJsonFile2) {
 
     test_data.reset();
     EXPECT_EQ(test_data.get("tmp"_key).get("tea.txt"_key), "FTGFOP");
+}
+
+TEST(Filesystem, SaveNewDeeper) {
+    auto path = std::filesystem::current_path() / "test_data";
+
+    Finally cleanup{ [&path] () { std::filesystem::remove_all(path / "tmp"); } };
+
+    Object test_data = nodel::bind(fmt::format("file://?path={}&perm=rw", path.string()));
+    test_data.set("tmp"_key, json::parse("{'dir1': {'tea.txt': 'FTGFOP'}, 'dir2': {'tea.txt': 'SFTGFOP'}}"));
+    test_data.save();
+
+    Object test_data_2 = nodel::bind(fmt::format("file://?path={}&perm=r", path.string()));
+    EXPECT_EQ(test_data_2.get("tmp.dir1['tea.txt']"_path), "FTGFOP");
+    EXPECT_EQ(test_data_2.get("tmp.dir2['tea.txt']"_path), "SFTGFOP");
+
+    test_data.reset();
+    EXPECT_EQ(test_data.get("tmp.dir1['tea.txt']"_path), "FTGFOP");
+    EXPECT_EQ(test_data.get("tmp.dir2['tea.txt']"_path), "SFTGFOP");
 }
 
 TEST(Filesystem, CopyFileToAnotherDirectory) {

@@ -106,7 +106,7 @@ class TestModule(unittest.TestCase):
         # TODO
         pass
 
-    def test_save(self):
+    def test_save_deep_1(self):
         try:
             path = urllib.parse.quote(os.path.dirname(__file__))
             wd = nd.bind(f'file://?path={path}&perm=rw')
@@ -117,7 +117,7 @@ class TestModule(unittest.TestCase):
         finally:
             shutil.rmtree(os.path.join(path, 'tmp'))                               
     
-    def test_save_deep(self):
+    def test_save_deep_2(self):
         try:
             path = urllib.parse.quote(os.path.dirname(__file__))
             wd = nd.bind(f'file://?path={path}&perm=rw')
@@ -126,6 +126,24 @@ class TestModule(unittest.TestCase):
             nd.save(wd)
             wd = nd.bind(f'file://?path={path}&perm=r')
             self.assertEqual(wd.tmp['tea.txt'], 'FTGFOP')
+        finally:
+            shutil.rmtree(os.path.join(path, 'tmp'))                               
+
+    def test_save_deeper(self):
+        try:
+            path = urllib.parse.quote(os.path.dirname(__file__))
+            wd = nd.bind(f'file://?path={path}&perm=rw')
+            wd.tmp = {
+                'culinary': {
+                    'tea.json': {'country': 'India', 'region': 'Assam', 'designation': 'FTGFOP'},
+                    'vegetable.txt': 'beets'
+                 },
+            }
+            nd.save(wd)
+            wd = nd.bind(f'file://?path={path}&perm=r')
+            self.assertTrue(nd.is_map(wd.tmp))
+            self.assertEqual(wd.tmp.culinary['vegetable.txt'], 'beets')
+            self.assertEqual(wd.tmp.culinary['tea.json'].country, 'India')
         finally:
             shutil.rmtree(os.path.join(path, 'tmp'))                               
 
