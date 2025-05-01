@@ -1,0 +1,17 @@
+/DebugTest/
+/Debug/
+/DebugTest32/
+/FindExample/
+/pyext/dist/
+/include/nodel/parser/toml.h
+/BasicExample/
+/zExRocksDB/
+/zExBasic/
+/zExFind/
+/Valgrind/
+/Test LCS/
+/DebugTest_GCC13/
+/build/
+**/__pycache__
+**/.DS_Store
+**/.settings
