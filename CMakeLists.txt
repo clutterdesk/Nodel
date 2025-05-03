@@ -71,11 +71,7 @@ set(NODEL_WFLAGS
 # Dependency: ZipLib (LOCAL, statically linked)
 #----------------------------------------------------------------------------
 add_custom_target(nodel_ziplib
-                  COMMAND ${CMAKE_COMMAND} -E env
-                          AR=${CMAKE_AR}
-                          CC=${CMAKE_C_COMPILER}
-                          CXX=${CMAKE_CXX_COMPILER}
-                          make Bin/libziplib.a -j ${CMAKE_BUILD_PARALLEL_LEVEL}
+                  COMMAND make Bin/libziplib.a -j ${CMAKE_BUILD_PARALLEL_LEVEL}
                   COMMENT "Build ZipLib static library"
                   WORKING_DIRECTORY ${Nodel_SOURCE_DIR}/deps/ziplib)
 
