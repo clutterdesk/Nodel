@@ -394,9 +394,6 @@ class Object
     template <typename T>
     T& as() requires std::is_same<T, String>::value;
 
-//    template <typename T>
-//    T as() const requires std::is_same<T, ObjectList>::value;
-
     template <typename T>
     T& as();
 
