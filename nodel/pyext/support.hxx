@@ -18,6 +18,17 @@ class RefMgr
     RefMgr(PyObject* ref) : m_ref{ref}     {}
     ~RefMgr()                              { Py_XDECREF(m_ref); }
 
+    RefMgr(const RefMgr&) = delete;
+    RefMgr(RefMgr&&) = delete;
+    RefMgr& operator = (const RefMgr& other) = delete;
+    RefMgr& operator = (RefMgr&& other) = delete;
+
+    RefMgr& operator = (PyObject* po) {
+        Py_XDECREF(m_ref);
+        m_ref = po;
+        return *this;
+    }
+
     void clear()            { m_ref = nullptr; }
     PyObject* get() const   { return m_ref; }
     PyObject* get_clear()   { PyObject* ref = get(); clear(); return ref; }
@@ -173,7 +184,7 @@ PyObject* Support::to_str(const Key& key) {
             return python::to_str(str);
         }
         default: {
-            PyErr_SetString(PyExc_ValueError, "Invalid nodel::Key type");
+            raise_type_error(key);
             return NULL;
         }
     }
@@ -200,14 +211,17 @@ PyObject* Support::to_str_repr(const Object& obj, bool repr) {
         }
         case Object::LIST:  [[fallthrough]];
         case Object::SMAP:  [[fallthrough]];
-        case Object::OMAP:  return python::to_str(obj.to_json());
+        case Object::OMAP: {
+            auto str = obj.to_json();
+            return python::to_str(StringView{str.data(), str.size()});
+        }
         case Object::ANY:   return repr? PyObject_Repr(obj.as<PyOpaque>().m_po): PyObject_Str(obj.as<PyOpaque>().m_po);
         case Object::DSRC:  {
-            if (repr) python::to_str(const_cast<DataSourcePtr>(obj.m_repr.ds)->to_json(obj));
+            if (repr) return python::to_str(const_cast<DataSourcePtr>(obj.m_repr.ds)->to_json(obj));
             else return python::to_str(const_cast<DataSourcePtr>(obj.m_repr.ds)->to_str(obj));
         }
         default: {
-            PyErr_SetString(PyExc_ValueError, "Invalid nodel::Object type");
+            raise_type_error(obj);
             return NULL;
         }
     }
@@ -240,7 +254,7 @@ PyObject* Support::to_py(const Key& key) {
             return python::to_str(str);
         }
         default: {
-            PyErr_SetString(PyExc_ValueError, "Invalid nodel::Key type");
+            raise_type_error(key);
             return NULL;
         }
     }
@@ -280,7 +294,7 @@ PyObject* Support::to_py(const Object& obj) {
         case Object::OMAP:
         case Object::SMAP:
         default: {
-            PyErr_SetString(PyExc_ValueError, "Invalid nodel::Key type");
+            raise_type_error(obj);
             return NULL;
         }
     }
