@@ -108,9 +108,11 @@ Ref<Registry> get_registry(const Object& obj) {
 inline
 std::filesystem::path path(const Object& obj) {
     auto head_anc = find_fs_root(obj);
-    assert (!head_anc.is_empty());
+    if (head_anc.is_empty()) return {};
 
     auto p_dsrc = head_anc.data_source<Directory>();
+    if (p_dsrc == nullptr) return {};
+
     std::filesystem::path fpath = p_dsrc->path();
 
     for (auto& key : obj.path(head_anc.parent()))

@@ -41,6 +41,17 @@ TEST(Filesystem, IsFile) {
     EXPECT_TRUE(is_file(test_data.get("more"_key).get("example.csv"_key)));
 }
 
+TEST(Filesystem, PathOfBoundObject) {
+    auto path = std::filesystem::current_path() / "test_data";
+    Object obj = new Directory(new Registry{default_registry()}, path, DataSource::Origin::SOURCE);
+    EXPECT_EQ(filesystem::path(obj), path);
+}
+
+TEST(Filesystem, PathOfUnboundObject) {
+    Object obj = "{}"_json;
+    EXPECT_TRUE(filesystem::path(obj).empty());
+}
+
 TEST(Filesystem, VisitOnlyFiles) {
     auto path = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new Registry{default_registry()}, path, DataSource::Origin::SOURCE);
