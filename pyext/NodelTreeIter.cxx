@@ -43,13 +43,23 @@ static PyObject* NodelTreeIter_repr(PyObject* arg) {
 }
 
 static PyObject* NodelTreeIter_iter(PyObject* self) {
+    Py_INCREF(self);
     return self;
 }
 
 static PyObject* NodelTreeIter_iter_next(PyObject* self) {
     NodelTreeIter* nd_self = (NodelTreeIter*)self;
     if (nd_self->it == nd_self->end) return NULL;  // StopIteration implied
-    PyObject* next = (PyObject*)NodelObject_wrap(*nd_self->it);
+
+    PyObject* next = nullptr;
+    auto value = *nd_self->it;
+    if (value.type() == nodel::Object::ANY) {
+        next = value.as<nodel::python::PyOpaque>().m_po;
+        Py_INCREF(next);
+    } else {
+        next = (PyObject*)NodelObject_wrap(value);
+    }
+
     ++nd_self->it;
     return next;
 }

@@ -47,6 +47,7 @@ static PyObject* NodelItemIter_repr(PyObject* arg) {
 }
 
 static PyObject* NodelItemIter_iter(PyObject* self) {
+    Py_INCREF(self);
     return self;
 }
 
@@ -54,9 +55,18 @@ static PyObject* NodelItemIter_iter_next(PyObject* self) {
     NodelItemIter* nd_self = (NodelItemIter*)self;
     if (nd_self->it == nd_self->end) return NULL;  // StopIteration implied
     auto item = *nd_self->it;
+
     RefMgr key = support.to_py(item.first);
-    RefMgr val = (PyObject*)NodelObject_wrap(item.second);
-    PyObject* next = PyTuple_Pack(2, (PyObject*)key, (PyObject*)val);
+    PyObject* next = nullptr;
+
+    auto& value = item.second;
+    if (value.type() == Object::ANY) {
+        next = PyTuple_Pack(2, (PyObject*)key, value.as<python::PyOpaque>().m_po);
+    } else {
+        RefMgr val((PyObject*)NodelObject_wrap(item.second));
+        next = PyTuple_Pack(2, (PyObject*)key, (PyObject*)val);
+    }
+
     ++nd_self->it;
     return next;
 }

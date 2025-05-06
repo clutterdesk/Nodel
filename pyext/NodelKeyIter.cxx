@@ -46,6 +46,7 @@ static PyObject* NodelKeyIter_repr(PyObject* arg) {
 }
 
 static PyObject* NodelKeyIter_iter(PyObject* self) {
+    Py_INCREF(self);
     return self;
 }
 

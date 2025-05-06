@@ -45,13 +45,23 @@ static PyObject* NodelValueIter_repr(PyObject* arg) {
 }
 
 static PyObject* NodelValueIter_iter(PyObject* self) {
+    Py_INCREF(self);
     return self;
 }
 
 static PyObject* NodelValueIter_iter_next(PyObject* self) {
     NodelValueIter* nd_self = (NodelValueIter*)self;
     if (nd_self->it == nd_self->end) return NULL;  // StopIteration implied
-    PyObject* next = (PyObject*)NodelObject_wrap(*nd_self->it);
+
+    PyObject* next = nullptr;
+    auto& value = *nd_self->it;
+    if (value.type() == Object::ANY) {
+        next = value.as<python::PyOpaque>().m_po;
+        Py_INCREF(next);
+    } else {
+        next = (PyObject*)NodelObject_wrap(value);
+    }
+
     ++nd_self->it;
     return next;
 }
