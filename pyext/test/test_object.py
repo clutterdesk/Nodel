@@ -211,8 +211,14 @@ class TestObject(unittest.TestCase):
             pass
         x = X()
         list = nd.Object([x, x])
-        self.assertIs(nd.native(list[0]), x)
-        self.assertIs(nd.native(list[1]), x)
+        self.assertIs(list[0], x)
+        self.assertIs(list[1], x)
+
+    def test_list_del_subscript(self):
+        list = nd.Object(['X', 'Y'])
+        del list[1]
+        self.assertEqual(len(list), 1)
+        self.assertEqual(list[0], 'X')
 
     def test_map_len(self):
         self.assertEqual(len(nd.Object({'x': 1, 'y': 2, 'z': 3})), 3)
@@ -238,8 +244,22 @@ class TestObject(unittest.TestCase):
             pass
         x = X()
         map = nd.Object({'x': x})
-        self.assertIs(nd.native(map.x), x)
+        self.assertIs(map.x, x)
 
+    def test_map_del_subscript(self):
+        map = nd.Object({'x': 'X', 'y': 'Y'})
+        del map['y']
+        self.assertEqual(len(map), 1)
+        self.assertEqual(map.x, 'X')
+        self.assertFalse('y' in map)
+
+    def test_map_del_attr(self):
+        map = nd.Object({'x': 'X', 'y': 'Y'})
+        del map.y
+        self.assertEqual(len(map), 1)
+        self.assertEqual(map.x, 'X')
+        self.assertFalse('y' in map)
+        
         
 if __name__ == '__main__':
     unittest.main()

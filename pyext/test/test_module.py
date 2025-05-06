@@ -147,6 +147,11 @@ class TestModule(unittest.TestCase):
         finally:
             shutil.rmtree(os.path.join(path, 'tmp'))                               
 
+    def test_fpath(self):
+        path = urllib.parse.quote(os.path.dirname(__file__))
+        wd = nd.bind(f'file://?path={path}&perm=rw')
+        self.assertEqual(nd.fpath(wd), path)
+
     def test_is_bound(self):
         path = urllib.parse.quote(os.path.dirname(__file__))
         wd = nd.bind(f'file://?path={path}&perm=rw')
@@ -191,7 +196,15 @@ class TestModule(unittest.TestCase):
     def test_ref_count(self):
         d = nd.Object([])
         self.assertEqual(nd.ref_count(d), 1)
-        
+
+    def test_bind_non_existing(self):
+        wd = nd.bind('file://?path=FDKJSKJSD002399')
+        try:
+            list(wd)
+            self.fail()
+        except:
+            pass
+
         
 if __name__ == '__main__':
     unittest.main()
