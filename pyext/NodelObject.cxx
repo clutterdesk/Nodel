@@ -1006,7 +1006,15 @@ static PyObject* NodelObject_mp_subscript(PyObject* self, PyObject* key) {
         } else {
             auto nd_key = support.to_key(key);
             if (!require_subscript(self_obj, nd_key)) return NULL;
-            return (PyObject*)NodelObject_wrap(self_obj.get(nd_key));
+
+            auto value = self_obj.get(nd_key);
+            if (value.type() == Object::ANY) {
+                auto po = value.as<python::PyOpaque>().m_po;
+                Py_INCREF(po);
+                return po;
+            } else {
+                return (PyObject*)NodelObject_wrap(value);
+            }
         }
     } catch (const NodelException& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
@@ -1222,7 +1230,13 @@ static PyObject* NodelObject_getattro(PyObject* self, PyObject* name) {
     try {
         Object attr_value = self_obj.get(support.to_key(name));
         if (attr_value.is_nil()) Py_RETURN_NONE;
-        return (PyObject*)NodelObject_wrap(attr_value);
+        if (attr_value.type() == Object::ANY) {
+            auto po = attr_value.as<python::PyOpaque>().m_po;
+            Py_INCREF(po);
+            return po;
+        } else {
+            return (PyObject*)NodelObject_wrap(attr_value);
+        }
     } catch (const WrongType& ex) {
         python::raise_type_error(self_obj);
     } catch (const std::exception& ex) {
@@ -1261,10 +1275,15 @@ static int NodelObject_setattro(PyObject* self, PyObject* name, PyObject* val) {
 static PyObject* NodelObject_iter(PyObject* self) {
     NodelObject* nd_self = (NodelObject*)self;
     Object& self_obj = nd_self->obj;
-    if (is_map(self_obj)) {
-        return iter_keys(self);
-    } else {
-        return iter_values(self);
+    try {
+        if (is_map(self_obj)) {
+            return iter_keys(self);
+        } else {
+            return iter_values(self);
+        }
+    } catch (const std::exception& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
     }
 }
 
