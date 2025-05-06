@@ -887,13 +887,13 @@ $(function(){initNavTree('_object_8hxx_source.html',''); initResizable(true); })
 <div class="line"><a id="l00898" name="l00898"></a><span class="lineno">  898</span>    <span class="keyword">enum class</span> Origin { SOURCE, MEMORY };  <span class="comment">// SOURCE -&gt; created while reading source, MEMORY -&gt; created by program</span></div>
 <div class="line"><a id="l00899" name="l00899"></a><span class="lineno">  899</span>    <span class="keyword">enum class</span> Multilevel { NO, YES };</div>
 <div class="line"><a id="l00900" name="l00900"></a><span class="lineno">  900</span> </div>
-<div class="line"><a id="l00901" name="l00901"></a><span class="lineno">  901</span>    <span class="keyword">struct </span>Mode : <span class="keyword">public</span> Flags&lt;uint8_t&gt; {</div>
+<div class="line"><a id="l00901" name="l00901"></a><span class="lineno">  901</span>    <span class="keyword">struct </span>Mode : <span class="keyword">public</span> <a class="code hl_struct" href="struct_flags.html" title="License:   Apache License v2.0">Flags</a>&lt;uint8_t&gt; {</div>
 <div class="line"><a id="l00902" name="l00902"></a><span class="lineno">  902</span>        FLAG8 READ = 1;</div>
 <div class="line"><a id="l00903" name="l00903"></a><span class="lineno">  903</span>        FLAG8 WRITE = 2;</div>
 <div class="line"><a id="l00904" name="l00904"></a><span class="lineno">  904</span>        FLAG8 CLOBBER = 4;</div>
 <div class="line"><a id="l00905" name="l00905"></a><span class="lineno">  905</span>        FLAG8 ALL = 7;</div>
 <div class="line"><a id="l00906" name="l00906"></a><span class="lineno">  906</span>        FLAG8 INHERIT = 8;</div>
-<div class="line"><a id="l00907" name="l00907"></a><span class="lineno">  907</span>        Mode(Flags&lt;uint8_t&gt; flags) : Flags&lt;uint8_t&gt;(flags) {}</div>
+<div class="line"><a id="l00907" name="l00907"></a><span class="lineno">  907</span>        Mode(<a class="code hl_struct" href="struct_flags.html" title="License:   Apache License v2.0">Flags&lt;uint8_t&gt;</a> flags) : <a class="code hl_struct" href="struct_flags.html" title="License:   Apache License v2.0">Flags&lt;uint8_t&gt;</a>(flags) {}</div>
 <div class="line"><a id="l00908" name="l00908"></a><span class="lineno">  908</span>        <span class="keyword">operator</span> int ()<span class="keyword"> const </span>{ <span class="keywordflow">return</span> m_value; }</div>
 <div class="line"><a id="l00909" name="l00909"></a><span class="lineno">  909</span>    };</div>
 <div class="line"><a id="l00910" name="l00910"></a><span class="lineno">  910</span></div>

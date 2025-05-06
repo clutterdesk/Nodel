@@ -536,7 +536,7 @@ Protected Attributes</h2></td></tr>
 <li>The <code>get</code>, <code>set</code>, and <code>del</code> methods do not accept <code>const char*</code> strings, since this would be the most common usage, and (to my knowledge) can't be optimized since it's not possible to know whether a <code>const char*</code> is a read-only literal.</li>
 <li>Compiling with <code>NODEL_ARCH=32</code> on 32-bit architectures will reduce the size of <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a> instances from 16-bytes to 8-bytes. </li>
 </ul>
-<dl class="section examples"><dt>Examples</dt><dd><a class="el" href="examples_2find_8cxx-example.html#_a0">examples/find.cxx</a>, and <a class="el" href="examples_2rocksdb_8cxx-example.html#_a1">examples/rocksdb.cxx</a>.</dd>
+<dl class="section examples"><dt>Examples</dt><dd><a class="el" href="examples_2find_8cxx-example.html#_a0">examples/find.cxx</a>, and <a class="el" href="examples_2rocksdb_8cxx-example.html#_a2">examples/rocksdb.cxx</a>.</dd>
 </dl>
 
 <p class="definition">Definition at line <a class="el" href="_object_8hxx_source.html#l00143">143</a> of file <a class="el" href="_object_8hxx_source.html">Object.hxx</a>.</p>
@@ -1275,7 +1275,7 @@ Protected Attributes</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Returns a range-like object over container Keys. </p>
-<dl class="section examples"><dt>Examples</dt><dd><a class="el" href="examples_2rocksdb_8cxx-example.html#a5">examples/rocksdb.cxx</a>.</dd>
+<dl class="section examples"><dt>Examples</dt><dd><a class="el" href="examples_2rocksdb_8cxx-example.html#a7">examples/rocksdb.cxx</a>.</dd>
 </dl>
 
 <p class="definition">Definition at line <a class="el" href="_object_8hxx_source.html#l02132">2132</a> of file <a class="el" href="_object_8hxx_source.html">Object.hxx</a>.</p>
@@ -2313,7 +2313,7 @@ requires is_byvalue&lt;T&gt;</div>
   </table>
   </dd>
 </dl>
-<dl class="section examples"><dt>Examples</dt><dd><a class="el" href="examples_2rocksdb_8cxx-example.html#a2">examples/rocksdb.cxx</a>.</dd>
+<dl class="section examples"><dt>Examples</dt><dd><a class="el" href="examples_2rocksdb_8cxx-example.html#a3">examples/rocksdb.cxx</a>.</dd>
 </dl>
 
 <p class="definition">Definition at line <a class="el" href="_object_8hxx_source.html#l01876">1876</a> of file <a class="el" href="_object_8hxx_source.html">Object.hxx</a>.</p>
@@ -3037,7 +3037,7 @@ template&lt;class DataSourceType&gt; </div>
 <li>Only Objects that whose <em>unsaved</em> bit is set will be saved. The <em>unsaved</em> bit is set whenever a method is called that modifies the <a class="el" href="classnodel_1_1_object.html" title="Nodel dynamic object.">Object</a>'s data.</li>
 <li>Use the <a class="el" href="#a898b61cee9f2be49d78ab162c637e8ed">Object::needs_saving</a> method to set the <em>unsaved</em> bit, if you modify string data by reference, as returned by the <a class="el" href="#aadb17c62d710d33819e05be73cdf767a">Object::as&lt;String&gt;</a> method. </li>
 </ul>
-<dl class="section examples"><dt>Examples</dt><dd><a class="el" href="examples_2rocksdb_8cxx-example.html#a3">examples/rocksdb.cxx</a>.</dd>
+<dl class="section examples"><dt>Examples</dt><dd><a class="el" href="examples_2rocksdb_8cxx-example.html#a5">examples/rocksdb.cxx</a>.</dd>
 </dl>
 
 <p class="definition">Definition at line <a class="el" href="_object_8hxx_source.html#l03149">3149</a> of file <a class="el" href="_object_8hxx_source.html">Object.hxx</a>.</p>
@@ -3060,7 +3060,7 @@ template&lt;class DataSourceType&gt; </div>
         </tr>
       </table>
 </div><div class="memdoc">
-<dl class="section examples"><dt>Examples</dt><dd><a class="el" href="examples_2rocksdb_8cxx-example.html#a4">examples/rocksdb.cxx</a>.</dd>
+<dl class="section examples"><dt>Examples</dt><dd><a class="el" href="examples_2rocksdb_8cxx-example.html#a6">examples/rocksdb.cxx</a>.</dd>
 </dl>
 
 <p class="definition">Definition at line <a class="el" href="_object_8hxx_source.html#l03185">3185</a> of file <a class="el" href="_object_8hxx_source.html">Object.hxx</a>.</p>

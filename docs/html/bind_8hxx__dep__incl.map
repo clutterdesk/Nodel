@@ -1,5 +1,19 @@
 <map id="nodel/core/bind.hxx" name="nodel/core/bind.hxx">
-<area shape="rect" id="Node000001" title="License: &#160;&#160;Apache License v2.0" alt="" coords="5,5,140,31"/>
-<area shape="rect" id="Node000002" href="$core_8hxx_source.html" title=" " alt="" coords="19,79,126,105"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="75,46,75,79,70,79,70,46"/>
+<area shape="rect" id="Node000001" title="License: &#160;&#160;Apache License v2.0" alt="" coords="456,5,591,31"/>
+<area shape="rect" id="Node000002" href="$core_8hxx_source.html" title=" " alt="" coords="400,79,506,105"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="503,44,467,80,463,77,499,40"/>
+<area shape="rect" id="Node000009" href="$test__query_8cxx.html" title="License: &#160;&#160;Apache License v2.0" alt="" coords="530,79,661,105"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="548,40,585,77,581,80,544,44"/>
+<area shape="rect" id="Node000003" href="$main_8cxx.html" title="License: &#160;&#160;Apache License v2.0" alt="" coords="5,153,106,178"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="385,108,117,155,106,157,105,152,116,150,384,102"/>
+<area shape="rect" id="Node000004" href="$test__filesystem_8cxx.html" title="License: &#160;&#160;Apache License v2.0" alt="" coords="130,153,291,178"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="398,112,252,155,251,150,397,107"/>
+<area shape="rect" id="Node000005" href="$test__kvdb_8cxx.html" title="License: &#160;&#160;Apache License v2.0" alt="" coords="315,153,444,178"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="432,117,394,154,390,150,428,114"/>
+<area shape="rect" id="Node000006" href="$test__lcs_8cxx.html" title="License: &#160;&#160;Apache License v2.0" alt="" coords="468,153,587,178"/>
+<area shape="poly" id="edge5_Node000002_Node000006" title=" " alt="" coords="478,114,517,150,513,154,475,117"/>
+<area shape="rect" id="Node000007" href="$test__object_8cxx.html" title="License: &#160;&#160;Apache License v2.0" alt="" coords="611,153,748,178"/>
+<area shape="poly" id="edge6_Node000002_Node000007" title=" " alt="" coords="507,107,642,150,640,155,505,112"/>
+<area shape="rect" id="Node000008" href="$test__zip_8cxx.html" title="License: &#160;&#160;Apache License v2.0" alt="" coords="772,153,891,178"/>
+<area shape="poly" id="edge7_Node000002_Node000008" title=" " alt="" coords="522,103,773,150,772,156,521,109"/>
 </map>

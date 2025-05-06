@@ -131,11 +131,11 @@ $(function(){initNavTree('_d_b_manager_8hxx_source.html',''); initResizable(true
 <div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span>    <span class="keyword">class </span>DB</div>
 <div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span>    {</div>
 <div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span>      <span class="keyword">public</span>:</div>
-<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>        DB(db::Options options, db::Status status, db::DB* ptr) : m_options{options}, m_status{status}, m_ptr{ptr}, m_ref_count{1} {}</div>
+<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>        DB(<a class="code hl_struct" href="structnodel_1_1_data_source_1_1_options.html" title="Options common to all DataSource implementations.">db::Options</a> options, db::Status status, db::DB* ptr) : m_options{options}, m_status{status}, m_ptr{ptr}, m_ref_count{1} {}</div>
 <div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>        ~DB() { <span class="keyword">delete</span> m_ptr; }</div>
 <div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span> </div>
 <div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span>      <span class="keyword">public</span>:</div>
-<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>        db::Options m_options;</div>
+<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>        <a class="code hl_struct" href="structnodel_1_1_data_source_1_1_options.html" title="Options common to all DataSource implementations.">db::Options</a> m_options;</div>
 <div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>        db::Status m_status;</div>
 <div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span>        db::DB* m_ptr;</div>
 <div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>        refcnt_t m_ref_count;</div>

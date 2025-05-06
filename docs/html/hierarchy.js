@@ -9,6 +9,8 @@ var hierarchy =
       ] ],
       [ "nodel::kvdb::DB", "classnodel_1_1kvdb_1_1_d_b.html", null ]
     ] ],
+    [ "Flags< T >", "struct_flags.html", null ],
+    [ "Flags< uint8_t >", "struct_flags.html", null ],
     [ "std::hash< nodel::Key >", "structstd_1_1hash_3_01nodel_1_1_key_01_4.html", null ],
     [ "std::hash< nodel::OPath >", "structstd_1_1hash_3_01nodel_1_1_o_path_01_4.html", null ],
     [ "ItemIterator", "class_item_iterator.html", null ],

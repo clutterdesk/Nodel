@@ -1,8 +1,10 @@
 var namespacenodel =
 [
     [ "algo", "namespacenodel_1_1algo.html", null ],
+    [ "csv", "namespacenodel_1_1csv.html", null ],
     [ "filesystem", "namespacenodel_1_1filesystem.html", "namespacenodel_1_1filesystem" ],
     [ "kvdb", "namespacenodel_1_1kvdb.html", "namespacenodel_1_1kvdb" ],
+    [ "parse", "namespacenodel_1_1parse.html", null ],
     [ "DataSource", "classnodel_1_1_data_source.html", "classnodel_1_1_data_source" ],
     [ "ItemIterator", "classnodel_1_1_item_iterator.html", null ],
     [ "Key", "classnodel_1_1_key.html", "classnodel_1_1_key" ],

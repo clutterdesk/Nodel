@@ -37,14 +37,17 @@ var NAVTREE =
         [ "Related Symbols", "functions_rela.html", null ]
       ] ]
     ] ],
+    [ "Source", "files.html", [
+      [ "List", "files.html", "files_dup" ]
+    ] ],
     [ "Examples", "examples.html", "examples" ]
   ] ]
 ];
 
 var NAVTREEINDEX =
 [
-"annotated.html",
-"classnodel_1_1filesystem_1_1_sub_directory.html#adc0119a8d4b3c0791763d5e7e6863aa9"
+"_comparator_8hxx_source.html",
+"classnodel_1_1_object.html#af86033739ff94d2f6120a5085531ca1a"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronization';
