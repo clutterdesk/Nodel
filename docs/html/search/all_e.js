@@ -1,7 +1,6 @@
 var searchData=
 [
-  ['read_0',['read',['../classnodel_1_1_data_source.html#ae2a9acc7730154b67335f9b5c72286e8',1,'nodel::DataSource']]],
-  ['read_5fkey_1',['read_key',['../classnodel_1_1_data_source.html#a609271647c2b40e30b2480067559b034',1,'nodel::DataSource']]],
-  ['read_5ftype_2',['read_type',['../classnodel_1_1_data_source.html#a7fc91cefac69d3d4f36cfb341608839e',1,'nodel::DataSource']]],
-  ['root_3',['root',['../classnodel_1_1_object.html#ac0a2150efc9e19982bc3ee5a51797423',1,'nodel::Object']]]
+  ['quick_20start_0',['Quick Start',['../index.html#python-quick-start',1,'Python Quick Start'],['../index.html#quick-start',1,'Quick Start']]],
+  ['quiet_5fread_1',['quiet_read',['../structnodel_1_1_data_source_1_1_options.html#abf4d3ae0accbb6e9cd0f36e336b3aecc',1,'nodel::DataSource::Options']]],
+  ['quiet_5fwrite_2',['quiet_write',['../structnodel_1_1_data_source_1_1_options.html#af845645a65b3d37ec5d447d3c29d511e',1,'nodel::DataSource::Options']]]
 ];

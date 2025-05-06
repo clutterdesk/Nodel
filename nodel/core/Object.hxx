@@ -3780,14 +3780,14 @@ class DataSourceTestInterface
 
 template <typename T> bool is_resolved(Object::Subscript<T>& subscript) { return !subscript.m_pend; }
 
-/// @example examples/basic.cpp
+/// @example examples/basic.cxx
 /// This is an example showing how to create an Object from JSON and access keys.
 
-/// @example examples/find.cpp
+/// @example examples/find.cxx
 /// This is an example of using an Object bound to the filesystem to perform a
 /// recursive directory search similar to the unix `find` command.
 
-/// @example examples/rocksdb.cpp
+/// @example examples/rocksdb.cxx
 /// This is an example of creating a RocksDB database from an Object, iterate
 /// of all the keys in the database, and iterate over a range of the keys.
 /// To manage memory overhead, the Object is periodically saved and reset.

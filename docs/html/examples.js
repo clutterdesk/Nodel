@@ -1,6 +1,6 @@
 var examples =
 [
-    [ "examples/basic.cpp", "examples_2basic_8cpp-example.html", null ],
-    [ "examples/find.cpp", "examples_2find_8cpp-example.html", null ],
-    [ "examples/rocksdb.cpp", "examples_2rocksdb_8cpp-example.html", null ]
+    [ "examples/basic.cxx", "examples_2basic_8cxx-example.html", null ],
+    [ "examples/find.cxx", "examples_2find_8cxx-example.html", null ],
+    [ "examples/rocksdb.cxx", "examples_2rocksdb_8cxx-example.html", null ]
 ];

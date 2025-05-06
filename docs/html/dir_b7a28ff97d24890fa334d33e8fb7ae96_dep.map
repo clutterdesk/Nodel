@@ -1,0 +1,15 @@
+<map id="nodel" name="nodel">
+<area shape="rect" id="node2" href="dir_1587f3674dbb4eac1873c5772fccfa8d.html" title="core" alt="" coords="165,100,211,126"/>
+<area shape="poly" id="edge1" href="dir_000003_000000.html" alt="" coords="76,50,153,90,150,95,74,55"/>
+<area shape="rect" id="edge1-headlabel" href="dir_000003_000000.html" title="19" alt="" coords="146,76,160,91"/>
+<area shape="rect" id="node3" href="dir_9d111d7f63f091250962c23ac80a6d07.html" title="filesystem" alt="" coords="103,27,185,52"/>
+<area shape="poly" id="edge2" href="dir_000001_000000.html" alt="" coords="154,51,175,85,170,88,149,54"/>
+<area shape="rect" id="edge2-headlabel" href="dir_000001_000000.html" title="5" alt="" coords="175,72,182,87"/>
+<area shape="rect" id="node4" href="dir_dc9eb61d0860766b35b3bceca9bc8bd4.html" title="kvdb" alt="" coords="209,27,258,52"/>
+<area shape="poly" id="edge3" href="dir_000002_000000.html" alt="" coords="228,54,206,89,201,86,224,51"/>
+<area shape="rect" id="edge3-headlabel" href="dir_000002_000000.html" title="3" alt="" coords="209,82,216,97"/>
+<area shape="rect" id="node5" href="dir_e6fd0cc4ad59709688c3b7bae245e44b.html" title="pyext" alt="" coords="283,27,336,52"/>
+<area shape="poly" id="edge4" href="dir_000004_000000.html" alt="" coords="290,55,223,94,220,90,287,51"/>
+<area shape="rect" id="edge4-headlabel" href="dir_000004_000000.html" title="7" alt="" coords="225,90,232,105"/>
+<area shape="rect" id="clust1" href="dir_b7a28ff97d24890fa334d33e8fb7ae96.html" alt="" coords="16,16,347,137"/>
+</map>

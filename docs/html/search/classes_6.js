@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['subdirectory_0',['SubDirectory',['../classnodel_1_1filesystem_1_1_sub_directory.html',1,'nodel::filesystem']]]
+  ['registry_0',['Registry',['../classnodel_1_1filesystem_1_1_registry.html',1,'nodel::filesystem']]]
 ];

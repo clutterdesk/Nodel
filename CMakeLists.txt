@@ -202,3 +202,22 @@ else()
     )
 endif()
 
+
+#----------------------------------------------------------------------------
+#-- Documentation with Doxygen
+#----------------------------------------------------------------------------
+find_package(Doxygen)
+if(NOT DOXYGEN_FOUND)
+     message(FATAL_ERROR "Doxygen not found!")
+endif()
+
+set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in)
+set(DOXYGEN_OUT ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile)
+configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
+
+    add_custom_target(docs
+        COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Build Documentation"
+        VERBATIM)
+        
