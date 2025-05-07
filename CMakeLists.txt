@@ -105,6 +105,11 @@ file(GLOB NODEL_TEST_SRC
     test/test_zip.cxx    
 )
 
+if (rocksdb_FOUND)
+    file(GLOB NODEL_TEST_SRC_ROCKSDB test/test_kvdb.cxx) 
+    set(NODEL_TEST_SRC ${NODEL_TEST_SRC} ${NODEL_TEST_SRC_ROCKSDB})
+endif()
+
 message(WARNING ${NODEL_TEST_SRC})
 
 add_executable(nodel_test ${NODEL_TEST_SRC})
@@ -112,6 +117,11 @@ add_dependencies(nodel_test nodel_ziplib)
 target_compile_features(nodel_test PRIVATE cxx_std_20)
 target_compile_options(nodel_test PRIVATE ${NODEL_WFLAGS})
 target_compile_options(nodel_test PRIVATE -pthread)
+
+if (rocksdb_FOUND)
+    target_include_directories(nodel_test PRIVATE ${ROCKSDB_INCLUDE})
+    target_link_libraries(nodel_test PRIVATE RocksDB::rocksdb)
+endif()
 
 target_include_directories(nodel_test PRIVATE
     ${Nodel_SOURCE_DIR}
@@ -126,13 +136,6 @@ target_link_libraries(nodel_test PRIVATE
     fmt::fmt
     gtest
 )
-
-if (rocksdb_FOUND)
-    set(NODEL_TEST_SRC ${NODEL_TEST_SRC} test/test_kvdb.cxx)
-    target_include_directories(nodel_test PRIVATE ${ROCKSDB_INCLUDE})
-    target_link_libraries(nodel_test PRIVATE RocksDB::rocksdb)
-endif()
-
 
 #----------------------------------------------------------------------------
 # Copy test_data/ directory

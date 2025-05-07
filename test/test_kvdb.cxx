@@ -63,6 +63,22 @@ void build_db() {
     delete db;
 }
 
+void build_db_for_slicing() {
+    db::DB* db;
+    db::Options options;
+    options.create_if_missing = true;
+    options.comparator = new nodel::kvdb::Comparator();
+    db::Status status = db::DB::Open(options, "test_data/test.kvdb", &db);
+    check_status(status);
+
+    for (int i=0; i<10000; i+=3) {
+        status = db->Put(db::WriteOptions(), nodeldb::serialize(Key{i}), nodeldb::serialize(Object{std::to_string(i)}));
+        check_status(status);
+    }
+
+    delete db;
+}
+
 void delete_db() {
     std::filesystem::remove_all("test_data/test.kvdb");
 
@@ -169,6 +185,47 @@ TEST(DB, IterItems) {
     EXPECT_EQ(items[3].second, 3.1415926);
     EXPECT_EQ(items[5].first, "list");
     EXPECT_EQ(items[5].second.to_str(), "[1, 2, 3]");
+}
+
+TEST(DB, IterKeysSlice) {
+    build_db_for_slicing();
+    Finally finally{ []() { delete_db(); } };
+
+    Object kst = new DB("test_data/test.kvdb", DataSource::Origin::SOURCE);
+    Object found = "[]"_json;
+    Slice slice{Endpoint{7500}, Endpoint{7510}};
+    for (auto& key : kst.iter_keys(slice))
+        found.append(key.as<Int>());
+
+    EXPECT_EQ(found, "[7500, 7503, 7506, 7509]"_json);
+}
+
+TEST(DB, IterValuesSlice) {
+    build_db_for_slicing();
+    Finally finally{ []() { delete_db(); } };
+
+    Object kst = new DB("test_data/test.kvdb", DataSource::Origin::SOURCE);
+    Object found = "[]"_json;
+    Slice slice{Endpoint{7500}, Endpoint{7510}};
+    for (auto& val : kst.iter_values(slice))
+        found.append(val);
+
+    EXPECT_EQ(found, "[\"7500\", \"7503\", \"7506\", \"7509\"]"_json);
+}
+
+TEST(DB, IterItemsSlice) {
+    build_db_for_slicing();
+    Finally finally{ []() { delete_db(); } };
+
+    Object kst = new DB("test_data/test.kvdb", DataSource::Origin::SOURCE);
+    Object found = "[]"_json;
+    Slice slice{Endpoint{7500}, Endpoint{7510}};
+    for (auto& item : kst.iter_items(slice)) {
+        EXPECT_EQ(item.first.to_str(), item.second);
+        found.append(item.first);
+    }
+
+    EXPECT_EQ(found, "[7500, 7503, 7506, 7509]"_json);
 }
 
 TEST(DB, BugIterNewUnsavedDB) {

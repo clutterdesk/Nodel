@@ -423,6 +423,7 @@ class Object
     void set(const Slice&, const Object&);
     void set(const Slice&, ValueRange&&);
     Object insert(const Key&, const Object&);
+    Object append(const Object&);
 
     void del(const Key&);
     void del(const OPath&);
@@ -1899,8 +1900,10 @@ ObjectList::size_type norm_index_key(const Key& key, Int list_size) {
     if (!nodel::is_integer(key)) throw Key::wrong_type(key.type());
     Int index = key.to_int();
     if (index < 0) index += list_size;
-    if (index < 0 || index > list_size)
+    if (index < 0 || index > list_size) {
+        if (index == -1) return list_size;
         throw std::out_of_range("key");
+    }
     return index;
 }
 
@@ -2004,6 +2007,21 @@ Object Object::insert(const Key& key, const Object& in_val) {
         case SMAP: return set(key, in_val);
         default:   throw wrong_type(m_fields.repr_ix);
     }
+}
+
+/// Append a value at the specified object to a list.
+/// @return Returns the Object that was actually inserted, which may be a copy.
+/// @throws WrongType
+/// @throws EmptyReference
+inline
+Object Object::append(const Object& in_val) {
+    if (m_fields.repr_ix != LIST)
+        throw wrong_type(m_fields.repr_ix);
+    Object out_val = (in_val.parent() == nil)? in_val: in_val.copy();
+    auto& list = std::get<0>(*m_repr.pl);
+    list.push_back(out_val);
+    out_val.set_parent(*this);
+    return out_val;
 }
 
 /// Delete the value of a key

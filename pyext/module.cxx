@@ -48,8 +48,8 @@ NodelObject* as_nodel_object(PyObject* arg) {
     return NULL;
 }
 
-PyObject* iter_keys(PyObject* arg) {
-    NodelObject* nd_self = as_nodel_object(arg);
+PyObject* iter_keys(PyObject* obj, PyObject* slice) {
+    NodelObject* nd_self = as_nodel_object(obj);
     if (nd_self == NULL) return NULL;
 
     NodelKeyIter* nit = (NodelKeyIter*)NodelKeyIterType.tp_alloc(&NodelKeyIterType, 0);
@@ -57,20 +57,20 @@ PyObject* iter_keys(PyObject* arg) {
     if (NodelKeyIterType.tp_init((PyObject*)nit, NULL, NULL) == -1) return NULL;
 
     try {
-        nit->range = nd_self->obj.iter_keys();
+        nit->range = (slice == NULL)? nd_self->obj.iter_keys(): nd_self->obj.iter_keys(support.to_slice(slice));
         nit->it = nit->range.begin();
         nit->end = nit->range.end();
 
         Py_INCREF(nit);
         return (PyObject*)nit;
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
 }
 
-PyObject* iter_values(PyObject* arg) {
-    NodelObject* nd_self = as_nodel_object(arg);
+PyObject* iter_values(PyObject* obj, PyObject* slice) {
+    NodelObject* nd_self = as_nodel_object(obj);
     if (nd_self == NULL) return NULL;
 
     NodelValueIter* nit = (NodelValueIter*)NodelValueIterType.tp_alloc(&NodelValueIterType, 0);
@@ -78,13 +78,13 @@ PyObject* iter_values(PyObject* arg) {
     if (NodelValueIterType.tp_init((PyObject*)nit, NULL, NULL) == -1) return NULL;
 
     try {
-        nit->range = nd_self->obj.iter_values();
+        nit->range = (slice == NULL)? nd_self->obj.iter_values(): nd_self->obj.iter_values(support.to_slice(slice));
         nit->it = nit->range.begin();
         nit->end = nit->range.end();
 
         Py_INCREF(nit);
         return (PyObject*)nit;
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -102,7 +102,7 @@ static PyObject* mod_bind(PyObject* mod, PyObject* arg) {
     try {
         URI uri{support.to_object(arg)};
         return (PyObject*)wrap(mod, bind(uri));
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -140,7 +140,7 @@ static PyObject* mod_clear(PyObject* mod, PyObject* arg) {
     if (nd_self == NULL) return NULL;
     try {
         nd_self->obj.clear();
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -157,7 +157,7 @@ static PyObject* mod_del_from_parent(PyObject* mod, PyObject* arg) {
     if (nd_self == NULL) return NULL;
     try {
         nd_self->obj.del_from_parent();
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -174,7 +174,7 @@ static PyObject* mod_root(PyObject* mod, PyObject* arg) {
     if (nd_self == NULL) return NULL;
     try {
         return (PyObject*)wrap(mod, nd_self->obj.root());
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -191,26 +191,36 @@ static PyObject* mod_parent(PyObject* mod, PyObject* arg) {
     if (nd_self == NULL) return NULL;
     try {
         return (PyObject*)wrap(mod, nd_self->obj.parent());
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
 }
 
 constexpr auto iter_keys_doc =
-"Returns an iterator over the keys of the argument.\n"
-"nodel.iter_keys(obj) -> iterator\n"
+"Returns an iterator over the keys of the first argument.\n"
+"The optional second argument is a Python slice object.\n"
+"nodel.iter_keys(obj, slice=None) -> iterator\n"
 "If the argument is any kind of map, then this method returns an iterator over\n"
 "keys in the map.\n"
 "If the argument is a list, then this method returns an iterator over the\n"
 "indices of the list - similar to the `enumerate` builtin function.\n"
+"Both maps and lists support the slice argument.\n"
 "Otherwise, a RuntimeError exception is raised.\n"
 "Returns an iterator over the keys of the argument.";
 
-static PyObject* mod_iter_keys(PyObject* mod, PyObject* arg) {
+static PyObject* mod_iter_keys(PyObject* mod, PyObject *const *args, Py_ssize_t nargs) {
+    if (nargs < 1 || nargs > 2) {
+        PyErr_SetString(PyExc_ValueError, "Wrong number of arguments");
+        return NULL;
+    }
+
+    NodelObject* nd_obj = as_nodel_object(args[0]);
+    if (nd_obj == NULL) return NULL;
+
     try {
-        return iter_keys(arg);
-    } catch (const NodelException& ex) {
+        return iter_keys(args[0], (nargs == 1)? NULL: args[1]);
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -218,30 +228,28 @@ static PyObject* mod_iter_keys(PyObject* mod, PyObject* arg) {
 
 constexpr auto iter_values_doc =
 "Returns an iterator over the values (Object instances) of the argument.\n"
-"nodel.iter_values(obj) -> iterator\n"
+"The optional second argument is a Python slice object.\n"
+"nodel.iter_values(obj, slice=None) -> iterator\n"
 "If the argument is any kind of map, then this method returns an iterator over\n"
 "values in the map.\n"
 "If the argument is a list, then this method returns an iterator over the\n"
 "elements in the list.\n"
+"Both maps and lists support the slice argument.\n"
 "Otherwise, a RuntimeError exception is raised.\n"
 "Returns an iterator over the values of the argument.";
 
-static PyObject* mod_iter_values(PyObject* mod, PyObject* arg) {
-    NodelObject* nd_self = as_nodel_object(arg);
+static PyObject* mod_iter_values(PyObject* mod, PyObject *const *args, Py_ssize_t nargs) {
+    if (nargs < 1 || nargs > 2) {
+        PyErr_SetString(PyExc_ValueError, "Wrong number of arguments");
+        return NULL;
+    }
+
+    NodelObject* nd_self = as_nodel_object(args[0]);
     if (nd_self == NULL) return NULL;
 
-    NodelValueIter* nit = (NodelValueIter*)NodelValueIterType.tp_alloc(&NodelValueIterType, 0);
-    if (nit == NULL) return NULL;
-    if (NodelValueIterType.tp_init((PyObject*)nit, NULL, NULL) == -1) return NULL;
-
     try {
-        nit->range = nd_self->obj.iter_values();
-        nit->it = nit->range.begin();
-        nit->end = nit->range.end();
-
-        Py_INCREF(nit);
-        return (PyObject*)nit;
-    } catch (const NodelException& ex) {
+        return iter_values(args[0], (nargs == 1)? NULL: args[1]);
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -249,16 +257,23 @@ static PyObject* mod_iter_values(PyObject* mod, PyObject* arg) {
 
 constexpr auto iter_items_doc =
 "Returns an iterator over the items of the argument.\n"
-"nodel.iter_items(obj) -> iterator\n"
+"The optional second argument is a Python slice object.\n"
+"nodel.iter_items(obj, slice=None) -> iterator\n"
 "If the argument is any kind of map, then this method returns an iterator over\n"
 "key/value pairs in the map.\n"
 "If the argument is a list, then this method returns an iterator over the\n"
 "index/value pairs in the list, similar to the `enumerate` builtin function.\n"
+"Both maps and lists support the slice argument.\n"
 "Otherwise, a RuntimeError exception is raised.\n"
 "Returns an iterator over the items of the argument.";
 
-static PyObject* mod_iter_items(PyObject* mod, PyObject* arg) {
-    NodelObject* nd_self = as_nodel_object(arg);
+static PyObject* mod_iter_items(PyObject* mod, PyObject *const *args, Py_ssize_t nargs) {
+    if (nargs < 1 || nargs > 2) {
+        PyErr_SetString(PyExc_ValueError, "Wrong number of arguments");
+        return NULL;
+    }
+
+    NodelObject* nd_self = as_nodel_object(args[0]);
     if (nd_self == NULL) return NULL;
 
     NodelItemIter* nit = (NodelItemIter*)NodelItemIterType.tp_alloc(&NodelItemIterType, 0);
@@ -266,13 +281,13 @@ static PyObject* mod_iter_items(PyObject* mod, PyObject* arg) {
     if (NodelItemIterType.tp_init((PyObject*)nit, NULL, NULL) == -1) return NULL;
 
     try {
-        nit->range = nd_self->obj.iter_items();
+        nit->range = (nargs == 1)? nd_self->obj.iter_items(): nd_self->obj.iter_items(support.to_slice(args[1]));
         nit->it = nit->range.begin();
         nit->end = nit->range.end();
 
         Py_INCREF(nit);
         return (PyObject*)nit;
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -303,7 +318,7 @@ static PyObject* mod_iter_tree(PyObject* mod, PyObject* arg) {
 
         Py_INCREF(nit);
         return (PyObject*)nit;
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -320,7 +335,7 @@ static PyObject* mod_key(PyObject* mod, PyObject* arg) {
 
     try {
         return support.to_py(nd_self->obj.key());
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -355,7 +370,7 @@ static PyObject* mod_get(PyObject* mod, PyObject *const *args, Py_ssize_t nargs)
         } else {
             return (PyObject*)NodelObject_wrap(value);
         }
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -375,7 +390,7 @@ static PyObject* mod_reset(PyObject* mod, PyObject* arg) {
     try {
         nd_self->obj.reset();
         Py_RETURN_NONE;
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -400,7 +415,7 @@ static PyObject* mod_reset_key(PyObject* self, PyObject* const* args, Py_ssize_t
     try {
         nd_self->obj.reset_key(support.to_key(args[1]));
         Py_RETURN_NONE;
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -450,7 +465,7 @@ static PyObject* mod_is_bound(PyObject* mod, PyObject* arg) {
     try {
         if (nodel::has_data_source(nd_self->obj)) Py_RETURN_TRUE;
         Py_RETURN_FALSE;
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -486,7 +501,7 @@ static PyObject* is_type(PyObject* mod, PyObject* arg, Object::ReprIX repr_ix) {
     try {
         if (nd_self->obj.type() == repr_ix) Py_RETURN_TRUE;
         Py_RETURN_FALSE;
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -573,9 +588,9 @@ static PyMethodDef nodel_methods[] = {
     {"clear",       (PyCFunction)mod_clear,               METH_O,        PyDoc_STR(clear_doc)},
     {"root",        (PyCFunction)mod_root,                METH_O,        PyDoc_STR(root_doc)},
     {"parent",      (PyCFunction)mod_parent,              METH_O,        PyDoc_STR(parent_doc)},
-    {"iter_keys",   (PyCFunction)mod_iter_keys,           METH_O,        PyDoc_STR(iter_keys_doc)},
-    {"iter_values", (PyCFunction)mod_iter_values,         METH_O,        PyDoc_STR(iter_values_doc)},
-    {"iter_items",  (PyCFunction)mod_iter_items,          METH_O,        PyDoc_STR(iter_items_doc)},
+    {"iter_keys",   (PyCFunction)mod_iter_keys,           METH_FASTCALL, PyDoc_STR(iter_keys_doc)},
+    {"iter_values", (PyCFunction)mod_iter_values,         METH_FASTCALL, PyDoc_STR(iter_values_doc)},
+    {"iter_items",  (PyCFunction)mod_iter_items,          METH_FASTCALL, PyDoc_STR(iter_items_doc)},
     {"iter_tree",   (PyCFunction)mod_iter_tree,           METH_O,        PyDoc_STR(iter_tree_doc)},
     {"key",         (PyCFunction)mod_key,                 METH_O,        PyDoc_STR(key_doc)},
     {"get",         (PyCFunction)mod_get,                 METH_FASTCALL, PyDoc_STR(get_doc)},

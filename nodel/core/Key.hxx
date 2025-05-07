@@ -285,12 +285,10 @@ class Key
 
     /// Unchecked access to the the backing data
     /// @tparam T One of the data types defined in the Repr union.
-    template <typename T> T as() const requires is_byvalue<T> {
-        if constexpr (std::is_same<T, bool>::value)          { return m_repr.b; }
-        else if constexpr (std::is_same<T, Int>::value)      { return m_repr.i; }
-        else if constexpr (std::is_same<T, UInt>::value)     { return m_repr.u; }
-        else if constexpr (std::is_same<T, Float>::value)    { return m_repr.f; }
-    }
+    template <typename T> T as() const requires is_byvalue<T> && std::is_same<T, bool>::value  { return m_repr.b; }
+    template <typename T> T as() const requires is_byvalue<T> && std::is_same<T, Int>::value   { return m_repr.i; }
+    template <typename T> T as() const requires is_byvalue<T> && std::is_same<T, UInt>::value  { return m_repr.u; }
+    template <typename T> T as() const requires is_byvalue<T> && std::is_same<T, Float>::value { return m_repr.f; }
 
     template <typename T> const T& as() const requires std::is_same<T, StringView>::value {
         if (m_repr_ix != STR) throw wrong_type(m_repr_ix);

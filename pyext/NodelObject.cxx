@@ -1016,7 +1016,7 @@ static PyObject* NodelObject_mp_subscript(PyObject* self, PyObject* key) {
                 return (PyObject*)NodelObject_wrap(value);
             }
         }
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
@@ -1054,7 +1054,7 @@ static int NodelObject_mp_ass_sub(PyObject* self, PyObject* key, PyObject* value
                 self_obj.set(nd_key, nd_val);
             }
         }
-    } catch (const NodelException& ex) {
+    } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return -1;
     }
@@ -1277,9 +1277,9 @@ static PyObject* NodelObject_iter(PyObject* self) {
     Object& self_obj = nd_self->obj;
     try {
         if (is_map(self_obj)) {
-            return iter_keys(self);
+            return iter_keys(self, NULL);
         } else {
-            return iter_values(self);
+            return iter_values(self, NULL);
         }
     } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
