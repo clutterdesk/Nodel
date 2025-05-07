@@ -326,6 +326,41 @@ static PyObject* mod_key(PyObject* mod, PyObject* arg) {
     }
 }
 
+constexpr auto get_doc =
+"Calls Object::get with semantics like Python dict.get.\n"
+"Note that this function works for both map and list Objects.\n"
+"nodel.get(key, default=None) -> any\n"
+"Returns the value of key/index, or the default value.";
+
+static PyObject* mod_get(PyObject* mod, PyObject *const *args, Py_ssize_t nargs) {
+    if (nargs < 2 || nargs > 3) {
+        PyErr_SetString(PyExc_ValueError, "Wrong number of arguments");
+        return NULL;
+    }
+
+    NodelObject* nd_obj = as_nodel_object(args[0]);
+    if (nd_obj == NULL) return NULL;
+
+    try {
+        auto key = support.to_key(args[1]);
+
+        auto value = nd_obj->obj.get(key);
+        if (value.is_nil())
+            value = (nargs < 3)? nil: support.to_object(args[2]);
+
+        if (value.type() == Object::ANY) {
+            auto po = value.as<python::PyOpaque>().m_po;
+            Py_INCREF(po);
+            return po;
+        } else {
+            return (PyObject*)NodelObject_wrap(value);
+        }
+    } catch (const NodelException& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
+}
+
 constexpr auto reset_doc = \
 "Reset a bound object, clearing it and releasing memory resources.\n"
 "nodel.reset(obj) -> None\n"
@@ -389,6 +424,23 @@ static PyObject* mod_save(PyObject* mod, PyObject* arg) {
     }
 }
 
+constexpr auto fpath_doc = \
+"Returns the filesystem path of a bound Nodel Object or None.\n"
+"nodel.fpath(obj) -> str\n";
+
+static PyObject* mod_fpath(PyObject* mod, PyObject* arg) {
+    NodelObject* nd_self = as_nodel_object(arg);
+    if (nd_self == NULL) return NULL;
+
+    try {
+        auto path = nodel::filesystem::path(nd_self->obj);
+        return python::to_str(path.string());
+    } catch (const std::exception& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
+}
+
 constexpr auto is_bound_doc =
 "Returns True if the argument is a Nodel Object that has a data-source.";
 
@@ -441,9 +493,9 @@ static PyObject* is_type(PyObject* mod, PyObject* arg, Object::ReprIX repr_ix) {
 }
 
 constexpr auto is_nil_doc = \
-    "True, if the type of the object is NIL.\n"
-    "Although NIL is similar to Python None, since all types are represented by the C++\n"
-    "nodel::Object classm, a simple test using 'is None' will not work.";
+"True, if the type of the object is NIL.\n"
+"Although NIL is similar to Python None, since all types are represented by the C++\n"
+"nodel::Object classm, a simple test using 'is None' will not work.";
 
 static PyObject* mod_is_nil(PyObject* mod, PyObject* arg) { return is_type(mod, arg, Object::ReprIX::NIL); }
 
@@ -493,8 +545,9 @@ constexpr auto is_native_doc = "True, if the object is an opaque wrapper for a n
 static PyObject* mod_is_native(PyObject* mod, PyObject* arg) { return is_type(mod, arg, Object::ReprIX::ANY); }
 
 constexpr auto native_doc = \
-    "Convert the object into a native python type.\n"
-    "Currently, map types are not supported.\n";
+"Convert the object into a native python type.\n"
+"To avoid deep copies, container types are not supported.\n"
+"Currently, map types are not supported.\n";
 
 static PyObject* mod_native(PyObject* mod, PyObject* arg) {
     NodelObject* nd_self = as_nodel_object(arg);
@@ -503,10 +556,10 @@ static PyObject* mod_native(PyObject* mod, PyObject* arg) {
 }
 
 constexpr auto ref_count_doc = \
-    "Returns the reference count of a Nodel Object.\n"
-    "Note that this reference count represents the count of references to the underlying\n"
-    "nodel::Object instance, which is independent of the Python reference count for the\n"
-    "associated Python object.\n";
+"Returns the reference count of a Nodel Object.\n"
+"Note that this reference count represents the count of references to the underlying\n"
+"nodel::Object instance, which is independent of the Python reference count for the\n"
+"associated Python object.\n";
 
 static PyObject* mod_ref_count(PyObject* mod, PyObject* arg) {
     NodelObject* nd_self = as_nodel_object(arg);
@@ -525,9 +578,11 @@ static PyMethodDef nodel_methods[] = {
     {"iter_items",  (PyCFunction)mod_iter_items,          METH_O,        PyDoc_STR(iter_items_doc)},
     {"iter_tree",   (PyCFunction)mod_iter_tree,           METH_O,        PyDoc_STR(iter_tree_doc)},
     {"key",         (PyCFunction)mod_key,                 METH_O,        PyDoc_STR(key_doc)},
+    {"get",         (PyCFunction)mod_get,                 METH_FASTCALL, PyDoc_STR(get_doc)},
     {"reset",       (PyCFunction)mod_reset,               METH_O,        PyDoc_STR(reset_doc)},
     {"reset_key",   (PyCFunction)mod_reset_key,           METH_FASTCALL, PyDoc_STR(reset_key_doc)},
     {"save",        (PyCFunction)mod_save,                METH_O,        PyDoc_STR(save_doc)},
+    {"fpath",       (PyCFunction)mod_fpath,               METH_O,        PyDoc_STR(fpath_doc)},
     {"is_bound",    (PyCFunction)mod_is_bound,            METH_O,        PyDoc_STR(is_bound_doc)},
     {"is_same",     (PyCFunction)mod_is_same,             METH_FASTCALL, PyDoc_STR(is_same_doc)},
     {"is_nil",      (PyCFunction)mod_is_nil,              METH_O,        PyDoc_STR(is_nil_doc)},
