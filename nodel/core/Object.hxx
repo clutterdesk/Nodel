@@ -983,7 +983,10 @@ class DataSource
     /// - Implementations should use metadata where possible to make this
     ///   operation inexpensive. This method may be called in situations where
     ///   the end-user does not want to incur the overhead of loading the data.
-    virtual void read_type(const Object& target) {}
+    virtual void read_type(const Object& target) {
+        if (is_sparse()) throw NodelException("Unable to determine sparse DataSource object type");
+        insure_fully_cached(target);
+    }
 
     /// Read all data from external storage.
     /// @param target The target holding this DataSource.
@@ -3582,7 +3585,7 @@ void DataSource::insure_fully_cached(const Object& target) {
 
 inline
 void DataSource::read_set(const Object& target, const Object& value) {
-    ASSERT(value.type() != Object::ERROR);
+    ASSERT(value.m_fields.repr_ix != Object::ERROR);
     // TODO: Have data-source return all keys at once, so we know whether we're performing
     // a fresh load, or a refresh.
     m_cache.set(value);
@@ -3590,14 +3593,14 @@ void DataSource::read_set(const Object& target, const Object& value) {
 
 inline
 void DataSource::read_set(const Object& target, const Key& key, const Object& value) {
-    ASSERT(value.type() != Object::ERROR);
+    ASSERT(value.m_fields.repr_ix != Object::ERROR);
     m_cache.set(key, value);
     value.set_parent(target);
 }
 
 inline
 void DataSource::read_set(const Object& target, Key&& key, const Object& value) {
-    ASSERT(value.type() != Object::ERROR);
+    ASSERT(value.m_fields.repr_ix != Object::ERROR);
     m_cache.set(std::forward<Key>(key), value);
     value.set_parent(target);
 }
