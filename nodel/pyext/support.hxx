@@ -3,6 +3,8 @@
 #pragma once
 
 #include <Python.h>
+#include <string>
+#include <stdexcept>
 #include <nodel/core/Key.hxx>
 #include <nodel/core/Object.hxx>
 #include <nodel/support/logging.hxx>
@@ -39,24 +41,120 @@ class RefMgr
 };
 
 inline
-std::optional<std::string_view> to_string_view(PyObject* po) {
-    RefMgr unicode;
-    if (!PyUnicode_Check(po)) {
-        unicode = PyObject_Str(po);
-    } else {
-        unicode = po;
-        Py_INCREF(unicode);
+PyObject* unicode_slice(PyObject *str, PyObject *slice)
+{
+    if (!PyUnicode_Check(str)) {
+        PyErr_SetString(PyExc_TypeError, "Expected a Unicode string");
+        return NULL;
     }
 
-    std::optional<std::string_view> result;
+    if (!PySlice_Check(slice)) {
+        PyErr_SetString(PyExc_TypeError, "Expected a slice object");
+        return NULL;
+    }
 
-    Py_ssize_t size;
-    const char* str = PyUnicode_AsUTF8AndSize(unicode, &size);
-    if (str != nullptr) {
-        result = {str, (std::string_view::size_type)size};
+    Py_ssize_t start, stop, step, slicelength;
+    Py_ssize_t length = PyUnicode_GET_LENGTH(str);
+
+    if (PySlice_GetIndicesEx(slice, length, &start, &stop, &step, &slicelength) < 0)
+        return NULL;
+
+    if (slicelength <= 0)
+        return PyUnicode_New(0, 0);
+
+    if (PyUnicode_READY(str) < 0)
+        return NULL;
+
+    // Get kind and data pointers
+    int kind = PyUnicode_KIND(str);
+    void *data = PyUnicode_DATA(str);
+
+    // Get maximum character (used to determine internal encoding)
+    Py_UCS4 maxchar = PyUnicode_MAX_CHAR_VALUE(str);
+
+    // Create a new Unicode object for the result
+    PyObject *result = PyUnicode_New(slicelength, maxchar);
+    if (result == NULL) return NULL;
+
+    void *res_data = PyUnicode_DATA(result);
+
+    // Copy characters with the specified step
+    for (Py_ssize_t i = 0, idx = start; i < slicelength; i++, idx += step) {
+        PyUnicode_WRITE(kind, res_data, i, PyUnicode_READ(kind, data, idx));
     }
 
     return result;
+}
+
+inline
+String assign_slice(const String& input, PyObject* slice, PyObject* replace) {
+    if (!PySlice_Check(slice)) {
+        PyErr_SetString(PyExc_TypeError, "Expected a slice object");
+        return NULL;
+    }
+
+    if (!PyUnicode_Check(replace)) {
+        PyErr_SetString(PyExc_TypeError, "Expected a unicode object as the replacement");
+        return NULL;
+    }
+
+    // Convert PyUnicode to UTF-8 std::string
+    Py_ssize_t repl_size;
+    auto repl_bytes = PyUnicode_AsUTF8AndSize(replace, &repl_size);
+    if (!repl_bytes) {
+        PyErr_SetString(PyExc_TypeError, "Failed to extract UTF-8 from replacement string");
+        return NULL;
+    }
+
+    StringView repl_view{repl_bytes, static_cast<StringView::size_type>(repl_size)};
+
+    Py_ssize_t start, stop, step;
+    if (PySlice_Unpack(slice, &start, &stop, &step) < 0)
+        return NULL;
+
+    Py_ssize_t length = static_cast<Py_ssize_t>(input.size());
+    auto slice_len = PySlice_AdjustIndices(length, &start, &stop, step);
+
+    if (step == 1) {
+        String result;
+        result.reserve(input.size() - slice_len + result.size());
+        result.append(input.begin(), input.begin() + start);
+        result.append(repl_view);
+        result.append(input.begin() + stop, input.end());
+        return result;
+    } else {
+        auto min_len = std::min(slice_len, repl_size);
+        String result;
+        Py_ssize_t repl_pos = 0;
+        Py_ssize_t pos = start;
+        for (; repl_pos < min_len; ++repl_pos, pos += step) {
+            if (pos >= result.size())
+                result.append(input.begin() + result.size(), input.begin() + pos + 1);
+            result[pos] = repl_bytes[repl_pos];
+        }
+        auto in_pos = result.size();
+        for (; repl_pos < slice_len; ++repl_pos, pos += step) {
+            result.append(input.begin() + in_pos, input.begin() + pos);
+            in_pos = pos + 1;
+        }
+        if (in_pos < input.size())
+            result.append(input.begin() + in_pos, input.end());
+        return result;
+    }
+}
+
+inline
+std::string_view to_string_view(PyObject* po) {
+    if (PyUnicode_Check(po)) {
+        // Lifetime of utf8 encoded string is managed by Python, so the stringview that
+        // is returned should not be held beyond the lifetime of the argument.
+        Py_ssize_t size;
+        const char* str = PyUnicode_AsUTF8AndSize(po, &size);
+        if (str != nullptr) {
+            return {str, (std::string_view::size_type)size};
+        }
+    }
+    return "";
 }
 
 inline
@@ -123,6 +221,7 @@ inline
 void raise_type_error(const Object& obj) {
     raise_error(PyExc_TypeError, fmt::format("Invalid nodel::Object type: {}", obj.type_name()));
 }
+
 
 class PyOpaque : public nodel::Opaque
 {

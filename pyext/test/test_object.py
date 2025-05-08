@@ -156,10 +156,34 @@ class TestObject(unittest.TestCase):
         self.assertEqual(str(obj), "tea\x00time")
         self.assertEqual(repr(obj), '"tea\x00time"')
         
-    @unittest.expectedFailure
+    def test_string_concat(self):
+        obj = nd.new("tea")
+        self.assertEqual(obj + "time", "teatime")
+
+    def test_string_concat_inplace(self):
+        obj = nd.new({'word': 'tea'})
+        obj.word += 'time'
+        self.assertEqual(obj.word, "teatime")
+        
     def test_string_slice(self):
-        obj = nd.Object("teatime")
-        self.assertEqual(obj[:3], "tea")
+        obj = nd.new('0123456789')
+        self.assertEqual(obj[:3], '012')
+        self.assertEqual(obj[:5:2], '024')
+        self.assertEqual(obj[::-1], '9876543210')
+        self.assertEqual(obj[:-2], '01234567')
+
+    def test_string_slice_replace(self):
+        obj = nd.new('0123456789')
+        obj[::2] = 'xx'
+        self.assertEqual(obj, 'x1x3579')
+        obj = nd.new('0123456789')
+        obj[::2] = 'x' * 10
+        self.assertEqual(obj, 'x1x3x5x7x9')
+        obj = nd.new('0123456789')
+        obj[::3] = ''
+        self.assertEqual(obj, '124578')
+        obj[::] = ''
+        self.assertEqual(obj, '')
         
     def test_string_to_native(self):
         obj = nd.Object("teatime")
@@ -214,6 +238,17 @@ class TestObject(unittest.TestCase):
         self.assertIs(list[0], x)
         self.assertIs(list[1], x)
 
+    def test_list_add(self):
+        list = nd.new([1, 2, 3])
+        self.assertEqual(list + [4, 5], [1, 2, 3, 4, 5])
+        list = nd.new([1, 2, 3])
+        self.assertEqual([4, 5] + list, [4, 5, 1, 2, 3])
+
+    def test_list_add_inplace(self):
+        list = nd.new([1, 2, 3])
+        list += [4, 5]
+        self.assertEqual(list, [1, 2, 3, 4, 5])
+
     def test_list_del_subscript(self):
         list = nd.Object(['X', 'Y'])
         del list[1]
@@ -231,6 +266,7 @@ class TestObject(unittest.TestCase):
         
     @unittest.expectedFailure
     def test_map_object_subscript(self):
+        map = nd.Object({'x': 1, 'y': 2, 'z': 3})
         self.assertEqual(map[nd.Object('z')], 3)
         
     def test_map_attr_subscript(self):
@@ -259,7 +295,7 @@ class TestObject(unittest.TestCase):
         self.assertEqual(len(map), 1)
         self.assertEqual(map.x, 'X')
         self.assertFalse('y' in map)
-        
+
         
 if __name__ == '__main__':
     unittest.main()

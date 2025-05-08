@@ -84,7 +84,7 @@ class TestModule(unittest.TestCase):
         self.assertEqual(list(nd.iter_items(obj)), [('x', 1), ('y', 2)])
 
     def test_map_iter_tree(self):
-        obj = nd.from_json("{'x': [{'u': 1}, {'u': 2}], 'y': [{'u': 3}, {'u': 4}]}")
+        obj = nd.from_json("{'x': [{'u': 'a'}, {'u': 'b'}], 'y': [{'u': 'c'}, {'u': 'd'}]}")
         expect = [obj, obj.x, obj.y, obj.x[0], obj.x[1], obj.y[0], obj.y[1], obj.x[0].u, obj.x[1].u, obj.y[0].u, obj.y[1].u]
         for actual, result in zip(nd.iter_tree(obj), expect):
             self.assertTrue(nd.is_same(actual, result))

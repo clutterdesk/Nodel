@@ -84,14 +84,51 @@ static PyObject* num_to_py(NodelObject* nd_obj) {
     }
 }
 
-static PyObject* NodelObject_add(PyObject* arg1, PyObject* arg2) {
-    if (!NodelObject_CheckExact(arg1))
-        return NodelObject_add(arg2, arg1);
+static PyObject* add(NodelObject* nd_obj, PyObject* po, bool commute) {
+    auto type = nd_obj->obj.type();
+    if (type == Object::STR) {
+        RefMgr lhs = support.to_py(nd_obj->obj);
+        return commute? PyUnicode_Concat(po, lhs): PyUnicode_Concat(lhs, po);
+    } else if (type == Object::LIST) {
+        Object rhs;
+        if (PyList_Check(po)) {
+            rhs = support.to_object(po);
+        } else if (NodelObject_CheckExact(po)) {
+            rhs = ((NodelObject*)po)->obj;
+        } else {
+            PyErr_SetString(PyExc_TypeError, "Expected list object");
+            return NULL;
+        }
 
-    NodelObject* nd_obj = (NodelObject*)arg1;
-    PyObject* x = num_to_py(nd_obj);
-    if (x == NULL) return NULL;
-    return PyNumber_Add(x, arg2);
+        Object new_list{Object::LIST};
+        if (commute) {
+            for (const auto& val : rhs.iter_values())
+                new_list.append(val);
+            for (const auto& val : nd_obj->obj.iter_values())
+                new_list.append(val);
+        } else {
+            for (const auto& val : nd_obj->obj.iter_values())
+                new_list.append(val);
+            for (const auto& val : rhs.iter_values())
+                new_list.append(val);
+        }
+        return (PyObject*)NodelObject_wrap(new_list);
+    } else {
+        RefMgr val{num_to_py(nd_obj)};
+        if (val.get() == NULL) return NULL;
+        return PyNumber_Add(val, po);
+    }
+}
+
+static PyObject* NodelObject_add(PyObject* arg1, PyObject* arg2) {
+    if (NodelObject_CheckExact(arg1))
+        return add((NodelObject*)arg1, arg2, false);
+
+    if (NodelObject_CheckExact(arg2))
+        return add((NodelObject*)arg2, arg1, true);
+
+    PyErr_SetString(PyExc_TypeError, "Invalid type");
+    return NULL;
 }
 
 static PyObject* NodelObject_subtract(PyObject* arg1, PyObject* arg2) {
@@ -328,13 +365,49 @@ static PyObject* NodelObject_float(PyObject* self) {
     return NULL;
 }
 
+static PyObject* inplace_add_string(NodelObject* arg1, PyObject* arg2) {
+    RefMgr ref;
+    if (!PyUnicode_Check(arg2)) {
+        ref = PyObject_Str(arg2);
+        arg2 = ref.get();
+    }
+    arg1->obj.as<String>().append(python::to_string_view(arg2));
+    Py_INCREF(arg1);
+    return (PyObject*)arg1;
+}
+
+static PyObject* inplace_add_list(NodelObject* arg1, PyObject* arg2) {
+    auto& obj = arg1->obj;
+
+    Object rhs;
+    if (PyList_Check(arg2)) {
+        rhs = support.to_object(arg2);
+    } else if (NodelObject_CheckExact(arg2)) {
+        rhs = ((NodelObject*)arg2)->obj;
+    } else {
+        PyErr_SetString(PyExc_TypeError, "Expected list object");
+        return NULL;
+    }
+
+    for (const auto& val : rhs.iter_values())
+        obj.append(val);
+    Py_INCREF(arg1);
+    return (PyObject*)arg1;
+}
+
 static PyObject* NodelObject_inplace_add(PyObject* arg1, PyObject* arg2) {
-    if (NodelObject_CheckExact(arg2)) {
+    ASSERT(NodelObject_CheckExact(arg1));
+    auto nd_obj = (NodelObject*)arg1;
+    auto& obj = nd_obj->obj;
+    auto type = obj.type();
+    if (type == Object::STR) {
+        return inplace_add_string(nd_obj, arg2);
+    } else if (type == Object::LIST) {
+        return inplace_add_list(nd_obj, arg2);
+    } else if (NodelObject_CheckExact(arg2)) {
         RefMgr ref = num_to_py((NodelObject*)arg2);
         return NodelObject_inplace_add(arg1, ref.get());
-    } else if (NodelObject_CheckExact(arg1)) {
-        auto nd_obj = (NodelObject*)arg1;
-        auto& obj = nd_obj->obj;
+    } else {
         switch (obj.type()) {
             case Object::INT: {
                 if (PyLong_Check(arg2)) {
@@ -373,9 +446,6 @@ static PyObject* NodelObject_inplace_add(PyObject* arg1, PyObject* arg2) {
         }
         Py_INCREF(arg1);
         return arg1;
-    } else {
-        RefMgr ref = num_to_py((NodelObject*)arg2);
-        return PyNumber_InPlaceAdd(arg1, ref.get());
     }
 }
 
@@ -998,11 +1068,21 @@ static Py_ssize_t NodelObject_mp_length(PyObject* self) {
 static PyObject* NodelObject_mp_subscript(PyObject* self, PyObject* key) {
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
-    if (!require_container(self_obj)) return NULL;
+
+    if (!nodel::is_container(self_obj) && self_obj.type() != Object::STR) {
+        python::raise_type_error(self_obj);
+        return NULL;
+    }
+
     try {
         if (PySlice_Check(key)) {
-            auto slice = support.to_slice(key);
-            return (PyObject*)NodelObject_wrap(self_obj.get(slice));
+            if (self_obj.type() == Object::STR) {
+                auto po = support.to_py(self_obj);
+                return python::unicode_slice(po, key);
+            } else {
+                auto slice = support.to_slice(key);
+                return (PyObject*)NodelObject_wrap(self_obj.get(slice));
+            }
         } else {
             auto nd_key = support.to_key(key);
             if (!require_subscript(self_obj, nd_key)) return NULL;
@@ -1017,18 +1097,33 @@ static PyObject* NodelObject_mp_subscript(PyObject* self, PyObject* key) {
 static int NodelObject_mp_ass_sub(PyObject* self, PyObject* key, PyObject* value) {
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
-    if (!require_container(self_obj)) return -1;
+
+    if (!nodel::is_container(self_obj) && self_obj.type() != Object::STR) {
+        python::raise_type_error(self_obj);
+        return -1;
+    }
+
     try
     {
         if (PySlice_Check(key)) {
-            auto slice = support.to_slice(key);
             if (value == NULL) {
-                self_obj.del(slice);
+                if (self_obj.type() == Object::STR) {
+                    RefMgr empty_str = PyUnicode_FromString("");
+                    self_obj.as<String>() = python::assign_slice(self_obj.as<String>(), key, empty_str);
+                } else {
+                    auto slice = support.to_slice(key);
+                    self_obj.del(slice);
+                }
             } else {
-                auto nd_vals = support.to_object(value);
-                for (auto& nd_val : nd_vals.iter_values())
-                    support.clear_parent(nd_val);  // prevent copying
-                self_obj.set(slice, nd_vals);
+                if (self_obj.type() == Object::STR) {
+                    self_obj.as<String>() = python::assign_slice(self_obj.as<String>(), key, value);
+                } else {
+                    auto slice = support.to_slice(key);
+                    auto nd_vals = support.to_object(value);
+                    for (auto& nd_val : nd_vals.iter_values())
+                        support.clear_parent(nd_val);  // prevent copying
+                    self_obj.set(slice, nd_vals);
+                }
             }
         } else {
             auto nd_key = support.to_key(key);

@@ -96,18 +96,18 @@ PyObject* iter_values(PyObject* obj, PyObject* slice) {
 
 constexpr auto new_doc =
 "Create a new Nodel Object from the argument.\n"
-"The argument must be a list or dict.\n"
+"The argument must be a string, list or dict.\n"
 "new(arg) -> Object\n"
-"arg - A Python list or dict.";
+"arg - A Python string, list or dict.";
 
 static PyObject* mod_new(PyObject* mod, PyObject* arg) {
-    if (!PyList_Check(arg) && !PyDict_Check(arg)) {
-        PyErr_SetString(PyExc_TypeError, "Expected list or dict type");
+    if (!PyUnicode_Check(arg) && !PyList_Check(arg) && !PyDict_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError, "Expected string, list or dict type");
         return NULL;
     }
 
     try {
-        return (PyObject*)wrap(mod, arg);
+        return (PyObject*)wrap(mod, support.to_object(arg));
     } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
