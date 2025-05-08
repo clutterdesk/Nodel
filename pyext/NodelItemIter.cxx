@@ -59,13 +59,8 @@ static PyObject* NodelItemIter_iter_next(PyObject* self) {
     RefMgr key = support.to_py(item.first);
     PyObject* next = nullptr;
 
-    auto& value = item.second;
-    if (value.type() == Object::ANY) {
-        next = PyTuple_Pack(2, (PyObject*)key, value.as<python::PyOpaque>().m_po);
-    } else {
-        RefMgr val((PyObject*)NodelObject_wrap(item.second));
-        next = PyTuple_Pack(2, (PyObject*)key, (PyObject*)val);
-    }
+    RefMgr val{support.prepare_return_value(item.second)};
+    next = PyTuple_Pack(2, (PyObject*)key, (PyObject*)val);
 
     ++nd_self->it;
     return next;

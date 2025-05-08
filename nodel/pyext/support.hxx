@@ -160,6 +160,7 @@ struct Support
     static PyObject* to_num(const Object& obj);
     static PyObject* to_py(const Key& key);
     static PyObject* to_py(const Object& obj);
+    static PyObject* prepare_return_value(const Object& obj);
 
     static double to_double(PyObject* po);
 
@@ -262,12 +263,12 @@ PyObject* Support::to_py(const Key& key) {
 
 inline
 PyObject* Support::to_py(const Object& obj) {
-    switch (obj.m_fields.repr_ix) {
+    switch (obj.type()) {
         case Object::NIL:   Py_RETURN_NONE;
         case Object::BOOL:  if (obj.m_repr.b) Py_RETURN_TRUE; else Py_RETURN_FALSE;
-        case Object::INT:   return PyLong_FromLongLong(obj.m_repr.i);
-        case Object::UINT:  return PyLong_FromUnsignedLongLong(obj.m_repr.u);
-        case Object::FLOAT: return PyFloat_FromDouble(obj.m_repr.f);
+        case Object::INT:   return PyLong_FromLongLong(obj.as<Int>());
+        case Object::UINT:  return PyLong_FromUnsignedLongLong(obj.as<UInt>());
+        case Object::FLOAT: return PyFloat_FromDouble(obj.as<Float>());
         case Object::STR: {
             auto& str = std::get<0>(*obj.m_repr.ps);
             return python::to_str(str);
@@ -293,6 +294,30 @@ PyObject* Support::to_py(const Object& obj) {
         }
         case Object::OMAP:
         case Object::SMAP:
+        default: {
+            raise_type_error(obj);
+            return NULL;
+        }
+    }
+}
+
+inline
+PyObject* Support::prepare_return_value(const Object& obj) {
+    switch (obj.type()) {
+        case Object::NIL:   Py_RETURN_NONE;
+        case Object::BOOL:  if (obj.as<bool>()) Py_RETURN_TRUE; else Py_RETURN_FALSE;
+        case Object::INT:   return PyLong_FromLongLong(obj.as<Int>());
+        case Object::UINT:  return PyLong_FromUnsignedLongLong(obj.as<UInt>());
+        case Object::FLOAT: return PyFloat_FromDouble(obj.as<Float>());
+        case Object::STR:   [[fallthrough]];
+        case Object::LIST:  [[fallthrough]];
+        case Object::OMAP:  [[fallthrough]];
+        case Object::SMAP:  return (PyObject*)NodelObject_wrap(obj);
+        case Object::ANY: {
+            PyObject* po = obj.as<PyOpaque>().m_po;
+            Py_INCREF(po);
+            return po;
+        }
         default: {
             raise_type_error(obj);
             return NULL;

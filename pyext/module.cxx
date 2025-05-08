@@ -94,9 +94,74 @@ PyObject* iter_values(PyObject* obj, PyObject* slice) {
 // Module methods
 //-----------------------------------------------------------------------------
 
-constexpr auto bind_doc = "Bind object with URI string/dict\n"
-                          "bind(uri) -> Object\n"
-                          "uri - A URI string with a registered scheme";
+constexpr auto new_doc =
+"Create a new Nodel Object from the argument.\n"
+"The argument must be a list or dict.\n"
+"new(arg) -> Object\n"
+"arg - A Python list or dict.";
+
+static PyObject* mod_new(PyObject* mod, PyObject* arg) {
+    if (!PyList_Check(arg) && !PyDict_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError, "Expected list or dict type");
+        return NULL;
+    }
+
+    try {
+        return (PyObject*)wrap(mod, arg);
+    } catch (const std::exception& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
+}
+
+constexpr auto list_doc =
+"Create a new Nodel list Object.\n"
+"list() -> Object\n";
+
+static PyObject* mod_list(PyObject* mod) {
+    try {
+        return (PyObject*)wrap(mod, Object{Object::LIST});
+    } catch (const std::exception& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
+}
+
+constexpr auto dict_doc =
+"Create a new Nodel insertion ordered map Object - same as omap().\n"
+"dict() -> Object\n";
+
+
+constexpr auto omap_doc =
+"Create a new Nodel insertion ordered map Object.\n"
+"omap() -> Object\n";
+
+static PyObject* mod_omap(PyObject* mod) {
+    try {
+        return (PyObject*)wrap(mod, Object{Object::OMAP});
+    } catch (const std::exception& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
+}
+
+constexpr auto smap_doc =
+"Create a new Nodel sorted map Object.\n"
+"smap() -> Object\n";
+
+static PyObject* mod_smap(PyObject* mod) {
+    try {
+        return (PyObject*)wrap(mod, Object{Object::SMAP});
+    } catch (const std::exception& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
+}
+
+constexpr auto bind_doc =
+"Bind object with URI string/dict\n"
+"bind(uri) -> Object\n"
+"uri - A URI string with a registered scheme";
 
 static PyObject* mod_bind(PyObject* mod, PyObject* arg) {
     try {
@@ -108,8 +173,9 @@ static PyObject* mod_bind(PyObject* mod, PyObject* arg) {
     }
 }
 
-constexpr auto from_json_doc = "Parse JSON into an Object\n"
-                               "from_json(json) -> Object";
+constexpr auto from_json_doc =
+"Parse JSON into an Object\n"
+"from_json(json) -> Object";
 
 static PyObject* mod_from_json(PyObject* mod, PyObject* arg) {
     Py_ssize_t size;
@@ -358,18 +424,10 @@ static PyObject* mod_get(PyObject* mod, PyObject *const *args, Py_ssize_t nargs)
 
     try {
         auto key = support.to_key(args[1]);
-
         auto value = nd_obj->obj.get(key);
         if (value.is_nil())
             value = (nargs < 3)? nil: support.to_object(args[2]);
-
-        if (value.type() == Object::ANY) {
-            auto po = value.as<python::PyOpaque>().m_po;
-            Py_INCREF(po);
-            return po;
-        } else {
-            return (PyObject*)NodelObject_wrap(value);
-        }
+        return support.prepare_return_value(value);
     } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
@@ -583,6 +641,11 @@ static PyObject* mod_ref_count(PyObject* mod, PyObject* arg) {
 }
 
 static PyMethodDef nodel_methods[] = {
+    {"new",         (PyCFunction)mod_new,                 METH_O,        PyDoc_STR(new_doc)},
+    {"list",        (PyCFunction)mod_list,                METH_NOARGS,   PyDoc_STR(list_doc)},
+    {"dict",        (PyCFunction)mod_omap,                METH_NOARGS,   PyDoc_STR(dict_doc)},
+    {"omap",        (PyCFunction)mod_omap,                METH_NOARGS,   PyDoc_STR(omap_doc)},
+    {"smap",        (PyCFunction)mod_smap,                METH_NOARGS,   PyDoc_STR(smap_doc)},
     {"bind",        (PyCFunction)mod_bind,                METH_O,        PyDoc_STR(bind_doc)},
     {"from_json",   (PyCFunction)mod_from_json,           METH_O,        PyDoc_STR(from_json_doc)},
     {"clear",       (PyCFunction)mod_clear,               METH_O,        PyDoc_STR(clear_doc)},

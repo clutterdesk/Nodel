@@ -78,7 +78,7 @@ static PyObject* num_to_py(NodelObject* nd_obj) {
         case Object::UINT:  return PyLong_FromUnsignedLongLong(obj.as<UInt>());
         case Object::FLOAT: return PyFloat_FromDouble(obj.as<Float>());
         default: {
-            python::raise_error(PyExc_ValueError, "Expected a numeric Object");
+            python::raise_type_error(obj);
             return NULL;
         }
     }
@@ -1006,15 +1006,7 @@ static PyObject* NodelObject_mp_subscript(PyObject* self, PyObject* key) {
         } else {
             auto nd_key = support.to_key(key);
             if (!require_subscript(self_obj, nd_key)) return NULL;
-
-            auto value = self_obj.get(nd_key);
-            if (value.type() == Object::ANY) {
-                auto po = value.as<python::PyOpaque>().m_po;
-                Py_INCREF(po);
-                return po;
-            } else {
-                return (PyObject*)NodelObject_wrap(value);
-            }
+            return support.prepare_return_value(self_obj.get(nd_key));
         }
     } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
@@ -1230,13 +1222,7 @@ static PyObject* NodelObject_getattro(PyObject* self, PyObject* name) {
     try {
         Object attr_value = self_obj.get(support.to_key(name));
         if (attr_value.is_nil()) Py_RETURN_NONE;
-        if (attr_value.type() == Object::ANY) {
-            auto po = attr_value.as<python::PyOpaque>().m_po;
-            Py_INCREF(po);
-            return po;
-        } else {
-            return (PyObject*)NodelObject_wrap(attr_value);
-        }
+        return support.prepare_return_value(attr_value);
     } catch (const WrongType& ex) {
         python::raise_type_error(self_obj);
     } catch (const std::exception& ex) {

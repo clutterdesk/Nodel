@@ -10,6 +10,8 @@
 
 extern "C" {
 
+static nodel::python::Support support;
+
 //-----------------------------------------------------------------------------
 // Type slots
 //-----------------------------------------------------------------------------
@@ -51,15 +53,7 @@ static PyObject* NodelTreeIter_iter_next(PyObject* self) {
     NodelTreeIter* nd_self = (NodelTreeIter*)self;
     if (nd_self->it == nd_self->end) return NULL;  // StopIteration implied
 
-    PyObject* next = nullptr;
-    auto value = *nd_self->it;
-    if (value.type() == nodel::Object::ANY) {
-        next = value.as<nodel::python::PyOpaque>().m_po;
-        Py_INCREF(next);
-    } else {
-        next = (PyObject*)NodelObject_wrap(value);
-    }
-
+    PyObject* next = support.prepare_return_value(*nd_self->it);
     ++nd_self->it;
     return next;
 }
