@@ -17,10 +17,10 @@ class Oid
     Oid(const Oid&) = default;
     Oid(Oid&&) = default;
 
-    auto& operator = (const Oid& other) { m_b = other.m_b; m_a = other.m_a; return *this; }
-    auto& operator = (Oid&& other)      { m_b = other.m_b; m_a = other.m_a; return *this; }
+    Oid& operator = (const Oid&) = default;
+    Oid& operator = (Oid&&) = default;
 
-    bool operator == (const Oid& other) const { return m_b == other.m_b && m_a == other.m_a; }
+    bool operator == (const Oid&) const = default;
 
     std::string to_str() {
         std::stringstream ss;

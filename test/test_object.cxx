@@ -1249,14 +1249,65 @@ TEST(Object, SortedMapGetKey) {
 }
 
 TEST(Object, AlienAccess) {
-    std::unique_ptr<Alien> p_any{new TestObjectAlien{}};
-    Object obj{p_any};
+    std::unique_ptr<Alien> p_alien{new TestObjectAlien{}};
+    Object obj{p_alien};
     EXPECT_TRUE(obj == obj);
     auto& r_any = obj.as<TestObjectAlien>();
     EXPECT_EQ(r_any.to_str(), "TestObjectAlien");
     Object map = "{}"_json;
     map["x"_key] = obj;
     EXPECT_TRUE(obj.parent().is(map));
+}
+
+TEST(Object, AlienSubscriptAccess) {
+    std::unique_ptr<Alien> p_alien{new TestObjectAlien{}};
+    Object obj = "{}"_json;
+    obj.set("alien"_key, p_alien);
+    auto& alien = obj["alien"_key].as<Alien>();
+    EXPECT_EQ(alien.to_str(), "TestObjectAlien");
+}
+
+TEST(Object, AlienToStr) {
+    std::unique_ptr<Alien> p_alien{new TestObjectAlien{}};
+    Object obj{"{}"_json};
+    obj["alien"_key] = p_alien;
+    EXPECT_EQ(obj.get("alien"_key).to_str(), "TestObjectAlien");
+}
+
+TEST(Object, AlienToJson) {
+    std::unique_ptr<Alien> p_alien{new TestObjectAlien{}};
+    Object obj{"{}"_json};
+    obj["alien"_key] = p_alien;
+    EXPECT_EQ(obj.get("alien"_key).to_json(), "'TestObjectAlien'");
+}
+
+TEST(Object, AlienCopy) {
+    std::unique_ptr<Alien> p_alien{new TestObjectAlien{}};
+    Object obj{"{}"_json};
+    obj["alien"_key] = p_alien;
+    Object alien = obj["alien"_key].copy();
+    EXPECT_EQ(alien.type(), Object::ANY);
+}
+
+TEST(Object, AlienCloneOnAssign) {
+    std::unique_ptr<Alien> p_alien{new TestObjectAlien{}};
+    Object obj1{"{}"_json};
+    auto key = "alien"_key;
+    obj1[key] = p_alien;
+    Object obj2{"{}"_json};
+    obj2.set(key, obj1[key]);
+    EXPECT_EQ(obj1.get(key).to_str(), "TestObjectAlien");
+    EXPECT_EQ(obj2.get(key).to_str(), "TestObjectAlien");
+}
+
+TEST(Object, AlienSubscriptAssignClone) {
+    std::unique_ptr<Alien> p_alien{new TestObjectAlien{}};
+    Object obj1{"{}"_json};
+    auto key = "alien"_key;
+    obj1.set(key, p_alien);
+    Object obj2{"{}"_json};
+    obj2[key] = obj1[key];
+    EXPECT_EQ(obj2.get(key).to_str(), "TestObjectAlien");
 }
 
 TEST(Object, SubscriptResolution) {
@@ -1277,8 +1328,9 @@ TEST(Object, Subscript) {
 
 TEST(Object, SubscriptAssignKey) {
     Object obj = "{'x': 'water', 'y': {'u': [1, 2], 'v': [3, 4]}}"_json;
-    obj["x"_key] = "tea";
+    auto result = obj["x"_key] = "tea";
     EXPECT_EQ(obj.get("x"_key), "tea");
+    EXPECT_TRUE(result.is(obj["x"_key]));
 
     obj["y"_key]["u"_key][1] = 7;
     EXPECT_EQ(obj.get("y.u"_path), "[1, 7]"_json);
@@ -1288,6 +1340,16 @@ TEST(Object, SubscriptAssignPath) {
     Object obj = "{'x': {'y': {'z': 'water'}}}"_json;
     obj["x.y.z"_path] = "tea";
     EXPECT_EQ(obj.get("x.y.z"_path), "tea");
+}
+
+TEST(Object, SubscriptAssignFromSubscript) {
+    Object obj1 = "{'x': '1'}"_json;
+    Object obj2 = "{'x': '2'}"_json;
+    auto k = "x"_key;
+    obj1[k] = obj2[k];
+    EXPECT_EQ(obj1.get(k), obj2.get(k));
+    EXPECT_EQ(obj1[k], obj2[k]);
+    EXPECT_NE(obj1.get(k).id(), obj2.get(k).id());
 }
 
 TEST(Object, SubscriptDelFromParent) {

@@ -3660,12 +3660,12 @@ class Object::Subscript
 {
   public:
     Object& resolve() const {
-        auto& self = const_cast<Object&>(m_obj);
+        auto& obj = const_cast<Object&>(m_obj);
         if (m_pend) {
-            self = m_obj.get(m_sub);
+            obj = m_obj.get(m_sub);
             m_pend = false;
         }
-        return self;
+        return obj;
     }
 
   public:
@@ -3721,6 +3721,8 @@ class Object::Subscript
     template <typename T> const T& as() const requires std::is_same<T, String>::value { return resolve().template as<T>(); }
     template <typename T> T& as() requires is_byvalue<T>                              { return resolve().template as<T>(); }
     template <typename T> T& as() requires std::is_same<T, String>::value             { return resolve().template as<T>(); }
+    template <typename T> T& as()                                                     { return resolve().template as<T>(); }
+    template <typename T> const T& as() const                                         { return resolve().template as<T>(); }
 
     bool is_empty() const   { return resolve().is_empty(); }
     bool is_deleted() const { return resolve().is_deleted(); }
@@ -3752,7 +3754,12 @@ class Object::Subscript
     Subscript<OPath> operator [] (const Key& key);
     Subscript<OPath> operator [] (const OPath& path);
 
+    bool operator == (const Subscript<Key>& other) const           { return resolve() == other.resolve(); }
+    bool operator == (Subscript<Key>&& other) const                { return resolve() == std::forward<Object>(other.resolve()); }
+    bool operator == (const Subscript<OPath>& other) const         { return resolve() == other.resolve(); }
+    bool operator == (Subscript<OPath>&& other) const              { return resolve() == std::forward<Object>(other.resolve()); }
     bool operator == (const Object& other) const                   { return resolve() == other; }
+    bool operator == (Object&& other) const                        { return resolve() == std::forward<Object>(other); }
     bool operator == (nil_t) const                                 { return resolve().type() == Object::NIL; }
     std::partial_ordering operator <=> (const Object& other) const { return resolve() <=> other; }
 
@@ -3761,8 +3768,23 @@ class Object::Subscript
     Object copy() const                { return resolve().copy(); }
     refcnt_t ref_count() const         { return resolve().ref_count(); }
 
-    Object operator = (const Object& obj) { return m_obj.set(m_sub, obj); }
-    Object operator = (Object&& other)    { return m_obj.set(m_sub, std::forward<Object>(other)); }
+    // TODO: not sure how to reduce the code, here
+    Object operator = (const Subscript<Key>& sub)   { assign(sub); return *this; }
+    Object operator = (Subscript<Key>&& sub)        { assign(std::forward<Subscript<Key>>(sub)); return *this; }
+    Object operator = (const Subscript<OPath>& sub) { assign(sub); return *this; }
+    Object operator = (Subscript<OPath>&& sub)      { assign(std::forward<Subscript<OPath>>(sub)); return *this; }
+
+    Object operator = (const Object& other) {
+        auto container = m_pend? m_obj: m_obj.parent();
+        container.set(m_sub, other);
+        return *this;
+    }
+
+    Object operator = (Object&& other) {
+        auto container = m_pend? m_obj: m_obj.parent();
+        container.set(m_sub, std::forward<Object>(other));
+        return *this;
+    }
 
     template <class DataSourceType>
     DataSourceType* data_source() const { return resolve().template data_source<DataSourceType>(); }
@@ -3773,6 +3795,19 @@ class Object::Subscript
     void reset_key(const Key& key)   { resolve().reset_key(key); }
     void refresh()                   { resolve().refresh(); }
     void refresh_key(const Key& key) { resolve().refresh_key(key); }
+
+  private:
+    template <class T>
+    void assign(const Subscript<T>& sub) {
+        auto container = m_pend? m_obj: m_obj.parent();
+        container.set(m_sub, sub.resolve());
+    }
+
+    template <class T>
+    void assign(Subscript<T>&& sub) {
+        auto container = m_pend? m_obj: m_obj.parent();
+        container.set(m_sub, sub.resolve());
+    }
 
   private:
     Object m_obj;
