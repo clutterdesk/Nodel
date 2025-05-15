@@ -223,15 +223,15 @@ void raise_type_error(const Object& obj) {
 }
 
 
-class PyOpaque : public nodel::Opaque
+class PyAlien : public nodel::Alien
 {
   public:
-    PyOpaque(PyObject* po) : m_po(po) { Py_XINCREF(po); }
-    ~PyOpaque() override { Py_XDECREF(m_po); m_po = nullptr; }
+    PyAlien(PyObject* po) : m_po(po) { Py_XINCREF(po); }
+    ~PyAlien() override { Py_XDECREF(m_po); m_po = nullptr; }
 
-    Opaque* clone() override { return new PyOpaque{m_po}; }
+    std::unique_ptr<Alien> clone() override { return std::make_unique<PyAlien>(m_po); }
 
-    nodel::String str() override {
+    nodel::String to_str() const override {
         RefMgr r_str{PyObject_Str(m_po)};
         Py_ssize_t c_str_len;
         auto c_str = PyUnicode_AsUTF8AndSize(r_str.get(), &c_str_len);
@@ -239,7 +239,7 @@ class PyOpaque : public nodel::Opaque
         return {c_str, (std::string::size_type)c_str_len};
     }
 
-    nodel::String repr() override {
+    nodel::String to_json() const override {
         RefMgr r_str{PyObject_Repr(m_po)};
         Py_ssize_t c_str_len;
         auto c_str = PyUnicode_AsUTF8AndSize(r_str.get(), &c_str_len);
@@ -315,7 +315,7 @@ PyObject* Support::to_str_repr(const Object& obj, bool repr) {
             auto str = obj.to_json();
             return python::to_str(StringView{str.data(), str.size()});
         }
-        case Object::ANY:   return repr? PyObject_Repr(obj.as<PyOpaque>().m_po): PyObject_Str(obj.as<PyOpaque>().m_po);
+        case Object::ANY:   return repr? PyObject_Repr(obj.as<PyAlien>().m_po): PyObject_Str(obj.as<PyAlien>().m_po);
         case Object::DSRC:  {
             if (repr) return python::to_str(const_cast<DataSourcePtr>(obj.m_repr.ds)->to_json(obj));
             else return python::to_str(const_cast<DataSourcePtr>(obj.m_repr.ds)->to_str(obj));
@@ -387,7 +387,7 @@ PyObject* Support::to_py(const Object& obj) {
             return py_list;
         }
         case Object::ANY: {
-            PyObject* po = obj.as<PyOpaque>().m_po;
+            PyObject* po = obj.as<PyAlien>().m_po;
             Py_INCREF(po);
             return po;
         }
@@ -413,7 +413,7 @@ PyObject* Support::prepare_return_value(const Object& obj) {
         case Object::OMAP:  [[fallthrough]];
         case Object::SMAP:  return (PyObject*)NodelObject_wrap(obj);
         case Object::ANY: {
-            PyObject* po = obj.as<PyOpaque>().m_po;
+            PyObject* po = obj.as<PyAlien>().m_po;
             Py_INCREF(po);
             return po;
         }
@@ -546,7 +546,7 @@ Object Support::to_object(PyObject* po) {
     } else if (NodelObject_CheckExact(po)) {
         return ((NodelObject*)po)->obj;
     } else {
-        return std::unique_ptr<nodel::Opaque>{new PyOpaque{po}};
+        return std::unique_ptr<nodel::Alien>{new PyAlien{po}};
     }
 }
 

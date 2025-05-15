@@ -22,12 +22,13 @@ struct TestObject : public Object
     using Object::m_repr;
 };
 
-class TestOpaque : public Opaque
+class TestObjectAlien : public Alien
 {
   public:
-    Opaque* clone() override { return new TestOpaque{}; }
-    String str() override { return "TestOpaque"; }
-    String repr() override { return "'TestOpaque'"; }
+    ~TestObjectAlien() override {}
+    std::unique_ptr<Alien> clone() override { return std::make_unique<TestObjectAlien>(); }
+    String to_str() const override { return "TestObjectAlien"; }
+    String to_json() const override { return "'TestObjectAlien'"; }
 };
 
 
@@ -1247,15 +1248,15 @@ TEST(Object, SortedMapGetKey) {
     EXPECT_EQ(obj.get("z"_key).get(1).key(), 1);
 }
 
-TEST(Object, Opaque) {
-    std::unique_ptr<Opaque> p_any{new TestOpaque{}};
-    Object any{p_any};
-    EXPECT_TRUE(any == any);
-    auto& r_any = any.as<TestOpaque>();
-    EXPECT_EQ(r_any.str(), "TestOpaque");
+TEST(Object, AlienAccess) {
+    std::unique_ptr<Alien> p_any{new TestObjectAlien{}};
+    Object obj{p_any};
+    EXPECT_TRUE(obj == obj);
+    auto& r_any = obj.as<TestObjectAlien>();
+    EXPECT_EQ(r_any.to_str(), "TestObjectAlien");
     Object map = "{}"_json;
-    map["x"_key] = any;
-    EXPECT_TRUE(any.parent().is(map));
+    map["x"_key] = obj;
+    EXPECT_TRUE(obj.parent().is(map));
 }
 
 TEST(Object, SubscriptResolution) {

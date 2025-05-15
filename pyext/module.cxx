@@ -614,7 +614,7 @@ static PyObject* mod_is_map(PyObject* mod, PyObject* arg) {
     }
 }
 
-constexpr auto is_native_doc = "True, if the object is an opaque wrapper for a native Python object.\n";
+constexpr auto is_native_doc = "True, if the object is an alien wrapper for a native Python object.\n";
 static PyObject* mod_is_native(PyObject* mod, PyObject* arg) { return is_type(mod, arg, Object::ReprIX::ANY); }
 
 constexpr auto native_doc = \

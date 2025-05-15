@@ -19,8 +19,7 @@ class SerialFile : public File
   public:
     SerialFile(const Ref<Serializer>& r_serial, Origin origin)
     : File(DataSource::Kind::COMPLETE, r_serial->get_repr_ix(), origin)
-    , mr_serial{r_serial} {
-    }
+    , mr_serial{r_serial} {}
 
     SerialFile(const Ref<Serializer>& r_serial) : SerialFile(r_serial, Origin::MEMORY) {}
 

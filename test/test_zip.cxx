@@ -39,14 +39,12 @@ TEST(Zip, WriteFile) {
 
     test_data.reset();
     EXPECT_EQ(test_data["['tmp.zip']['some.json']"_path], "tea!");
-
-    DEBUG("{}", test_data.get("['tmp.zip']"_path));
 }
 
 TEST(Zip, WriteFileInDirectory) {
     auto wd = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new Registry{default_registry()}, wd, DataSource::Origin::SOURCE);
-    Finally finally{ [&test_data] () { test_data.del("tmp.zip"_key); } };
+    Finally finally{ [&test_data] () { test_data.del("tmp.zip"_key); test_data.save(); } };
 
     Object content{Object::OMAP};
     content.set("tmp['some.json']"_path, "{'tea': 'Assam'}"_json);

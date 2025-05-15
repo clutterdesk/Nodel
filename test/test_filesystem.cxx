@@ -12,6 +12,19 @@
 using namespace nodel;
 using namespace nodel::filesystem;
 
+
+struct TestFilesystemAlien : public Alien
+{
+    TestFilesystemAlien(const std::string& data) : buf{data} {}
+
+    std::unique_ptr<Alien> clone() override { return std::make_unique<TestFilesystemAlien>(buf); }
+    String to_str() const override { return buf; }
+    String to_json() const override { return '"' + buf + '"'; }
+
+    std::string buf;
+};
+
+
 TEST(Filesystem, IsFsobj) {
     auto path = std::filesystem::current_path() / "test_data";
     Object test_data = new Directory(new Registry{default_registry()}, path, DataSource::Origin::SOURCE);

@@ -169,17 +169,16 @@ void SubDirectory::write(const Object& target, const Object& cache) {
 
     // create, if necessary
     if (!std::filesystem::exists(fpath)) {
-//        DEBUG("Creating directory: {}", fpath.string());
         std::filesystem::create_directory(fpath);
     }
 
     // apply correct data-source to new files/directories
     for (auto& item: cache.iter_items()) {
-        // TODO: check for non-filesystem data-source
-        if (!has_data_source(item.second)) {
+        if (!is_fs(item.second)) {
             auto& key = item.first;
             auto obj = item.second;
             auto item_fpath = fpath / key.to_str();
+
             auto p_ds = r_reg->create_if_defined(target, item_fpath, DataSource::Origin::MEMORY);
             if (p_ds == nullptr && looks_like_directory(r_reg, item_fpath, obj))
                 p_ds = r_reg->create(target, item_fpath, DataSource::Origin::MEMORY, true);
