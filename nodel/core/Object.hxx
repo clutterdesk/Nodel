@@ -2142,9 +2142,9 @@ size_t Object::size() const {
 }
 
 
-#include "KeyRange.hxx"
-#include "ValueRange.hxx"
-#include "ItemRange.hxx"
+#include "KeyRange.inl"
+#include "ValueRange.inl"
+#include "ItemRange.inl"
 
 /// Returns a range-like object over container Keys
 inline KeyRange Object::iter_keys() const {
