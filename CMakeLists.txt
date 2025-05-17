@@ -194,7 +194,7 @@ else()
         DEPENDS nodel_test
                 ${CMAKE_SOURCE_DIR}/pyext/setup.py
                 ${CMAKE_SOURCE_DIR}/pyext/setup.cfg
-        COMMAND ${Python3_EXECUTABLE} -m venv ${CMAKE_CACHEFILE_DIR}/venv
+        COMMAND ${Python3_EXECUTABLE} -m venv ${CMAKE_BINARY_DIR}/venv
         COMMAND python3 -m pip install setuptools build
         COMMAND ${CMAKE_COMMAND} -E env 
             NODEL_PYEXT_INCLUDE="${NODEL_PYEXT_INCLUDE}"
