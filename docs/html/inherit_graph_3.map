@@ -1,3 +1,13 @@
 <map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
-<area shape="rect" id="Node000000" href="$class_key_iterator.html" title="License: &#160;&#160;Apache License v2.0" alt="" coords="5,5,91,31"/>
+<area shape="rect" id="Node000000" href="$classnodel_1_1_data_source.html" title="Base class for objects implementing external data access." alt="" coords="5,76,135,101"/>
+<area shape="rect" id="Node000001" href="$classnodel_1_1filesystem_1_1_file.html" title="Base class for all file DataSource classes." alt="" coords="183,14,332,40"/>
+<area shape="poly" id="edge1_Node000000_Node000001" title=" " alt="" coords="125,68,215,38,216,43,127,73"/>
+<area shape="rect" id="Node000003" href="$classnodel_1_1filesystem_1_1_sub_directory.html" title="DataSource for filesystem directories." alt="" coords="193,68,322,109"/>
+<area shape="poly" id="edge3_Node000000_Node000003" title=" " alt="" coords="150,86,193,86,193,91,150,91"/>
+<area shape="rect" id="Node000005" href="$classnodel_1_1kvdb_1_1_d_b.html" title="A simple key/value store backed by RocksDB." alt="" coords="200,133,315,158"/>
+<area shape="poly" id="edge5_Node000000_Node000005" title=" " alt="" coords="130,104,214,130,212,135,128,109"/>
+<area shape="rect" id="Node000002" href="$classnodel_1_1filesystem_1_1_serial_file.html" title="Base class for all file DataSource classes." alt="" coords="380,5,508,46"/>
+<area shape="poly" id="edge2_Node000001_Node000002" title=" " alt="" coords="348,24,380,23,380,29,348,29"/>
+<area shape="rect" id="Node000004" href="$classnodel_1_1filesystem_1_1_directory.html" title="DataSource to use for filesystem directory." alt="" coords="380,71,508,111"/>
+<area shape="poly" id="edge4_Node000003_Node000004" title=" " alt="" coords="337,87,379,87,379,93,337,92"/>
 </map>

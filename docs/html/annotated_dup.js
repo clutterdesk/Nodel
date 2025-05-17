@@ -11,20 +11,15 @@ var annotated_dup =
       [ "kvdb", "namespacenodel_1_1kvdb.html", [
         [ "DB", "classnodel_1_1kvdb_1_1_d_b.html", "classnodel_1_1kvdb_1_1_d_b" ]
       ] ],
+      [ "Alien", "classnodel_1_1_alien.html", "classnodel_1_1_alien" ],
       [ "DataSource", "classnodel_1_1_data_source.html", "classnodel_1_1_data_source" ],
-      [ "ItemIterator", "classnodel_1_1_item_iterator.html", null ],
       [ "Key", "classnodel_1_1_key.html", "classnodel_1_1_key" ],
-      [ "KeyIterator", "classnodel_1_1_key_iterator.html", null ],
       [ "Object", "classnodel_1_1_object.html", "classnodel_1_1_object" ],
-      [ "OPath", "classnodel_1_1_o_path.html", "classnodel_1_1_o_path" ],
-      [ "ValueIterator", "classnodel_1_1_value_iterator.html", null ]
+      [ "OPath", "classnodel_1_1_o_path.html", "classnodel_1_1_o_path" ]
     ] ],
     [ "std", "namespacestd.html", [
       [ "hash< nodel::Key >", "structstd_1_1hash_3_01nodel_1_1_key_01_4.html", null ],
       [ "hash< nodel::OPath >", "structstd_1_1hash_3_01nodel_1_1_o_path_01_4.html", null ]
     ] ],
-    [ "Flags", "struct_flags.html", null ],
-    [ "ItemIterator", "class_item_iterator.html", null ],
-    [ "KeyIterator", "class_key_iterator.html", null ],
-    [ "ValueIterator", "class_value_iterator.html", null ]
+    [ "Flags", "struct_flags.html", null ]
 ];

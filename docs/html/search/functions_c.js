@@ -1,7 +1,8 @@
 var searchData=
 [
-  ['save_0',['save',['../classnodel_1_1_object.html#a0efb4a95bf69053312e10ff92065edd1',1,'nodel::Object']]],
-  ['set_1',['set',['../classnodel_1_1_object.html#a3d3090c28e6bfc7b4f900ec86062b1d8',1,'nodel::Object::set(const Object &amp;)'],['../classnodel_1_1_object.html#a373a41ac898b002a39916c7d12341765',1,'nodel::Object::set(const Key &amp;, const Object &amp;)'],['../classnodel_1_1_object.html#a4f75de10b185d6268cd1179dd51a0226',1,'nodel::Object::set(const OPath &amp;, const Object &amp;)'],['../classnodel_1_1_object.html#aa1784629f14acef12fa12fe69a4b7c22',1,'nodel::Object::set(const Slice &amp;, const Object &amp;)'],['../classnodel_1_1_object.html#a6d4be4da599cbeb579a1731379fb8432',1,'nodel::Object::set(const Slice &amp;, ValueRange &amp;&amp;)']]],
-  ['set_5fparent_2',['set_parent',['../classnodel_1_1_object.html#a8c31ad1b59118fe0dcfa967b26c1100e',1,'nodel::Object']]],
-  ['size_3',['size',['../classnodel_1_1_object.html#a006f36bb2621b0eafdcdecda4b01354a',1,'nodel::Object']]]
+  ['read_0',['read',['../classnodel_1_1_data_source.html#ae2a9acc7730154b67335f9b5c72286e8',1,'nodel::DataSource::read()'],['../classnodel_1_1filesystem_1_1_sub_directory.html#adc0119a8d4b3c0791763d5e7e6863aa9',1,'nodel::filesystem::SubDirectory::read()'],['../classnodel_1_1filesystem_1_1_serial_file.html#a3639329b907a683c9933c4083c0b60ed',1,'nodel::filesystem::SerialFile::read()'],['../classnodel_1_1kvdb_1_1_d_b.html#ad7e9136f2c2f2d664f160e797ce4c314',1,'nodel::kvdb::DB::read()']]],
+  ['read_5fkey_1',['read_key',['../classnodel_1_1_data_source.html#a609271647c2b40e30b2480067559b034',1,'nodel::DataSource::read_key()'],['../classnodel_1_1kvdb_1_1_d_b.html#ac305765b6b22b973c52d40736fadd0e5',1,'nodel::kvdb::DB::read_key()']]],
+  ['read_5ftype_2',['read_type',['../classnodel_1_1_data_source.html#a7fc91cefac69d3d4f36cfb341608839e',1,'nodel::DataSource::read_type()'],['../classnodel_1_1filesystem_1_1_sub_directory.html#a32cf3f8f5187f96d2d3689aa8f15c9ec',1,'nodel::filesystem::SubDirectory::read_type()'],['../classnodel_1_1kvdb_1_1_d_b.html#aee54a36aa9562388a76e60cfe0b98880',1,'nodel::kvdb::DB::read_type()']]],
+  ['register_5fdirectory_5fextension_3',['register_directory_extension',['../namespacenodel_1_1kvdb.html#aab36a4681ee24b2c2cfff962709318dd',1,'nodel::kvdb']]],
+  ['root_4',['root',['../classnodel_1_1_object.html#ac0a2150efc9e19982bc3ee5a51797423',1,'nodel::Object']]]
 ];

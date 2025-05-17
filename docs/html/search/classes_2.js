@@ -1,5 +1,6 @@
 var searchData=
 [
-  ['hash_3c_20nodel_3a_3akey_20_3e_0',['hash&lt; nodel::Key &gt;',['../structstd_1_1hash_3_01nodel_1_1_key_01_4.html',1,'std']]],
-  ['hash_3c_20nodel_3a_3aopath_20_3e_1',['hash&lt; nodel::OPath &gt;',['../structstd_1_1hash_3_01nodel_1_1_o_path_01_4.html',1,'std']]]
+  ['file_0',['File',['../classnodel_1_1filesystem_1_1_file.html',1,'nodel::filesystem']]],
+  ['flags_1',['Flags',['../struct_flags.html',1,'']]],
+  ['flags_3c_20uint8_5ft_20_3e_2',['Flags&lt; uint8_t &gt;',['../struct_flags.html',1,'']]]
 ];
