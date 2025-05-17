@@ -811,6 +811,11 @@ TEST(Object, ListGetSlice) {
   EXPECT_EQ(list.get(0), 19);
   EXPECT_EQ(list.get(1), 15);
   EXPECT_EQ(list.get(2), 11);
+
+  list = obj.get("-100:"_slice);
+  ASSERT_EQ(list.size(), 10UL);
+  EXPECT_EQ(list.get(0), 10);
+  EXPECT_EQ(list.get(9), 19);
 }
 
 TEST(Object, ListGetOutOfRange) {

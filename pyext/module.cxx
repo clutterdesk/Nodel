@@ -448,6 +448,23 @@ static PyObject* mod_key(PyObject* mod, PyObject* arg) {
     }
 }
 
+constexpr auto path_doc =
+"Returns the path of the object from the root of the datamodel.\n"
+"nodel.path(obj) -> str\n"
+"Returns the path of the argument.";
+
+static PyObject* mod_path(PyObject* mod, PyObject* arg) {
+    NodelObject* nd_self = as_nodel_object(arg);
+    if (nd_self == NULL) return NULL;
+
+    try {
+        return python::to_str(nd_self->obj.path().to_str());
+    } catch (const std::exception& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
+}
+
 constexpr auto get_doc =
 "Calls Object::get with semantics like Python dict.get.\n"
 "Note that this function works for both map and list Objects.\n"
@@ -705,6 +722,7 @@ static PyMethodDef nodel_methods[] = {
     {"iter_items",  (PyCFunction)mod_iter_items,          METH_FASTCALL, PyDoc_STR(iter_items_doc)},
     {"iter_tree",   (PyCFunction)mod_iter_tree,           METH_O,        PyDoc_STR(iter_tree_doc)},
     {"key",         (PyCFunction)mod_key,                 METH_O,        PyDoc_STR(key_doc)},
+    {"path",        (PyCFunction)mod_path,                METH_O,        PyDoc_STR(path_doc)},
     {"get",         (PyCFunction)mod_get,                 METH_FASTCALL, PyDoc_STR(get_doc)},
     {"reset",       (PyCFunction)mod_reset,               METH_O,        PyDoc_STR(reset_doc)},
     {"reset_key",   (PyCFunction)mod_reset_key,           METH_FASTCALL, PyDoc_STR(reset_key_doc)},

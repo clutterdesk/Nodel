@@ -298,7 +298,7 @@ class TestObject(unittest.TestCase):
         self.assertEqual(len(map), 1)
         self.assertEqual(map.x, 'X')
         self.assertFalse('y' in map)
-
+        
         
 if __name__ == '__main__':
     unittest.main()
