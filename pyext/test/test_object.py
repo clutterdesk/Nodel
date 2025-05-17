@@ -185,6 +185,9 @@ class TestObject(unittest.TestCase):
         obj[::] = ''
         self.assertEqual(obj, '')
         
+    def test_string_len(self):
+        self.assertEqual(len(nd.new('foo')), 3)
+        
     def test_string_to_native(self):
         obj = nd.Object("teatime")
         s = nd.native(obj)

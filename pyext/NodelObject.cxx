@@ -1061,7 +1061,10 @@ static PyNumberMethods NodelObject_as_number = {
 static Py_ssize_t NodelObject_mp_length(PyObject* self) {
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
-    if (!require_container(self_obj)) return NULL;
+    if (!nodel::is_container(self_obj) && self_obj.type() != Object::STR) {
+        python::raise_type_error(self_obj);
+        return NULL;
+    }
     return (Py_ssize_t)self_obj.size();
 }
 

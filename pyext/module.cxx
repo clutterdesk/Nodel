@@ -158,6 +158,47 @@ static PyObject* mod_smap(PyObject* mod) {
     }
 }
 
+constexpr auto insert_doc =
+"Insert an obj2 into the container, obj1, at the specified key.\n"
+"If the container is a list then the key must be an integer.\n"
+"If the container is a map then this function is equivalent to 'obj1[key] = obj2'.\n"
+"insert(obj1, key, obj2) -> Object\n"
+"Returns the object that was actually inserted, which will be a clone if the object\n"
+"    already resides in a different container (already has a parent).\n";
+
+static PyObject* mod_insert(PyObject* mod, PyObject *const *args, Py_ssize_t nargs) {
+    if (nargs != 3) {
+        PyErr_SetString(PyExc_ValueError, "Wrong number of arguments");
+        return NULL;
+    }
+
+    NodelObject* nd_obj = as_nodel_object(args[0]);
+    if (nd_obj == NULL) return NULL;
+
+    auto result = nd_obj->obj.insert(support.to_key(args[1]), support.to_object(args[2]));
+    return (PyObject*)wrap(mod, result);
+}
+
+constexpr auto append_doc =
+"Append the argument to a list.\n"
+"append(obj1, obj2) -> Object\n"
+"Returns the object that was actually append, which will be a clone if the object\n"
+"    already resides in a different container (already has a parent).\n";
+
+static PyObject* mod_append(PyObject* mod, PyObject *const *args, Py_ssize_t nargs) {
+    if (nargs != 2) {
+        PyErr_SetString(PyExc_ValueError, "Wrong number of arguments");
+        return NULL;
+    }
+
+    NodelObject* nd_obj = as_nodel_object(args[0]);
+    if (nd_obj == NULL) return NULL;
+
+    auto result = nd_obj->obj.append(support.to_object(args[1]));
+    return (PyObject*)wrap(mod, result);
+}
+
+
 constexpr auto bind_doc =
 "Bind object with URI string/dict\n"
 "bind(uri) -> Object\n"
@@ -544,10 +585,16 @@ static PyObject* mod_is_same(PyObject* mod, PyObject* const* args, Py_ssize_t na
     }
 
     NodelObject* lhs = as_nodel_object(args[0]);
-    if (lhs == NULL) return NULL;
+    if (lhs == NULL) {
+        PyErr_Clear();
+        if (args[0] == args[1]) Py_RETURN_TRUE; else Py_RETURN_FALSE;
+    }
 
     NodelObject* rhs = as_nodel_object(args[1]);
-    if (rhs == NULL) return NULL;
+    if (rhs == NULL) {
+        PyErr_Clear();
+        Py_RETURN_FALSE;
+    }
 
     if (lhs->obj.is(rhs->obj)) Py_RETURN_TRUE; else Py_RETURN_FALSE;
 }
@@ -646,6 +693,8 @@ static PyMethodDef nodel_methods[] = {
     {"dict",        (PyCFunction)mod_omap,                METH_NOARGS,   PyDoc_STR(dict_doc)},
     {"omap",        (PyCFunction)mod_omap,                METH_NOARGS,   PyDoc_STR(omap_doc)},
     {"smap",        (PyCFunction)mod_smap,                METH_NOARGS,   PyDoc_STR(smap_doc)},
+    {"append",      (PyCFunction)mod_append,              METH_FASTCALL, PyDoc_STR(append_doc)},
+    {"insert",      (PyCFunction)mod_insert,              METH_FASTCALL, PyDoc_STR(insert_doc)},
     {"bind",        (PyCFunction)mod_bind,                METH_O,        PyDoc_STR(bind_doc)},
     {"from_json",   (PyCFunction)mod_from_json,           METH_O,        PyDoc_STR(from_json_doc)},
     {"clear",       (PyCFunction)mod_clear,               METH_O,        PyDoc_STR(clear_doc)},

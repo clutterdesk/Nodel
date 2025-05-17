@@ -128,7 +128,7 @@ String assign_slice(const String& input, PyObject* slice, PyObject* replace) {
         Py_ssize_t repl_pos = 0;
         Py_ssize_t pos = start;
         for (; repl_pos < min_len; ++repl_pos, pos += step) {
-            if (pos >= result.size())
+            if (static_cast<String::size_type>(pos) >= result.size())
                 result.append(input.begin() + result.size(), input.begin() + pos + 1);
             result[pos] = repl_bytes[repl_pos];
         }
