@@ -95,7 +95,7 @@ std::tuple<Int, Int, Int> Slice::to_indices(UInt size) const {
         }
         case Key::INT: {
             min_i = m_min.m_value.to_int();
-            if (min_i < 0) min_i = std::max((Int)0, min_i + static_cast<Int>(size));
+            if (size > 0 && min_i < 0) min_i = std::max((Int)0, min_i + static_cast<Int>(size));
             if (m_min.m_kind == Endpoint::Kind::OPEN) ++min_i;
             break;
         }
@@ -117,7 +117,7 @@ std::tuple<Int, Int, Int> Slice::to_indices(UInt size) const {
         }
         case Key::INT: {
             max_i = m_max.m_value.to_int();
-            if (max_i < 0) max_i = std::max((Int)0, max_i + static_cast<Int>(size));
+            if (size > 0 && max_i < 0) max_i = std::max((Int)0, max_i + static_cast<Int>(size));
             if (m_max.m_kind == Endpoint::Kind::CLOSED) ++max_i;
             break;
         }
