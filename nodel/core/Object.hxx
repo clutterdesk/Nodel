@@ -3232,12 +3232,24 @@ std::ostream& operator<< (std::ostream& ostream, const Object& obj) {
 inline
 void DataSource::Options::configure(const Object& uri) {
     mode = Mode::READ;
-    auto query_mode = uri.get("query.perm"_path);
-    if (query_mode != nil) {
-        auto mode_s = query_mode.as<String>();
+    auto query_perm = uri.get("query.perm"_path);
+    if (query_perm != nil) {
+        auto mode_s = query_perm.as<String>();
         if (mode_s.find_first_of("rR") != mode_s.npos) mode |= Mode::READ;
         if (mode_s.find_first_of("wW") != mode_s.npos) mode |= Mode::WRITE;
         if (mode_s.find_first_of("cC") != mode_s.npos) mode |= Mode::CLOBBER;
+    }
+
+    auto query_throw = uri.get("query.throw"_path);
+    if (query_throw != nil) {
+        auto throw_s = query_throw.as<String>();
+        if (throw_s == "0" or throw_s == "false") {
+            throw_read_error = false;
+            throw_write_error = false;
+        } else if (throw_s == "1" or throw_s == "true") {
+            throw_read_error = true;
+            throw_write_error = true;
+        }
     }
 }
 
