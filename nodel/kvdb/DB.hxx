@@ -47,7 +47,7 @@ class DB : public nodel::DataSource
 
     void read_type(const Object& target) override { ASSERT(false); }
     void read(const Object& target) override;
-    void write(const Object&, const Object& cache) override;
+    void write(const Object&, const Object& cache, const Object& options) override;
 
     Object read_key(const Object&, const Key& k) override;
     void write_key(const Object&, const Key& k, const Object& v) override;
@@ -338,7 +338,7 @@ void DB::read(const Object& target) {
 }
 
 inline
-void DB::write(const Object& target, const Object& data) {
+void DB::write(const Object& target, const Object& data, const Object& options) {
     m_update_all = true;
 }
 

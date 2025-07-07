@@ -18,7 +18,7 @@ class CsvSerializer : public Serializer
     CsvSerializer() : Serializer{Object::LIST} {}
 
     Object read(std::istream&, size_t size_hint) override;
-    void write(std::ostream&, const Object&) override;
+    void write(std::ostream&, const Object&, const Object&) override;
 };
 
 inline
@@ -28,7 +28,7 @@ Object CsvSerializer::read(std::istream& stream, size_t size_hint) {
 }
 
 inline
-void CsvSerializer::write(std::ostream& stream, const Object& obj) {
+void CsvSerializer::write(std::ostream& stream, const Object& obj, const Object& options) {
     for (const auto& row : obj.iter_values()) {
         char sep = 0;
         for (const auto& col: row.iter_values()) {

@@ -378,7 +378,7 @@ class Key
             case UINT:  stream << '[' << nodel::int_to_str(m_repr.u) << ']'; break;
             case FLOAT: stream << '[' << nodel::float_to_str(m_repr.f) << ']'; break;
             case STR: {
-                auto pos = m_repr.s.data().find_first_of("\".");
+                auto pos = m_repr.s.data().find_first_of("\". ");
                 if (pos != StringView::npos) {
                     stream << '[' << quoted(m_repr.s.data()) << ']';
                 } else {

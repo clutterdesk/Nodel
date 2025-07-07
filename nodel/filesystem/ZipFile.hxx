@@ -21,7 +21,7 @@ class ZipFile : public File
     DataSource* new_instance(const Object& target, Origin origin) const override { return new ZipFile(origin); }
 
     void read(const Object& target) override;
-    void write(const Object& target, const Object& cache) override;
+    void write(const Object& target, const Object& cache, const Object&) override;
 
   protected:
     void free_resources() override;
@@ -45,7 +45,7 @@ class ZipFileEntry : public File
     DataSource* new_instance(const Object& target, Origin origin) const override { return new ZipFileEntry(mp_entry, origin); }
 
     void read(const Object& target) override;
-    void write(const Object& target, const Object& cache) override {}
+    void write(const Object& target, const Object& cache, const Object&) override {}
 
   private:
     ZipArchiveEntry::Ptr mp_entry;
@@ -111,7 +111,7 @@ void ZipFile::read(const Object& target) {
 }
 
 inline
-void ZipFile::write(const Object& target, const Object& cache) {
+void ZipFile::write(const Object& target, const Object& cache, const Object& save_options) {
     auto fpath = path(target);
     auto r_reg = get_registry(target);
 
@@ -163,7 +163,7 @@ void ZipFile::write(const Object& target, const Object& cache) {
                 auto r_serial = r_reg->get_serializer(item_fpath);
                 std::stringstream* p_stream = new std::stringstream();
                 streams.push_back(p_stream);
-                r_serial->write(*p_stream, obj);
+                r_serial->write(*p_stream, obj, save_options);
                 p_ds->mp_entry->SetCompressionStream(*p_stream);
             }
         }

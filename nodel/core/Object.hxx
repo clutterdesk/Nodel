@@ -409,13 +409,16 @@ class Object
 
     Key to_key() const;
     String to_str() const;
-    String to_json() const;
-    void to_json(std::ostream&) const;
+    String to_json(int indent=0) const;
+    void to_json(std::ostream&, int indent=0) const;
 
     Object get(is_like_Int auto) const;
     Object get(const Key&) const;
     Object get(const OPath&) const;
     ObjectList get(const Slice&) const;
+
+    Object get_if(const Key&, const Object& def_value) const;
+    Object get_if(const OPath&, const Object& def_value) const;
 
     Object set(const Object&);
     Object set(const Key&, const Object&);
@@ -454,7 +457,7 @@ class Object
     DataSourceType* data_source() const;
 
     void needs_saving();
-    void save();
+    void save(const Object& options=nil);
     void reset();
     void reset_key(const Key&);
     void refresh();
@@ -479,6 +482,7 @@ class Object
     Fields m_fields;
 
   friend class DataSource;
+  friend class JsonVisitor;
   friend class KeyIterator;
   friend class ValueIterator;
   friend class ItemIterator;
@@ -516,7 +520,7 @@ class Alien
 
     /// This function is called by the Object::to_json method.
     /// @return Returns a string representation.
-    virtual String to_json() const = 0;
+    virtual String to_json(int indent) const = 0;
 
     /// Called when two Object references are compared with the == operator.  This
     /// function is not concerned with identity.
@@ -620,9 +624,9 @@ class OPath
                 auto child = obj.get(*prev_it);
                 if (child == nil) {
                     child = Object{(*it).is_any_int()? Object::LIST: Object::OMAP};
-                    obj.set(*prev_it, child);
+                    child = obj.set(*prev_it, child);
                 }
-                obj.refer_to(child);
+                obj = child;
                 prev_it = it;
             }
             return obj.set(*prev_it, last_value);
@@ -1024,7 +1028,7 @@ class DataSource
     /// Write data to external storage.
     /// @param target The target holding this DataSource.
     /// @param data The data to be written.
-    virtual void write(const Object& target, const Object& data) = 0;
+    virtual void write(const Object& target, const Object& data, const Object& options) = 0;
 
     /// Write data for the specified key to external storage.
     /// @param target The target holding this DataSource.
@@ -1047,6 +1051,15 @@ class DataSource
     ///   allow the implementation to batch updates.
     /// - This method is only called for *sparse* implementations.
     virtual void commit(const Object& target, const Object& data, const KeyList& del_keys) {}
+
+    /// Determine the concrete DataSource for a newly inserted object.
+    /// @param parent The parent object (container).
+    /// @param key The key under which the object is being inserted.
+    /// @param value The object being inserted.
+    /// @return A pointer to a DataSource to be bound to the value, or nullptr.
+    virtual DataSource* resolve_data_source(const Object& parent, const Key& key, const Object& value) const {
+        return nullptr;
+    }
 
     // interface to use from virtual read methods
     void read_set(const Object& target, const Object& value);
@@ -1090,6 +1103,7 @@ class DataSource
   private:
     void update_parent_in_cache(const Object&);
     DataSource* copy(const Object& target, Origin origin) const;
+    Object bind_child(const Object& target, const Key& key, const Object& child);
     void set(const Object& target, const Object& in_val);
     Object set(const Object& target, const Key& key, const Object& in_val);
     Object set(const Object& target, Key&& key, const Object& in_val);
@@ -1101,7 +1115,7 @@ class DataSource
     Object append(const Object& target, const Object& value);
     void clear(const Object& target);
 
-    void save(const Object& target);
+    void save(const Object& target, const Object& options = {});
 
     void reset();
     void reset_key(const Key& key);
@@ -1113,9 +1127,9 @@ class DataSource
         return m_cache.to_str();
     }
 
-    String to_json(const Object& target) {
+    String to_json(const Object& target, int indent) {
         insure_fully_cached(target);
-        return m_cache.to_json();
+        return m_cache.to_json(indent);
     }
 
     const Key key_of(const Object& obj) { return m_cache.key_of(obj); }
@@ -1816,7 +1830,7 @@ Object Object::get(is_like_Int auto index) const {
     }
 }
 
-/// Get the value of a key from a container or string
+/// Get the value of a key from a container, or string, if the key is an index.
 /// @param key The key to lookup.
 /// - If the key is less than zero, the size of the container is first
 ///   added to the key.
@@ -1860,6 +1874,26 @@ Object Object::get(const Key& key) const {
 inline
 Object Object::get(const OPath& path) const {
     return path.lookup(*this);
+}
+
+/// Get the value of a key from a container, if it exists, otherwise return default value.
+/// @param key The key.
+/// @param def_value The value to return if the key does not exist.
+/// @return Returns the value or the default value.
+inline
+Object Object::get_if(const Key& key, const Object& def_value) const {
+    auto value = get(key);
+    return value.is_nil()? def_value: value;
+}
+
+/// Get the value addresed by the path from a container, if it exists, otherwise return default value.
+/// @param path The path.
+/// @param def_value The value to return if the key does not exist.
+/// @return Returns the value or the default value.
+inline
+Object Object::get_if(const OPath& path, const Object& def_value) const {
+    auto value = get(path);
+    return value.is_nil()? def_value: value;
 }
 
 /// Overwrite (clobber) the stored data type of this Object
@@ -2642,39 +2676,66 @@ private:
 
 
 inline
-String Object::to_json() const {
+String Object::to_json(int indent) const {
     StringStream ss;
-    to_json(ss);
+    to_json(ss, indent);
     return ss.str();
 }
 
-inline
-void Object::to_json(std::ostream& os) const {
-    auto visitor = [&os] (const Object& parent, const Key& key, const Object& object, uint8_t event) -> void {
+
+class JsonVisitor {
+  public:
+    JsonVisitor(std::ostream& os, int indent) : m_os(os) {
+        if (indent > 0) m_indent.assign(indent, ' ');
+    }
+
+    void operator () (const Object& parent, const Key& key, const Object& object, uint8_t event) {
+        if (m_indent.length() > 0 && event & WalkDF::END_PARENT) {
+            m_indent_chars.resize(m_indent_chars.length() - m_indent.length());
+            m_os << std::endl << m_indent_chars;
+        }
+
         if (event & WalkDF::NEXT_VALUE && !(event & WalkDF::END_PARENT)) {
-            os << ", ";
+            m_os << ", ";
+            if (m_indent.length() > 0)
+                m_os << std::endl << m_indent_chars;
         }
 
         if (nodel::is_map(parent) && !(event & WalkDF::END_PARENT)) {
-            os << key.to_json() << ": ";
+            m_os << key.to_json() << ": ";
         }
 
         switch (object.m_fields.repr_ix) {
-            case EMPTY: throw empty_reference();
-            case NIL:   os << "nil"; break;
-            case BOOL:  os << (object.m_repr.b? "true": "false"); break;
-            case INT:   os << int_to_str(object.m_repr.i); break;
-            case UINT:  os << int_to_str(object.m_repr.u); break;
-            case FLOAT: os << float_to_str(object.m_repr.f); break;
-            case STR:   os << std::quoted(std::get<0>(*object.m_repr.ps)); break;
-            case LIST:  os << ((event & WalkDF::BEGIN_PARENT)? '[': ']'); break;
-            case SMAP:  [[fallthrough]];
-            case OMAP:  os << ((event & WalkDF::BEGIN_PARENT)? '{': '}'); break;
-            case ANY:   os << object.m_repr.pany->to_json(); break;
-            default:    throw wrong_type(object.m_fields.repr_ix);
+            case Object::EMPTY: throw object.empty_reference();
+            case Object::NIL:   m_os << "nil"; break;
+            case Object::BOOL:  m_os << (object.m_repr.b ? "true" : "false"); break;
+            case Object::INT:   m_os << int_to_str(object.m_repr.i); break;
+            case Object::UINT:  m_os << int_to_str(object.m_repr.u); break;
+            case Object::FLOAT: m_os << float_to_str(object.m_repr.f); break;
+            case Object::STR:   m_os << std::quoted(std::get<0>(*object.m_repr.ps)); break;
+            case Object::LIST:  m_os << ((event & WalkDF::BEGIN_PARENT) ? '[' : ']'); break;
+            case Object::SMAP:  [[fallthrough]];
+            case Object::OMAP:  m_os << ((event & WalkDF::BEGIN_PARENT) ? '{' : '}'); break;
+            case Object::ANY:   m_os << object.m_repr.pany->to_json(m_indent.length()); break;
+            default:    throw Object::wrong_type(object.m_fields.repr_ix);
         }
-    };
 
+        if (m_indent.length() > 0 && event & WalkDF::BEGIN_PARENT) {
+            m_indent_chars += m_indent;
+            m_os << std::endl << m_indent_chars;
+        }
+    }
+
+  private:
+    std::ostream& m_os;
+    std::string m_indent;
+    std::string m_indent_chars;
+};
+
+
+inline
+void Object::to_json(std::ostream& os, int indent) const {
+    JsonVisitor visitor{os, indent};
     WalkDF walk{*this, visitor};
     while (walk.next());
 }
@@ -3163,8 +3224,9 @@ void Object::needs_saving() {
 /// - Use the @ref Object::needs_saving method to set the *unsaved* bit, if you
 ///   modify string data by reference, as returned by the @ref Object::as<String>
 ///   method.
+/// @param options A map of key/value pair options passed to the serializer.
 inline
-void Object::save() {
+void Object::save(const Object& options) {
     auto enter_pred = [] (const Object& obj) {
         auto p_ds = obj.data_source<DataSource>();
         return p_ds != nullptr && p_ds->is_multi_level() && p_ds->is_fully_cached();
@@ -3172,7 +3234,7 @@ void Object::save() {
 
     auto tree_range = iter_tree_if(has_data_source, enter_pred);
     for (const auto& obj : tree_range)
-        obj.m_repr.ds->save(obj);
+        obj.m_repr.ds->save(obj, options);
 }
 
 inline
@@ -3384,20 +3446,41 @@ void DataSource::set(const Object& target, const Object& value) {
 }
 
 inline
+Object DataSource::bind_child(const Object& target, const Key& key, const Object& in_val) {
+    Object val = in_val;
+
+    // TODO: add virtual function hook for copy bypass
+    auto p_curr_ds = in_val.data_source<DataSource>();
+    if (p_curr_ds != nullptr) {
+        val = p_curr_ds->get_cached(in_val).copy();
+    }
+
+    auto p_ds = resolve_data_source(target, key, val);
+    if (p_ds != nullptr) {
+        p_ds->set_options(options());
+        p_ds->bind(val);
+        val.needs_saving();
+    }
+    return val;
+}
+
+inline
 Object DataSource::set(const Object& target, const Key& key, const Object& in_val) {
     Mode mode = resolve_mode();
     if (!(mode & Mode::WRITE)) throw WriteProtect();
 
     set_unsaved(true);
 
+    auto val = bind_child(target, key, in_val);
+
     if (is_sparse()) {
         if (m_cache.is_empty()) read_type(target);
-        auto out_val = m_cache.set(key, in_val);
+        auto out_val = m_cache.set(key, val);
         out_val.set_parent(target);
         return out_val;
     } else {
         insure_fully_cached(target);
-        auto out_val = m_cache.set(key, in_val);
+        auto out_val = m_cache.set(key, val);
         out_val.set_parent(target);
         return out_val;
     }
@@ -3410,14 +3493,16 @@ Object DataSource::set(const Object& target, Key&& key, const Object& in_val) {
 
     set_unsaved(true);
 
+    auto val = bind_child(target, std::forward<Key>(key), in_val);
+
     if (is_sparse()) {
         if (m_cache.is_empty()) read_type(target);
-        auto out_val = m_cache.set(std::forward<Key>(key), in_val);
+        auto out_val = m_cache.set(std::forward<Key>(key), val);
         out_val.set_parent(target);
         return out_val;
     } else {
         insure_fully_cached(target);
-        auto out_val = m_cache.set(std::forward<Key>(key), in_val);
+        auto out_val = m_cache.set(std::forward<Key>(key), val);
         out_val.set_parent(target);
         return out_val;
     }
@@ -3430,13 +3515,29 @@ void DataSource::set(const Object& target, const Slice& slice, ValueRange&& in_v
 
     set_unsaved(true);
 
+    ObjectList vals;
+    auto it = in_vals.begin();
+    auto end = in_vals.end();
+    for (; it != end; ++it)
+        vals.push_back(*it);
+
+    auto [start, stop, step] = slice.to_indices(vals.size());
+    Int idx = start;
+    for (auto& val : vals) {
+        bind_child(target, idx, val);
+        val.needs_saving();
+        idx += step;
+        if ((step > 0 && idx >= stop) || (step < 0 && idx <= stop))
+            break;
+    }
+
     if (is_sparse()) {
         if (m_cache.is_empty()) read_type(target);
     } else {
         insure_fully_cached(target);
     }
 
-    m_cache.set(slice, std::forward<ValueRange>(in_vals));
+    m_cache.set(slice, vals);
     for (auto val : m_cache.get(slice))
         val.set_parent(target);
 }
@@ -3486,13 +3587,15 @@ Object DataSource::insert(const Object& target, const Key& key, const Object& in
 
     set_unsaved(true);
 
+    auto val = bind_child(target, key, in_val);
+
     if (is_sparse()) {
         if (m_cache.is_empty()) read_type(target);
     } else {
         insure_fully_cached(target);
     }
 
-    auto out_val = m_cache.insert(key, in_val);
+    auto out_val = m_cache.insert(key, val);
     out_val.set_parent(target);
 
     return out_val;
@@ -3505,13 +3608,15 @@ Object DataSource::append(const Object& target, const Object& in_val) {
 
     set_unsaved(true);
 
+    auto val = bind_child(target, target.size(), in_val);
+
     if (is_sparse()) {
         if (m_cache.is_empty()) read_type(target);
     } else {
         insure_fully_cached(target);
     }
 
-    auto out_val = m_cache.append(in_val);
+    auto out_val = m_cache.append(val);
     out_val.set_parent(target);
 
     return out_val;
@@ -3531,7 +3636,7 @@ void DataSource::clear(const Object& target) {
 }
 
 inline
-void DataSource::save(const Object& target) {
+void DataSource::save(const Object& target, const Object& options) {
     if (!(resolve_mode() & Mode::WRITE)) throw WriteProtect();
     if (m_cache.is_empty()) return;
 
@@ -3539,7 +3644,7 @@ void DataSource::save(const Object& target) {
         m_write_failed = false;
 
         if (m_fully_cached) {
-            write(target, m_cache);
+            write(target, m_cache, options);
 
             if (is_sparse()) {
                 // final save notification to support batching

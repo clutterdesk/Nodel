@@ -144,7 +144,7 @@ Object Parser<StreamType>::parse_unquoted() {
             const char* beg = str.data();
             const char* end = beg + str.size();
             auto [ptr, ec] = std::from_chars(beg, end, value);
-            while (ptr != end && ptr != beg && std::isspace(*ptr));
+            while (ptr != end && ptr != beg && std::isspace(*ptr)) ++ptr;
             if (ptr == end && ec == std::errc{}) return value;
         }
     }

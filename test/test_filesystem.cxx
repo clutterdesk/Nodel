@@ -19,7 +19,7 @@ struct TestFilesystemAlien : public Alien
 
     std::unique_ptr<Alien> clone() override { return std::make_unique<TestFilesystemAlien>(buf); }
     String to_str() const override { return buf; }
-    String to_json() const override { return '"' + buf + '"'; }
+    String to_json(int indent) const override { return '"' + buf + '"'; }
 
     std::string buf;
 };
@@ -202,6 +202,24 @@ TEST(Filesystem, CreateJsonFile) {
     EXPECT_EQ(test_data.get(new_file_name).get("tea"_key), "Assam, please");
 }
 
+TEST(Filesystem, CreateIndentedJsonFile) {
+    std::string new_file_name = "new_file.json";
+    auto path = std::filesystem::current_path() / "test_data";
+
+    Finally cleanup{ [&path, &new_file_name] () { std::filesystem::remove(path / new_file_name); } };
+
+    Object test_data = new Directory(new Registry{default_registry()}, path, DataSource::Origin::SOURCE);
+    Object new_file = new SerialFile(new JsonSerializer());
+    new_file.set(json::parse("{'tea': 'Assam, please'}"));
+    test_data.set(new_file_name, new_file);
+    test_data.save("{'indent': 1}"_json);
+
+    auto json_path = path / new_file_name;
+    std::ifstream file_stream(json_path);
+    std::string content((std::istreambuf_iterator<char>(file_stream)), std::istreambuf_iterator<char>());
+    EXPECT_EQ(content, "{\n \"tea\": \"Assam, please\"\n}");
+}
+
 TEST(Filesystem, CreateCsvFile) {
     std::string new_file_name = "new_file.csv";
     auto path = std::filesystem::current_path() / "test_data";
@@ -341,6 +359,29 @@ TEST(Filesystem, LookupDataSourceForNewFile) {
 
     wd.reset();
     EXPECT_EQ(wd["test_data['dummy.txt']"_path], "tea");
+}
+
+TEST(Filesystem, ResolveDataSource) {
+    Object wd = bind("file://?perm=rw&path=."_uri);
+    auto fpath = filesystem::path(wd);
+
+    Finally cleanup{[&fpath] () {
+        std::filesystem::remove(fpath / "test_data" / "foo" / "dummy.txt");
+        std::filesystem::remove(fpath / "test_data" / "foo");
+    }};
+
+    OPath path = "test_data.foo['dummy.txt']"_path;
+    auto dummy = path.create(wd, "tea");
+    EXPECT_EQ(dummy.key(), "dummy.txt");
+    EXPECT_TRUE(has_data_source(wd["test_data.foo"_path]));
+    EXPECT_TRUE(has_data_source(dummy));
+    EXPECT_EQ(dummy.path().to_str(), "test_data.foo[\"dummy.txt\"]");
+
+    wd.save();
+    EXPECT_EQ(filesystem::path(dummy).string(), "./test_data/foo/dummy.txt");
+
+    wd.reset();
+    EXPECT_EQ(wd.get(path), "tea");
 }
 
 void test_invalid_file(const std::string& file_name) {

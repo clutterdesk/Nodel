@@ -28,7 +28,7 @@ class TestObjectAlien : public Alien
     ~TestObjectAlien() override {}
     std::unique_ptr<Alien> clone() override { return std::make_unique<TestObjectAlien>(); }
     String to_str() const override { return "TestObjectAlien"; }
-    String to_json() const override { return "'TestObjectAlien'"; }
+    String to_json(int indent) const override { return "'TestObjectAlien'"; }
 };
 
 
@@ -1253,6 +1253,13 @@ TEST(Object, SortedMapGetKey) {
     EXPECT_EQ(obj.get("z"_key).get(1).key(), 1);
 }
 
+TEST(Object, JsonIndentation) {
+    auto obj = "{'tea': 'Assam', 'country': 'India'}"_json;
+    std::stringstream ss;
+    obj.to_json(ss, 1);
+    EXPECT_EQ(ss.str(), "{\n \"tea\": \"Assam\", \n \"country\": \"India\"\n}");
+}
+
 TEST(Object, AlienAccess) {
     std::unique_ptr<Alien> p_alien{new TestObjectAlien{}};
     Object obj{p_alien};
@@ -2322,7 +2329,7 @@ struct TestSimpleSource : public DataSource
         }
     }
 
-    void write(const Object&, const Object& cache) override {
+    void write(const Object&, const Object& cache, const Object&) override {
         write_called = true;
         data = cache;
     }
@@ -2354,8 +2361,8 @@ struct TestSparseSource : public DataSource
         read_set(target, (Object::ReprIX)parser.parse_type());
     }
 
-    void read(const Object& target) override                { read_called = true; read_set(target, data); }
-    void write(const Object&, const Object& cache) override { write_called = true; data = cache; }
+    void read(const Object& target) override                               { read_called = true; read_set(target, data); }
+    void write(const Object&, const Object& cache, const Object&) override { write_called = true; data = cache; }
 
     Object read_key(const Object&, const Key& k) override   { read_key_called = true; return data.get(k); }
 
@@ -2816,4 +2823,10 @@ TEST(Object, TestSparseSource_GetSize) {
     auto dsrc = new TestSparseSource(R"({"x": 1, "y": 2, "z": 3})");
     Object obj{dsrc};
     EXPECT_EQ(obj.size(), 3UL);
+}
+
+TEST(Object, InterDataSourceCopy) {
+    Object obj1{new TestSimpleSource("{'x': {}}")};
+    Object obj2{new TestSimpleSource("{'y': {'z': 'Z'}}")};
+    obj1.set("x.y"_path, obj2);
 }

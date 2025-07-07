@@ -3,8 +3,11 @@
 #pragma once
 
 #include <Python.h>
+
 #include <string>
 #include <stdexcept>
+#include <optional>
+
 #include <nodel/core/Key.hxx>
 #include <nodel/core/Object.hxx>
 #include <nodel/support/logging.hxx>
@@ -240,11 +243,14 @@ class PyAlien : public nodel::Alien
     }
 
     nodel::String to_json() const override {
-        RefMgr r_str{PyObject_Repr(m_po)};
+        RefMgr r_str{PyObject_Str(m_po)};
         Py_ssize_t c_str_len;
         auto c_str = PyUnicode_AsUTF8AndSize(r_str.get(), &c_str_len);
         if (c_str_len == -1) throw std::runtime_error{"PyUnicode_AsUTF8AndSize failed unexpectedly"};
-        return {c_str, (std::string::size_type)c_str_len};
+
+        std::stringstream ss;
+        ss << std::quoted(nodel::StringView{c_str, (std::string::size_type)c_str_len});
+        return ss.str();
     }
 
     PyObject* m_po;
@@ -258,6 +264,7 @@ struct Support
 
     static PyObject* to_num(const Object& obj);
     static PyObject* to_py(const Key& key);
+    static PyObject* to_py(const OPath& path);
     static PyObject* to_py(const Object& obj);
     static PyObject* prepare_return_value(const Object& obj);
 
@@ -266,6 +273,8 @@ struct Support
     static Key to_key(PyObject* po);
     static Slice to_slice(PyObject* po);
     static Object to_object(PyObject* po);
+
+    static std::optional<KeyList> to_key_list(PyObject* py_list);
 
     static void clear_parent(const Object&);
 };
@@ -358,6 +367,20 @@ PyObject* Support::to_py(const Key& key) {
             return NULL;
         }
     }
+}
+
+inline
+PyObject* Support::to_py(const OPath& path) {
+    const auto& keys = path.keys();
+    Py_ssize_t size = keys.size();
+    RefMgr py_list = PyList_New(size);
+    if (py_list == NULL) return NULL;
+    for (Py_ssize_t i = 0; i < size; ++i) {
+        PyObject* key = to_py(keys[i]);
+        if (key == NULL) return NULL;
+        PyList_SET_ITEM(py_list.get(), i, key);  // steals reference
+    }
+    return py_list.get_clear();
 }
 
 inline
@@ -496,6 +519,27 @@ Slice Support::to_slice(PyObject* po) {
     } else {
         return {};
     }
+}
+
+inline
+std::optional<KeyList> Support::to_key_list(PyObject* py_list) {
+    KeyList key_list;
+
+    if (!PyList_Check(py_list)) {
+        PyErr_SetString(PyExc_TypeError, "Expected a Python list");
+        return std::nullopt;
+    }
+
+    Py_ssize_t size = PyList_GET_SIZE(py_list);
+    key_list.reserve(size);
+    for (Py_ssize_t i = 0; i < size; ++i) {
+        PyObject* item = PyList_GET_ITEM(py_list, i); // borrowed reference
+        Key key = Support::to_key(item);
+        if (PyErr_Occurred()) return std::nullopt;
+        key_list.push_back(key);
+    }
+
+    return key_list;
 }
 
 inline

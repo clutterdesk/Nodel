@@ -24,18 +24,15 @@ class TestModule(unittest.TestCase):
         self.assertEqual(len(obj), 0)
 
     def test_clear_list(self):
-        l = nd.Object(['tea', 'tisane'])
+        l = nd.new(['tea', 'tisane'])
         nd.clear(l)
         self.assertEqual(len(l), 0)
     
     def test_clear_string(self):
-        s = nd.Object('tea')
+        s = nd.new('tea')
         nd.clear(s)
         self.assertEqual(s, '')
 
-    def test_clear_wrong_type(self):
-        self.assertRaises(RuntimeError, nd.clear, nd.Object(5))
-    
     def test_root(self):
         obj = nd.from_json("{'x': {'y': {'z': 'yep, tea'}}}")
         self.assertEqual(nd.root(obj.x.y.z).x.y.z, 'yep, tea')
@@ -86,57 +83,89 @@ class TestModule(unittest.TestCase):
         self.assertEqual(nd.key(obj.x), 'x')
         
     def test_get(self):
-        obj = nd.Object({'x': 'X'})
+        obj = nd.new({'x': 'X'})
         self.assertTrue(nd.is_same(nd.get(obj, 'x'), obj.x))
         self.assertTrue(nd.is_same(nd.get(obj, 'x', 'Y'), obj.x))
         self.assertEqual(nd.get(obj, 'z', 'Z'), 'Z')
-        obj = nd.Object(['X'])
+        obj = nd.new(['X'])
         self.assertTrue(nd.is_same(nd.get(obj, 0), obj[0]))
         self.assertTrue(nd.is_same(nd.get(obj, 0, 'Y'), obj[0]))
         self.assertEqual(nd.get(obj, 1, 'Z'), 'Z')
         
-    def test_is_nil(self):
-        obj = nd.Object(None)
-        self.assertTrue(nd.is_nil(obj))
-        
-    def test_is_bool(self):
-        obj = nd.Object(True)
-        self.assertTrue(nd.is_bool(obj))
-        
-    def test_is_int(self):
-        obj = nd.Object(sys.maxsize)
-        self.assertTrue(nd.is_int(obj))
-
-    def test_is_float(self):
-        obj = nd.Object(2.18)
-        self.assertTrue(nd.is_float(obj))
-        
     def test_is_str(self):
-        obj = nd.Object('tea')
+        obj = nd.new('tea')
         self.assertTrue(nd.is_str(obj))
         
     def test_is_list(self):
-        obj = nd.Object([])
+        obj = nd.new([])
         self.assertTrue(nd.is_list(obj))
         
     def test_is_map(self):
-        obj = nd.Object({})
+        obj = nd.new({})
         self.assertTrue(nd.is_map(obj))
         
+    def test_is_str_like(self):
+        self.assertTrue(nd.is_str_like(nd.new('tea')))
+        self.assertTrue(nd.is_str_like('tea'))
+        self.assertFalse(nd.is_str_like(nd.new([])))
+        self.assertFalse(nd.is_str_like(1))
+
+    def test_is_list_like(self):
+        self.assertTrue(nd.is_list_like(nd.new([1])))
+        self.assertTrue(nd.is_list_like([1]))
+        self.assertFalse(nd.is_list_like(nd.new('no')))
+        self.assertFalse(nd.is_list_like('no'))
+
+    def test_is_map_like(self):
+        self.assertTrue(nd.is_map_like(nd.new({})))
+        self.assertTrue(nd.is_map_like({}))
+        self.assertFalse(nd.is_map_like(nd.new('no')))
+        self.assertFalse(nd.is_map_like('no'))
+        
     def test_is_native(self):
-        obj = nd.Object((1, 2))
-        self.assertTrue(nd.is_native(obj))
+        obj = nd.new((1, 2))
+        self.assertTrue(nd.is_alien(obj))
 
     def test_native(self):
-        self.assertIs(type(nd.native(nd.Object('foo'))), str)
-        self.assertEqual(nd.native(nd.Object('foo')), 'foo')
-        self.assertIs(type(nd.native(nd.Object(42))), int)
-        self.assertEqual(nd.native(nd.Object(42)), 42)
+        self.assertIs(type(nd.native(nd.new('foo'))), str)
+        self.assertEqual(nd.native(nd.new('foo')), 'foo')
 
     def test_ref_count(self):
-        obj = nd.Object([])
+        obj = nd.new([])
         self.assertEqual(nd.ref_count(obj), 1)
 
+    def test_complete_map_with_object(self):
+        root = nd.new({})
+        b = nd.complete(root, ['a', 'b'], {'c': 'C'})
+        self.assertEqual(b.c, 'C')
+        self.assertEqual(nd.path(b.c, 'str'), 'a.b.c')
+
+    def test_complete_map_with_type(self):
+        root = nd.new({})
+        b = nd.complete(root, ['a', 'b'], dict)
+        self.assertTrue(nd.is_map(b))
+
+    def test_complete_map_existing(self):
+        root = nd.new({'a': {'b': 'pass'}})
+        b = nd.complete(root, ['a', 'b'], 'fail')
+        self.assertEqual(b, 'pass')
+
+    def test_complete_list_with_object(self):
+        root = nd.new([])
+        b = nd.complete(root, [0, 0], {'c': 'C'})
+        self.assertEqual(b.c, 'C')
+        self.assertEqual(nd.path(b.c, 'str'), '[0][0].c')
+
+    def test_complete_list_with_type(self):
+        root = nd.new([])
+        b = nd.complete(root, [0, 0], dict)
+        self.assertTrue(nd.is_map(b))
+
+    def test_complete_list_existing(self):
+        root = nd.new([['pass']])
+        b = nd.complete(root, [0, 0], 'fail')
+        self.assertEqual(b, 'pass')
+        
         
 if __name__ == '__main__':
     unittest.main()

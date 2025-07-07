@@ -108,3 +108,4 @@ TEST(CsvParser, CellWithHyphen) {
     EXPECT_EQ(obj.get(0).size(), 2UL);
     EXPECT_EQ(obj.get(0).get(0), "2025-03-19");
 }
+

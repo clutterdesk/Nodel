@@ -21,11 +21,11 @@ void SerialFile::read(const Object& target) {
 }
 
 inline
-void SerialFile::write(const Object& target, const Object& cache) {
+void SerialFile::write(const Object& target, const Object& cache, const Object& options) {
     auto fpath = path(target).string();
     std::ofstream f_out{fpath, std::ios::out};
 
-    mr_serial->write(f_out, cache);
+    mr_serial->write(f_out, cache, options);
 
     if (f_out.bad()) report_write_error(fpath, strerror(errno));
     if (f_out.fail()) report_write_error(fpath, "ostream::fail()");

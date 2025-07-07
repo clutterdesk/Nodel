@@ -16,7 +16,7 @@ class StringSerializer : public Serializer
     StringSerializer() : Serializer{Object::STR} {}
 
     Object read(std::istream&, size_t size_hint) override;
-    void write(std::ostream&, const Object&) override;
+    void write(std::ostream&, const Object&, const Object&) override;
 };
 
 inline
@@ -42,7 +42,7 @@ Object StringSerializer::read(std::istream& stream, size_t size_hint) {
 }
 
 inline
-void StringSerializer::write(std::ostream& stream, const Object& obj) {
+void StringSerializer::write(std::ostream& stream, const Object& obj, const Object&) {
     auto& str = obj.as<String>();
     stream.write(&str[0], str.size());
 }

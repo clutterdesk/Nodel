@@ -2,7 +2,6 @@
 /// @copyright Robert Dunnagan
 #pragma once
 
-#include <nodel/parser/csv.hxx>
 #include <nodel/core/Object.hxx>
 #include <nodel/support/Ref.hxx>
 
@@ -18,7 +17,7 @@ class Serializer
     virtual ~Serializer() = default;
 
     virtual Object read(std::istream&, size_t size_hint) = 0;
-    virtual void write(std::ostream&, const Object&) = 0;
+    virtual void write(std::ostream&, const Object&, const Object&) = 0;
 
     Object::ReprIX get_repr_ix() const { return m_repr_ix; }
 
@@ -29,4 +28,4 @@ class Serializer
   template <typename> friend class ::nodel::Ref;
 };
 
-} // namespace nodel::serial
+} // namespace nodel

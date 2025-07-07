@@ -36,7 +36,9 @@ class SubDirectory : public DataSource
 
     void read_type(const Object&) override { assert (false); } // TODO: remove, later
     void read(const Object& target) override;
-    void write(const Object& target, const Object&) override;
+    void write(const Object& target, const Object&, const Object&) override;
+
+    DataSource* resolve_data_source(const Object& parent, const Key& key, const Object& value) const override;
 
     void set_registry(Ref<Registry> r_reg) { mr_registry = r_reg; }
     Ref<Registry> registry() const         { return mr_registry; }
@@ -163,7 +165,7 @@ bool looks_like_directory(const Ref<Registry>& r_reg, const std::filesystem::pat
 }
 
 inline
-void SubDirectory::write(const Object& target, const Object& cache) {
+void SubDirectory::write(const Object& target, const Object& cache, const Object&) {
     auto r_reg = get_registry(target);
     auto fpath = path(target);
 
@@ -212,6 +214,19 @@ void SubDirectory::write(const Object& target, const Object& cache) {
         std::filesystem::remove_all(deleted, ec);
         if (ec) report_write_error(ec.message());
     }
+}
+
+inline
+DataSource* SubDirectory::resolve_data_source(const Object& parent, const Key& key, const Object& value) const {
+    // Use the registry to determine the correct DataSource for the value
+    auto r_reg = get_registry(parent);
+    auto parent_fpath = path(parent);
+    auto item_fpath = parent_fpath / key.to_str();
+    // Use directory/file detection logic as in write()
+    auto p_ds = r_reg->create_if_defined(parent, item_fpath, DataSource::Origin::MEMORY);
+    if (p_ds == nullptr && looks_like_directory(r_reg, item_fpath, value))
+        p_ds = r_reg->create(parent, item_fpath, DataSource::Origin::MEMORY, true);
+    return p_ds;
 }
 
 inline

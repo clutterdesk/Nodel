@@ -24,7 +24,7 @@ class Oid
 
     std::string to_str() {
         std::stringstream ss;
-        ss << std::hex << m_a << std::setw(16) << std::setfill('0') << m_b;
+        ss << std::hex << m_a << m_b;
         return ss.str();
     }
 

@@ -8,6 +8,8 @@
 #include <nodel/support/Ref.hxx>
 #include <nodel/serializer/Serializer.hxx>
 
+#include <fstream>
+
 
 namespace nodel::filesystem {
 
@@ -28,7 +30,7 @@ class SerialFile : public File
     }
 
     void read(const Object& target) override;
-    void write(const Object& target, const Object& cache) override;
+    void write(const Object& target, const Object& cache, const Object& options) override;
 
   private:
     Ref<Serializer> mr_serial;
