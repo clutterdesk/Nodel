@@ -48,6 +48,25 @@ NodelObject* as_nodel_object(PyObject* arg) {
     return NULL;
 }
 
+static Object convert_kwargs_to_object(PyObject *const *args, Py_ssize_t nargs, PyObject* kwnames) {
+    Object obj{Object::OMAP};
+
+    Py_ssize_t nkwargs = PyTuple_GET_SIZE(kwnames);
+
+    try {
+        for (Py_ssize_t i = 0; i < nkwargs; ++i) {
+            PyObject* py_key = PyTuple_GET_ITEM(kwnames, i);
+            PyObject* py_value = args[nargs + i];
+            obj.set(support.to_key(py_key), support.to_object(py_value));
+        }
+    } catch (const std::exception& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return nil;
+    }
+
+    return obj;
+}
+
 PyObject* iter_keys(PyObject* obj, PyObject* slice) {
     NodelObject* nd_obj = as_nodel_object(obj);
     if (nd_obj == NULL) return NULL;
@@ -713,15 +732,27 @@ static PyObject* mod_reset_key(PyObject* self, PyObject* const* args, Py_ssize_t
 
 constexpr auto save_doc = \
 "Commit all updates to bound objects in the subtree whose root is the argument.\n"
-"nodel.save(obj) -> None\n"
+"Data-source-specific options can be passed as keywords, for example, indent=2.\n"
+"nodel.save(obj, **options) -> None\n"
 "Objects that are not bound (do not have a data-source) are ignored.";
 
-static PyObject* mod_save(PyObject* mod, PyObject* arg) {
-    NodelObject* nd_obj = as_nodel_object(arg);
+static PyObject* mod_save(PyObject* mod, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
+    Py_ssize_t n_kwargs = (kwnames != NULL)? PyTuple_GET_SIZE(kwnames): 0;
+
+    if (nargs != 1) {
+        PyErr_SetString(PyExc_ValueError, "Wrong number of arguments");
+        return NULL;
+    }
+
+    NodelObject* nd_obj = as_nodel_object(args[0]);
     if (nd_obj == NULL) return NULL;
 
     try {
-        nd_obj->obj.save();
+        if (n_kwargs > 0) {
+            nd_obj->obj.save(convert_kwargs_to_object(args, nargs, kwnames));
+        } else {
+            nd_obj->obj.save();
+        }
         Py_RETURN_NONE;
     } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
@@ -942,7 +973,8 @@ static PyMethodDef nodel_methods[] = {
     {"complete",     (PyCFunction)mod_complete,            METH_FASTCALL, PyDoc_STR(complete_doc)},
     {"reset",        (PyCFunction)mod_reset,               METH_O,        PyDoc_STR(reset_doc)},
     {"reset_key",    (PyCFunction)mod_reset_key,           METH_FASTCALL, PyDoc_STR(reset_key_doc)},
-    {"save",         (PyCFunction)mod_save,                METH_O,        PyDoc_STR(save_doc)},
+    {"save",         (PyCFunction)mod_save,                METH_FASTCALL |
+                                                           METH_KEYWORDS, PyDoc_STR(save_doc)},
     {"fpath",        (PyCFunction)mod_fpath,               METH_O,        PyDoc_STR(fpath_doc)},
     {"id",           (PyCFunction)mod_id,                  METH_O,        PyDoc_STR(id_doc)},
     {"is_bound",     (PyCFunction)mod_is_bound,            METH_O,        PyDoc_STR(is_bound_doc)},

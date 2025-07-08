@@ -242,7 +242,7 @@ class PyAlien : public nodel::Alien
         return {c_str, (std::string::size_type)c_str_len};
     }
 
-    nodel::String to_json() const override {
+    nodel::String to_json(int indent) const override {
         RefMgr r_str{PyObject_Str(m_po)};
         Py_ssize_t c_str_len;
         auto c_str = PyUnicode_AsUTF8AndSize(r_str.get(), &c_str_len);
@@ -326,7 +326,7 @@ PyObject* Support::to_str_repr(const Object& obj, bool repr) {
         }
         case Object::ANY:   return repr? PyObject_Repr(obj.as<PyAlien>().m_po): PyObject_Str(obj.as<PyAlien>().m_po);
         case Object::DSRC:  {
-            if (repr) return python::to_str(const_cast<DataSourcePtr>(obj.m_repr.ds)->to_json(obj));
+            if (repr) return python::to_str(const_cast<DataSourcePtr>(obj.m_repr.ds)->to_json(obj, 0));
             else return python::to_str(const_cast<DataSourcePtr>(obj.m_repr.ds)->to_str(obj));
         }
         default: {
