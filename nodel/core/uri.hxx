@@ -34,8 +34,8 @@ class URI : public Object
     URI(const Object& obj) : Object{nil} {
         if (obj.type() == Object::STR) {
             parse(obj.as<String>());
-        } else if (nodel::is_map(obj)) {
-            (*this) = obj;
+        } else {
+            throw WrongType{obj.type_name()};
         }
     }
 

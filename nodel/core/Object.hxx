@@ -440,6 +440,7 @@ class Object
     bool operator == (const Object&) const;
     bool operator == (nil_t) const;
     std::partial_ordering operator <=> (const Object&) const;
+    size_t hash() const;
 
     Oid id() const;
     bool is(const Object& other) const;
@@ -2525,6 +2526,19 @@ std::partial_ordering Object::operator <=> (const Object& obj) const {
     }
 }
 
+inline
+size_t Object::hash() const {
+    switch (m_fields.repr_ix) {
+         case NIL:   return std::hash<nullptr_t>{}(nullptr);
+         case BOOL:  return std::hash<bool>{}(m_repr.b);
+         case INT:   return std::hash<Int>{}(m_repr.i);
+         case UINT:  return std::hash<UInt>{}(m_repr.u);
+         case FLOAT: return std::hash<Float>{}(m_repr.f);
+         case STR:   return std::hash<String>{}(std::get<0>(*m_repr.ps));
+         case DSRC:  return m_repr.ds->get_cached(*this).hash();
+         default:    throw wrong_type(m_fields.repr_ix);
+     }
+}
 
 
 class WalkDF
@@ -4015,13 +4029,21 @@ template <typename T> bool is_resolved(Object::Subscript<T>& subscript) { return
 namespace std {
 
 //////////////////////////////////////////////////////////////////////////////
-/// OPath hash function support
+/// hash support
 //////////////////////////////////////////////////////////////////////////////
 template<>
 struct hash<nodel::OPath>
 {
     std::size_t operator () (const nodel::OPath& path) const noexcept {
       return path.hash();
+    }
+};
+
+template<>
+struct hash<nodel::Object>
+{
+    std::size_t operator () (const nodel::Object& obj) const noexcept {
+      return obj.hash();
     }
 };
 

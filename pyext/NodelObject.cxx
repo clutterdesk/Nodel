@@ -1314,6 +1314,25 @@ static PyObject* NodelObject_richcompare(PyObject* self, PyObject* other, int op
     return NULL;
 }
 
+static Py_hash_t NodelObject_hash(PyObject* self) {
+    NodelObject* nd_self = (NodelObject*)self;
+    auto& self_obj = nd_self->obj;
+
+    try {
+        Py_hash_t hash;
+        if (support.hash(self_obj, &hash) == -1)
+            return -1;
+        if (hash == -1) hash = -2;
+        return hash;
+    } catch (const nodel::WrongType& ex) {
+        PyErr_SetString(PyExc_TypeError, ex.what());
+        return -1;
+    } catch (const std::exception& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return -1;
+    }
+}
+
 static PyObject* NodelObject_getattro(PyObject* self, PyObject* name) {
     PyObject* val = PyObject_GenericGetAttr(self, name);
     if (val != NULL) return val;
@@ -1407,6 +1426,7 @@ PyTypeObject NodelObjectType = {
     .tp_setattro    = &NodelObject_setattro,
     .tp_doc         = PyDoc_STR(NodelObject_doc),
     .tp_richcompare = &NodelObject_richcompare,
+    .tp_hash        = (hashfunc)NodelObject_hash,
     .tp_iter        = &NodelObject_iter,
     .tp_methods     = NodelObject_methods,
     .tp_init        = NodelObject_init,

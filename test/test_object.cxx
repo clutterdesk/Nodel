@@ -749,6 +749,12 @@ TEST(Object, CopyBasic) {
     }
 }
 
+TEST(Object, HashString) {
+    String str = "SFTGBOP";
+    Object obj = str;
+    EXPECT_EQ(std::hash<String>{}(str), obj.hash());
+}
+
 TEST(Object, ListGet) {
   Object obj = "[7, 8, 9]"_json;
   EXPECT_TRUE(obj.is_type<ObjectList>());

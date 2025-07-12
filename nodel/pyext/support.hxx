@@ -266,6 +266,7 @@ struct Support
     static PyObject* to_py(const Key& key);
     static PyObject* to_py(const OPath& path);
     static PyObject* to_py(const Object& obj);
+    static int hash(const Object& obj, Py_hash_t* out_hash);
     static PyObject* prepare_return_value(const Object& obj);
 
     static double to_double(PyObject* po);
@@ -421,6 +422,45 @@ PyObject* Support::to_py(const Object& obj) {
             return NULL;
         }
     }
+}
+
+inline
+int Support::hash(const Object& obj, Py_hash_t* out_hash) {
+    switch (obj.type()) {
+        case Object::NIL:   *out_hash = PyObject_Hash(Py_None); break;
+        case Object::BOOL:  *out_hash = PyObject_Hash(obj.as<bool>()? Py_True: Py_False); break;
+        case Object::INT:   {
+            RefMgr po = PyLong_FromLongLong(obj.as<Int>());
+            *out_hash = PyObject_Hash(po.get());
+            break;
+        }
+        case Object::UINT: {
+            RefMgr po = PyLong_FromUnsignedLongLong(obj.as<UInt>());
+            *out_hash = PyObject_Hash(po.get());
+            break;
+        }
+        case Object::FLOAT: {
+            RefMgr po = PyFloat_FromDouble(obj.as<Float>());
+            *out_hash = PyObject_Hash(po.get());
+            break;
+        }
+        case Object::STR: {
+            auto& str = std::get<0>(*obj.m_repr.ps);
+            RefMgr po = python::to_str(str);
+            *out_hash = PyObject_Hash(po.get());
+            break;
+        }
+        case Object::ANY: {
+            PyObject* po = obj.as<PyAlien>().m_po;
+            *out_hash = PyObject_Hash(po);
+            break;
+        }
+        default: {
+            raise_type_error(obj);
+            return -1;
+        }
+    }
+    return 0;
 }
 
 inline
