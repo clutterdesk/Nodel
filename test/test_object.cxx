@@ -115,6 +115,20 @@ TEST(Object, String) {
   EXPECT_EQ(quoted.to_json(), "\"a\\\"b\"");
 }
 
+TEST(Object, StringAppend) {
+    Object obj = "'a'"_json;
+    obj.append("'b'"_json);
+    EXPECT_EQ(obj, "ab");
+}
+
+TEST(Object, StringContains) {
+    Object obj = "abcde";
+    EXPECT_TRUE(obj.contains("cd"));
+    EXPECT_FALSE(obj.contains("dc"));
+    EXPECT_TRUE(obj.contains(Object{"cd"}));
+    EXPECT_FALSE(obj.contains(Object{"dc"}));
+}
+
 TEST(Object, ConstructWithInvalidRepr) {
     try {
         Object v{Object::DSRC};
@@ -977,6 +991,30 @@ TEST(Object, ListDelete) {
     EXPECT_EQ(obj.get(0), 2);
 }
 
+TEST(Object, ListAppend) {
+    Object obj = "[0]"_json;
+    obj.append(1);
+    EXPECT_EQ(obj, "[0, 1]"_json);
+}
+
+TEST(Object, ListInsert) {
+    Object obj = "[0]"_json;
+    obj.insert(0, 1);
+    EXPECT_EQ(obj, "[1, 0]"_json);
+}
+
+TEST(Object, ListContains) {
+    Object obj = "[0, 1, 'foo', 2, true]"_json;
+    EXPECT_TRUE(obj.contains(2));
+    EXPECT_FALSE(obj.contains(3));
+    EXPECT_FALSE(obj.contains(Object{3}));
+    EXPECT_TRUE(obj.contains(true));  // python semantics
+    EXPECT_TRUE(obj.contains(false)); // python semantics
+    EXPECT_TRUE(obj.contains("foo"));
+    EXPECT_TRUE(obj.contains("foo"_key));
+    EXPECT_FALSE(obj.contains("foot"));
+}
+
 TEST(Object, OrderedMapGet) {
   Object obj = json::parse(R"({0: 7, 1: 8, 2: 9, "name": "Brian"})");
   EXPECT_TRUE(obj.is_type<OrderedMap>());
@@ -1207,6 +1245,32 @@ TEST(Object, SortedMapDelSlice) {
     EXPECT_EQ(obj.get(0), 10);
     EXPECT_EQ(obj.get(3), 13);
     EXPECT_EQ(obj.get(4), 14);
+}
+
+TEST(Object, OrderedMapContains) {
+    Object map = Object::OMAP;
+    map["x"_key] = "X";
+    map["y"_key] = "Y";
+    EXPECT_TRUE(map.contains("x"_key));
+    EXPECT_TRUE(map.contains("y"));
+    EXPECT_FALSE(map.contains("z"_key));
+}
+
+TEST(Object, SortedMapContains) {
+    Object map = Object::SMAP;
+    map["x"_key] = "X";
+    map["y"_key] = "Y";
+    map[nil] = 0;
+    map[true] = 1;
+    map[100] = 100;
+    EXPECT_TRUE(map.contains("x"_key));
+    EXPECT_TRUE(map.contains("y"));
+    EXPECT_TRUE(map.contains(nil));
+    EXPECT_TRUE(map.contains(true));
+    EXPECT_TRUE(map.contains(100));
+    EXPECT_FALSE(map.contains("z"_key));
+    EXPECT_FALSE(map.contains(200));
+    EXPECT_FALSE(map.contains(false));
 }
 
 TEST(Object, GetParentOfEmpty) {

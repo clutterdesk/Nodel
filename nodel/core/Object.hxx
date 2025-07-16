@@ -4,6 +4,7 @@
 #pragma once
 
 #include <any>
+#include <algorithm>
 #include <limits>
 #include <string>
 #include <string_view>
@@ -412,6 +413,15 @@ class Object
     String to_json(int indent=0) const;
     void to_json(std::ostream&, int indent=0) const;
 
+    template <typename T> bool contains(const T&) const requires std::is_convertible<T, String>::value;
+    template <typename T> bool contains(const T&) const requires std::is_same<T, Key>::value;
+    template <typename T> bool contains(const T&) const requires std::is_same<T, Object>::value;
+
+    template <typename T> bool contains(T&& arg) const
+    requires (!std::is_same<T, Object>::value && std::is_convertible<T, Object>::value) {
+        return contains(Object{std::forward<T>(arg)});
+    }
+
     Object get(is_like_Int auto) const;
     Object get(const Key&) const;
     Object get(const OPath&) const;
@@ -457,7 +467,9 @@ class Object
     template <class DataSourceType>
     DataSourceType* data_source() const;
 
-    void needs_saving();
+    bool is_fully_cached() const;
+    void set_unsaved(bool stale=true);
+    bool is_unsaved() const;
     void save(const Object& options=nil);
     void reset();
     void reset_key(const Key&);
@@ -1463,7 +1475,7 @@ T& Object::as() requires is_byvalue<T> {
 /// @tparam T String
 /// - This overload of the method is for String
 /// @note If this Object has a DataSource and you modify the string data
-///       returned by this method, then you must call @ref Object::needs_saving
+///       returned by this method, then you must call @ref Object::set_unsaved
 ///       to set the `unsaved` flag, before call @ref Object::save.
 /// @return Returns a mutable reference to the String data
 /// @throw Throws a WrongType exception if the stored data type does not match
@@ -1809,6 +1821,49 @@ bool Object::norm_index(is_like_Int auto& index, UInt size) {
     return true;
 }
 
+template <typename T> bool Object::contains(const T& str) const requires std::is_convertible<T, String>::value {
+    switch (m_fields.repr_ix) {
+        case EMPTY: throw empty_reference();
+        case STR:   return std::get<0>(*m_repr.ps).find(str) != String::npos;
+        case LIST:  [[fallthrough]];
+        case OMAP:  [[fallthrough]];
+        case SMAP:  return contains(Object{str});
+        case DSRC:  return m_repr.ds->get_cached(*this).contains(str);
+        default:    throw wrong_type(m_fields.repr_ix);
+    }
+}
+
+template <typename T> bool Object::contains(const T& key) const requires std::is_same<T, Key>::value {
+    switch (m_fields.repr_ix) {
+        case EMPTY: throw empty_reference();
+        case LIST:  return contains(Object{key});
+        case OMAP:  [[fallthrough]];
+        case SMAP:  return get(key) != nil;
+        case DSRC:  return m_repr.ds->get_cached(*this).contains(key);
+        default:    throw wrong_type(m_fields.repr_ix);
+    }
+}
+
+template <typename T> bool Object::contains(const T& obj) const requires std::is_same<T, Object>::value {
+    switch (m_fields.repr_ix) {
+        case EMPTY: throw empty_reference();
+        case STR: {
+            if (obj.m_fields.repr_ix != STR)
+                throw wrong_type(obj.m_fields.repr_ix);
+            return std::get<0>(*m_repr.ps).find(std::get<0>(*(obj.m_repr.ps))) != String::npos;
+        }
+        case LIST:  {
+            const auto& list = std::get<0>(*m_repr.pl);
+            return std::find(list.begin(), list.end(), obj) != list.end();
+        }
+        case OMAP:  [[fallthrough]];
+        case SMAP:  return get(obj.to_key()) != nil;
+        case DSRC:  return m_repr.ds->get_cached(*this).contains(obj);
+        default:    throw wrong_type(m_fields.repr_ix);
+    }
+}
+
+
 /// Get the value of a key from a container or string
 /// @param index An integer key.
 /// - This method may provide slightly faster access to list elements by
@@ -2040,23 +2095,39 @@ Object Object::insert(const Key& key, const Object& in_val) {
     }
 }
 
+/// Append to a list or a string.
+/// If this object is a list, then the argument is appended to the list.
+/// If this object is a string, then the argument must also be a string, and
+/// the object and the argument are concatenated.
 /// Append a value at the specified object to a list.
-/// @return Returns the Object that was actually inserted, which may be a copy.
+/// @return If list then returns the Object that was actually inserted, which may be a copy,
+///         otherwise it returns this object.
 /// @throws WrongType
 /// @throws EmptyReference
 inline
 Object Object::append(const Object& in_val) {
-    if (m_fields.repr_ix == LIST) {
-        Object out_val = (in_val.parent() == nil)? in_val: in_val.copy();
-        auto& list = std::get<0>(*m_repr.pl);
-        list.push_back(out_val);
-        out_val.set_parent(*this);
-        return out_val;
-    } else if (m_fields.repr_ix == DSRC) {
-        return m_repr.ds->append(*this, in_val);
-    } else {
-        throw wrong_type(m_fields.repr_ix);
+    switch (m_fields.repr_ix) {
+        case LIST: {
+            Object out_val = (in_val.parent() == nil)? in_val: in_val.copy();
+            auto& list = std::get<0>(*m_repr.pl);
+            list.push_back(out_val);
+            out_val.set_parent(*this);
+            return out_val;
+        }
+        case STR: {
+            if (in_val.type() == STR) {
+                auto& str = std::get<0>(*m_repr.ps);
+                str += in_val.as<String>();
+                return *this;
+            }
+        }
+        case DSRC: {
+            return m_repr.ds->append(*this, in_val);
+        }
+        default:
+            break;
     }
+    throw wrong_type(m_fields.repr_ix);
 }
 
 /// Delete the value of a key
@@ -2391,16 +2462,16 @@ bool Object::operator == (const Object& obj) const {
             switch (obj.m_fields.repr_ix)
             {
                 case BOOL:  return m_repr.b == obj.m_repr.b;
-                case INT:   return m_repr.b == (bool)obj.m_repr.i;
-                case UINT:  return m_repr.b == (bool)obj.m_repr.u;
-                case FLOAT: return m_repr.b == (bool)obj.m_repr.f;
+                case INT:   return (Int)m_repr.b == obj.m_repr.i;
+                case UINT:  return (UInt)m_repr.b == obj.m_repr.u;
+                case FLOAT: return (Float)m_repr.b == obj.m_repr.f;
                 default:    return false;
             }
         }
         case INT: {
             switch (obj.m_fields.repr_ix)
             {
-                case BOOL:  return (bool)m_repr.i == obj.m_repr.b;
+                case BOOL:  return m_repr.i == (Int)obj.m_repr.b;
                 case INT:   return m_repr.i == obj.m_repr.i;
                 case UINT:  return equal(obj.m_repr.u, m_repr.i);
                 case FLOAT: return (Float)m_repr.i == obj.m_repr.f;
@@ -2410,7 +2481,7 @@ bool Object::operator == (const Object& obj) const {
         case UINT: {
             switch (obj.m_fields.repr_ix)
             {
-                case BOOL:  return (bool)m_repr.u == obj.m_repr.b;
+                case BOOL:  return m_repr.u == (UInt)obj.m_repr.b;
                 case INT:   return equal(m_repr.u, obj.m_repr.i);
                 case UINT:  return m_repr.u == obj.m_repr.u;
                 case FLOAT: return (Float)m_repr.u == obj.m_repr.f;
@@ -2420,7 +2491,7 @@ bool Object::operator == (const Object& obj) const {
         case FLOAT: {
             switch (obj.m_fields.repr_ix)
             {
-                case BOOL:  return (bool)m_repr.f == obj.m_repr.b;
+                case BOOL:  return m_repr.f == (Float)obj.m_repr.b;
                 case INT:   return m_repr.f == (Float)obj.m_repr.i;
                 case UINT:  return m_repr.f == (Float)obj.m_repr.u;
                 case FLOAT: return m_repr.f == obj.m_repr.f;
@@ -3130,7 +3201,8 @@ class TreeIterator
 
     void enter(const Object& obj) {
         if constexpr (std::is_invocable<EnterPred, const Object&>::value) {
-            if (nodel::is_container(obj) && mp_range->should_enter(obj))
+            // Allow enter predicate to prevent call to is_container to avoid unnecessary DataSource load
+            if (mp_range->should_enter(obj) && nodel::is_container(obj))
                 mp_range->fifo().push_back(obj);
         } else {
             if (nodel::is_container(obj))
@@ -3216,15 +3288,38 @@ Object::TreeRange<Object, Predicate, Predicate> Object::iter_tree_if(VisitPred&&
     return {*this, std::forward<Predicate>(visit_pred), std::forward<Predicate>(enter_pred)};
 }
 
+/// Among other uses, you can use this method in the enter-predicate of the iter_tree
+/// method to traverse only the data that is currently in memory:
+/// @code
+/// auto enter_pred = [](const Object& obj) { return obj.is_fully_loaded(); };
+/// for (auto& obj : root.iter_tree_if(enter_pred))
+///     ...
+/// @endcode
+/// @return Returns true if the object has a non-sparse data-source and its data has
+///         been loaded into memory.
+inline
+bool Object::is_fully_cached() const {
+    auto p_ds = data_source<DataSource>();
+    return p_ds == nullptr || p_ds->is_fully_cached();
+}
+
+
+/// @return Returns true if this object has a data-source and has uncommitted changes.
+inline
+bool Object::is_unsaved() const {
+    auto p_ds = data_source<DataSource>();
+    return p_ds != nullptr && p_ds->m_unsaved;
+}
+
 /// Mark this Object as having been updated
 /// - If this Object has a DataSoource then it is flagged as having been updated
 ///   such that it will be saved on the next call to @ref Object::save. This is only
 ///   necessary when string data is modified by reference by calling
 ///   @ref Object::as<T>
 inline
-void Object::needs_saving() {
+void Object::set_unsaved(bool stale) {
     auto p_ds = data_source<DataSource>();
-    if (p_ds != nullptr) p_ds->m_unsaved = true;
+    if (p_ds != nullptr) p_ds->m_unsaved = stale;
 }
 
 /// Save changes made in the subtree
@@ -3235,7 +3330,7 @@ void Object::needs_saving() {
 ///   changes before calling this method.
 /// - Only Objects that whose *unsaved* bit is set will be saved. The *unsaved* bit
 ///   is set whenever a method is called that modifies the Object's data.
-/// - Use the @ref Object::needs_saving method to set the *unsaved* bit, if you
+/// - Use the @ref Object::set_unsaved method to set the *unsaved* bit, if you
 ///   modify string data by reference, as returned by the @ref Object::as<String>
 ///   method.
 /// @param options A map of key/value pair options passed to the serializer.
@@ -3247,8 +3342,9 @@ void Object::save(const Object& options) {
     };
 
     auto tree_range = iter_tree_if(has_data_source, enter_pred);
-    for (const auto& obj : tree_range)
+    for (const auto& obj : tree_range) {
         obj.m_repr.ds->save(obj, options);
+    }
 }
 
 inline
@@ -3355,12 +3451,13 @@ void DataSource::bind(Object& obj) {
 
     m_cache = obj;
     m_fully_cached = true;
-    m_unsaved = true;
 
     obj = this;
 
     if (parent != nil) {
+        bool was_stale = parent.is_unsaved();
         parent.set(key, obj);
+        parent.set_unsaved(was_stale);
     }
 }
 
@@ -3473,7 +3570,7 @@ Object DataSource::bind_child(const Object& target, const Key& key, const Object
     if (p_ds != nullptr) {
         p_ds->set_options(options());
         p_ds->bind(val);
-        val.needs_saving();
+        val.set_unsaved();
     }
     return val;
 }
@@ -3539,7 +3636,7 @@ void DataSource::set(const Object& target, const Slice& slice, ValueRange&& in_v
     Int idx = start;
     for (auto& val : vals) {
         bind_child(target, idx, val);
-        val.needs_saving();
+        val.set_unsaved();
         idx += step;
         if ((step > 0 && idx >= stop) || (step < 0 && idx <= stop))
             break;
@@ -3920,7 +4017,8 @@ class Object::Subscript
     template <class DataSourceType>
     DataSourceType* data_source() const { return resolve().template data_source<DataSourceType>(); }
 
-    void needs_saving()              { resolve().needs_saving(); }
+    bool is_unsaved() const            { resolve().is_unsaved(); }
+    void set_unsaved(bool stale=true)  { resolve().set_unsaved(stale); }
     void save()                      { resolve().save(); }
     void reset()                     { resolve().reset(); }
     void reset_key(const Key& key)   { resolve().reset_key(key); }

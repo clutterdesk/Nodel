@@ -760,6 +760,46 @@ static PyObject* mod_save(PyObject* mod, PyObject *const *args, Py_ssize_t nargs
     }
 }
 
+constexpr auto is_unsaved_doc = \
+"Returns True if the argument has a data-source and has uncommitted updates.\n"
+"nodel.is_unsaved() -> bool\n";
+
+static PyObject* mod_is_unsaved(PyObject* mod, PyObject* arg) {
+    NodelObject* nd_obj = as_nodel_object(arg);
+    if (nd_obj == NULL) return NULL;
+
+    try {
+        if (nd_obj->obj.is_unsaved()) Py_RETURN_TRUE;
+        Py_RETURN_FALSE;
+    } catch (const std::exception& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
+}
+
+constexpr auto set_unsaved_doc = \
+"Marks or clears the stale flag for an object with a data-source.\n"
+"The stale flag controls whether the object will be stored on the next call to the save method.\n"
+"nodel.set_unsaved(bool)\n";
+
+static PyObject* mod_set_unsaved(PyObject* mod, PyObject* const* args, Py_ssize_t nargs) {
+    if (nargs != 2) {
+        PyErr_SetString(PyExc_ValueError, "Wrong number of arguments");
+        return NULL;
+    }
+
+    NodelObject* nd_obj = as_nodel_object(args[0]);
+    if (nd_obj == NULL) return NULL;
+
+    try {
+        nd_obj->obj.set_unsaved(PyObject_IsTrue(args[1]));
+        Py_RETURN_NONE;
+    } catch (const std::exception& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
+        return NULL;
+    }
+}
+
 constexpr auto fpath_doc = \
 "Returns the filesystem path of a bound Nodel Object or None.\n"
 "nodel.fpath(obj) -> str\n";
@@ -975,7 +1015,10 @@ static PyMethodDef nodel_methods[] = {
     {"reset_key",    (PyCFunction)mod_reset_key,           METH_FASTCALL, PyDoc_STR(reset_key_doc)},
     {"save",         (PyCFunction)mod_save,                METH_FASTCALL |
                                                            METH_KEYWORDS, PyDoc_STR(save_doc)},
+    {"is_unsaved",   (PyCFunction)mod_is_unsaved,          METH_O,        PyDoc_STR(is_unsaved_doc)},
+    {"set_unsaved",  (PyCFunction)mod_set_unsaved,         METH_FASTCALL, PyDoc_STR(set_unsaved_doc)},
     {"fpath",        (PyCFunction)mod_fpath,               METH_O,        PyDoc_STR(fpath_doc)},
+    {"reset",        (PyCFunction)mod_reset,               METH_O,        PyDoc_STR(reset_doc)},
     {"id",           (PyCFunction)mod_id,                  METH_O,        PyDoc_STR(id_doc)},
     {"is_bound",     (PyCFunction)mod_is_bound,            METH_O,        PyDoc_STR(is_bound_doc)},
     {"is_same",      (PyCFunction)mod_is_same,             METH_FASTCALL, PyDoc_STR(is_same_doc)},

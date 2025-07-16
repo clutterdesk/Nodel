@@ -194,7 +194,6 @@ void SubDirectory::write(const Object& target, const Object& cache, const Object
 
             p_ds->set_options(options());
             p_ds->bind(obj);
-            obj.needs_saving();
         }
     }
 

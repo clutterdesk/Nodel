@@ -51,6 +51,14 @@ static bool require_container(const Object& obj) {
     return true;
 }
 
+static bool require_sequence(const Object& obj) {
+    if (obj.type() != Object::LIST && !obj.is_type<nodel::String>()) {
+        python::raise_type_error(obj);
+        return false;
+    }
+    return true;
+}
+
 static bool require_subscript(const Object& obj, const Key& key) {
     if (obj.is_type<ObjectList>() || obj.is_type<String>()) {
         if (!nodel::is_integer(key)) {
@@ -145,12 +153,22 @@ static PyObject* NodelObject_subtract(PyObject* arg1, PyObject* arg2) {
     }
 }
 
+static PyObject* NodelObject_sq_repeat(PyObject* self, Py_ssize_t count);
+
 static PyObject* NodelObject_multiply(PyObject* arg1, PyObject* arg2) {
     if (NodelObject_CheckExact(arg1)) {
         NodelObject* nd_obj = (NodelObject*)arg1;
-        PyObject* val = num_to_py(nd_obj);
-        if (val == NULL) return NULL;
-        return PyNumber_Multiply(val, arg2);
+        if (nodel::is_number(nd_obj)) {
+            PyObject* val = num_to_py(nd_obj);
+            if (val == NULL) return NULL;
+            return PyNumber_Multiply(val, arg2);
+        } else if (nd_obj->obj.type() == Object::LIST) {
+            Py_ssize_t repeats = PyLong_AsUnsignedLongLong(arg2);
+            return NodelObject_sq_repeat(arg1, repeats);
+        } else {
+            python::raise_type_error(nd_obj->obj);
+            return NULL;
+        }
     } else {
         NodelObject* nd_obj = (NodelObject*)arg2;
         PyObject* val = num_to_py(nd_obj);
@@ -1167,68 +1185,132 @@ static PyMappingMethods NodelObject_as_mapping = {
 // NodelObject Sequence Protocol
 //-----------------------------------------------------------------------------
 
-//static Py_ssize_t NodelObject_sq_length(PyObject* self) {
-//    NodelObject* nd_self = (NodelObject*)self;
-//    auto& self_obj = nd_self->obj;
-//    if (!require_container(self_obj)) return 0;
-//    return (Py_ssize_t)self_obj.size();
-//}
-//
-//static PyObject* NodelObject_sq_concat(PyObject* self, PyObject* arg) {
-//    NodelObject* nd_self = (NodelObject*)self;
-//    auto& self_obj = nd_self->obj;
-//    return NULL;
-//}
-//
-//static PyObject* NodelObject_sq_repeat(PyObject* self, Py_ssize_t count) {
-//    NodelObject* nd_self = (NodelObject*)self;
-//    auto& self_obj = nd_self->obj;
-//    return NULL;
-//}
-//
-//static PyObject* NodelObject_sq_item(PyObject* self, Py_ssize_t index) {
-//    NodelObject* nd_self = (NodelObject*)self;
-//    auto& self_obj = nd_self->obj;
-//    if (index >= self_obj.size()) return NULL;
-//    return (PyObject*)NodelObject_wrap(self_obj.get(index));
-//}
-//
-//static int NodelObject_sq_ass_item(PyObject* self, Py_ssize_t index, PyObject* arg) {
-//    NodelObject* nd_self = (NodelObject*)self;
-//    Object value = support.to_object(arg);
-//    if (value.is_empty()) return -1;
-//    nd_self->obj.set(index, value);
-//    return 0;
-//}
-//
-//static int NodelObject_sq_contains(PyObject* self, PyObject* arg) {
-//    NodelObject* nd_self = (NodelObject*)self;
-//    auto& self_obj = nd_self->obj;
-//    return -1;
-//}
-//
-//static PyObject* NodelObject_sq_inplace_concat(PyObject* self, PyObject* arg) {
-//    NodelObject* nd_self = (NodelObject*)self;
-//    auto& self_obj = nd_self->obj;
-//    return NULL;
-//}
-//
-//static PyObject* NodelObject_sq_inplace_repeat(PyObject* self, Py_ssize_t count) {
-//    NodelObject* nd_self = (NodelObject*)self;
-//    auto& self_obj = nd_self->obj;
-//    return NULL;
-//}
-//
-//static PySequenceMethods NodelObject_as_sequence = {
-//    .sq_length = NodelObject_sq_length,
-//    .sq_concat = NodelObject_sq_concat,
-//    .sq_repeat = NodelObject_sq_repeat,
-//    .sq_item = NodelObject_sq_item,
-//    .sq_ass_item = NodelObject_sq_ass_item,
-//    .sq_contains = NodelObject_sq_contains,
-//    .sq_inplace_concat = NodelObject_sq_inplace_concat,
-//    .sq_inplace_repeat = NodelObject_sq_inplace_repeat,
-//};
+static Py_ssize_t NodelObject_sq_length(PyObject* self) {
+    NodelObject* nd_self = (NodelObject*)self;
+    auto& self_obj = nd_self->obj;
+    if (!require_sequence(self_obj)) return -1;
+    return (Py_ssize_t)self_obj.size();
+}
+
+static PyObject* NodelObject_sq_concat(PyObject* self, PyObject* arg) {
+    NodelObject* nd_self = (NodelObject*)self;
+    RefMgr lhs = support.to_py(nd_self->obj);
+    if (!lhs.get()) return NULL;
+
+    if (NodelObject_CheckExact(arg)) {
+        NodelObject* nd_arg = (NodelObject*)arg;
+        RefMgr rhs = support.to_py(nd_arg->obj);
+        if (!rhs.get()) return NULL;
+        return PySequence_Concat(lhs.get(), rhs.get());
+    } else {
+        return PySequence_Concat(lhs.get(), arg);
+    }
+}
+
+static PyObject* NodelObject_sq_repeat(PyObject* self, Py_ssize_t count) {
+    NodelObject* nd_self = (NodelObject*)self;
+    RefMgr py_obj = support.to_py(nd_self->obj);
+    if (py_obj.get() == nullptr) return NULL;
+    return PySequence_Repeat(py_obj.get(), count);
+}
+
+static PyObject* NodelObject_sq_item(PyObject* self, Py_ssize_t index) {
+    NodelObject* nd_self = (NodelObject*)self;
+    auto& self_obj = nd_self->obj;
+    if (index == std::numeric_limits<Py_ssize_t>::max() || (size_t)index >= self_obj.size())
+        return NULL;
+    return (PyObject*)NodelObject_wrap(self_obj.get(index));
+}
+
+static int NodelObject_sq_ass_item(PyObject* self, Py_ssize_t index, PyObject* arg) {
+    NodelObject* nd_self = (NodelObject*)self;
+    Object value = support.to_object(arg);
+    if (value.is_empty()) return -1;
+    nd_self->obj.set(index, value);
+    return 0;
+}
+
+static int NodelObject_sq_contains(PyObject* self, PyObject* arg) {
+    NodelObject* nd_self = (NodelObject*)self;
+    auto& self_obj = nd_self->obj;
+    auto obj = support.to_object(arg);
+    return self_obj.contains(obj);
+}
+
+// TODO: AI needs checking
+static PyObject* NodelObject_sq_inplace_concat(PyObject* self, PyObject* arg) {
+    NodelObject* nd_self = (NodelObject*)self;
+    auto& obj = nd_self->obj;
+    auto type = obj.type();
+
+    if (type == Object::STR) {
+        // In-place string concatenation
+        RefMgr ref;
+        if (PyUnicode_Check(arg)) {
+            obj.as<String>().append(python::to_string_view(arg));
+            Py_INCREF(self);
+            return self;
+        } else {
+            PyErr_SetString(PyExc_TypeError, "Invalid type for string concatenation");
+            return NULL;
+        }
+    } else if (type == Object::LIST) {
+        // In-place list concatenation
+        Object rhs;
+        if (PyList_Check(arg)) {
+            rhs = support.to_object(arg);
+        } else if (NodelObject_CheckExact(arg)) {
+            rhs = ((NodelObject*)arg)->obj;
+        } else {
+            PyErr_SetString(PyExc_TypeError, "Expected list object");
+            return NULL;
+        }
+        for (const auto& val : rhs.iter_values())
+            obj.append(val);
+        Py_INCREF(self);
+        return self;
+    } else {
+        PyErr_SetString(PyExc_TypeError, "In-place concat only supported for list or string");
+        return NULL;
+    }
+}
+
+static PyObject* NodelObject_sq_inplace_repeat(PyObject* self, Py_ssize_t count) {
+    NodelObject* nd_self = (NodelObject*)self;
+    auto& obj = nd_self->obj;
+    auto type = obj.type();
+
+    if (type == Object::STR) {
+        auto& str = obj.as<String>();
+        String result;
+        for (Py_ssize_t i = 0; i < count; ++i)
+            result.append(str);
+        str = std::move(result);
+    } else if (type == Object::LIST) {
+        ObjectList& list = obj.as<ObjectList>();
+        ObjectList original = list;
+        for (Py_ssize_t i = 1; i < count; ++i)
+            for (const auto& item : original)
+                list.push_back(item);
+    } else {
+        PyErr_SetString(PyExc_TypeError, "In-place repeat only supported for list or string");
+        return NULL;
+    }
+
+    Py_INCREF(self);
+    return self;
+}
+
+static PySequenceMethods NodelObject_as_sequence = {
+    .sq_length = NodelObject_sq_length,
+    .sq_concat = NodelObject_sq_concat,
+    .sq_repeat = NodelObject_sq_repeat,
+    .sq_item = NodelObject_sq_item,
+    .sq_ass_item = NodelObject_sq_ass_item,
+    .sq_contains = NodelObject_sq_contains,
+    .sq_inplace_concat = NodelObject_sq_inplace_concat,
+    .sq_inplace_repeat = NodelObject_sq_inplace_repeat,
+};
 
 
 //-----------------------------------------------------------------------------
@@ -1384,7 +1466,12 @@ static PyObject* NodelObject_iter(PyObject* self) {
     NodelObject* nd_self = (NodelObject*)self;
     Object& self_obj = nd_self->obj;
     try {
-        if (is_map(self_obj)) {
+        auto type = self_obj.type();
+        if (type == Object::STR) {
+            // TODO: optimize eliminate copy
+            RefMgr py_str = python::to_str(self_obj.as<String>());
+            return PyObject_GetIter(py_str.get());
+        } else if (is_map(self_obj)) {
             return iter_keys(self, NULL);
         } else {
             return iter_values(self, NULL);
@@ -1420,7 +1507,7 @@ PyTypeObject NodelObjectType = {
     .tp_repr        = (reprfunc)NodelObject_repr,
     .tp_as_number   = &NodelObject_as_number,
     .tp_as_mapping  = &NodelObject_as_mapping,
-//    .tp_as_sequence = &NodelObject_as_sequence,
+    .tp_as_sequence = &NodelObject_as_sequence,
     .tp_str         = (reprfunc)NodelObject_str,
     .tp_getattro    = &NodelObject_getattro,
     .tp_setattro    = &NodelObject_setattro,

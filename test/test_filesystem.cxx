@@ -88,8 +88,9 @@ TEST(Filesystem, EnterOnlyDirectories) {
 TEST(Filesystem, Directory) {
     auto path = std::filesystem::current_path() / "test_data";
     Object obj = new Directory(new Registry{default_registry()}, path, DataSource::Origin::SOURCE);
+    EXPECT_FALSE(obj.is_unsaved());
     EXPECT_TRUE(nodel::is_map(obj));
-    EXPECT_FALSE(obj.data_source<DataSource>()->is_fully_cached());
+    EXPECT_FALSE(obj.is_fully_cached());
     EXPECT_TRUE(obj.size() > 0);
 }
 
@@ -97,37 +98,37 @@ TEST(Filesystem, DirectoryFiles) {
     auto path = std::filesystem::current_path() / "test_data";
     Object obj = new Directory(new Registry{default_registry()}, path, DataSource::Origin::SOURCE);
     EXPECT_TRUE(nodel::is_map(obj));
-    EXPECT_FALSE(obj.data_source<DataSource>()->is_fully_cached());
+    EXPECT_FALSE(obj.is_fully_cached());
     EXPECT_TRUE(obj.size() > 0);
 
     auto example_csv = obj.get("example.csv"_key);
     EXPECT_TRUE(example_csv.parent().is(obj));
-    EXPECT_TRUE(!example_csv.data_source<DataSource>()->is_fully_cached());
+    EXPECT_TRUE(!example_csv.is_fully_cached());
     EXPECT_TRUE(example_csv.is_type<ObjectList>());
     EXPECT_TRUE(example_csv.get(7).is_type<ObjectList>());
     EXPECT_EQ(example_csv.get(7).get(2), "Peg");
 
     auto example_txt = obj.get("example.txt"_key);
     EXPECT_TRUE(example_txt.parent().is(obj));
-    EXPECT_TRUE(!example_txt.data_source<DataSource>()->is_fully_cached());
+    EXPECT_TRUE(!example_txt.is_fully_cached());
     EXPECT_TRUE(example_txt.is_type<String>());
     EXPECT_TRUE(example_txt.as<String>().find("boring") != std::string::npos);
 
     auto example = obj.get("example.json"_key);
     EXPECT_TRUE(example.parent().is(obj));
-    EXPECT_TRUE(!example.data_source<DataSource>()->is_fully_cached());
+    EXPECT_TRUE(!example.is_fully_cached());
     EXPECT_TRUE(example.get("teas"_key).is_type<ObjectList>());
     EXPECT_EQ(example.get("teas"_key).get(0), "Assam");
 
     auto large_example_1 = obj.get("large_example_1.json"_key);
-    EXPECT_FALSE(large_example_1.data_source<DataSource>()->is_fully_cached());
+    EXPECT_FALSE(large_example_1.is_fully_cached());
     EXPECT_EQ(large_example_1.get(0).get("guid"_key), "20e19d58-d42c-4bb9-a370-204de2fc87df");
-    EXPECT_TRUE(large_example_1.data_source<DataSource>()->is_fully_cached());
+    EXPECT_TRUE(large_example_1.is_fully_cached());
 
     auto large_example_2 = obj.get("large_example_2.json"_key);
-    EXPECT_FALSE(large_example_2.data_source<DataSource>()->is_fully_cached());
+    EXPECT_FALSE(large_example_2.is_fully_cached());
     EXPECT_EQ(large_example_2.get("result"_key).get(-1).get("location"_key).get("city"_key), "Indianapolis");
-    EXPECT_TRUE(large_example_2.data_source<DataSource>()->is_fully_cached());
+    EXPECT_TRUE(large_example_2.is_fully_cached());
 }
 
 TEST(Filesystem, Subdirectory) {
@@ -250,8 +251,17 @@ TEST(Filesystem, UpdateJsonFile) {
     Object test_data = new Directory(new Registry{default_registry()}, path, DataSource::Origin::SOURCE);
     Object new_file = new SerialFile(new JsonSerializer());
     new_file.set(json::parse("{'tea': 'Assam, please'}"));
-    test_data.set(new_file_name, new_file);
+    new_file = test_data.set(new_file_name, new_file);
     test_data.save();
+
+    // verify other files not incidentally loaded during save
+    for (const auto& f : test_data.iter_values()) {
+        if (filesystem::path(f) != filesystem::path(new_file)) {
+            auto p_ds = f.data_source<DataSource>();
+            if (p_ds != nullptr)
+                EXPECT_FALSE(p_ds->is_fully_cached());
+        }
+    }
 
     test_data.reset();
     new_file = test_data.get(new_file_name);
@@ -382,6 +392,28 @@ TEST(Filesystem, ResolveDataSource) {
 
     wd.reset();
     EXPECT_EQ(wd.get(path), "tea");
+}
+
+TEST(Filesystem, TraverseFullyCached) {
+    Object wd = bind("file://?perm=rw&path=test_data"_uri);
+    std::vector<std::string> found;
+    auto enter_pred = [](const Object& obj) { return obj.is_fully_cached(); };
+    for (const auto& obj : wd.iter_tree_if(enter_pred)) {
+        found.push_back(filesystem::path(obj).string());
+    }
+    EXPECT_EQ(found.size(), 1UL);
+    EXPECT_EQ(found[0], "test_data");
+
+    found.clear();
+    wd.get("['example.csv'][0]"_path);
+    for (const auto& obj : wd.iter_tree_if(has_data_source, enter_pred)) {
+        if (obj.path().to_str() == "more/example.csv") { FAIL(); }
+        if (obj.is_fully_cached())
+            found.push_back(filesystem::path(obj).string());
+    }
+    EXPECT_EQ(found.size(), 2UL);
+    EXPECT_EQ(found[0], "test_data");
+    EXPECT_EQ(found[1], "test_data/example.csv");
 }
 
 void test_invalid_file(const std::string& file_name) {
