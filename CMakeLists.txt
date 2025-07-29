@@ -12,6 +12,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_PREFIX_PATH deps)
 set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 
+if (WIN32)
+    set(OS_LIBRARY_EXT ".lib")
+else()
+    set(OS_LIBRARY_EXT ".a")
+endif()
+
 find_program(MAKE make)
 include(FetchContent)
 
@@ -80,7 +86,7 @@ endif()
 # Dependency: ZipLib (LOCAL, statically linked)
 #----------------------------------------------------------------------------
 add_custom_target(nodel_ziplib
-                  COMMAND make Bin/libziplib.a -j ${CMAKE_BUILD_PARALLEL_LEVEL}
+                  COMMAND make Bin/libziplib${OS_LIBRARY_EXT} -j ${CMAKE_BUILD_PARALLEL_LEVEL}
                   COMMENT "Build ZipLib static library"
                   WORKING_DIRECTORY ${Nodel_SOURCE_DIR}/deps/ziplib)
 
@@ -140,7 +146,7 @@ target_include_directories(nodel_test PRIVATE
 )
 
 target_link_libraries(nodel_test PRIVATE
-    ${Nodel_SOURCE_DIR}/deps/ziplib/Bin/libziplib.a
+    ${Nodel_SOURCE_DIR}/deps/ziplib/Bin/libziplib${OS_LIBRARY_EXT}
     cpptrace::cpptrace
     fmt::fmt
     gtest
