@@ -174,8 +174,8 @@ void ZipFile::write(const Object& target, const Object& cache, const Object& sav
 
     mp_zip->WriteToStream(f_out);
 
-    if (f_out.bad()) report_write_error(fpath, strerror(errno));
-    if (f_out.fail()) report_write_error(fpath, "ostream::fail()");
+    if (f_out.bad()) report_write_error(fpath.string(), strerror(errno));
+    if (f_out.fail()) report_write_error(fpath.string(), "ostream::fail()");
 }
 
 inline
@@ -197,11 +197,11 @@ void impl::ZipFileEntry::read(const Object& target) {
         auto& stream = *p_stream;
         Object obj = r_ser->read(stream, mp_entry->GetSize());
         if (!obj.is_valid()) {
-            report_read_error(fpath, obj.to_str());
+            report_read_error(fpath.string(), obj.to_str());
         } else if (stream.bad()) {
-            report_read_error(fpath, strerror(errno));
+            report_read_error(fpath.string(), strerror(errno));
         } else if (!stream.eof() && stream.fail()) {
-            report_read_error(fpath, "ostream::fail");
+            report_read_error(fpath.string(), "ostream::fail");
         } else {
             read_set(target, obj);
         }
