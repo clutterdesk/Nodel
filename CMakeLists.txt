@@ -18,7 +18,11 @@ include(FetchContent)
 #----------------------------------------------------------------------------
 # Dependency: cpptrace
 #----------------------------------------------------------------------------
-set(CPPTRACE_GET_SYMBOLS_WITH_LIBDWARF ON)
+if(NOT WIN32)
+    set(CPPTRACE_GET_SYMBOLS_WITH_LIBDWARF ON)
+else()
+    set(CPPTRACE_GET_SYMBOLS_WITH_LIBDWARF OFF)
+endif()
 set(CPPTRACE_BUILD_SHARED OFF)
 
 FetchContent_Declare(
@@ -26,6 +30,17 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
   GIT_TAG        v0.5.4
 )
+
+#----------------------------------------------------------------------------
+# Dependency: libdwarf (only for non-Windows)
+#----------------------------------------------------------------------------
+if(NOT WIN32)
+    FetchContent_Declare(
+      libdwarf
+      GIT_REPOSITORY https://github.com/davea42/libdwarf-code.git
+      GIT_TAG        v2.1.0
+    )
+endif()
 
 #----------------------------------------------------------------------------
 # Dependency: fmtlib
@@ -42,7 +57,7 @@ FetchContent_Declare(
 FetchContent_Declare(
   tsl-ordered-map
   GIT_REPOSITORY https://github.com/Tessil/ordered-map.git
-  GIT_TAG        v1.1.0        
+  GIT_TAG        v1.1.0
 )
 
 #----------------------------------------------------------------------------
@@ -55,18 +70,11 @@ FetchContent_Declare(
 )
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
-FetchContent_MakeAvailable(cpptrace fmtlib tsl-ordered-map googletest)
-
-
-#----------------------------------------------------------------------------
-# DISABLED COMPILER WARNINGS for ZipLib
-#----------------------------------------------------------------------------
-set(NODEL_WFLAGS 
-    -Wno-tautological-undefined-compare # ziplib
-    -Wno-deprecated-declarations # ziplib
-    -Wno-enum-conversion  # ziplib
-)
-
+if(NOT WIN32)
+    FetchContent_MakeAvailable(cpptrace fmtlib tsl-ordered-map googletest libdwarf)
+else()
+    FetchContent_MakeAvailable(cpptrace fmtlib tsl-ordered-map googletest)
+endif()
 
 #----------------------------------------------------------------------------
 # Dependency: ZipLib (LOCAL, statically linked)
@@ -89,9 +97,9 @@ endif()
 #----------------------------------------------------------------------------
 #-- Nodel Unit Test
 #----------------------------------------------------------------------------
-file(GLOB NODEL_TEST_SRC 
-    nodel/**/*.hxx 
-    nodel/**/*.cxx 
+file(GLOB NODEL_TEST_SRC
+    nodel/**/*.hxx
+    nodel/**/*.cxx
     test/main.cxx
     test/test_csv.cxx
     test/test_filesystem.cxx
@@ -103,11 +111,11 @@ file(GLOB NODEL_TEST_SRC
     test/test_query.cxx
     test/test_ref.cxx
     test/test_uri.cxx
-    test/test_zip.cxx    
+    test/test_zip.cxx
 )
 
 if (rocksdb_FOUND)
-    file(GLOB NODEL_TEST_SRC_ROCKSDB test/test_kvdb.cxx) 
+    file(GLOB NODEL_TEST_SRC_ROCKSDB test/test_kvdb.cxx)
     set(NODEL_TEST_SRC ${NODEL_TEST_SRC} ${NODEL_TEST_SRC_ROCKSDB})
 endif()
 
@@ -144,7 +152,7 @@ target_link_libraries(nodel_test PRIVATE
 add_custom_command(
     TARGET nodel_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/test_data/ $<TARGET_FILE_DIR:nodel_test>/test_data/
-)                 
+)
 
 
 #----------------------------------------------------------------------------
@@ -157,7 +165,7 @@ if (1)
         message(STATUS "${_variableName}=${${_variableName}}")
     endforeach()
 endif()
-                       
+
 #----------------------------------------------------------------------------
 #-- Python C-API Extension
 #----------------------------------------------------------------------------
@@ -175,21 +183,26 @@ else()
         ${fmtlib_SOURCE_DIR}/include
         ${tsl-ordered-map_SOURCE_DIR}/include
     )
-    
+
     set(NODEL_PYEXT_LIB_PATH
         ${Nodel_SOURCE_DIR}/build/_deps/cpptrace-build
         ${Nodel_SOURCE_DIR}/build/_deps/fmtlib-build
         ${Nodel_SOURCE_DIR}/deps/ziplib/Bin
-        ${libdwarf_BINARY_DIR}/src/lib/libdwarf
-        ${zstd_BINARY_DIR}/lib
     )
-    
+
+    if(NOT WIN32)
+        list(APPEND NODEL_PYEXT_LIB_PATH
+            ${libdwarf_BINARY_DIR}/src/lib/libdwarf
+            ${zstd_BINARY_DIR}/lib
+        )
+    endif()
+
     if (rocksdb_FOUND)
         set(NODEL_PYEXT_INCLUDE ${NODEL_PYEXT_INCLUDE} ${ROCKSDB_INCLUDE})
         get_filename_component(ROCKSDB_LIB_PATH ${ROCKSDB_LIBRARY} DIRECTORY)
-        set(NODEL_PYEXT_LIB_PATH ${NODEL_PYEXT_LIB_PATH} ${ROCKSDB_LIB_PATH}) 
+        set(NODEL_PYEXT_LIB_PATH ${NODEL_PYEXT_LIB_PATH} ${ROCKSDB_LIB_PATH})
     endif()
-        
+
     add_custom_target(
         pyext ALL
         DEPENDS nodel_test
@@ -197,7 +210,7 @@ else()
                 ${CMAKE_SOURCE_DIR}/pyext/setup.cfg
         COMMAND ${Python3_EXECUTABLE} -m venv ${CMAKE_BINARY_DIR}/venv
         COMMAND python3 -m pip install setuptools build
-        COMMAND ${CMAKE_COMMAND} -E env 
+        COMMAND ${CMAKE_COMMAND} -E env
             NODEL_PYEXT_INCLUDE="${NODEL_PYEXT_INCLUDE}"
             NODEL_PYEXT_LIB_PATH="${NODEL_PYEXT_LIB_PATH}"
             python3 -m build
@@ -224,4 +237,3 @@ configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Build Documentation"
         VERBATIM)
-        

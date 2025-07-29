@@ -36,12 +36,7 @@ setup(
             ],
             include_dirs=nodel_pyext_include,
             extra_compile_args=[
-                '--std=c++20',
-                '-Wno-c99-designator',
-                '-Wno-delete-non-abstract-non-virtual-dtor',
-                '-Wno-tautological-undefined-compare', 
-                '-Wno-deprecated-declarations',
-                '-Wno-enum-conversion'
+                '--std=c++20'
             ],
             library_dirs=nodel_pyext_lib_path,
             libraries=[lib for (lib, cond) in cond_libs if cond],

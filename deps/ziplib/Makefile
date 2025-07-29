@@ -8,13 +8,8 @@ AR        ?= ar
 #CXX      ?= g++-4.8
 CC        ?= clang
 CXX       ?= clang++
-CFLAGS    = -Wno-enum-conversion -O3
-CFLAGS    += -Wno-deprecated-non-prototype 
+CFLAGS    = -O3
 CXXFLAGS  = -std=c++11 -O3
-CXXFLAGS  += -Wno-tautological-undefined-compare \
-             -Wno-deprecated-declarations \
-             -Wno-enum-conversion \
-	     -Wno-deprecated-non-prototype
 
 # Linker flags
 LDFLAGS   = -pthread
