@@ -64,7 +64,7 @@ void ZipFile::read(const Object& target) {
     auto fpath = path(target);
 
     try {
-        mp_zip = ::ZipFile::Open(fpath);
+        mp_zip = ::ZipFile::Open(fpath.string());
     } catch (std::exception& exc) {
         throw NodelException(exc.what());
     }
