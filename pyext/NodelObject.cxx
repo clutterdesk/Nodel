@@ -1188,8 +1188,11 @@ static PyMappingMethods NodelObject_as_mapping = {
 static Py_ssize_t NodelObject_sq_length(PyObject* self) {
     NodelObject* nd_self = (NodelObject*)self;
     auto& self_obj = nd_self->obj;
-    if (!require_sequence(self_obj)) return -1;
-    return (Py_ssize_t)self_obj.size();
+    if (nodel::is_container(self_obj) || self_obj.is_type<nodel::String>()) {
+        return (Py_ssize_t)self_obj.size();
+    } else {
+        python::raise_type_error(self_obj);
+    }
 }
 
 static PyObject* NodelObject_sq_concat(PyObject* self, PyObject* arg) {

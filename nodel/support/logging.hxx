@@ -44,10 +44,10 @@ void log(const char* file, int line, const char* level_name, const char *format,
     std::cout.flush();
 }
 
-#define DEBUG(...) { if (::nodel::log::level >= ::nodel::log::Level::DEBUG)   ::nodel::log::log(__FILE__, __LINE__, "[DEBUG] ",   __VA_ARGS__); }
-#define WARN(...)  { if (::nodel::log::level >= ::nodel::log::Level::WARNING) ::nodel::log::log(__FILE__, __LINE__, "[WARNING] ", __VA_ARGS__); }
-#define ERROR(...) { if (::nodel::log::level >= ::nodel::log::Level::ERROR)   ::nodel::log::log(__FILE__, __LINE__, "[ERROR] ",   __VA_ARGS__); }
-#define FATAL(...) { if (::nodel::log::level >= ::nodel::log::Level::FATAL)   ::nodel::log::log(__FILE__, __LINE__, "[FATAL] ",   __VA_ARGS__); }
+#define DEBUG(...) { if constexpr (::nodel::log::level >= ::nodel::log::Level::DEBUG)   ::nodel::log::log(__FILE__, __LINE__, "[DEBUG] ",   __VA_ARGS__); }
+#define WARN(...)  { if constexpr (::nodel::log::level >= ::nodel::log::Level::WARNING) ::nodel::log::log(__FILE__, __LINE__, "[WARNING] ", __VA_ARGS__); }
+#define ERROR(...) { if constexpr (::nodel::log::level >= ::nodel::log::Level::ERROR)   ::nodel::log::log(__FILE__, __LINE__, "[ERROR] ",   __VA_ARGS__); }
+#define FATAL(...) { if constexpr (::nodel::log::level >= ::nodel::log::Level::FATAL)   ::nodel::log::log(__FILE__, __LINE__, "[FATAL] ",   __VA_ARGS__); }
 
 } // namespace log
 } // namespace nodel

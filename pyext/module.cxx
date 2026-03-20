@@ -492,7 +492,7 @@ static PyObject* mod_path(PyObject* mod, PyObject *const *args, Py_ssize_t nargs
         bool as_list = false;
         if (nargs == 2) {
             if (PyUnicode_Check(args[1])) {
-                as_list = PyUnicode_EqualToUTF8AndSize(args[1], "list", 4) == 1;
+                as_list = PyUnicode_CompareWithASCIIString(args[1], "list") ==  1;
             } else {
                 PyErr_SetString(PyExc_TypeError, "Expected str for argument 2");
                 return NULL;
@@ -513,16 +513,24 @@ static PyObject* get_impl(NodelObject* nd_obj, PyObject* key, PyObject* default_
     try {
         Object value;
 
-        if (PyUnicode_Check(key)) {
-            value = nd_obj->obj.get(OPath{python::to_string_view(key)});
-        } else if (PyLong_Check(key)) {
+        if (PyUnicode_Check(key) || PyLong_Check(key)) {
             value = nd_obj->obj.get(support.to_key(key));
         } else if (NodelObject_CheckExact(key)) {
-            auto arg = as_nodel_object(key);
             Object value = nd_obj->obj;
-            for (const auto& obj : arg->obj.iter_values()) {
-                value = value.get(obj.to_key());
-                if (value.is_nil()) break;
+            auto arg = ((NodelObject*)key)->obj;
+            auto arg_type = arg.type();
+            if (arg_type == Object::STR) {
+                value = nd_obj->obj.get(arg.to_key());
+            } else if (arg_type == Object::LIST) {
+                for (const auto& obj : arg.iter_values()) {
+                    value = value.get(obj.to_key());
+                    if (value.is_nil()) break;
+                }
+            } else if (arg_type == Object::INT || arg_type == Object::UINT) {
+                value = nd_obj->obj.get(arg.to_key());
+            } else {
+                PyErr_SetString(PyExc_ValueError, "Invalid key type");
+                return NULL;
             }
         } else if (PyList_Check(key)) {
             value = nd_obj->obj;
@@ -567,7 +575,7 @@ static PyObject* get_impl(NodelObject* nd_obj, PyObject* key, PyObject* default_
 constexpr auto get_doc =
 "Calls Object::get with semantics like Python dict.get.\n"
 "Note that this function works for both map and list Objects.\n"
-"nodel.get(key, default=None) -> any\n"
+"nodel.get(obj, key, default=None) -> any\n"
 "Returns the value of key/index, or the default value.";
 
 static PyObject* mod_get(PyObject* mod, PyObject *const *args, Py_ssize_t nargs) {
@@ -780,7 +788,7 @@ static PyObject* mod_is_unsaved(PyObject* mod, PyObject* arg) {
 constexpr auto set_unsaved_doc = \
 "Marks or clears the stale flag for an object with a data-source.\n"
 "The stale flag controls whether the object will be stored on the next call to the save method.\n"
-"nodel.set_unsaved(bool)\n";
+"nodel.set_unsaved(obj, bool)\n";
 
 static PyObject* mod_set_unsaved(PyObject* mod, PyObject* const* args, Py_ssize_t nargs) {
     if (nargs != 2) {

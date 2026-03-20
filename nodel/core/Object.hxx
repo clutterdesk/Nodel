@@ -1722,10 +1722,10 @@ bool Object::cast() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
         case NIL:   return false;
-        case BOOL:  return m_repr.b;
-        case INT:   return m_repr.i;
-        case UINT:  return m_repr.u;
-        case FLOAT: return m_repr.f;
+        case BOOL:  return static_cast<bool>(m_repr.b);
+        case INT:   return static_cast<bool>(m_repr.i);
+        case UINT:  return static_cast<bool>(m_repr.u);
+        case FLOAT: return static_cast<bool>(m_repr.f);
         case STR:   return str_to_bool(std::get<0>(*m_repr.ps));
         case LIST:  [[fallthrough]];
         case SMAP:  [[fallthrough]];
@@ -1745,10 +1745,10 @@ Int Object::cast() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
         case NIL:   return 0;
-        case BOOL:  return m_repr.b;
-        case INT:   return m_repr.i;
-        case UINT:  return m_repr.u;
-        case FLOAT: return m_repr.f;
+        case BOOL:  return static_cast<Int>(m_repr.b);
+        case INT:   return static_cast<Int>(m_repr.i);
+        case UINT:  return static_cast<Int>(m_repr.u);
+        case FLOAT: return static_cast<Int>(m_repr.f);
         case STR:   return str_to_int(std::get<0>(*m_repr.ps));
         case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).cast<Int>();
         default:    throw wrong_type(m_fields.repr_ix, INT);
@@ -1765,9 +1765,13 @@ UInt Object::cast() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
         case NIL:   return 0UL;
-        case BOOL:  return m_repr.b;
-        case INT:   return m_repr.i;
-        case UINT:  return m_repr.u;
+        case BOOL:  return static_cast<UInt>(m_repr.b);
+        case INT:   return static_cast<UInt>(m_repr.i);
+        case UINT:  return static_cast<UInt>(m_repr.u);
+        case FLOAT: {
+            // NOTE: both gcc and clang produce unexpected results with static_cast<UInt>(...) and negative number
+            return (m_repr.f < 0)? -(static_cast<UInt>(-m_repr.f)): static_cast<UInt>(m_repr.f);
+        }
         case STR:   return str_to_int(std::get<0>(*m_repr.ps));
         case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).cast<UInt>();
         default:    throw wrong_type(m_fields.repr_ix, UINT);
@@ -1784,10 +1788,10 @@ Float Object::cast() const {
     switch (m_fields.repr_ix) {
         case EMPTY: throw empty_reference();
         case NIL:   return 0.0;
-        case BOOL:  return m_repr.b;
-        case INT:   return m_repr.i;
-        case UINT:  return m_repr.u;
-        case FLOAT: return m_repr.f;
+        case BOOL:  return static_cast<Float>(m_repr.b);
+        case INT:   return static_cast<Float>(m_repr.i);
+        case UINT:  return static_cast<Float>(m_repr.u);
+        case FLOAT: return static_cast<Float>(m_repr.f);
         case STR:   return str_to_float(std::get<0>(*m_repr.ps));
         case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).cast<Float>();
         default:    throw wrong_type(m_fields.repr_ix, FLOAT);

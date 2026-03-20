@@ -109,3 +109,13 @@ TEST(CsvParser, CellWithHyphen) {
     EXPECT_EQ(obj.get(0).get(0), "2025-03-19");
 }
 
+TEST(CsvParser, UnquotedWithInteger) {
+    std::stringstream stream{R"(2469216E2BPD7VETL AMAZON MKTPL*A82M02I43   Amzn.com/billWA           ,,,,"-$00.00")"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    ASSERT_EQ(obj.size(), 1UL);
+    EXPECT_EQ(obj.get(0).size(), 5UL);
+    EXPECT_EQ(obj.get(0).get(0), "2469216E2BPD7VETL AMAZON MKTPL*A82M02I43   Amzn.com/billWA");
+    EXPECT_EQ(obj.get(0).get(4), "-$00.00");
+}

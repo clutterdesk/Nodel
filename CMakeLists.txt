@@ -12,6 +12,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_PREFIX_PATH deps)
 set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 
+# WORKAROUND for tsl-ordered-map
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
 if (WIN32)
     set(OS_LIBRARY_EXT ".lib")
 else()
@@ -34,7 +37,7 @@ set(CPPTRACE_BUILD_SHARED OFF)
 FetchContent_Declare(
   cpptrace
   GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
-  GIT_TAG        v0.5.4
+  GIT_TAG        v1.0.4
 )
 
 #----------------------------------------------------------------------------

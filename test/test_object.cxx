@@ -223,10 +223,7 @@ TEST(Object, ToUInt) {
     EXPECT_EQ(Object{-1}.cast<UInt>(), (UInt)(-1));
     EXPECT_EQ(Object{(UInt)(-1)}.cast<UInt>(), (UInt)(-1));
     EXPECT_EQ(Object{"3"}.cast<UInt>(), 3UL);
-
-// NOTE: crashes with -On for n > 0 with EXC_BAD_INSTRUCTION (code=EXC_I386_INVOP, subcode=0x0)
-//    Float minus_one = -1.0;
-//    EXPECT_EQ(Object{-1.0}.cast<UInt>(), (UInt)minus_one);
+    EXPECT_EQ(Object{-1.0L}.cast<UInt>(), 0xFFFFFFFFFFFFFFFFULL);
 
     try {
         Object obj;
@@ -2899,4 +2896,12 @@ TEST(Object, InterDataSourceCopy) {
     Object obj1{new TestSimpleSource("{'x': {}}")};
     Object obj2{new TestSimpleSource("{'y': {'z': 'Z'}}")};
     obj1.set("x.y"_path, obj2);
+}
+
+TEST(Object, StdSwap) {
+    Object obj1 = "{'id': 1}"_json;
+    Object obj2 = "{'id': 2}"_json;
+    std::swap(obj1, obj2);
+    EXPECT_EQ(obj1.get("id"_key), 2);
+    EXPECT_EQ(obj2.get("id"_key), 1);
 }
