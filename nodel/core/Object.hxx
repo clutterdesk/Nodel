@@ -227,6 +227,7 @@ class Object
         else if constexpr (std::is_same<T, Int>::value)        { return m_repr.i; }
         else if constexpr (std::is_same<T, UInt>::value)       { return m_repr.u; }
         else if constexpr (std::is_same<T, Float>::value)      { return m_repr.f; }
+        throw NodelException("Invalid argument");
     }
 
     template <typename T> T& get_repr() requires is_byvalue<T> {
@@ -234,6 +235,7 @@ class Object
         else if constexpr (std::is_same<T, Int>::value)        { return m_repr.i; }
         else if constexpr (std::is_same<T, UInt>::value)       { return m_repr.u; }
         else if constexpr (std::is_same<T, Float>::value)      { return m_repr.f; }
+        throw NodelException("Invalid argument");
     }
 
     template <typename T> const T& get_repr() const requires std::is_same<T, String>::value { return std::get<0>(*m_repr.ps); }
@@ -3955,6 +3957,9 @@ class Object::Subscript
     template <typename T> T& as() requires std::is_same<T, String>::value             { return resolve().template as<T>(); }
     template <typename T> T& as()                                                     { return resolve().template as<T>(); }
     template <typename T> const T& as() const                                         { return resolve().template as<T>(); }
+
+    template <typename T>
+    T cast() const { return resolve().template cast<T>(); }
 
     bool is_empty() const   { return resolve().is_empty(); }
     bool is_deleted() const { return resolve().is_deleted(); }
