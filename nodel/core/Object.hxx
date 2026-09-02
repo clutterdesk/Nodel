@@ -220,6 +220,7 @@ class Object
         else if constexpr (std::is_same<T, SortedMap>::value)  return SMAP;
         else if constexpr (std::is_same<T, OrderedMap>::value) return OMAP;
         else if constexpr (std::is_base_of<Alien, T>::value)   return ANY;
+        throw NodelException("Invalid argument");
     }
 
     template <typename T> T get_repr() const requires is_byvalue<T> {
