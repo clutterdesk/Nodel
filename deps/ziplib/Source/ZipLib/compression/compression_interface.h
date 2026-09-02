@@ -68,14 +68,11 @@ class compression_decoder_interface_basic
     virtual size_t decode_next() = 0;
 };
 
-typedef compression_interface_basic<uint8_t, std::char_traits<uint8_t>>           byte_compression_interface;
 typedef compression_interface_basic<char, std::char_traits<char>>                 compression_interface;
 typedef compression_interface_basic<wchar_t, std::char_traits<wchar_t>>           wcompression_interface;
 
-typedef compression_encoder_interface_basic<uint8_t, std::char_traits<uint8_t>>   byte_compression_encoder_interface;
 typedef compression_encoder_interface_basic<char, std::char_traits<char>>         compression_encoder_interface;
 typedef compression_encoder_interface_basic<wchar_t, std::char_traits<wchar_t>>   wcompression_encoder_interface;
 
-typedef compression_decoder_interface_basic<uint8_t, std::char_traits<uint8_t>>   byte_compression_decoder_interface;
 typedef compression_decoder_interface_basic<char, std::char_traits<char>>         compression_decoder_interface;
 typedef compression_decoder_interface_basic<wchar_t, std::char_traits<wchar_t>>   wcompression_decoder_interface;

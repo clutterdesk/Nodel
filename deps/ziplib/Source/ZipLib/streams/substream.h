@@ -54,6 +54,5 @@ class basic_isubstream
 
 //////////////////////////////////////////////////////////////////////////
 
-typedef basic_isubstream<uint8_t, std::char_traits<uint8_t>>  byte_isubstream;
 typedef basic_isubstream<char, std::char_traits<char>>        isubstream;
 typedef basic_isubstream<wchar_t, std::char_traits<wchar_t>>  wisubstream;

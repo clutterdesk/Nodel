@@ -110,8 +110,7 @@ class basic_lzma_decoder
 
       ELzmaFinishMode finishMode = LZMA_FINISH_ANY;
       ELzmaStatus status;
-      SRes res;
-      res = LzmaDec_DecodeToBuf(
+      LzmaDec_DecodeToBuf(
         &_handle,
         reinterpret_cast<Byte*>(_outputBuffer),
         &_outProcessed,
@@ -126,16 +125,6 @@ class basic_lzma_decoder
       _outputBufferSize = _outProcessed;
 
       return _outputBufferSize;
-
-      // if (res != SZ_OK)
-      //   return _lzmaInProcessed;
-      // 
-      // if (_lzmaInProcessed == 0 && _lzmaOutProcessed == 0)
-      // {
-      //   if (status != LZMA_STATUS_FINISHED_WITH_MARK)
-      //     return _lzmaOutProcessed;
-      //   return _lzmaOutProcessed;
-      // }
     }
 
   private:
@@ -186,6 +175,5 @@ class basic_lzma_decoder
     size_t _bytesWritten;
 };
 
-typedef basic_lzma_decoder<uint8_t, std::char_traits<uint8_t>>  byte_lzma_decoder;
 typedef basic_lzma_decoder<char, std::char_traits<char>>        lzma_decoder;
 typedef basic_lzma_decoder<wchar_t, std::char_traits<wchar_t>>  wlzma_decoder;

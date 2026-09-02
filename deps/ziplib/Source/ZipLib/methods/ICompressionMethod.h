@@ -71,6 +71,8 @@ struct ZipMethodDescriptor
 class ICompressionMethod
 {
   public:
+    virtual ~ICompressionMethod() = default;
+
     static const uint16_t StoredCompressionMethod = 0;
     static const uint16_t StoredVersionNeededToExtract = 10;
 

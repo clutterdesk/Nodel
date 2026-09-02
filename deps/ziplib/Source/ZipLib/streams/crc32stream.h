@@ -44,6 +44,5 @@ class basic_crc32stream
 
 //////////////////////////////////////////////////////////////////////////
 
-typedef basic_crc32stream<uint8_t, std::char_traits<uint8_t>>  byte_crc32stream;
 typedef basic_crc32stream<char, std::char_traits<char>>        crc32stream;
 typedef basic_crc32stream<wchar_t, std::char_traits<wchar_t>>  wcrc32stream;

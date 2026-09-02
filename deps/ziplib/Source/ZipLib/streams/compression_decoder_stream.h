@@ -67,6 +67,5 @@ class basic_compression_decoder_stream
 
 //////////////////////////////////////////////////////////////////////////
 
-typedef basic_compression_decoder_stream<uint8_t, std::char_traits<uint8_t>>  byte_compression_decoder_stream;
 typedef basic_compression_decoder_stream<char, std::char_traits<char>>        compression_decoder_stream;
 typedef basic_compression_decoder_stream<wchar_t, std::char_traits<wchar_t>>  wcompression_decoder_stream;

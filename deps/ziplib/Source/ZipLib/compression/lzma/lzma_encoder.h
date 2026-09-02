@@ -51,7 +51,7 @@ class basic_lzma_encoder
 
     bool is_init() const override
     {
-      return &_ostream.get_stream() != nullptr;
+      return _ostream.is_stream_null();
     }
 
     size_t get_bytes_read() const override
@@ -112,6 +112,5 @@ class basic_lzma_encoder
     std::thread _compressionThread;
 };
 
-typedef basic_lzma_encoder<uint8_t, std::char_traits<uint8_t>>  byte_lzma_encoder;
 typedef basic_lzma_encoder<char, std::char_traits<char>>        lzma_encoder;
 typedef basic_lzma_encoder<wchar_t, std::char_traits<wchar_t>>  wlzma_encoder;
