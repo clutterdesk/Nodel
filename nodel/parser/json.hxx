@@ -6,6 +6,7 @@
 #include <nodel/support/parse.hxx>
 #include <nodel/support/exception.hxx>
 
+#include <cstdint>
 #include <cstdlib>
 #include <cerrno>
 #include <sstream>
@@ -21,6 +22,25 @@ struct Options
 
 
 namespace impl {
+
+inline
+void append_utf8(std::string& str, uint32_t code) {
+    if (code < 0x80) {
+        str.push_back((char)code);
+    } else if (code < 0x800) {
+        str.push_back((char)(0xC0 | (code >> 6)));
+        str.push_back((char)(0x80 | (code & 0x3F)));
+    } else if (code < 0x10000) {
+        str.push_back((char)(0xE0 | (code >> 12)));
+        str.push_back((char)(0x80 | ((code >> 6) & 0x3F)));
+        str.push_back((char)(0x80 | (code & 0x3F)));
+    } else {
+        str.push_back((char)(0xF0 | (code >> 18)));
+        str.push_back((char)(0x80 | ((code >> 12) & 0x3F)));
+        str.push_back((char)(0x80 | ((code >> 6) & 0x3F)));
+        str.push_back((char)(0x80 | (code & 0x3F)));
+    }
+}
 
 template <typename StreamType>
 struct Parser
@@ -39,6 +59,8 @@ struct Parser
     bool parse_object(char term_char);
     bool parse_number();
     bool parse_string();
+    bool parse_escape(std::string& str);
+    bool parse_hex4(uint32_t& code);
     bool parse_map();
     bool parse_list();
 
@@ -211,27 +233,87 @@ template <typename StreamType>
 bool Parser<StreamType>::parse_string() {
     char quote = m_it.peek();
     m_it.next();
-    bool escape = false;
     std::string str;
     for(; !m_it.done(); m_it.next()) {
         char c = m_it.peek();
-        if (c == '\\') {
-            escape = true;
-        } else if (!escape) {
-            if (c == quote) { m_it.next(); quote = 0; break; }
-            str.push_back(c);
+        if (c == quote) {
+            m_it.next();
+            m_curr.refer_to(std::move(str));
+            return true;
+        } else if (c == '\\') {
+            m_it.next();
+            if (m_it.done()) break;
+            if (!parse_escape(str)) return false;
         } else {
-            escape = false;
             str.push_back(c);
         }
     }
 
-    if (quote != 0) {
-        create_error("Unterminated string");
-        return false;
-    }
+    create_error("Unterminated string");
+    return false;
+}
 
-    m_curr.refer_to(std::move(str));
+/// Decodes the escape sequence whose first character (after the backslash) is
+/// the current character, leaving the stream on the last character of the sequence.
+template <typename StreamType>
+bool Parser<StreamType>::parse_escape(std::string& str) {
+    switch (m_it.peek()) {
+        case '"':  str.push_back('"'); break;
+        case '\'': str.push_back('\''); break;  // single-quoted strings are supported
+        case '\\': str.push_back('\\'); break;
+        case '/':  str.push_back('/'); break;
+        case 'b':  str.push_back('\b'); break;
+        case 'f':  str.push_back('\f'); break;
+        case 'n':  str.push_back('\n'); break;
+        case 'r':  str.push_back('\r'); break;
+        case 't':  str.push_back('\t'); break;
+        case 'u': {
+            uint32_t code;
+            if (!parse_hex4(code)) return false;
+            if (code >= 0xD800 && code <= 0xDBFF) {
+                // high surrogate must be followed by an escaped low surrogate
+                uint32_t low;
+                m_it.next();
+                if (m_it.done() || m_it.peek() != '\\') { create_error("Unpaired surrogate"); return false; }
+                m_it.next();
+                if (m_it.done() || m_it.peek() != 'u') { create_error("Unpaired surrogate"); return false; }
+                if (!parse_hex4(low)) return false;
+                if (low < 0xDC00 || low > 0xDFFF) { create_error("Unpaired surrogate"); return false; }
+                code = 0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00);
+            } else if (code >= 0xDC00 && code <= 0xDFFF) {
+                create_error("Unpaired surrogate");
+                return false;
+            }
+            append_utf8(str, code);
+            break;
+        }
+        default:
+            create_error("Invalid escape sequence");
+            return false;
+    }
+    return true;
+}
+
+/// Reads the 4 hex digits following the current character, leaving the stream on the last digit.
+template <typename StreamType>
+bool Parser<StreamType>::parse_hex4(uint32_t& code) {
+    code = 0;
+    for (int i = 0; i < 4; ++i) {
+        m_it.next();
+        if (m_it.done()) {
+            create_error("Unterminated string");
+            return false;
+        }
+        char c = m_it.peek();
+        code <<= 4;
+        if (c >= '0' && c <= '9')      code |= c - '0';
+        else if (c >= 'a' && c <= 'f') code |= c - 'a' + 10;
+        else if (c >= 'A' && c <= 'F') code |= c - 'A' + 10;
+        else {
+            create_error("Invalid \\u escape");
+            return false;
+        }
+    }
     return true;
 }
 

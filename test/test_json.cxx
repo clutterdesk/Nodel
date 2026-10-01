@@ -168,6 +168,58 @@ TEST(Json, ParseTypeStringDoubleQuote) {
     EXPECT_EQ(parser.parse_type(), Object::STR);
 }
 
+TEST(Json, ParseStringSimpleEscapes) {
+    auto obj = json::parse(R"("\"\\\/\b\f\n\r\t")");
+    ASSERT_TRUE(obj.is_type<String>());
+    EXPECT_EQ(obj.as<String>(), "\"\\/\b\f\n\r\t");
+}
+
+TEST(Json, ParseStringEscapedBackslashAtEnd) {
+    auto obj = json::parse(R"("C:\\dir\\")");
+    ASSERT_TRUE(obj.is_type<String>());
+    EXPECT_EQ(obj.as<String>(), "C:\\dir\\");
+}
+
+TEST(Json, ParseStringEscapedBackslashInList) {
+    auto obj = json::parse(R"(["\\", "a"])");
+    ASSERT_TRUE(obj.is_type<ObjectList>());
+    EXPECT_EQ(obj.size(), 2UL);
+    EXPECT_EQ(obj.get(0).as<String>(), "\\");
+    EXPECT_EQ(obj.get(1).as<String>(), "a");
+}
+
+TEST(Json, ParseStringEscapedQuoteInSingleQuoted) {
+    auto obj = json::parse(R"('it\'s')");
+    ASSERT_TRUE(obj.is_type<String>());
+    EXPECT_EQ(obj.as<String>(), "it's");
+}
+
+TEST(Json, ParseStringUnicodeEscape) {
+    auto obj = json::parse(R"("\u0041\u00e9\u20AC")");
+    ASSERT_TRUE(obj.is_type<String>());
+    EXPECT_EQ(obj.as<String>(), "A\xC3\xA9\xE2\x82\xAC");
+}
+
+TEST(Json, ParseStringUnicodeSurrogatePair) {
+    auto obj = json::parse(R"("\ud83d\ude00")");
+    ASSERT_TRUE(obj.is_type<String>());
+    EXPECT_EQ(obj.as<String>(), "\xF0\x9F\x98\x80");
+}
+
+TEST(Json, ParseStringUnpairedSurrogate) {
+    EXPECT_FALSE(json::parse(R"("\ud83d")").is_valid());
+    EXPECT_FALSE(json::parse(R"("\ud83dx")").is_valid());
+    EXPECT_FALSE(json::parse(R"("\ud83d\u0041")").is_valid());
+    EXPECT_FALSE(json::parse(R"("\ude00")").is_valid());
+}
+
+TEST(Json, ParseStringInvalidEscape) {
+    EXPECT_FALSE(json::parse(R"("\q")").is_valid());
+    EXPECT_FALSE(json::parse(R"("\u12G4")").is_valid());
+    EXPECT_FALSE(json::parse(R"("\u12")").is_valid());
+    EXPECT_FALSE(json::parse(R"("\)").is_valid());
+}
+
 TEST(Json, ParseListEmpty) {
   std::stringstream stream{"[]"};
   Parser parser1{StreamAdapter{stream}};
