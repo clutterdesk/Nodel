@@ -204,10 +204,10 @@ bool Parser<StreamType>::parse_number() {
     const char* str = m_scratch.c_str();
     const char* scratch_end = str + m_scratch.size();
     char* end = 0;
+    errno = 0;
     if (is_float) {
         m_curr.refer_to(Object{strtod(str, &end)});
     } else {
-        errno = 0;
         m_curr.refer_to(Object{strtoll(str, &end, 10)});
         if (errno) {
             errno = 0;

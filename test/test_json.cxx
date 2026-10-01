@@ -2,6 +2,7 @@
 /// @b License: @n Apache License v2.0
 /// @copyright Robert Dunnagan
 #include <gtest/gtest.h>
+#include <cerrno>
 #include <sstream>
 
 #include <nodel/parser/json.hxx>
@@ -66,6 +67,25 @@ TEST(Json, ParseNumberRangeError) {
   Parser parser{StreamAdapter{stream}};
   EXPECT_FALSE(parser.parse_number());
   EXPECT_FALSE(parser.m_curr.is_valid());
+}
+
+TEST(Json, ParseNumberFloatRangeError) {
+  std::stringstream stream{"1e400"};
+  Parser parser{StreamAdapter{stream}};
+  EXPECT_FALSE(parser.parse_number());
+  EXPECT_FALSE(parser.m_curr.is_valid());
+}
+
+TEST(Json, ParseNumberIgnoresStaleErrno) {
+  errno = ERANGE;
+  auto flt = json::parse("1.5");
+  ASSERT_TRUE(flt.is_type<Float>());
+  EXPECT_EQ(flt.as<Float>(), 1.5);
+
+  errno = ERANGE;
+  auto num = json::parse("42");
+  ASSERT_TRUE(num.is_type<Int>());
+  EXPECT_EQ(num.as<Int>(), 42);
 }
 
 TEST(Json, ParseNumberFloat) {
