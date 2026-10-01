@@ -55,8 +55,8 @@ struct Parser
     auto operator = (const Parser&) = delete;
 
     Object::ReprIX parse_type();  // quickly determine type without full parse
-    bool parse_object();
-    bool parse_object(char term_char);
+    bool parse();
+    bool parse_any();
     bool parse_number();
     bool parse_string();
     bool parse_escape(std::string& str);
@@ -113,10 +113,10 @@ Object::ReprIX Parser<StreamType>::parse_type() {
 }
 
 template <typename StreamType>
-bool Parser<StreamType>::parse_object()
+bool Parser<StreamType>::parse()
 {
     m_curr = nil;
-    if (!parse_object('\0')) {
+    if (!parse_any()) {
         if (m_curr == nil) m_curr = make_error("No object in json stream");
         return false;
     }
@@ -124,7 +124,7 @@ bool Parser<StreamType>::parse_object()
 }
 
 template <typename StreamType>
-bool Parser<StreamType>::parse_object(char term_char)
+bool Parser<StreamType>::parse_any()
 {
     for (; !m_it.done(); m_it.next()) {
         switch (m_it.peek())
@@ -160,7 +160,7 @@ bool Parser<StreamType>::parse_object(char term_char)
             case 'n': return expect("null", nil);
 
             default:
-                return m_it.peek() == term_char;
+                return false;
         }
     }
     return false;
@@ -328,7 +328,7 @@ bool Parser<StreamType>::parse_list() {
         return true;
     }
     while (!m_it.done()) {
-        if (!parse_object(']')) {
+        if (!parse_any()) {
             create_error("Expected value or object");
             return false;
         }
@@ -363,7 +363,7 @@ bool Parser<StreamType>::parse_map() {
 
     while (!m_it.done()) {
         // key
-        if (!parse_object(':')) {
+        if (!parse_any()) {
             create_error("Expected dictionary key");
             return false;
         }
@@ -386,7 +386,7 @@ bool Parser<StreamType>::parse_map() {
         m_it.next();
 
         // value
-        if (!parse_object('}')) {
+        if (!parse_any()) {
             create_error("Expected dictionary value or object");
             return false;
         }
@@ -448,7 +448,7 @@ void Parser<StreamType>::create_error(const std::string& message)
 inline
 Object parse(const Options& options, const std::string_view& str) {
     impl::Parser parser{options, nodel::parse::StringStreamAdapter{str}};
-    parser.parse_object();
+    parser.parse();
     return parser.m_curr;
 }
 
@@ -466,7 +466,7 @@ Object parse_file(const Options& options, const std::string& file_name) {
         return make_error(ss.str());
     } else {
         impl::Parser parser{options, nodel::parse::StreamAdapter{f_in}};
-        parser.parse_object();
+        parser.parse();
         return parser.m_curr;
     }
 }

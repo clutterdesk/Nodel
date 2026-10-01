@@ -21,7 +21,7 @@ class JsonSerializer : public Serializer
 inline
 Object JsonSerializer::read(std::istream& stream, size_t size_hint) {
     json::impl::Parser parser{parse::StreamAdapter{stream}};
-    parser.parse_object();
+    parser.parse();
     return parser.m_curr;
 }
 

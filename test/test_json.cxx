@@ -17,7 +17,7 @@ using StreamAdapter = parse::StreamAdapter<std::stringstream>;
 TEST(Json, ParseNull) {
     std::stringstream stream{"null"};
     Parser parser{StreamAdapter{stream}};
-    ASSERT_TRUE(parser.parse_object());
+    ASSERT_TRUE(parser.parse());
     EXPECT_TRUE(parser.m_curr == nil);
 }
 
@@ -36,7 +36,7 @@ TEST(Json, ParseTypeBoolFalse) {
 TEST(Json, ParseBoolTrue) {
     std::stringstream stream{"true"};
     Parser parser{StreamAdapter{stream}};
-    ASSERT_TRUE(parser.parse_object());
+    ASSERT_TRUE(parser.parse());
     EXPECT_TRUE(parser.m_curr.is_type<bool>());
     EXPECT_EQ(parser.m_curr, true);
 }
@@ -270,7 +270,7 @@ TEST(Json, ParseListThreeInts) {
 TEST(Json, ParseExample1) {
     std::stringstream stream{R"({"x": [1], "y": [2]})"};
   Parser parser1{StreamAdapter{stream}};
-    EXPECT_TRUE(parser1.parse_object());
+    EXPECT_TRUE(parser1.parse());
     Object curr = parser1.m_curr;
     EXPECT_TRUE(curr.is_type<OrderedMap>());
     EXPECT_EQ(curr.size(), 2UL);
@@ -304,21 +304,47 @@ TEST(Json, ParseLargeExample2File) {
 TEST(Json, ParseListErrantColon) {
     std::stringstream stream{R"(["a", :"b", "c"])"};
     Parser parser{StreamAdapter{stream}};
-    EXPECT_FALSE(parser.parse_object());
+    EXPECT_FALSE(parser.parse());
     EXPECT_FALSE(parser.m_curr.is_valid());
 }
 
 TEST(Json, ParseListDoubleComma) {
     std::stringstream stream{R"(["a",, "b"])"};
     Parser parser{StreamAdapter{stream}};
-    EXPECT_FALSE(parser.parse_object());
+    EXPECT_FALSE(parser.parse());
     EXPECT_FALSE(parser.m_curr.is_valid());
 }
 
 TEST(Json, ParseMapDoubleComma) {
     std::stringstream stream{R"({"a": [1],, "b"})"};
     Parser parser{StreamAdapter{stream}};
-    EXPECT_FALSE(parser.parse_object());
+    EXPECT_FALSE(parser.parse());
+    EXPECT_FALSE(parser.m_curr.is_valid());
+}
+
+TEST(Json, ParseListTrailingComma) {
+    EXPECT_FALSE(json::parse("[1,]").is_valid());
+    EXPECT_FALSE(json::parse("[1, ]").is_valid());
+}
+
+TEST(Json, ParseMapTrailingComma) {
+    EXPECT_FALSE(json::parse(R"({"a": 1,})").is_valid());
+}
+
+TEST(Json, ParseMapMissingValue) {
+    EXPECT_FALSE(json::parse(R"({"a":})").is_valid());
+    EXPECT_FALSE(json::parse(R"({"a": 1, "b":})").is_valid());
+}
+
+TEST(Json, ParseMapMissingKey) {
+    EXPECT_FALSE(json::parse(R"({:1})").is_valid());
+    EXPECT_FALSE(json::parse(R"({"a": 1, :2})").is_valid());
+}
+
+TEST(Json, ParseWhitespaceOnlyStream) {
+    std::stringstream stream{"  \n"};
+    Parser parser{StreamAdapter{stream}};
+    EXPECT_FALSE(parser.parse());
     EXPECT_FALSE(parser.m_curr.is_valid());
 }
 
