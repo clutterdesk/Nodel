@@ -28,7 +28,12 @@ Object JsonSerializer::read(std::istream& stream, size_t size_hint) {
 inline
 void JsonSerializer::write(std::ostream& stream, const Object& obj, const Object& options) {
     auto indent = options.get_if("indent"_key, Object{0}).cast<Int>();
-    obj.to_json(stream, (int)indent);
+    auto one_liner_keys = options.get("one_liner_keys"_key);
+    if (one_liner_keys.is_nil()) {
+        obj.to_json(stream, (int)indent);
+    } else {
+        to_pretty_json(stream, obj, indent, one_liner_keys);
+    }
 }
 
 } // namespace nodel::serial

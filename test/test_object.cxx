@@ -143,6 +143,15 @@ TEST(Object, ObjectList) {
   EXPECT_EQ(list.to_json(), "[1, \"tea\", 3.14, true]");
 }
 
+TEST(Object, MakeList) {
+    std::array<int, 3> arr {1, 2, 3};
+    Object obj = Object::make_list(arr);
+    EXPECT_EQ(obj.to_json(), "[1, 2, 3]");
+    std::vector<int> vec {1, 2, 3};
+    obj = Object::make_list(vec);
+    EXPECT_EQ(obj.to_json(), "[1, 2, 3]");
+}
+
 TEST(Object, SortedMap) {
   Object map{SortedMap{}};
   EXPECT_TRUE(map.is_type<SortedMap>());
@@ -1325,6 +1334,13 @@ TEST(Object, JsonIndentation) {
     std::stringstream ss;
     obj.to_json(ss, 1);
     EXPECT_EQ(ss.str(), "{\n \"tea\": \"Assam\", \n \"country\": \"India\"\n}");
+}
+
+TEST(Object, JsonPrettyFormat) {
+    auto obj = "{'multi_line': [1, 2], 'one_line': [1, 2]}"_json;
+    std::stringstream ss;
+    to_pretty_json(ss, obj, 1, "['one_line']"_json);
+    EXPECT_EQ(ss.str(), "{\n \"multi_line\": [\n  1, \n  2\n ], \n \"one_line\": [1, 2]\n}");
 }
 
 TEST(Object, AlienAccess) {

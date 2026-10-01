@@ -14,7 +14,7 @@
 #include <nodel/core.hxx>
 #include <nodel/filesystem.hxx>
 
-#ifdef PYNODEL_ROCKSDB
+#if PYNODEL_ROCKSDB == 1
 #include <nodel/kvdb.hxx>
 #endif
 
@@ -1066,7 +1066,7 @@ PyInit_nodel(void)
 {
     nodel::filesystem::configure();
 
-#ifdef PYNODEL_ROCKSDB
+#if PYNODEL_ROCKSDB == 1
     nodel::kvdb::configure();
 #endif
 

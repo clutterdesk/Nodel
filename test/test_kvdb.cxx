@@ -29,7 +29,7 @@ void check_status(const db::Status& status) {
 }
 
 void build_db() {
-    db::DB* db;
+    std::unique_ptr<db::DB> db = nullptr;
     db::Options options;
     options.create_if_missing = true;
     options.comparator = new nodel::kvdb::Comparator();
@@ -59,12 +59,10 @@ void build_db() {
 
     status = db->Put(db::WriteOptions(), nodeldb::serialize("map"_key), nodeldb::serialize("{'x': [1], 'y': [2]}"_json));
     check_status(status);
-
-    delete db;
 }
 
 void build_db_for_slicing() {
-    db::DB* db;
+    std::unique_ptr<db::DB> db = nullptr;
     db::Options options;
     options.create_if_missing = true;
     options.comparator = new nodel::kvdb::Comparator();
@@ -75,8 +73,6 @@ void build_db_for_slicing() {
         status = db->Put(db::WriteOptions(), nodeldb::serialize(Key{i}), nodeldb::serialize(Object{std::to_string(i)}));
         check_status(status);
     }
-
-    delete db;
 }
 
 void delete_db() {

@@ -340,6 +340,15 @@ class Object
     Object(const Object& other);
     Object(Object&& other);
 
+    template <typename Iterable>
+    static Object make_list(Iterable&& iterable) {
+        Object obj {LIST};
+        for (const auto& v : iterable) {
+            obj.append(v);
+        }
+        return obj;
+    }
+
     ~Object() { dec_ref_count(); }
 
     ReprIX type() const;
@@ -1216,7 +1225,6 @@ bool is_container(const Object& obj) {
     return typ == Object::LIST || typ == Object::OMAP || typ == Object::SMAP;
 }
 
-
 template <typename T> T Object::get_repr() const requires std::is_same<T, ObjectList>::value {
     ObjectList list;
     if (type() == LIST) {
@@ -1798,6 +1806,49 @@ Float Object::cast() const {
         case STR:   return str_to_float(std::get<0>(*m_repr.ps));
         case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).cast<Float>();
         default:    throw wrong_type(m_fields.repr_ix, FLOAT);
+    }
+}
+
+/// Cast the data type stored in this Object to a float (not to be confused with (F)loat type)
+/// - The following types can be cast to a bool: NIL, BOOL, INT, UINT, FLOAT,
+///   STR or DataSources with one of those types.
+/// @throws WrongType
+/// @throws EmptyReference
+template <> inline
+float Object::cast() const {
+    switch (m_fields.repr_ix) {
+        case EMPTY: throw empty_reference();
+        case NIL:   return 0.0F;
+        case BOOL:  return static_cast<float>(m_repr.b);
+        case INT:   return static_cast<float>(m_repr.i);
+        case UINT:  return static_cast<float>(m_repr.u);
+        case FLOAT: return static_cast<float>(m_repr.f);
+        case STR:   return static_cast<float>(str_to_float(std::get<0>(*m_repr.ps)));
+        case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).cast<float>();
+        default:    throw wrong_type(m_fields.repr_ix, FLOAT);
+    }
+}
+
+/// Cast the data type stored in this Object to a signed 32-bit integer
+/// - The following types can be cast to a bool: NIL, BOOL, INT, UINT, FLOAT,
+///   STR or DataSources with one of those types.
+/// @throws WrongType
+/// @throws EmptyReference
+template <> inline
+uint32_t Object::cast() const {
+    switch (m_fields.repr_ix) {
+        case EMPTY: throw empty_reference();
+        case NIL:   return 0UL;
+        case BOOL:  return static_cast<uint32_t>(m_repr.b);
+        case INT:   return static_cast<uint32_t>(m_repr.i);
+        case UINT:  return static_cast<uint32_t>(m_repr.u);
+        case FLOAT: {
+            // NOTE: both gcc and clang produce unexpected results with static_cast<UInt>(...) and negative number
+            return (m_repr.f < 0)? -(static_cast<uint32_t>(-m_repr.f)): static_cast<UInt>(m_repr.f);
+        }
+        case STR:   return static_cast<uint32_t>(str_to_int(std::get<0>(*m_repr.ps)));
+        case DSRC:  return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this).cast<uint32_t>();
+        default:    throw wrong_type(m_fields.repr_ix, UINT);
     }
 }
 
@@ -2781,25 +2832,36 @@ class JsonVisitor {
         if (indent > 0) m_indent.assign(indent, ' ');
     }
 
+    void add_one_liner_key(const Key& key) {
+        one_liner_keys.insert(key);
+    }
+
     void operator () (const Object& parent, const Key& key, const Object& object, uint8_t event) {
-        if (m_indent.length() > 0 && event & WalkDF::END_PARENT) {
-            m_indent_chars.resize(m_indent_chars.length() - m_indent.length());
-            m_os << std::endl << m_indent_chars;
-        }
-
-        if (event & WalkDF::NEXT_VALUE && !(event & WalkDF::END_PARENT)) {
-            m_os << ", ";
-            if (m_indent.length() > 0)
-                m_os << std::endl << m_indent_chars;
-        }
-
-        if (nodel::is_map(parent) && !(event & WalkDF::END_PARENT)) {
-            m_os << key.to_json() << ": ";
+        if (event & WalkDF::END_PARENT) {
+            if (m_indent.length() > 0) {
+                if (one_liner_depth == 0) {
+                    m_indent_chars.resize(m_indent_chars.length() - m_indent.length());
+                    m_os << std::endl << m_indent_chars;
+                }
+                if (one_liner_depth > 0)
+                    --one_liner_depth;
+            }
+        } else {
+            if (event & WalkDF::NEXT_VALUE) {
+                m_os << ", ";
+                if (m_indent.length() > 0 && one_liner_depth == 0)
+                    m_os << std::endl << m_indent_chars;
+            }
+            if (m_indent.length() > 0 && one_liner_keys.contains(key))
+                 ++one_liner_depth;
+            if (nodel::is_map(parent)) {
+                m_os << key.to_json() << ": ";
+            }
         }
 
         switch (object.m_fields.repr_ix) {
             case Object::EMPTY: throw object.empty_reference();
-            case Object::NIL:   m_os << "nil"; break;
+            case Object::NIL:   m_os << "null"; break;
             case Object::BOOL:  m_os << (object.m_repr.b ? "true" : "false"); break;
             case Object::INT:   m_os << int_to_str(object.m_repr.i); break;
             case Object::UINT:  m_os << int_to_str(object.m_repr.u); break;
@@ -2812,7 +2874,7 @@ class JsonVisitor {
             default:    throw Object::wrong_type(object.m_fields.repr_ix);
         }
 
-        if (m_indent.length() > 0 && event & WalkDF::BEGIN_PARENT) {
+        if (m_indent.length() > 0 && one_liner_depth == 0 && event & WalkDF::BEGIN_PARENT) {
             m_indent_chars += m_indent;
             m_os << std::endl << m_indent_chars;
         }
@@ -2822,6 +2884,10 @@ class JsonVisitor {
     std::ostream& m_os;
     std::string m_indent;
     std::string m_indent_chars;
+
+    // pretty printing support
+    std::unordered_set<Key> one_liner_keys;
+    int one_liner_depth {0};
 };
 
 
@@ -2830,6 +2896,22 @@ void Object::to_json(std::ostream& os, int indent) const {
     JsonVisitor visitor{os, indent};
     WalkDF walk{*this, visitor};
     while (walk.next());
+}
+
+inline
+void to_pretty_json(std::ostream& os, const Object& obj, int indent, const Object& one_liner_keys) {
+    JsonVisitor visitor{os, indent};
+    for (const auto& key : one_liner_keys.iter_values())
+        visitor.add_one_liner_key(key.to_key());
+    WalkDF walk{obj, visitor};
+    while (walk.next());
+}
+
+inline
+String to_pretty_json(const Object& obj, int indent, const Object& one_liner_keys) {
+    StringStream ss;
+    to_pretty_json(ss, obj, indent, one_liner_keys);
+    return ss.str();
 }
 
 inline

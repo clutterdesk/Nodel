@@ -203,12 +203,12 @@
 									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="ziplib"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="macosx.cpp.link.option.paths.701087797" name="Library search path (-L)" superClass="macosx.cpp.link.option.paths" valueType="libPaths">
-									<listOptionValue builtIn="false" value="/usr/local/Cellar/glog/0.6.0/lib/"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Nodel/deps/ziplib/Bin}&quot;"/>
-									<listOptionValue builtIn="false" value="/usr/local/Cellar/rocksdb/9.2.1/lib"/>
 									<listOptionValue builtIn="false" value="&quot;${LOCAL_GIT_ROOT}/fmt&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${LOCAL_GIT_ROOT}/googletest/lib&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${LOCAL_GIT_ROOT}/cpptrace/build&quot;"/>
+									<listOptionValue builtIn="false" value="/usr/local/Cellar/rocksdb/11.8.1/lib"/>
+									<listOptionValue builtIn="false" value="/usr/local/Cellar/glog/0.7.1/lib/"/>
 								</option>
 								<option id="macosx.cpp.link.option.flags.738501338" name="Linker flags" superClass="macosx.cpp.link.option.flags" value="-ftest-coverage -fprofile-arcs" valueType="string"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="macosx.cpp.link.option.other.322619616" name="Other options (-Xlinker [option])" superClass="macosx.cpp.link.option.other" valueType="stringList"/>
