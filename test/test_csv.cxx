@@ -5,6 +5,7 @@
 
 #include <fmt/format.h>
 #include <nodel/parser/csv.hxx>
+#include <nodel/serializer/CsvSerializer.hxx>
 
 using namespace nodel;
 using namespace nodel::csv;
@@ -138,8 +139,8 @@ TEST(CsvParser, UnterminatedDoubleQuoteAfterNewline) {
     EXPECT_NE(parser.error().find("Unterminated quoted string"), std::string::npos);
 }
 
-TEST(CsvParser, UnterminatedQuoteTrailingBackslash) {
-    std::stringstream stream{R"("ab\)"};
+TEST(CsvParser, UnterminatedQuoteEndsWithDoubledQuote) {
+    std::stringstream stream{R"("ab"")"};
 
     Parser parser{stream};
     Object obj = parser.parse();
@@ -147,15 +148,21 @@ TEST(CsvParser, UnterminatedQuoteTrailingBackslash) {
     EXPECT_NE(parser.error().find("Unterminated quoted string"), std::string::npos);
 }
 
-TEST(CsvParser, QuotedWithEscapes) {
-    std::stringstream stream{R"("a\"b", 'c\'d', "e\\f")"};
+TEST(CsvParser, QuotedWithDoubledQuotes) {
+    std::stringstream stream{R"("a""b", 'c''d', """", '''', "", '', "x""""y")"};
 
     Parser parser{stream};
     Object obj = parser.parse();
-    ASSERT_EQ(obj.size(), 1UL);
-    EXPECT_EQ(obj.get(0).get(0), "a\"b");
-    EXPECT_EQ(obj.get(0).get(1), "c'd");
-    EXPECT_EQ(obj.get(0).get(2), "e\\f");
+    EXPECT_EQ(obj.to_json(), R"([["a\"b", "c'd", "\"", "'", "", "", "x\"\"y"]])");
+}
+
+TEST(CsvParser, BackslashDoesNotEscapeQuote) {
+    std::stringstream stream{R"("a\"b")"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    EXPECT_FALSE(obj.is_valid());
+    EXPECT_NE(parser.error().find("Expected comma or new-line"), std::string::npos);
 }
 
 TEST(CsvParser, QuotedAtEndOfInput) {
@@ -210,9 +217,54 @@ TEST(CsvParser, LeadingApostropheWithQuotedFieldLater) {
 }
 
 TEST(CsvParser, LeadingApostropheTextAfterClosingQuote) {
-    std::stringstream stream{"'a' b,c\n'it\\'s' ,d\r\n"};
+    std::stringstream stream{"'a' b,c\n'it''s' ,d\r\n"};
 
     Parser parser{stream};
     Object obj = parser.parse();
     EXPECT_EQ(obj.to_json(), R"([["'a' b", "c"], ["it's", "d"]])");
+}
+
+TEST(CsvParser, QuotedWithLiteralBackslash) {
+    std::stringstream stream{R"("C:\Users\x", 'D:\tmp\new', "a\nb", "\\server\share", "a\")"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    ASSERT_EQ(obj.size(), 1UL);
+    EXPECT_EQ(obj.get(0).get(0), R"(C:\Users\x)");
+    EXPECT_EQ(obj.get(0).get(1), R"(D:\tmp\new)");
+    EXPECT_EQ(obj.get(0).get(2), R"(a\nb)");
+    EXPECT_EQ(obj.get(0).get(3), R"(\\server\share)");
+    EXPECT_EQ(obj.get(0).get(4), R"(a\)");
+}
+
+TEST(CsvParser, QuotedWithOtherQuoteEscaped) {
+    std::stringstream stream{R"("a\'b", 'c\"d')"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    ASSERT_EQ(obj.size(), 1UL);
+    EXPECT_EQ(obj.get(0).get(0), R"(a\'b)");
+    EXPECT_EQ(obj.get(0).get(1), R"(c\"d)");
+}
+
+TEST(CsvParser, SerializerRoundTrip) {
+    Object table = ObjectList{};
+    Object row = ObjectList{};
+    row.set(0, R"(C:\Users\x)");
+    row.set(1, R"(\\server\share)");
+    row.set(2, R"(say "hi"\)");
+    row.set(3, "a,b\nc");
+    row.set(4, "it's");
+    row.set(5, "123");
+    row.set(6, 7);
+    table.set(0, row);
+
+    CsvSerializer serializer;
+    std::stringstream stream;
+    serializer.write(stream, table, nil);
+    EXPECT_EQ(stream.str(), "\"C:\\Users\\x\",\"\\\\server\\share\",\"say \"\"hi\"\"\\\",\"a,b\nc\",\"it's\",\"123\",7\n");
+    Object obj = serializer.read(stream, 0);
+    ASSERT_EQ(obj.size(), 1UL);
+    ASSERT_EQ(obj.get(0).size(), 7UL);
+    EXPECT_EQ(obj.to_json(), table.to_json());
 }

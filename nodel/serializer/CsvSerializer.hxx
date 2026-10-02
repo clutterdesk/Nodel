@@ -7,6 +7,7 @@
 #include <nodel/parser/csv.hxx>
 #include <nodel/core/Object.hxx>
 
+#include <iomanip>
 #include <iostream>
 
 
@@ -33,7 +34,10 @@ void CsvSerializer::write(std::ostream& stream, const Object& obj, const Object&
         char sep = 0;
         for (const auto& col: row.iter_values()) {
             if (sep == 0) sep = ','; else stream << sep;
-            stream << col.to_json();
+            if (col.is_type<String>())
+                stream << std::quoted(col.as<String>(), '"', '"');  // RFC 4180: " is written as ""
+            else
+                stream << col.to_json();
         }
         stream << "\n";
     }

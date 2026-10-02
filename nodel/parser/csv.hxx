@@ -107,6 +107,8 @@ bool Parser<StreamType>::parse_column(ObjectList& row) {
     return true;
 }
 
+// As in RFC 4180, a quote character inside a quoted field is written twice ("") and
+// a backslash is ordinary text.
 template <typename StreamType>
 bool Parser<StreamType>::parse_quoted(ObjectList& row) {
     Object object{Object::STR};
@@ -118,14 +120,13 @@ bool Parser<StreamType>::parse_quoted(ObjectList& row) {
         char c = peek();
         next();
         if (c == quote) {
-            consume_whitespace();
-            row.push_back(object);
-            return true;
-        }
-        if (c == '\\') {
-            if (done() || peek() == 0) break;
-            c = peek();
-            next();
+            if (!done() && peek() == quote) {
+                next();
+            } else {
+                consume_whitespace();
+                row.push_back(object);
+                return true;
+            }
         }
         str.push_back(c);
     }
@@ -136,6 +137,7 @@ bool Parser<StreamType>::parse_quoted(ObjectList& row) {
 // A single-quoted field must close on the same line and be followed by a comma,
 // a new-line, or the end of input. Otherwise the apostrophe is ordinary text, as in
 // '90s or 'til, and the text scanned so far is read again as an unquoted field.
+// An apostrophe inside the field is written twice (''), like "" in a quoted field.
 template <typename StreamType>
 void Parser<StreamType>::parse_single_quoted(ObjectList& row) {
     Object object{Object::STR};
@@ -146,6 +148,12 @@ void Parser<StreamType>::parse_single_quoted(ObjectList& row) {
         char c = peek();
         raw.push_back(c);
         next();
+        if (c == '\'' && !done() && peek() == '\'') {
+            raw.push_back(c);
+            next();
+            str.push_back(c);
+            continue;
+        }
         if (c == '\'') {
             for (c = peek(); std::isspace(c) && c != '\n' && !done(); next(), c = peek())
                 raw.push_back(c);
@@ -154,12 +162,6 @@ void Parser<StreamType>::parse_single_quoted(ObjectList& row) {
                 return;
             }
             break;
-        }
-        if (c == '\\') {
-            if (done() || peek() == 0 || peek() == '\n') break;
-            c = peek();
-            raw.push_back(c);
-            next();
         }
         str.push_back(c);
     }
