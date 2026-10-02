@@ -268,3 +268,32 @@ TEST(CsvParser, SerializerRoundTrip) {
     ASSERT_EQ(obj.get(0).size(), 7UL);
     EXPECT_EQ(obj.to_json(), table.to_json());
 }
+
+TEST(CsvParser, NonAsciiText) {
+    std::stringstream stream{"caf\xC3\xA9 , na\xC3\xAFve,\xC3\xA9\n'\xC5\x93uf' ,\"\xE6\x97\xA5\xE6\x9C\xAC\"\n"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    ASSERT_EQ(obj.size(), 2UL);
+    EXPECT_EQ(obj.get(0).get(0), "caf\xC3\xA9");
+    EXPECT_EQ(obj.get(0).get(1), "na\xC3\xAFve");
+    EXPECT_EQ(obj.get(0).get(2), "\xC3\xA9");
+    EXPECT_EQ(obj.get(1).get(0), "\xC5\x93uf");
+    EXPECT_EQ(obj.get(1).get(1), "\xE6\x97\xA5\xE6\x9C\xAC");
+}
+
+TEST(Trim, EmptyAndAllWhitespace) {
+    EXPECT_EQ(ltrim(""), "");
+    EXPECT_EQ(rtrim(""), "");
+    EXPECT_EQ(trim(""), "");
+    EXPECT_EQ(ltrim(" \t\n"), "");
+    EXPECT_EQ(rtrim(" \t\n"), "");
+    EXPECT_EQ(trim(" \t\n"), "");
+}
+
+TEST(Trim, LeadingAndTrailing) {
+    EXPECT_EQ(ltrim(" a b "), "a b ");
+    EXPECT_EQ(rtrim(" a b "), " a b");
+    EXPECT_EQ(trim(" a b "), "a b");
+    EXPECT_EQ(trim("\t\xC3\xA9\n"), "\xC3\xA9");
+}

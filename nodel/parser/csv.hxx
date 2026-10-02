@@ -155,7 +155,7 @@ void Parser<StreamType>::parse_single_quoted(ObjectList& row) {
             continue;
         }
         if (c == '\'') {
-            for (c = peek(); std::isspace(c) && c != '\n' && !done(); next(), c = peek())
+            for (c = peek(); std::isspace(static_cast<unsigned char>(c)) && c != '\n' && !done(); next(), c = peek())
                 raw.push_back(c);
             if (done() || c == 0 || c == '\n' || c == ',') {
                 row.push_back(object);
@@ -178,18 +178,18 @@ Object Parser<StreamType>::parse_unquoted() {
     }
 
     char first_char = str[0];
-    if (std::isdigit(first_char) || first_char == '-' || first_char == '+') {
+    if (std::isdigit(static_cast<unsigned char>(first_char)) || first_char == '-' || first_char == '+') {
         char* beg = str.data();
         char* end = beg + str.size();
         if (str.find('.') != std::string::npos) {
             char* ptr = end;
             Float value = std::strtold(beg, &ptr);
-            while (ptr != end && ptr != beg && std::isspace(*ptr)) ++ptr;
+            while (ptr != end && ptr != beg && std::isspace(static_cast<unsigned char>(*ptr))) ++ptr;
             if (ptr == end) return value;
         } else {
             Int value;
             auto [ptr, ec] = std::from_chars(beg, end, value);
-            while (ptr != end && ptr != beg && std::isspace(*ptr)) ++ptr;
+            while (ptr != end && ptr != beg && std::isspace(static_cast<unsigned char>(*ptr))) ++ptr;
             if (ptr == end && ec == std::errc{}) return value;
         }
     }
@@ -200,7 +200,7 @@ Object Parser<StreamType>::parse_unquoted() {
 
 template <typename StreamType>
 void Parser<StreamType>::consume_whitespace() {
-    for (char c = peek(); std::isspace(c) && c != '\n' && !done(); next(), c = peek());
+    for (char c = peek(); std::isspace(static_cast<unsigned char>(c)) && c != '\n' && !done(); next(), c = peek());
 }
 
 template <typename StreamType>
