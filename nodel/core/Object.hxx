@@ -3,7 +3,6 @@
 /** @file */
 #pragma once
 
-#include <any>
 #include <algorithm>
 #include <limits>
 #include <string>
