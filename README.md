@@ -54,6 +54,7 @@ URI schemes have been registered in the Nodel build.
 
 
 ## How To Build
+[This section is out of date.  Build with cmake.]
 The CMakeLists.txt has limited testing, so if you have trouble building with it, the core features can be 
 built without external dependencies using the following compiler flags:
 

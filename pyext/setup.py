@@ -4,7 +4,7 @@ import re
 import glob
 import sys
 
-nodel_rocksdb = int(os.environ.get('NODEL_PYEXT_ROCKSDB_FOUND'))
+nodel_rocksdb = int(os.environ.get('NODEL_PYEXT_ROCKSDB_FOUND', False))
 nodel_pyext_include = re.split(r'\s+', os.environ.get('NODEL_PYEXT_INCLUDE'))
 nodel_pyext_lib_path = re.split(r'\s+', os.environ.get('NODEL_PYEXT_LIB_PATH'))
 
@@ -21,7 +21,7 @@ setup(
     ext_modules=[
         Extension(
             name='nodel',
-            version='0.1',
+            version='0.2',
             url='https://github.com/clutterdesk/Nodel',
             define_macros=[
                 ('PYNODEL_ROCKSDB', nodel_rocksdb)
