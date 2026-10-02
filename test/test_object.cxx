@@ -53,7 +53,7 @@ TEST(Object, Null) {
   Object v{nil};
   EXPECT_TRUE(v == nil);
   EXPECT_TRUE(v.is(nil));
-  EXPECT_EQ(v.to_json(), "nil");
+  EXPECT_EQ(v.to_json(), "null");
 }
 
 TEST(Object, Bool) {
