@@ -24,7 +24,7 @@ class Parser
   private:
     bool parse_row(ObjectList&);
     bool parse_column(ObjectList&);
-    Object parse_quoted();
+    bool parse_quoted(ObjectList&);
     Object parse_unquoted();
     void consume_whitespace();
     void set_error(const std::string&);
@@ -89,11 +89,7 @@ bool Parser<StreamType>::parse_column(ObjectList& row) {
         case 0:    break;
         case ',':  row.push_back(""); break;
         case '"':  [[fallthrough]];
-        case '\'': {
-            Object col = parse_quoted();
-            row.push_back(col);
-            break;
-        }
+        case '\'': return parse_quoted(row);
         default:   {
             Object col = parse_unquoted();
             row.push_back(col);
@@ -104,27 +100,29 @@ bool Parser<StreamType>::parse_column(ObjectList& row) {
 }
 
 template <typename StreamType>
-Object Parser<StreamType>::parse_quoted() {
+bool Parser<StreamType>::parse_quoted(ObjectList& row) {
     Object object{Object::STR};
     auto& str = object.as<String>();
     char quote = m_it.peek();
     m_it.next();
-    while (!m_it.done()) {
+    // 0 is the end-of-input sentinel appended by StreamAdapter
+    while (!m_it.done() && m_it.peek() != 0) {
         char c = m_it.peek();
-        if (c == '\\') {
-            m_it.next();
-            c = m_it.peek();
-            str.push_back(c);
-        } else if (c == quote) {
-            m_it.next();
-            break;
-        } else {
-            str.push_back(c);
-        }
         m_it.next();
+        if (c == quote) {
+            consume_whitespace();
+            row.push_back(object);
+            return true;
+        }
+        if (c == '\\') {
+            if (m_it.done() || m_it.peek() == 0) break;
+            c = m_it.peek();
+            m_it.next();
+        }
+        str.push_back(c);
     }
-    consume_whitespace();
-    return object;
+    set_error("Unterminated quoted string");
+    return false;
 }
 
 template <typename StreamType>

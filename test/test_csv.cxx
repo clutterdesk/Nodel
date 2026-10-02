@@ -119,3 +119,50 @@ TEST(CsvParser, UnquotedWithInteger) {
     EXPECT_EQ(obj.get(0).get(0), "2469216E2BPD7VETL AMAZON MKTPL*A82M02I43   Amzn.com/billWA");
     EXPECT_EQ(obj.get(0).get(4), "-$00.00");
 }
+
+TEST(CsvParser, UnterminatedQuote) {
+    std::stringstream stream{R"(a,"abc)"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    EXPECT_FALSE(obj.is_valid());
+    EXPECT_NE(parser.error().find("Unterminated quoted string"), std::string::npos);
+}
+
+TEST(CsvParser, UnterminatedQuoteAfterNewline) {
+    std::stringstream stream{"'abc\nd,e\n"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    EXPECT_FALSE(obj.is_valid());
+    EXPECT_NE(parser.error().find("Unterminated quoted string"), std::string::npos);
+}
+
+TEST(CsvParser, UnterminatedQuoteTrailingBackslash) {
+    std::stringstream stream{R"("ab\)"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    EXPECT_FALSE(obj.is_valid());
+    EXPECT_NE(parser.error().find("Unterminated quoted string"), std::string::npos);
+}
+
+TEST(CsvParser, QuotedWithEscapes) {
+    std::stringstream stream{R"("a\"b", 'c\'d', "e\\f")"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    ASSERT_EQ(obj.size(), 1UL);
+    EXPECT_EQ(obj.get(0).get(0), "a\"b");
+    EXPECT_EQ(obj.get(0).get(1), "c'd");
+    EXPECT_EQ(obj.get(0).get(2), "e\\f");
+}
+
+TEST(CsvParser, QuotedAtEndOfInput) {
+    std::stringstream stream{R"(a,"bc")"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    ASSERT_EQ(obj.size(), 1UL);
+    EXPECT_EQ(obj.get(0).to_json(), R"(["a", "bc"])");
+}
