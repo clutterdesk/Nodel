@@ -18,19 +18,27 @@ class Parser
 
     Object parse();
 
-    size_t pos() const               { return m_it.consumed(); }
+    size_t pos() const               { return m_it.consumed() - (m_unread.size() - m_unread_pos); }
     const std::string& error() const { return m_error; }
 
   private:
     bool parse_row(ObjectList&);
     bool parse_column(ObjectList&);
     bool parse_quoted(ObjectList&);
+    void parse_single_quoted(ObjectList&);
     Object parse_unquoted();
     void consume_whitespace();
     void set_error(const std::string&);
 
+    char peek()       { return m_unread_pos < m_unread.size() ? m_unread[m_unread_pos] : m_it.peek(); }
+    void next()       { if (m_unread_pos < m_unread.size()) ++m_unread_pos; else m_it.next(); }
+    bool done() const { return m_unread_pos == m_unread.size() && m_it.done(); }
+    void unread(const std::string&);
+
   private:
     parse::StreamAdapter<StreamType> m_it;
+    std::string m_unread;  // text to read again before resuming m_it
+    size_t m_unread_pos = 0;
     std::string m_error;
 };
 
@@ -38,7 +46,7 @@ class Parser
 template <typename StreamType>
 Object Parser<StreamType>::parse() {
     ObjectList table;
-    while (!m_it.done())
+    while (!done())
         if (!parse_row(table))
             return make_error(m_error);
     return table;
@@ -64,18 +72,18 @@ bool Parser<StreamType>::parse_row(ObjectList& table) {
     do {
         if (!parse_column(row)) return false;
         consume_whitespace();
-        if (m_it.done()) {
+        if (done()) {
             save_row(table, row);
             return true;
         }
-        char c = m_it.peek();
+        char c = peek();
         switch (c) {
             case 0:    [[fallthrough]];
-            case '\n': m_it.next(); save_row(table, row); return true;
-            case ',':  m_it.next(); break;
+            case '\n': next(); save_row(table, row); return true;
+            case ',':  next(); break;
             default:   set_error("Expected comma or new-line"); return false;
         }
-    } while (!m_it.done());
+    } while (!done());
 
     return true;
 }
@@ -83,13 +91,13 @@ bool Parser<StreamType>::parse_row(ObjectList& table) {
 template <typename StreamType>
 bool Parser<StreamType>::parse_column(ObjectList& row) {
     consume_whitespace();
-    if (m_it.done()) return false;
-    char c = m_it.peek();
+    if (done()) return false;
+    char c = peek();
     switch (c) {
         case 0:    break;
         case ',':  row.push_back(""); break;
-        case '"':  [[fallthrough]];
-        case '\'': return parse_quoted(row);
+        case '"':  return parse_quoted(row);
+        case '\'': parse_single_quoted(row); break;
         default:   {
             Object col = parse_unquoted();
             row.push_back(col);
@@ -103,21 +111,21 @@ template <typename StreamType>
 bool Parser<StreamType>::parse_quoted(ObjectList& row) {
     Object object{Object::STR};
     auto& str = object.as<String>();
-    char quote = m_it.peek();
-    m_it.next();
+    char quote = peek();
+    next();
     // 0 is the end-of-input sentinel appended by StreamAdapter
-    while (!m_it.done() && m_it.peek() != 0) {
-        char c = m_it.peek();
-        m_it.next();
+    while (!done() && peek() != 0) {
+        char c = peek();
+        next();
         if (c == quote) {
             consume_whitespace();
             row.push_back(object);
             return true;
         }
         if (c == '\\') {
-            if (m_it.done() || m_it.peek() == 0) break;
-            c = m_it.peek();
-            m_it.next();
+            if (done() || peek() == 0) break;
+            c = peek();
+            next();
         }
         str.push_back(c);
     }
@@ -125,11 +133,45 @@ bool Parser<StreamType>::parse_quoted(ObjectList& row) {
     return false;
 }
 
+// A single-quoted field must close on the same line and be followed by a comma,
+// a new-line, or the end of input. Otherwise the apostrophe is ordinary text, as in
+// '90s or 'til, and the text scanned so far is read again as an unquoted field.
+template <typename StreamType>
+void Parser<StreamType>::parse_single_quoted(ObjectList& row) {
+    Object object{Object::STR};
+    auto& str = object.as<String>();
+    std::string raw{"'"};
+    next();
+    while (!done() && peek() != 0 && peek() != '\n') {
+        char c = peek();
+        raw.push_back(c);
+        next();
+        if (c == '\'') {
+            for (c = peek(); std::isspace(c) && c != '\n' && !done(); next(), c = peek())
+                raw.push_back(c);
+            if (done() || c == 0 || c == '\n' || c == ',') {
+                row.push_back(object);
+                return;
+            }
+            break;
+        }
+        if (c == '\\') {
+            if (done() || peek() == 0 || peek() == '\n') break;
+            c = peek();
+            raw.push_back(c);
+            next();
+        }
+        str.push_back(c);
+    }
+    unread(raw);
+    row.push_back(parse_unquoted());
+}
+
 template <typename StreamType>
 Object Parser<StreamType>::parse_unquoted() {
     Object object{Object::STR};
     auto& str = object.as<String>();
-    for (char c = m_it.peek(); c != ',' && c != '\n' && c != 0 && !m_it.done(); m_it.next(), c = m_it.peek()) {
+    for (char c = peek(); c != ',' && c != '\n' && c != 0 && !done(); next(), c = peek()) {
         str.push_back(c);
     }
 
@@ -156,13 +198,19 @@ Object Parser<StreamType>::parse_unquoted() {
 
 template <typename StreamType>
 void Parser<StreamType>::consume_whitespace() {
-    for (char c = m_it.peek(); std::isspace(c) && c != '\n' && !m_it.done(); m_it.next(), c = m_it.peek());
+    for (char c = peek(); std::isspace(c) && c != '\n' && !done(); next(), c = peek());
+}
+
+template <typename StreamType>
+void Parser<StreamType>::unread(const std::string& text) {
+    m_unread = text + m_unread.substr(m_unread_pos);
+    m_unread_pos = 0;
 }
 
 template <typename StreamType>
 void Parser<StreamType>::set_error(const std::string& msg) {
     std::stringstream ss;
-    ss << msg << " at pos=" << m_it.consumed();
+    ss << msg << " at pos=" << pos();
     m_error = ss.str();
 }
 

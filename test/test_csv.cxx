@@ -129,8 +129,8 @@ TEST(CsvParser, UnterminatedQuote) {
     EXPECT_NE(parser.error().find("Unterminated quoted string"), std::string::npos);
 }
 
-TEST(CsvParser, UnterminatedQuoteAfterNewline) {
-    std::stringstream stream{"'abc\nd,e\n"};
+TEST(CsvParser, UnterminatedDoubleQuoteAfterNewline) {
+    std::stringstream stream{"\"abc\nd,e\n"};
 
     Parser parser{stream};
     Object obj = parser.parse();
@@ -165,4 +165,54 @@ TEST(CsvParser, QuotedAtEndOfInput) {
     Object obj = parser.parse();
     ASSERT_EQ(obj.size(), 1UL);
     EXPECT_EQ(obj.get(0).to_json(), R"(["a", "bc"])");
+}
+
+TEST(CsvParser, DoubleQuotedSpansLines) {
+    std::stringstream stream{"\"a\nb\",c\n"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    ASSERT_EQ(obj.size(), 1UL);
+    EXPECT_EQ(obj.get(0).get(0), "a\nb");
+    EXPECT_EQ(obj.get(0).get(1), "c");
+}
+
+TEST(CsvParser, LeadingApostropheNotClosedOnLine) {
+    std::stringstream stream{"'90s,x\ny,z\n"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    EXPECT_EQ(obj.to_json(), R"([["'90s", "x"], ["y", "z"]])");
+}
+
+TEST(CsvParser, LeadingApostropheAtEndOfInput) {
+    std::stringstream stream{"a,'til"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    EXPECT_EQ(obj.to_json(), R"([["a", "'til"]])");
+}
+
+TEST(CsvParser, LeadingApostropheClosedMidField) {
+    std::stringstream stream{"'90s music, '80s rock\n"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    EXPECT_EQ(obj.to_json(), R"([["'90s music", "'80s rock"]])");
+}
+
+TEST(CsvParser, LeadingApostropheWithQuotedFieldLater) {
+    std::stringstream stream{"'a, \"b,c\", 'd'\n"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    EXPECT_EQ(obj.to_json(), R"([["'a", "b,c", "d"]])");
+}
+
+TEST(CsvParser, LeadingApostropheTextAfterClosingQuote) {
+    std::stringstream stream{"'a' b,c\n'it\\'s' ,d\r\n"};
+
+    Parser parser{stream};
+    Object obj = parser.parse();
+    EXPECT_EQ(obj.to_json(), R"([["'a' b", "c"], ["it's", "d"]])");
 }
