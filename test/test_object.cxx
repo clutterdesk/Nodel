@@ -1811,6 +1811,17 @@ TEST(Object, ParsePath) {
     EXPECT_EQ("a.b[-1].c"_path.to_str(), "a.b[-1].c");
 }
 
+TEST(Object, ParsePathWithWhitespace) {
+    EXPECT_EQ(" a.b"_path.to_str(), "a.b");
+    EXPECT_EQ("['a' ]"_path.to_str(), "a");
+    EXPECT_EQ(R"(["a" ]["b"  ][1])"_path.to_str(), "a.b[1]");
+}
+
+TEST(Object, ParsePathDotKeyStopsAtNonAscii) {
+    EXPECT_EQ("a_1.b2"_path.to_str(), "a_1.b2");
+    EXPECT_THROW("a\xC3\xA9"_path, parse::SyntaxError);
+}
+
 TEST(Object, ManuallyCreatePath) {
     Object obj = json::parse("{}");
 

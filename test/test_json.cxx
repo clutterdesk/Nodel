@@ -214,6 +214,16 @@ TEST(Json, ParseStringEscapedQuoteInSingleQuoted) {
     EXPECT_EQ(obj.as<String>(), "it's");
 }
 
+TEST(Json, ParseNonAsciiWithWhitespace) {
+    auto obj = json::parse(" [ \"caf\xC3\xA9\" , \"\xE6\x97\xA5\" ] ");
+    EXPECT_EQ(obj.to_json(), "[\"caf\xC3\xA9\", \"\xE6\x97\xA5\"]");
+}
+
+TEST(Json, ParseNonAsciiOutsideString) {
+    auto obj = json::parse("[1, \xC3\xA9]");
+    EXPECT_FALSE(obj.is_valid());
+}
+
 TEST(Json, ParseStringUnicodeEscape) {
     auto obj = json::parse(R"("\u0041\u00e9\u20AC")");
     ASSERT_TRUE(obj.is_type<String>());

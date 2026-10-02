@@ -782,7 +782,7 @@ Key OPath::parse_brace_key(const StringView& spec, StringView::const_iterator& i
 inline
 Key OPath::parse_dot_key(const StringView& spec, StringView::const_iterator& it) {
     auto key_start = it;
-    for (char c = *it; it != spec.cend() && (std::isalnum(c) || c == '_'); ++it, c = *it);
+    while (it != spec.cend() && (std::isalnum(static_cast<unsigned char>(*it)) || *it == '_')) ++it;
     return StringView{key_start, it};
 }
 
@@ -810,7 +810,7 @@ StringView OPath::parse_quoted(const StringView& spec, StringView::const_iterato
 
 inline
 void OPath::consume_whitespace(const StringView& spec, StringView::const_iterator& it) {
-    for (char c = *it; std::isspace(c) && it != spec.cend(); ++it);
+    while (it != spec.cend() && std::isspace(static_cast<unsigned char>(*it))) ++it;
 }
 
 inline

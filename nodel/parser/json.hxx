@@ -426,7 +426,7 @@ bool Parser<StreamType>::expect(const char* seq, T value) {
 template <typename StreamType>
 void Parser<StreamType>::consume_whitespace()
 {
-    while (!m_it.done() && std::isspace(m_it.peek())) m_it.next();
+    while (!m_it.done() && std::isspace(static_cast<unsigned char>(m_it.peek()))) m_it.next();
 }
 
 template <typename StreamType>
