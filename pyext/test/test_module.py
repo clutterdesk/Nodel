@@ -139,6 +139,8 @@ class TestModule(unittest.TestCase):
         b = nd.complete(root, ['a', 'b'], {'c': 'C'})
         self.assertEqual(b.c, 'C')
         self.assertEqual(nd.path(b.c, 'str'), 'a.b.c')
+        self.assertEqual(nd.path(b.c, 'list'), ['a', 'b', 'c'])
+        self.assertEqual(nd.path(b.c), 'a.b.c')
 
     def test_complete_map_with_type(self):
         root = nd.new({})

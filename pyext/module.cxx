@@ -492,7 +492,7 @@ static PyObject* mod_path(PyObject* mod, PyObject *const *args, Py_ssize_t nargs
         bool as_list = false;
         if (nargs == 2) {
             if (PyUnicode_Check(args[1])) {
-                as_list = PyUnicode_CompareWithASCIIString(args[1], "list") ==  1;
+                as_list = PyUnicode_CompareWithASCIIString(args[1], "list") == 0;
             } else {
                 PyErr_SetString(PyExc_TypeError, "Expected str for argument 2");
                 return NULL;
