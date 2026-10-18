@@ -111,7 +111,8 @@ enum class Axis {
     PARENT,
     SELF,
     CHILD,
-    SUBTREE
+    SUBTREE,
+    ROOT
 };
 
 
@@ -468,6 +469,19 @@ Object QueryEval::next() {
 
                 break;
             }
+
+            case Axis::ROOT: {
+                const auto& next_obj = curr_obj.root();
+                if (!step.m_pred || step.m_pred(next_obj)) {
+                    // proceed to next step, or return obj if last step
+                    if (next_step_i < m_query.m_steps.size()) {
+                        m_fifo.push_front({next_step_i, next_obj});
+                    } else {
+                        return next_obj;
+                    }
+                }
+                break;
+            }
         }
     }
 
@@ -479,13 +493,20 @@ namespace impl {
 
 //////////////////////////////////////////////////////////////////////////////
 /// Parser for the query mini-language.
-/// The syntax extends OPath with wildcards and predicates:
+/// The syntax extends OPath with wildcards, axes and predicates:
 /// - `x.y`, `x[0]`, `x["y z"]` - child steps, as in OPath
 /// - `*`, `[*]`                - any child
-/// - `**`                      - any descendant, including the current object
-/// - `(pred)`                  - the children of the preceding result that
-///                               satisfy `pred`, so `x(id=2)` yields the
-///                               elements of `x` whose `id` is 2.
+/// - `x:<axis>`                - the objects on an axis of `x`, where `<axis>` is
+///                               `parent`, `ancestor` (or `ac`), `child`,
+///                               `descendant` (or `dc`), `self` or `root`.
+///                               The ancestor and descendant axes do not
+///                               include `x`.
+/// - `(pred)`                  - the objects yielded by the preceding step
+///                               that satisfy `pred`, so `x(id=2)` yields `x`
+///                               if its `id` is 2, `x.*(id=2)` yields the
+///                               elements of `x` whose `id` is 2, and
+///                               `x:dc(id=2)` yields the descendants of `x`
+///                               whose `id` is 2.
 ///
 /// Predicate grammar:
 /// @code
@@ -531,7 +552,9 @@ class QueryParser
     };
 
     void parse_steps(Query& query);
+    void parse_axis(Query& query);
     Key parse_index();
+    Predicate parse_filter();
     Predicate parse_or();
     Predicate parse_and();
     Predicate parse_not();
@@ -600,9 +623,8 @@ void QueryParser::parse_steps(Query& query) {
     char c = peek();
     if (is_key_char(c)) {
         query.add_steps({Axis::CHILD, OPath::parse_dot_key(m_spec, m_it)});
-    } else if (c == '*') {
-        ++m_it;
-        query.add_steps(consume('*')? Step{Axis::SUBTREE}: Step{Axis::CHILD});
+    } else if (consume('*')) {
+        query.add_steps({Axis::CHILD});
     } else if (c == '.' && !is_key_char(peek_next()) && peek_next() != '*') {
         ++m_it;  // '.' is the starting object, as in '.', '.[0]' or '.(id=2)'
     }
@@ -611,15 +633,16 @@ void QueryParser::parse_steps(Query& query) {
         c = peek();
         if (c == '.') {
             ++m_it;
-            c = peek();
-            if (is_key_char(c)) {
+            if (is_key_char(peek())) {
                 query.add_steps({Axis::CHILD, OPath::parse_dot_key(m_spec, m_it)});
-            } else if (c == '*') {
-                ++m_it;
-                query.add_steps(consume('*')? Step{Axis::SUBTREE}: Step{Axis::CHILD});
+            } else if (consume('*')) {
+                query.add_steps({Axis::CHILD});
             } else {
-                error("Expected key, '*' or '**':");
+                error("Expected key or '*':");
             }
+        } else if (c == ':') {
+            ++m_it;
+            parse_axis(query);
         } else if (c == '[') {
             ++m_it;
             consume_whitespace();
@@ -631,15 +654,59 @@ void QueryParser::parse_steps(Query& query) {
                 query.add_steps({Axis::CHILD, parse_index()});
             }
         } else if (c == '(') {
-            ++m_it;
-            auto pred = parse_or();
-            consume_whitespace();
-            if (!consume(')')) error("Expected ')':");
-            query.add_steps({Axis::CHILD, nil, std::move(pred)});
+            // filter the objects yielded by the preceding step
+            auto pred = parse_filter();
+            if (query.m_steps.size() > 0 && !query.m_steps.back().m_pred) {
+                query.m_steps.back().m_pred = std::move(pred);
+            } else {
+                query.add_steps({Axis::SELF, nil, std::move(pred)});
+            }
         } else {
             break;
         }
     }
+}
+
+/// Parse an axis name following ':'.
+inline
+void QueryParser::parse_axis(Query& query) {
+    auto name_it = m_it;
+    while (is_key_char(peek())) ++m_it;
+    StringView name{name_it, m_it};
+
+    // The ancestor and descendant axes exclude the starting object, which
+    // the ANCESTOR and SUBTREE steps include.
+    Axis axis;
+    if (name == "parent") {
+        axis = Axis::PARENT;
+    } else if (name == "ancestor" || name == "ac") {
+        query.add_steps({Axis::PARENT});
+        axis = Axis::ANCESTOR;
+    } else if (name == "child") {
+        axis = Axis::CHILD;
+    } else if (name == "descendant" || name == "dc") {
+        query.add_steps({Axis::CHILD});
+        axis = Axis::SUBTREE;
+    } else if (name == "self") {
+        axis = Axis::SELF;
+    } else if (name == "root") {
+        axis = Axis::ROOT;
+    } else {
+        m_it = name_it;
+        error("Unknown axis:");
+    }
+
+    query.add_steps({axis});
+}
+
+/// Parse a parenthesized predicate.
+inline
+Predicate QueryParser::parse_filter() {
+    ++m_it;  // '('
+    auto pred = parse_or();
+    consume_whitespace();
+    if (!consume(')')) error("Expected ')':");
+    return pred;
 }
 
 /// Parse a subscript following '[', and the closing ']'.
@@ -769,10 +836,10 @@ QueryParser::Operand QueryParser::parse_operand(bool is_in_rhs) {
         operand.m_literal = false;
     } else if (parse_word("nil") || parse_word("null")) {
         operand.m_literal = nil;
-    } else if (c == '.' && !is_key_char(peek_next()) && peek_next() != '*' && peek_next() != '[' && peek_next() != '(') {
+    } else if (c == '.' && !is_key_char(peek_next()) && peek_next() != '*' && peek_next() != '[' && peek_next() != '(' && peek_next() != ':') {
         ++m_it;
         operand.m_kind = Operand::SELF;
-    } else if (is_key_char(c) || c == '*' || c == '[' || c == '.') {
+    } else if (is_key_char(c) || c == '*' || c == '[' || c == '.' || c == ':') {
         for (auto word : {"and", "or", "not", "in"}) {
             auto save_it = m_it;
             if (parse_word(word)) {
