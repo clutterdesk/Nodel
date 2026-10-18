@@ -32,7 +32,8 @@ setup(
                 'NodelKeyIter.cxx',
                 'NodelValueIter.cxx',
                 'NodelItemIter.cxx',
-                'NodelTreeIter.cxx'
+                'NodelTreeIter.cxx',
+                'NodelQuery.cxx'
             ],
             include_dirs=nodel_pyext_include,
             extra_compile_args=[

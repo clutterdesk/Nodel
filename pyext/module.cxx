@@ -8,6 +8,7 @@
 #include <nodel/pyext/NodelValueIter.hxx>
 #include <nodel/pyext/NodelItemIter.hxx>
 #include <nodel/pyext/NodelTreeIter.hxx>
+#include <nodel/pyext/NodelQuery.hxx>
 #include <nodel/pyext/support.hxx>
 #include <nodel/support/intern.hxx>
 #include <nodel/parser/json.hxx>
@@ -997,6 +998,54 @@ static PyObject* mod_ref_count(PyObject* mod, PyObject* arg) {
     return PyLong_FromUnsignedLongLong(nd_obj->obj.ref_count());
 }
 
+constexpr auto query_doc =
+"Evaluate a query lazily, starting from the argument.  The specification extends\n"
+"the path syntax with wildcards and predicates:\n"
+"  x.y, x[0], x['y z']  - child steps\n"
+"  *, [*]               - any child\n"
+"  **                   - any descendant, including the starting object\n"
+"  (pred)               - the children of the preceding result that satisfy pred,\n"
+"                         so 'x(id=2)' yields the elements of x whose id is 2\n"
+"A predicate compares operands with =, ==, !=, <, <=, >, >=, tests membership with\n"
+"'in' and 'not in', and combines tests with 'and', 'or', 'not' and parentheses.\n"
+"Comparisons may be chained, as in '1 <= id < 5'.  An operand is a literal (a\n"
+"number, a quoted string, a list, true, false, nil or null), '.' for the object\n"
+"being tested, or a query relative to the object being tested.  A comparison is\n"
+"true if any of the operand values satisfy it, so 'a != 1' differs from\n"
+"'not a = 1' when 'a' is missing.  A lone operand is true if it yields a value\n"
+"other than false.\n"
+"nodel.query(obj, spec) -> iterator\n"
+"obj  - The starting object.\n"
+"spec - A str specification, or a nodel.Query instance.";
+
+static PyObject* mod_query(PyObject* mod, PyObject *const *args, Py_ssize_t nargs) {
+    if (nargs != 2) {
+        PyErr_SetString(PyExc_ValueError, "Wrong number of arguments");
+        return NULL;
+    }
+
+    NodelObject* nd_obj = as_nodel_object(args[0]);
+    if (nd_obj == NULL) return NULL;
+
+    if (NodelQuery_CheckExact(args[1])) {
+        NodelQuery* nd_query = (NodelQuery*)args[1];
+        if (!nd_query->query) {
+            PyErr_SetString(PyExc_RuntimeError, "Query is not initialized");
+            return NULL;
+        }
+        return NodelQueryIter_new(nd_query->query, nd_obj->obj);
+    }
+
+    if (!PyUnicode_Check(args[1])) {
+        PyErr_SetString(PyExc_TypeError, "Expected str or nodel.Query for argument 2");
+        return NULL;
+    }
+
+    RefMgr query = NodelQuery_from_spec(args[1]);
+    if (query.get() == NULL) return NULL;
+    return NodelQueryIter_new(((NodelQuery*)query.get())->query, nd_obj->obj);
+}
+
 static PyMethodDef nodel_methods[] = {
     {"new",          (PyCFunction)mod_new,                 METH_O,        PyDoc_STR(new_doc)},
     {"list",         (PyCFunction)mod_list,                METH_NOARGS,   PyDoc_STR(list_doc)},
@@ -1019,6 +1068,7 @@ static PyMethodDef nodel_methods[] = {
     {"get",          (PyCFunction)mod_get,                 METH_FASTCALL, PyDoc_STR(get_doc)},
     {"get_set",      (PyCFunction)mod_get_set,             METH_FASTCALL, PyDoc_STR(get_set_doc)},
     {"complete",     (PyCFunction)mod_complete,            METH_FASTCALL, PyDoc_STR(complete_doc)},
+    {"query",        (PyCFunction)mod_query,               METH_FASTCALL, PyDoc_STR(query_doc)},
     {"reset",        (PyCFunction)mod_reset,               METH_O,        PyDoc_STR(reset_doc)},
     {"reset_key",    (PyCFunction)mod_reset_key,           METH_FASTCALL, PyDoc_STR(reset_key_doc)},
     {"save",         (PyCFunction)mod_save,                METH_FASTCALL |
@@ -1075,6 +1125,8 @@ PyInit_nodel(void)
     if (PyType_Ready(&NodelValueIterType) < 0) return NULL;
     if (PyType_Ready(&NodelItemIterType) < 0) return NULL;
     if (PyType_Ready(&NodelTreeIterType) < 0) return NULL;
+    if (PyType_Ready(&NodelQueryType) < 0) return NULL;
+    if (PyType_Ready(&NodelQueryIterType) < 0) return NULL;
 
     PyObject* module = PyModule_Create(&nodel_module_def);
     if (module == NULL) return NULL;
@@ -1082,6 +1134,13 @@ PyInit_nodel(void)
     Py_INCREF(&NodelObjectType);
     if (PyModule_AddObject(module, "Object", (PyObject*)&NodelObjectType) < 0) {
         Py_DECREF(&NodelObjectType);
+        Py_DECREF(module);
+        return NULL;
+    }
+
+    Py_INCREF(&NodelQueryType);
+    if (PyModule_AddObject(module, "Query", (PyObject*)&NodelQueryType) < 0) {
+        Py_DECREF(&NodelQueryType);
         Py_DECREF(module);
         return NULL;
     }

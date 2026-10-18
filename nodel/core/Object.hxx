@@ -73,6 +73,8 @@ class ValueRange;
 class ItemRange;
 class AncestorRange;
 
+namespace impl { class QueryParser; }
+
 struct NoPredicate {};
 using Predicate = std::function<bool(const Object&)>;
 
@@ -690,15 +692,16 @@ class OPath
     ConstIterator end() const { return m_keys.cend(); }
 
   private:
-    StringView parse_quoted(const StringView&, StringView::const_iterator&);
-    void consume_whitespace(const StringView&, StringView::const_iterator&);
-    Key parse_brace_key(const StringView&, StringView::const_iterator&);
-    Key parse_dot_key(const StringView&, StringView::const_iterator&);
+    static StringView parse_quoted(const StringView&, StringView::const_iterator&);
+    static void consume_whitespace(const StringView&, StringView::const_iterator&);
+    static Key parse_brace_key(const StringView&, StringView::const_iterator&);
+    static Key parse_dot_key(const StringView&, StringView::const_iterator&);
 
   private:
     KeyList m_keys;
 
   friend class Object;
+  friend class impl::QueryParser;
 };
 
 
