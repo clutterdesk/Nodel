@@ -2193,8 +2193,9 @@ Object Object::append(const Object& in_val) {
 
 /// Delete the value of a key
 /// @param key The key to be deleted.
-/// - If this Object is a list and the key is negative, the size of the list
-///   is added to the key.
+/// - If this Object is a list then the key must be an integer.  If the key is
+///   negative, the size of the list is added to the key.  Deleting an index
+///   that is out of range has no effect.
 /// - If this Object is a string then a WrongType exception is thrown.  Use
 ///   @ref Object::as<String>(), instead.
 /// @throws WrongType
@@ -2205,6 +2206,7 @@ void Object::del(const Key& key) {
         case EMPTY: throw empty_reference();
         case LIST: {
             auto& list = std::get<0>(*m_repr.pl);
+            if (!key.is_any_int()) throw Key::wrong_type(key.type());
             Int index = key.to_int();
             if (norm_index(index, list.size())) {
                 auto it = list.begin() + index;

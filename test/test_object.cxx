@@ -3136,6 +3136,18 @@ TEST(ObjectBug, ListDelIndexOutOfRange) {
     EXPECT_EQ(obj.to_json(), "[1]");
 }
 
+// del(Key) on a list rejects non-integer keys, as get(Key) does.
+TEST(ObjectBug, ListDelNonIntegerKey) {
+    Object obj = "[0, 1, 2]"_json;
+    EXPECT_THROW(obj.del("1"_key), WrongType);
+    EXPECT_THROW(obj.del(Key{1.0}), WrongType);
+    EXPECT_THROW(obj.del(Key{true}), WrongType);
+    EXPECT_THROW(obj.del(Key{}), WrongType);
+    EXPECT_EQ(obj.to_json(), "[0, 1, 2]");
+    obj.del(Key{(UInt)1});
+    EXPECT_EQ(obj.to_json(), "[0, 2]");
+}
+
 // Bug #5: del(Key) on an empty list.
 TEST(ObjectBug, EmptyListDelIndex) {
     Object obj = "[]"_json;
