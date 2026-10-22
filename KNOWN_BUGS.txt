@@ -1,12 +1,13 @@
-KNOWN BUGS - nodel/core/Object.hxx
-==================================
+KNOWN BUGS - nodel/core/Object.hxx (and its Python extension)
+=============================================================
 
 Found by reading the code (2026-10-22). Items marked [CONFIRMED by probe]
 were reproduced with a small test program built with AddressSanitizer;
-the rest are from code reading only. Nothing has been fixed yet. Line
-numbers refer to Object.hxx at commit 4cd6fe89f7.
+the rest are from code reading only. Items marked [FIXED] have been fixed
+and have passing tests in the ObjectBug suite (test/test_object.cxx).
+Line numbers refer to Object.hxx at commit 4cd6fe89f7.
 
-Confirmed by probe: #1, #2, #3, #4, #5, #6, self-assignment, map
+Confirmed by probe: #1, #2, #3, #4, #5, #6, #10, self-assignment, map
 equality, Subscript assignment, hash (floats only). #2 is also flagged by
 clang -Wimplicit-fallthrough at line 2184.
 
@@ -72,6 +73,15 @@ DEFINITE BUGS
    ObjectBug.ListSetSliceStepTwoFewerValues,
    ObjectBug.ListSetSliceNegativeStepFewerValues.
 
+4d. set(Slice) with step 1 inserts extra values in reverse order
+   (Object::set(const Slice&, ValueRange&&), step 1 loop)
+   When there are more values than slots, each extra value is inserted at
+   list.begin() + start, but start is not advanced after an insert. So
+   [0,1,2] set [1:2] to [10,11,12] gives [0,10,12,11,2], and appending
+   [10,11,12] at [3:3] gives [0,1,2,12,11,10]. (The step -1 branch inserts
+   at a fixed position on purpose, which yields the right order there.)
+   Test: ObjectBug.ListSetSliceInsertOrder.
+
 5. [FIXED] del(Key) on lists can erase end() (line 2211)
    An index equal to the size is clamped to size, then
    list.erase(begin()+size) runs (UB). Out-of-range indexes should just
@@ -84,18 +94,48 @@ DEFINITE BUGS
    parent() on a removed element is a use-after-free. Key-based del/set
    handle this correctly.
 
-7. Subscript::is_unsaved() has no return (line 4114)
+7. [FIXED] Subscript::is_unsaved() has no return (line 4114)
    Flowing off the end of a non-void function is UB.
 
-8. DataSource::set(target, Slice, ...) loses its work (lines 3726-3729)
+8. [FIXED] DataSource::set(target, Slice, ...) loses its work (lines 3726-3729)
    It throws away bind_child's return value, so the child data-source
    binding is lost. It also computes slice indices from vals.size() (the
    incoming values) instead of the container's size.
+   Fixing it exposed a related bug in DataSource::bind_child, also fixed:
+   a value that already had a parent was bound in place, and bind() then
+   put the bound value back into that parent, so it was shared by two
+   containers (affects DataSource::set(Key) too).
 
 9. A failed write is still marked as saved (line 3449)
    report_write_error never sets m_write_failed = true, unlike its read
    counterpart. With throw=false, save() clears m_unsaved after a failed
    write, so changes are silently lost.
+
+10. Python slice assignment orphans or aliases the assigned values
+   (pyext/NodelObject.cxx, NodelObject_mp_ass_subscript, slice branch)
+   [CONFIRMED by probe, replicating the extension's steps in C++; the
+   extension itself was not rebuilt]
+   The extension converts the value with Support::to_object(), calls
+   clear_parent() on each element "to prevent copying", then calls
+   self_obj.set(slice, nd_vals).
+   - Python list value, e.g. lst[0:1] = [[], []]: to_object() builds a
+     temporary nodel list. The values go into lst uncopied, then the
+     temporary's destructor clears the parent of every element it holds,
+     so the values in lst have no parent (parent() is nil, path() is
+     wrong, and assigning one elsewhere won't copy it).
+     REGRESSION: before the bug #3 fix, step +/-1 copied values with no
+     parent, which accidentally avoided this. With |step| > 1 it was
+     already broken.
+   - Nodel object value, e.g. lst2[0:1] = other: to_object() returns
+     `other` itself, not a temporary, so clear_parent() detaches other's
+     own elements while they are still in other. Before the #3 fix they
+     were then copied (other's elements left with no parent); now they are
+     inserted uncopied, so lst2 and other share them: other[0]['k'] = 1
+     also changes lst2[0].
+   Suggested fix: only clear parents when to_object() produced a new
+   temporary container (not for a NodelObject value), and release the
+   temporary's elements without clearing their parents afterwards, as
+   DataSource::set(Slice) now does.
 
 
 LIKELY BUGS AND FRAGILE CODE

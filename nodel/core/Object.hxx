@@ -3682,6 +3682,10 @@ Object DataSource::bind_child(const Object& target, const Key& key, const Object
     auto p_curr_ds = in_val.data_source<DataSource>();
     if (p_curr_ds != nullptr) {
         val = p_curr_ds->get_cached(in_val).copy();
+    } else if (val.parent() != nil) {
+        // as in Object::set, a value that belongs to another container is copied,
+        // otherwise binding would put the bound value back into that container
+        val = val.copy();
     }
 
     auto p_ds = resolve_data_source(target, key, val);
@@ -3750,25 +3754,41 @@ void DataSource::set(const Object& target, const Slice& slice, ValueRange&& in_v
     for (; it != end; ++it)
         vals.push_back(*it);
 
-    auto [start, stop, step] = slice.to_indices(vals.size());
-    Int idx = start;
-    for (auto& val : vals) {
-        bind_child(target, idx, val);
-        val.set_unsaved();
-        idx += step;
-        if ((step > 0 && idx >= stop) || (step < 0 && idx <= stop))
-            break;
-    }
-
     if (is_sparse()) {
         if (m_cache.is_empty()) read_type(target);
     } else {
         insure_fully_cached(target);
     }
 
-    m_cache.set(slice, vals);
-    for (auto val : m_cache.get(slice))
-        val.set_parent(target);
+    // Bind each value that will occupy a slot, using its index in the container.
+    // With step 1 or -1, values beyond the slice are inserted; otherwise they're ignored.
+    auto [start, stop, step] = (m_cache.type() == Object::LIST)?
+                               slice.to_indices(m_cache.size()):
+                               slice.to_unbounded_indices();
+    for (size_t i = 0; i < vals.size(); ++i) {
+        Int idx = start + static_cast<Int>(i) * step;
+        bool in_slice = (step > 0)? idx < stop: idx > stop;
+        if (!in_slice && step != 1) {
+            if (step != -1) break;
+            idx = stop + 1;  // insertion point
+        }
+        vals[i] = bind_child(target, idx, vals[i]);
+    }
+
+    // detach the values, so that m_cache.set does not copy them and lose the bindings
+    Object list{std::move(vals)};
+    for (auto val : list.iter_values())
+        val.clear_parent();
+
+    m_cache.set(slice, list);
+    for (auto val : list.iter_values()) {
+        if (val.parent().is(m_cache))
+            val.set_parent(target);
+    }
+
+    // release the values without clearing their parents, which the destructor
+    // of the temporary list would otherwise do
+    std::get<0>(*list.m_repr.pl).clear();
 }
 
 inline
@@ -4138,7 +4158,7 @@ class Object::Subscript
     template <class DataSourceType>
     DataSourceType* data_source() const { return resolve().template data_source<DataSourceType>(); }
 
-    bool is_unsaved() const            { resolve().is_unsaved(); }
+    bool is_unsaved() const            { return resolve().is_unsaved(); }
     void set_unsaved(bool stale=true)  { resolve().set_unsaved(stale); }
     void save()                      { resolve().save(); }
     void reset()                     { resolve().reset(); }

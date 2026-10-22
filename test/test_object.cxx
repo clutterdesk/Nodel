@@ -3223,6 +3223,17 @@ TEST(ObjectBug, ListSetSliceStepTwoFewerValues) {
     EXPECT_EQ(obj.to_json(), "[1, 3, 5, 7, 9, 10, 11]");
 }
 
+// Bug 4d: set(Slice) with step 1 inserts extra values in reverse order.
+TEST(ObjectBug, ListSetSliceInsertOrder) {
+    Object obj = "[0, 1, 2]"_json;
+    obj.set(Slice{Key{1}, Key{2}}, "[10, 11, 12]"_json);
+    EXPECT_EQ(obj.to_json(), "[0, 10, 11, 12, 2]");
+
+    obj = "[0, 1, 2]"_json;
+    obj.set(Slice{Key{3}, Key{3}}, "[10, 11, 12]"_json);
+    EXPECT_EQ(obj.to_json(), "[0, 1, 2, 10, 11, 12]");
+}
+
 // Bug 4c: partially filled slices with step > 1 and step < -1.
 TEST(ObjectBug, ListSetSliceStridedPartialFill) {
     Object obj = "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]"_json;
@@ -3277,6 +3288,58 @@ TEST(ObjectBug, DataSourceSetSliceBindsChildren) {
     EXPECT_EQ(dsrc->bound_keys, (KeyList{3, 4}));
     EXPECT_NE(obj.get(3).data_source<DataSource>(), nullptr);
     EXPECT_NE(obj.get(4).data_source<DataSource>(), nullptr);
+    EXPECT_TRUE(obj.get(3).parent().is(obj));
+    EXPECT_TRUE(obj.get(4).parent().is(obj));
+}
+
+// Bug #8: values inserted beyond a step 1 slice are bound and parented too.
+TEST(ObjectBug, DataSourceSetSliceInsertBindsChildren) {
+    auto dsrc = new TestBindingSource("[0, 1, 2]");
+    Object obj{dsrc};
+    obj.set(Slice{Key{1}, Key{2}}, "[[], []]"_json);
+    ASSERT_EQ(obj.size(), 4UL);
+    EXPECT_EQ(dsrc->bound_keys, (KeyList{1, 2}));
+    for (Int i : {1, 2}) {
+        EXPECT_NE(obj.get(i).data_source<DataSource>(), nullptr) << i;
+        EXPECT_TRUE(obj.get(i).parent().is(obj)) << i;
+    }
+    EXPECT_EQ(obj.get(3), 2);
+}
+
+// Bug #8: with step 2, only values that fill a slot are bound.
+TEST(ObjectBug, DataSourceSetSliceStepTwoBindsChildren) {
+    auto dsrc = new TestBindingSource("[0, 1, 2, 3, 4, 5]");
+    Object obj{dsrc};
+    obj.set("0::2"_slice, "[[], [], [], []]"_json);
+    ASSERT_EQ(obj.size(), 6UL);
+    EXPECT_EQ(dsrc->bound_keys, (KeyList{0, 2, 4}));
+    for (Int i : {0, 2, 4})
+        EXPECT_NE(obj.get(i).data_source<DataSource>(), nullptr) << i;
+    EXPECT_EQ(obj.get(1), 1);
+}
+
+// Binding a value that belongs to another container must copy it, not put the
+// bound value back into that container.
+TEST(ObjectBug, DataSourceSetKeyBindsCopyOfParentedValue) {
+    Object source = "{'x': []}"_json;
+    Object source_x = source.get("x"_key);
+    Object obj{new TestBindingSource("[0]")};
+    obj.set(Key{0}, source_x);
+    EXPECT_NE(obj.get(0).data_source<DataSource>(), nullptr);
+    EXPECT_TRUE(obj.get(0).parent().is(obj));
+    EXPECT_EQ(source.get("x"_key).data_source<DataSource>(), nullptr);
+    EXPECT_TRUE(source.get("x"_key).is(source_x));
+    EXPECT_TRUE(source_x.parent().is(source));
+}
+
+// Bug #8: plain values are not bound, and are set as usual.
+TEST(ObjectBug, DataSourceSetSlicePlainValues) {
+    auto dsrc = new TestBindingSource("[0, 1, 2, 3]");
+    Object obj{dsrc};
+    obj.set(Slice{Key{1}, Key{3}}, "[10, 11]"_json);
+    EXPECT_TRUE(dsrc->bound_keys.empty());
+    EXPECT_EQ(obj.to_json(), "[0, 10, 11, 3]");
+    EXPECT_TRUE(obj.is_unsaved());
 }
 
 struct TestFailingWriteSource : public TestSimpleSource
