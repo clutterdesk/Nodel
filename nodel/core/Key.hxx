@@ -523,15 +523,8 @@ Key operator ""_key (const char* str, size_t size) {
 
 inline
 std::ostream& operator<< (std::ostream& ostream, const Key& key) {
-    switch (key.m_repr_ix) {
-        case Key::NIL:  return ostream << "nil";
-        case Key::BOOL:  return ostream << key.m_repr.b;
-        case Key::INT:   return ostream << key.m_repr.i;
-        case Key::UINT:  return ostream << key.m_repr.u;
-        case Key::FLOAT: return ostream << key.m_repr.f;
-        case Key::STR:   return ostream << key.m_repr.s.data();
-        default:           throw std::invalid_argument("key");
-    }
+    key.to_str(ostream);
+    return ostream;
 }
 
 struct KeyHash

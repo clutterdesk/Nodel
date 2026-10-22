@@ -503,3 +503,12 @@ TEST(Key, FirstSimpleStringStep) {
     k.to_step(ss, true);
     EXPECT_EQ(ss.str(), "tea");
 }
+
+TEST(Key, StreamMatchesToStr) {
+    for (Key k : {Key{}, Key{true}, Key{false}, Key{-7}, Key{0xFFFFFFFFFFFFFFFFULL},
+                  Key{1.0/3.0}, Key{1e300}, Key{"tea"_key}}) {
+        std::stringstream ss;
+        ss << k;
+        EXPECT_EQ(ss.str(), k.to_str());
+    }
+}
