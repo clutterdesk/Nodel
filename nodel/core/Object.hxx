@@ -3475,6 +3475,7 @@ void DataSource::report_read_error(std::string&& error) {
 inline
 void DataSource::report_write_error(std::string&& error) {
     if (m_options.throw_write_error) throw DataSourceError{std::forward<std::string>(error)};
+    m_write_failed = true;
     if (!m_options.quiet_write) WARN(error);
 }
 
@@ -3902,14 +3903,18 @@ void DataSource::save(const Object& target, const Object& options) {
         }
         else if (is_sparse()) {
             KeyList deleted_keys;
+            bool write_failed = false;
 
             for (auto& [key, value] : m_cache.iter_items()) {
+                m_write_failed = false;
                 if (value.m_fields.repr_ix == Object::DEL) {
                     delete_key(target, key);
-                    deleted_keys.push_back(key);
+                    // keep the delete record of a failed delete, so it's retried
+                    if (!m_write_failed) deleted_keys.push_back(key);
                 } else {
                     write_key(target, key, value);
                 }
+                write_failed |= m_write_failed;
             }
 
             // clear delete records
@@ -3917,7 +3922,9 @@ void DataSource::save(const Object& target, const Object& options) {
                 m_cache.del(del_key);
 
             // final save notification to support batching
+            m_write_failed = false;
             commit(target, m_cache, deleted_keys);
+            m_write_failed |= write_failed;
         }
 
         if (!m_write_failed)

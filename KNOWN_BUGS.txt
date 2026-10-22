@@ -106,10 +106,15 @@ DEFINITE BUGS
    put the bound value back into that parent, so it was shared by two
    containers (affects DataSource::set(Key) too).
 
-9. A failed write is still marked as saved (line 3449)
+9. [FIXED] A failed write is still marked as saved
+   (DataSource::report_write_error; line 3449 at 4cd6fe89f7)
    report_write_error never sets m_write_failed = true, unlike its read
    counterpart. With throw=false, save() clears m_unsaved after a failed
    write, so changes are silently lost.
+   Also fixed, in the sparse branch of DataSource::save: a failed
+   delete_key still removed the key's delete record from the cache, so a
+   later save would not retry the delete. Each write_key/delete_key is now
+   checked on its own, and only successful deletes clear their record.
 
 10. Python slice assignment orphans or aliases the assigned values
    (pyext/NodelObject.cxx, NodelObject_mp_ass_subscript, slice branch)

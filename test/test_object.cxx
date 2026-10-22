@@ -3346,10 +3346,40 @@ struct TestFailingWriteSource : public TestSimpleSource
 {
     using TestSimpleSource::TestSimpleSource;
 
-    void write(const Object&, const Object&, const Object&) override {
+    void write(const Object& target, const Object& cache, const Object& options) override {
+        if (!fail) return TestSimpleSource::write(target, cache, options);
         write_called = true;
         report_write_error("write failed");
     }
+
+    bool fail = true;
+};
+
+struct TestFailingSparseSource : public TestSparseSource
+{
+    TestFailingSparseSource(const std::string& json) : TestSparseSource(json, quiet_options()) {
+        set_mode(Mode::READ | Mode::WRITE | Mode::CLOBBER);
+    }
+
+    static Options quiet_options() {
+        Options options;
+        options.throw_write_error = false;
+        options.quiet_write = true;
+        return options;
+    }
+
+    void write_key(const Object& target, const Key& k, const Object& v) override {
+        if (fail_write) { write_key_called = true; report_write_error("write_key failed"); }
+        else TestSparseSource::write_key(target, k, v);
+    }
+
+    void delete_key(const Object& target, const Key& k) override {
+        if (fail_delete) { delete_key_called = true; report_write_error("delete_key failed"); }
+        else TestSparseSource::delete_key(target, k);
+    }
+
+    bool fail_write = false;
+    bool fail_delete = false;
 };
 
 // Bug #9: a failed write (with throw_write_error=false) is marked as saved.
@@ -3363,6 +3393,49 @@ TEST(ObjectBug, FailedWriteStaysUnsaved) {
     obj.save();
     EXPECT_TRUE(dsrc->write_called);
     EXPECT_TRUE(obj.is_unsaved());
+
+    // a later successful save clears the flag
+    dsrc->fail = false;
+    obj.save();
+    EXPECT_FALSE(obj.is_unsaved());
+    EXPECT_EQ(dsrc->data, "Assam tea");
+}
+
+// Bug #9: a failed write_key on a sparse source stays unsaved, and is retried.
+TEST(ObjectBug, SparseFailedWriteKeyStaysUnsaved) {
+    auto dsrc = new TestFailingSparseSource(R"({"x": 1})");
+    Object obj{dsrc};
+    obj.set("x"_key, 2);
+    dsrc->fail_write = true;
+    obj.save();
+    EXPECT_TRUE(dsrc->write_key_called);
+    EXPECT_TRUE(obj.is_unsaved());
+    EXPECT_EQ(dsrc->data.get("x"_key), 1);
+
+    dsrc->fail_write = false;
+    obj.save();
+    EXPECT_FALSE(obj.is_unsaved());
+    EXPECT_EQ(dsrc->data.get("x"_key), 2);
+}
+
+// Bug #9: a failed delete_key on a sparse source keeps its delete record, so
+// the delete is retried by the next save.
+TEST(ObjectBug, SparseFailedDeleteKeyIsRetried) {
+    auto dsrc = new TestFailingSparseSource(R"({"x": 1, "y": 2})");
+    Object obj{dsrc};
+    obj.del("x"_key);
+    dsrc->fail_delete = true;
+    obj.save();
+    EXPECT_TRUE(dsrc->delete_key_called);
+    EXPECT_TRUE(obj.is_unsaved());
+    EXPECT_EQ(dsrc->data.get("x"_key), 1);
+    EXPECT_TRUE(obj.get("x"_key) == nil);
+
+    dsrc->fail_delete = false;
+    obj.save();
+    EXPECT_FALSE(obj.is_unsaved());
+    EXPECT_TRUE(dsrc->data.get("x"_key) == nil);
+    EXPECT_EQ(dsrc->data.get("y"_key), 2);
 }
 
 // Self-assignment (ASan): operator= releases the old value before copying.
