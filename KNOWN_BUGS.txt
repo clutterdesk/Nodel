@@ -232,12 +232,7 @@ Python extension
 Test-suite failures
 -------------------
 
-[ ] T2 [DEFINITE] Filesystem.VisitOnlyFiles crashes  (cause unknown)
-[ ] T3 [DEFINITE] Query.FindFiles crashes            (cause unknown)
-[ ] T4 [DEFINITE] Zip.Read aborts                    (cause unknown)
-[ ] T5 [DEFINITE] Zip.WriteFile segfaults            (cause unknown)
-    All four predate the 2026 parser and Object fixes (checked on master,
-    2026-10-02). Routine test runs exclude them.
+(none open)
 
 
 FIXED
@@ -283,3 +278,11 @@ FIXED
         process".                                             406ff86a6a
 [x] T1  Filesystem.EnterOnlyDirectories failed when the DB.* tests left
         test_data/test.kvdb/ behind (caused by D1).           406ff86a6a
+[x] T2-T5 Filesystem.VisitOnlyFiles, Query.FindFiles, Zip.Read and
+        Zip.WriteFile crashed. deps/ziplib/Bin/libziplib.a was stale: the
+        subtree re-add (e4305a9a4e) dropped its Makefile rule, so
+        `make Bin/libziplib.a` never rebuilt it, and 8492ccba05 then added
+        a virtual destructor to ICompressionMethod. The old library and the
+        new headers disagreed on the vtable layout, so GetDecoderProperties()
+        called the deleting destructor. The Makefile rule is restored, with
+        -MMD header dependencies.                             5256e33a87
