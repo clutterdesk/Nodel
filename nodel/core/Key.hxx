@@ -3,6 +3,7 @@
 /** @file */
 #pragma once
 
+#include <cmath>
 #include <cstring>
 #include <iomanip>
 #include <ctime>
@@ -450,14 +451,15 @@ class Key
     }
 
     /// Return the hash value of the Key.
+    /// - Numeric keys that compare equal have the same hash, so a FLOAT with
+    ///   an integral value hashes like the equal INT or UINT.
     size_t hash() const {
-        static std::hash<Float> float_hash;
         switch (m_repr_ix) {
             case NIL:   return 0;
             case BOOL:  return (size_t)m_repr.b;
             case INT:   return (size_t)m_repr.i;
             case UINT:  return (size_t)m_repr.u;
-            case FLOAT: return (size_t)float_hash(m_repr.f);
+            case FLOAT: return float_hash(m_repr.f);
             case STR:   return (size_t)m_repr.s.data().data();
             default:    throw wrong_type(m_repr_ix);
         }
@@ -467,6 +469,16 @@ class Key
     static WrongType wrong_type(ReprIX actual, ReprIX expected) { return {type_name(actual), type_name(expected)}; };
 
   private:
+    static size_t float_hash(Float f) {
+        constexpr Float two_63 = 9223372036854775808.0;   // 2^63
+        constexpr Float two_64 = 18446744073709551616.0;  // 2^64
+        if (std::trunc(f) == f) {
+            if (f >= -two_63 && f < two_63) return (size_t)(Int)f;
+            if (f >= 0 && f < two_64)       return (size_t)(UInt)f;
+        }
+        return std::hash<Float>{}(f);
+    }
+
     void release() {
         m_repr.z = nullptr;
         m_repr_ix = NIL;

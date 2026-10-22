@@ -218,6 +218,26 @@ TEST(Key, HashStringLiteral) {
     EXPECT_EQ(std::hash<Key>{}(k1), std::hash<Key>{}(k2));
 }
 
+TEST(Key, HashEqualNumbers) {
+    std::hash<Key> hash;
+    EXPECT_EQ(hash(Key{1}), hash(Key{1.0}));
+    EXPECT_EQ(hash(Key{1ULL}), hash(Key{1.0}));
+    EXPECT_EQ(hash(Key{-7}), hash(Key{-7.0}));
+    EXPECT_EQ(hash(Key{0}), hash(Key{-0.0}));
+    EXPECT_EQ(hash(Key{true}), hash(Key{1.0}));
+    EXPECT_EQ(hash(Key{std::numeric_limits<Int>::min()}), hash(Key{-9223372036854775808.0}));
+    EXPECT_EQ(hash(Key{9223372036854775808ULL}), hash(Key{9223372036854775808.0}));
+}
+
+TEST(Key, FindFloatInIntKeyMap) {
+    tsl::ordered_map<Key, int, KeyHash> map;
+    map[Key{1}] = 1;
+    map[Key{1.0}] = 2;
+    EXPECT_EQ(map.size(), 1);
+    EXPECT_EQ(map[Key{1}], 2);
+    EXPECT_TRUE(map.contains(Key{1ULL}));
+}
+
 TEST(Key, ExplicitIntKeyMap) {
     tsl::ordered_map<Key, Key> map;
     map[Key(7)] = Key(8);
