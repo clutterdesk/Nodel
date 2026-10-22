@@ -96,7 +96,7 @@ add_custom_target(nodel_ziplib
 #----------------------------------------------------------------------------
 # Optional Dependency: rocksdb (pre-installed)
 #----------------------------------------------------------------------------
-find_package(rocksdb 10.10 CONFIG)
+find_package(rocksdb CONFIG)
 if (rocksdb_FOUND)
     get_target_property(ROCKSDB_INCLUDE RocksDB::rocksdb INTERFACE_INCLUDE_DIRECTORIES)
     get_target_property(ROCKSDB_LIBRARY RocksDB::rocksdb LOCATION)
