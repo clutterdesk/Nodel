@@ -174,8 +174,8 @@ class Key
         switch (m_repr_ix) {
             case BOOL:  return (Int)m_repr.b == other;
             case INT:   return m_repr.i == other;
-            case UINT:  return equal(m_repr.u, other);
-            case FLOAT: return m_repr.f == other;
+            case UINT:  return equal(m_repr.u, (Int)other);
+            case FLOAT: return equal((Int)other, m_repr.f);
             default:    return false;
         }
     }
@@ -183,9 +183,9 @@ class Key
     bool operator == (is_like_UInt auto other) const {
         switch (m_repr_ix) {
             case BOOL:  return (UInt)m_repr.b == other;
-            case INT:   return equal(other, m_repr.i);
+            case INT:   return equal((UInt)other, m_repr.i);
             case UINT:  return m_repr.u == other;
-            case FLOAT: return m_repr.f == other;
+            case FLOAT: return equal((UInt)other, m_repr.f);
             default:    return false;
         }
     }
@@ -193,8 +193,8 @@ class Key
     bool operator == (Float other) const {
         switch (m_repr_ix) {
             case BOOL:  return (Float)m_repr.b == other;
-            case INT:   return (Float)m_repr.i == other;
-            case UINT:  return (Float)m_repr.u == other;
+            case INT:   return equal(m_repr.i, other);
+            case UINT:  return equal(m_repr.u, other);
             case FLOAT: return m_repr.f == other;
             default:    return false;
         }
@@ -235,7 +235,7 @@ class Key
                     case BOOL:  return m_repr.i <=> other.to_int();
                     case INT:   return m_repr.i <=> other.m_repr.i;
                     case UINT:  return compare(m_repr.i, other.m_repr.u);
-                    case FLOAT: return m_repr.i <=> other.m_repr.f;
+                    case FLOAT: return compare(m_repr.i, other.m_repr.f);
                     case STR:   return std::partial_ordering::less;
                     default:    return std::partial_ordering::unordered;
                 }
@@ -246,7 +246,7 @@ class Key
                     case BOOL:  return m_repr.u <=> other.to_uint();
                     case INT:   return compare(m_repr.u, other.m_repr.i);
                     case UINT:  return m_repr.u <=> other.m_repr.u;
-                    case FLOAT: return m_repr.u <=> other.m_repr.f;
+                    case FLOAT: return compare(m_repr.u, other.m_repr.f);
                     case STR:   return std::partial_ordering::less;
                     default:    return std::partial_ordering::unordered;
                 }
@@ -255,8 +255,8 @@ class Key
                 switch (other.m_repr_ix) {
                     case NIL:   return std::partial_ordering::greater;
                     case BOOL:  return m_repr.f <=> other.to_float();
-                    case INT:   return m_repr.f <=> other.m_repr.i;
-                    case UINT:  return m_repr.f <=> other.m_repr.u;
+                    case INT:   return compare(m_repr.f, other.m_repr.i);
+                    case UINT:  return compare(m_repr.f, other.m_repr.u);
                     case FLOAT: return m_repr.f <=> other.m_repr.f;
                     case STR:   return std::partial_ordering::less;
                     default:    return std::partial_ordering::unordered;

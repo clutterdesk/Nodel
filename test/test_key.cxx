@@ -281,6 +281,54 @@ TEST(Key, FindFloatInIntKeyMap) {
     EXPECT_TRUE(map.contains(Key{1ULL}));
 }
 
+TEST(Key, IntFloatEqualityIsExact) {
+    constexpr Int two_53 = Int{1} << 53;
+    Float f = (Float)two_53;
+    EXPECT_NE(Key{two_53 + 1}, Key{f});
+    EXPECT_NE(Key{f}, Key{two_53 + 1});
+    EXPECT_NE(Key{two_53 + 1}, f);
+    EXPECT_NE(Key{f}, two_53 + 1);
+    EXPECT_EQ(Key{two_53}, Key{f});
+    EXPECT_NE(Key{(UInt)two_53 + 1}, Key{f});
+    EXPECT_NE(Key{f}, (UInt)two_53 + 1);
+    EXPECT_EQ(Key{(UInt)two_53}, f);
+    EXPECT_NE(Key{std::numeric_limits<Int>::max()}, Key{9223372036854775808.0});
+    EXPECT_NE(Key{std::numeric_limits<UInt>::max()}, Key{18446744073709551616.0});
+    EXPECT_EQ(Key{std::numeric_limits<Int>::min()}, Key{-9223372036854775808.0});
+    EXPECT_NE(Key{1}, Key{1.5});
+    EXPECT_NE(Key{-1}, Key{-1.5});
+    EXPECT_NE(Key{0ULL}, Key{-0.5});
+}
+
+TEST(Key, IntFloatOrderingIsExact) {
+    constexpr Int two_53 = Int{1} << 53;
+    Float f = (Float)two_53;
+    EXPECT_TRUE((Key{two_53 + 1} <=> Key{f}) > 0);
+    EXPECT_TRUE((Key{f} <=> Key{two_53 + 1}) < 0);
+    EXPECT_TRUE((Key{(UInt)two_53 + 1} <=> Key{f}) > 0);
+    EXPECT_TRUE((Key{f} <=> Key{(UInt)two_53 + 1}) < 0);
+    EXPECT_TRUE((Key{two_53} <=> Key{f}) == 0);
+    EXPECT_TRUE((Key{std::numeric_limits<Int>::max()} <=> Key{9223372036854775808.0}) < 0);
+    EXPECT_TRUE((Key{std::numeric_limits<UInt>::max()} <=> Key{18446744073709551616.0}) < 0);
+    EXPECT_TRUE((Key{1} <=> Key{1.5}) < 0);
+    EXPECT_TRUE((Key{-1} <=> Key{-1.5}) > 0);
+    EXPECT_TRUE((Key{-2} <=> Key{-1.5}) < 0);
+    EXPECT_TRUE((Key{0ULL} <=> Key{-0.5}) > 0);
+    EXPECT_TRUE((Key{1.5} <=> Key{1}) > 0);
+    EXPECT_TRUE((Key{1} <=> Key{std::nan("")}) == std::partial_ordering::unordered);
+}
+
+TEST(Key, LargeIntAndFloatKeysInHashMap) {
+    constexpr Int two_53 = Int{1} << 53;
+    tsl::ordered_map<Key, int, KeyHash> map;
+    map[Key{(Float)two_53}] = 1;
+    map[Key{two_53 + 1}] = 2;
+    map[Key{two_53}] = 3;
+    EXPECT_EQ(map.size(), 2);
+    EXPECT_EQ(map[Key{(Float)two_53}], 3);
+    EXPECT_EQ(map[Key{two_53 + 1}], 2);
+}
+
 TEST(Key, CompareInternedStrings) {
     String s1 = "foo", s2 = "foo", s3 = "bar";
     Key k1{s1}, k2{s2}, k3{s3};
