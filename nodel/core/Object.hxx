@@ -2421,7 +2421,7 @@ void Object::set(const Slice& slice, ValueRange&& in_vals) {
                 for (auto val : in_vals) {
                     if (val.parent() != nil) val = val.copy();
                     if (start >= stop) {
-                        list.insert(list.begin() + start, val);
+                        list.insert(list.begin() + start++, val);
                     } else {
                         replace(start++, val);
                     }

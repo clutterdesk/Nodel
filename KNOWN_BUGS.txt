@@ -73,7 +73,7 @@ DEFINITE BUGS
    ObjectBug.ListSetSliceStepTwoFewerValues,
    ObjectBug.ListSetSliceNegativeStepFewerValues.
 
-4d. set(Slice) with step 1 inserts extra values in reverse order
+4d. [FIXED] set(Slice) with step 1 inserts extra values in reverse order
    (Object::set(const Slice&, ValueRange&&), step 1 loop)
    When there are more values than slots, each extra value is inserted at
    list.begin() + start, but start is not advanced after an insert. So
