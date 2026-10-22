@@ -318,6 +318,10 @@ TEST(Key, IntFloatOrderingIsExact) {
     EXPECT_TRUE((Key{1} <=> Key{std::nan("")}) == std::partial_ordering::unordered);
 }
 
+TEST(Key, NullToJson) {
+    EXPECT_EQ(Key{}.to_json(), "null");
+}
+
 TEST(Key, LargeIntAndFloatKeysInHashMap) {
     constexpr Int two_53 = Int{1} << 53;
     tsl::ordered_map<Key, int, KeyHash> map;

@@ -436,7 +436,7 @@ class Key
     /// Convert the Key data to a JSON string.
     String to_json() const {
         switch (m_repr_ix) {
-            case NIL:  return "nil";
+            case NIL:   return "null";
             case BOOL:  return m_repr.b? "true": "false";
             case INT:   return nodel::int_to_str(m_repr.i);
             case UINT:  return nodel::int_to_str(m_repr.u);
