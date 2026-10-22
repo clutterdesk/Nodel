@@ -100,6 +100,24 @@ find_package(rocksdb CONFIG)
 if (rocksdb_FOUND)
     get_target_property(ROCKSDB_INCLUDE RocksDB::rocksdb INTERFACE_INCLUDE_DIRECTORIES)
     get_target_property(ROCKSDB_LIBRARY RocksDB::rocksdb LOCATION)
+
+    # Prebuilt RocksDB packages (e.g. Homebrew) can export absolute paths into the SDK they were
+    # built with, such as .../MacOSX14.sdk/usr/lib/libbz2.tbd. Link missing ones by name instead,
+    # so the linker resolves them from the current SDK.
+    get_target_property(ROCKSDB_LINK_LIBS RocksDB::rocksdb INTERFACE_LINK_LIBRARIES)
+    if (ROCKSDB_LINK_LIBS)
+        set(ROCKSDB_FIXED_LINK_LIBS)
+        foreach(lib IN LISTS ROCKSDB_LINK_LIBS)
+            if (IS_ABSOLUTE "${lib}" AND NOT EXISTS "${lib}")
+                get_filename_component(lib_name "${lib}" NAME_WE)
+                string(REGEX REPLACE "^lib" "" lib_name "${lib_name}")
+                message(STATUS "RocksDB: ${lib} does not exist, linking '${lib_name}' instead")
+                set(lib "${lib_name}")
+            endif()
+            list(APPEND ROCKSDB_FIXED_LINK_LIBS "${lib}")
+        endforeach()
+        set_target_properties(RocksDB::rocksdb PROPERTIES INTERFACE_LINK_LIBRARIES "${ROCKSDB_FIXED_LINK_LIBS}")
+    endif()
 endif()
 
 
