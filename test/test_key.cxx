@@ -74,6 +74,25 @@ TEST(Key, AssignNull) {
   EXPECT_TRUE(k == nil);
 }
 
+TEST(Key, SelfAssign) {
+    for (auto k : {Key{true}, Key{7}, Key{7ULL}, Key{7.5}, Key{"foo"s}}) {
+        Key copy = k;
+        auto& self = k;
+        k = self;
+        EXPECT_EQ(k.type(), copy.type());
+        EXPECT_EQ(k, copy);
+    }
+}
+
+TEST(Key, StringToFloat) {
+    // The parse must stop at the end of the view, not at a null terminator.
+    String text = "2.5" "7";
+    Key k{StringView{text}.substr(0, 3)};
+    EXPECT_EQ(k.to_float(), 2.5);
+    EXPECT_EQ(str_to_float(StringView{text}.substr(0, 3)), 2.5);
+    EXPECT_EQ(str_to_float(String(100, '0') + "1.5"), 1.5);
+}
+
 TEST(Key, AssignBool) {
   Key k{7};
   EXPECT_TRUE(k.is_type<Int>());

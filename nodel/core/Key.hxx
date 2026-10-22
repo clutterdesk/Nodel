@@ -113,6 +113,7 @@ class Key
     }
 
     Key& operator = (const Key& key) {
+        if (this == &key) return *this;
         release();
         m_repr_ix = key.m_repr_ix;
         switch (m_repr_ix) {

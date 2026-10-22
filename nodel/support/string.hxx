@@ -93,10 +93,15 @@ UInt str_to_uint(const StringView& str) {
 inline
 Float str_to_float(const StringView& str) {
     // TODO: throw errors?
-    const char* beg = str.data();
-    char* end = nullptr;
-    Float value = std::strtold(beg, &end);
-    return value;
+    // strtold requires a null-terminated string, which a StringView may not be
+    // (interned strings and substrings are not), so parse a terminated copy.
+    char buf[64];
+    if (str.size() < sizeof(buf)) {
+        str.copy(buf, str.size());
+        buf[str.size()] = 0;
+        return std::strtold(buf, nullptr);
+    }
+    return std::strtold(String{str}.c_str(), nullptr);
 }
 
 inline
