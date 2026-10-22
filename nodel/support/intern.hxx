@@ -24,9 +24,11 @@ class intern_t
 {
   public:
     explicit intern_t(const StringView& str) : m_str{str} {}
-    intern_t()                               : m_str{""} {}
 
-    bool operator == (intern_t other) const          { return m_str == other.m_str; }
+    /// Interned strings are equal if and only if they share the same storage.
+    bool operator == (intern_t other) const {
+        return m_str.data() == other.m_str.data() && m_str.size() == other.m_str.size();
+    }
     bool operator == (const String& other) const     { return m_str == other; }
     bool operator == (const StringView& other) const { return m_str == other; }
     bool operator == (const char* other) const       { return m_str == other; }

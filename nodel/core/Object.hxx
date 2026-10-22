@@ -111,8 +111,8 @@ namespace test { class DataSourceTestInterface; }
 ///   The assignment operator does not copy the backing data - it copies the
 ///   reference.
 /// - Objects are garbage collected.
-/// - Objects have a reference count and are *not* thread-safe.  However
-///   an Object can be accessed from different threads synchronously.
+/// - Objects have a reference count and are *not* thread-safe even for read
+///   access because interned strings use a thread-local data-structure.
 /// - The backing data is one of the following types:
 ///     - nil              (similar to "None" in Python)
 ///     - boolean

@@ -238,6 +238,15 @@ TEST(Key, FindFloatInIntKeyMap) {
     EXPECT_TRUE(map.contains(Key{1ULL}));
 }
 
+TEST(Key, CompareInternedStrings) {
+    String s1 = "foo", s2 = "foo", s3 = "bar";
+    Key k1{s1}, k2{s2}, k3{s3};
+    EXPECT_EQ(k1, k2);
+    EXPECT_EQ(k1, "foo"_key);
+    EXPECT_NE(k1, k3);
+    EXPECT_EQ(Key{""s}, ""_key);
+}
+
 TEST(Key, ExplicitIntKeyMap) {
     tsl::ordered_map<Key, Key> map;
     map[Key(7)] = Key(8);
