@@ -4,6 +4,11 @@ KNOWN BUGS
 Checklist of every known bug in nodel. Tick an item ([ ] -> [x]) when it is
 fixed and has a passing regression test, and add the commit.
 
+Bugs are now tracked as GitHub issues at
+https://github.com/clutterdesk/Nodel/issues. Each open entry below gives its
+issue number; close the issue (e.g. "Fixes #20" in the commit message) when
+the bug is fixed. Report new bugs as issues rather than adding them here.
+
 Rebuilt 2026-10-22 at commit 7f0ef29933. Locations are given by function
 name because line numbers drift.
 
@@ -36,6 +41,7 @@ Object
 ------
 
 [ ] O11 [DEFINITE] [CONFIRMED] Self-assignment frees the object first
+    GitHub issue #6
     Object::operator=(const Object&) and operator=(Object&&) call
     dec_ref_count() before copying. `x = x` on the only reference to a
     container frees it and then reads from it; a self-move leaves x empty.
@@ -45,6 +51,7 @@ Object
 
 [ ] O13 [DEFINITE] [CONFIRMED] Subscript assignment breaks after the
     subscript has been read
+    GitHub issue #7
     Subscript::operator= / resolve():
     - resolve() replaces m_obj with the looked-up value, so assignment then
       calls m_obj.parent().set(m_sub, ...).
@@ -56,6 +63,7 @@ Object
     ObjectBug.SubscriptPathAssignAfterRead.
 
 [ ] O14 [DEFINITE] OPath::parse_brace_key reads past the end of the input
+    GitHub issue #8
     - Unquoted branch: `for (; it != spec.cend() && c != ']'; ++it, c = *it)`
       dereferences end() when the closing ] is missing.
     - Quoted branch: after consume_whitespace, `*it != ']'` reads end() for
@@ -65,28 +73,33 @@ Object
 
 [ ] O15 [DEFINITE] [CONFIRMED] JSON output loses the comma before a bound
     object
+    GitHub issue #9
     WalkDF::next pushes a data-source object's cached value with
     FIRST_VALUE and drops the original event, so a bound object that isn't
     the first child gets no ", " before it.
     Test: ObjectBug.JsonSeparatorBeforeDataSource.
 
 [ ] O16 [DEFINITE] [CONFIRMED] Pretty JSON one-liner depth leaks
+    GitHub issue #10
     JsonVisitor increments the one-liner depth for any value whose key is a
     one-liner key, but only decrements at the end of a container. A scalar
     under such a key turns off pretty-printing for the rest of the output.
     Test: ObjectBug.JsonPrettyOneLinerKeyOnScalar.
 
 [ ] O17 [DEFINITE] [CONFIRMED] Equality is one-sided with bound objects
+    GitHub issue #11
     Object::operator== / operator<=>: bound == 5 loads the data and
     compares, but Object{5} == bound returns false, and <=> throws.
     Test: ObjectBug.DataSourceComparisonIsSymmetric.
 
 [ ] O18 [DEFINITE] [CONFIRMED] Map equality treats missing keys as nil
+    GitHub issue #12
     Map comparison in Object::operator==: a missing key reads as nil, so
     {a: nil} == {b: 1} is true.
     Test: ObjectBug.MapEqualityMissingKeyVsNil.
 
 [ ] O19 [DEFINITE] [CONFIRMED] Object::hash() disagrees with == for floats
+    GitHub issue #13
     INT 1 and FLOAT 1.0 compare equal but hash differently (std::hash of
     the double's bits), which breaks hash containers of Objects. Key had
     the same bug (K2); its fix, Key::float_hash, can be reused.
@@ -94,9 +107,11 @@ Object
 
 [ ] O20 [DEFINITE] OPath(const StringView&) only checks its input with
     assert
+    GitHub issue #14
     In release builds an empty or all-whitespace spec reads *it at end().
 
 [ ] O21 [DEFINITE] Floats are written with 15 significant digits
+    GitHub issue #15
     float_to_str (support/string.hxx) uses "%.15g", but a double needs 17
     digits to round-trip. Object::to_str, JSON output (JsonVisitor) and
     Key::to_str/to_step/to_json all lose precision: 0.1 + 0.2 is written as
@@ -104,15 +119,18 @@ Object
 
 [ ] O22 [FRAGILE] clear_parent() reaches a data source through the ANY
     pointer
+    GitHub issue #16
     Object::clear_parent, DSRC case, uses m_repr.pany->m_parent instead of
     m_repr.ds->m_parent. Works only because both classes keep m_parent at
     the same offset. (set_parent's DSRC case is correct.)
 
 [ ] O23 [FRAGILE] id() reads a sorted map through the ordered-map pointer
+    GitHub issue #17
     Object::id, SMAP case, uses m_repr.pom instead of m_repr.psm. Works only
     by the same kind of layout accident.
 
 [ ] O24 [FRAGILE] Some Subscript methods won't compile when used
+    GitHub issue #18
     Subscript::key() calls m_sub.tail(), which OPath doesn't have (it has
     leaf()). keys(), items() and values() call Object methods that don't
     exist. They only fail if someone instantiates them.
@@ -122,19 +140,23 @@ Key and support
 ---------------
 
 [ ] K7 [LIKELY] NaN keys can be inserted but never found
+    GitHub issue #19
     Key(NaN) != Key(NaN), so a NaN key in a map can't be looked up, and
     each insert adds another entry.
 
 [ ] K8 [DEFINITE] [CONFIRMED] Key::to_json() writes `nil` for a nil key
+    GitHub issue #20
     Not valid JSON; should be `null`. JsonVisitor uses key.to_json() for
     map keys.
 
 [ ] K9 [DEFINITE] [CONFIRMED] Key::to_bool() returns true for nil
+    GitHub issue #21
     The default case returns numeric_limits<Int>::max() (copied from
     to_int), which converts to true.
 
 [ ] K10 [DEFINITE] [CONFIRMED] Key::to_step() produces paths OPath can't
     read back
+    GitHub issue #22
     - Only keys containing `"`, `.` or a space are quoted, so "a[0]" comes
       out as `.a[0]`, which parses as key "a" then index 0. Any character
       parse_dot_key doesn't accept (not alnum or _) has the same problem.
@@ -142,34 +164,41 @@ Key and support
     - Floats lose precision (O21).
 
 [ ] K11 [LIKELY] operator<<(ostream, Key) doesn't match Key::to_str()
+    GitHub issue #23
     Prints bools as 1/0 and floats with the stream's default 6-digit
     precision, while to_str prints true/false and 15 digits.
 
 [ ] K12 [DEFINITE] Key::get_repr_ix<T>() has no fallback return
+    GitHub issue #24
     is_type<int>() or is_type<StringView>() flows off the end of a
     non-void function (UB).
 
 [ ] K13 [FRAGILE] Mismatched friend declaration for ""_key
+    GitHub issue #25
     The friend declares `operator ""_key(const char*)`, a raw literal
     operator that is never defined; the real one takes (const char*,
     size_t). Something like 123_key would compile and fail to link.
 
 [ ] K14 [FRAGILE] Key{"abc"} doesn't compile
+    GitHub issue #26
     Ambiguous between the String and StringView constructors; callers must
     use ""_key or an explicit String.
 
 [ ] K15 [LIKELY] str_to_int / str_to_uint return garbage on bad input
+    GitHub issue #27
     support/string.hxx: on a parse error they only ASSERT, so release builds
     return an uninitialized value. Used by Key::to_int/to_uint,
     OPath::parse_brace_key and kvdb deserialization.
 
 [ ] K16 [FRAGILE] String keys only work within one thread
+    GitHub issue #28
     Intern tables are thread-local, and string keys compare and hash by
     pointer, so a string key made on one thread never equals the same text
     made on another. By design (Objects are not thread-safe even for
     reads), but nothing detects misuse: lookups just miss.
 
 [ ] K17 [FRAGILE] Interned strings are never freed
+    GitHub issue #29
     intern_string allocates a copy per distinct string and never deletes
     it, even when its thread's table is destroyed. Unbounded key domains
     (e.g. keys parsed from data) grow memory without limit.
@@ -180,6 +209,7 @@ Python extension
 
 [ ] P1 [DEFINITE] [CONFIRMED] Python slice assignment orphans or aliases
     the assigned values  (was Object bug #10)
+    GitHub issue #30
     pyext/NodelObject.cxx, NodelObject_mp_ass_subscript, slice branch.
     Confirmed by replicating the extension's steps in C++; the extension
     itself was not rebuilt.
@@ -206,6 +236,7 @@ Python extension
 
 [ ] P2 [LIKELY] In-place operators on bound values don't reach the data
     source
+    GitHub issue #31
     pyext/NodelObject.cxx in-place number/string operators (+=, -=, ...,
     string slice assignment and *=). Object::type() reports the cached type
     of a bound Object, so these take the plain INT/UINT/FLOAT/STR branches:
