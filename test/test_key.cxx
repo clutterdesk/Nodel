@@ -148,6 +148,30 @@ TEST(Key, CompareBool) {
     EXPECT_LT(k, "tea"_key);
 }
 
+TEST(Key, BoolEqualsOnlyZeroOrOne) {
+    EXPECT_NE(Key{2}, true);
+    EXPECT_NE(Key{true}, Key{2});
+    EXPECT_NE(Key{2ULL}, Key{true});
+    EXPECT_NE(Key{0.5}, Key{true});
+    EXPECT_NE(Key{true}, 0.5);
+    EXPECT_NE(Key{-1}, Key{true});
+    EXPECT_EQ(Key{0}, Key{false});
+    EXPECT_EQ(Key{false}, 0.0);
+    EXPECT_EQ(Key{1ULL}, Key{true});
+    EXPECT_EQ(Key{true}, Key{1.0});
+    EXPECT_TRUE((Key{true} <=> Key{2}) < 0);
+}
+
+TEST(Key, BoolKeysInHashMap) {
+    tsl::ordered_map<Key, int, KeyHash> map;
+    map[Key{true}] = 1;
+    map[Key{2}] = 2;
+    map[Key{1}] = 3;
+    EXPECT_EQ(map.size(), 2);
+    EXPECT_EQ(map[Key{true}], 3);
+    EXPECT_EQ(map[Key{2}], 2);
+}
+
 TEST(Key, CompareInt) {
     Key k{7};
     EXPECT_TRUE(k.is_type<Int>());

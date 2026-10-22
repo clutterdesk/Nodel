@@ -163,16 +163,16 @@ class Key
     bool operator == (is_bool auto other) const {
         switch (m_repr_ix) {
             case BOOL:  return m_repr.b == other;
-            case INT:   return (bool)m_repr.i == other;
-            case UINT:  return (bool)m_repr.u == other;
-            case FLOAT: return (bool)m_repr.f == other;
+            case INT:   return m_repr.i == (Int)other;
+            case UINT:  return m_repr.u == (UInt)other;
+            case FLOAT: return m_repr.f == (Float)other;
             default:    return false;
         }
     }
 
     bool operator == (is_like_Int auto other) const {
         switch (m_repr_ix) {
-            case BOOL:  return m_repr.b == (bool)other;
+            case BOOL:  return (Int)m_repr.b == other;
             case INT:   return m_repr.i == other;
             case UINT:  return equal(m_repr.u, other);
             case FLOAT: return m_repr.f == other;
@@ -182,7 +182,7 @@ class Key
 
     bool operator == (is_like_UInt auto other) const {
         switch (m_repr_ix) {
-            case BOOL:  return m_repr.b == (bool)other;
+            case BOOL:  return (UInt)m_repr.b == other;
             case INT:   return equal(other, m_repr.i);
             case UINT:  return m_repr.u == other;
             case FLOAT: return m_repr.f == other;
@@ -192,7 +192,7 @@ class Key
 
     bool operator == (Float other) const {
         switch (m_repr_ix) {
-            case BOOL:  return m_repr.b == (bool)other;
+            case BOOL:  return (Float)m_repr.b == other;
             case INT:   return (Float)m_repr.i == other;
             case UINT:  return (Float)m_repr.u == other;
             case FLOAT: return m_repr.f == other;
