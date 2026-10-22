@@ -2206,10 +2206,7 @@ void Object::del(const Key& key) {
         case LIST: {
             auto& list = std::get<0>(*m_repr.pl);
             Int index = key.to_int();
-            auto size = list.size();
-            if (index < 0) index += size;
-            if (index >= 0) {
-                if (index > (Int)size) index = size;
+            if (norm_index(index, list.size())) {
                 auto it = list.begin() + index;
                 Object value = *it;
                 list.erase(it);
@@ -2420,11 +2417,11 @@ void Object::set(const Slice& slice, ValueRange&& in_vals) {
                     list.erase(list.begin() + start, list.begin() + stop);
             } else if (step > 1) {
                 for (auto val : in_vals) {
+                    if (start >= stop) break;
                     if (val.parent() != nil) val = val.copy();
                     list[start] = val;
                     val.set_parent(*this);
                     start += step;
-                    if (start >= stop) break;
                 }
                 --step;  // size reduced by one on each iteration
                 for (; start < stop && start < (Int)list.size(); start += step) {
@@ -2444,11 +2441,11 @@ void Object::set(const Slice& slice, ValueRange&& in_vals) {
                     list.erase(list.begin() + stop + 1, list.begin() + start + 1);
             } else if (step < -1) {
                 for (auto val : in_vals) {
+                    if (start <= stop) break;
                     if (val.parent() != nil) val = val.copy();
                     list[start] = val;
                     val.set_parent(*this);
                     start += step;
-                    if (start <= stop) break;
                 }
                 ++step;  // size reduced by on on each iteration
                 for (; start > stop && start >= 0; start += step)

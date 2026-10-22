@@ -3093,6 +3093,20 @@ TEST(ObjectBug, ListSetSliceStepTwoEmptyRange) {
     EXPECT_EQ(obj.to_json(), "[0, 1, 2]");
 }
 
+// Bug 4b: set(Slice) with step < -1 and an empty range overwrites list[start].
+TEST(ObjectBug, ListSetSliceNegativeStepEmptyRange) {
+    Object obj = "[0, 1, 2]"_json;
+    obj.set(Slice{Key{0}, Key{5}, -2}, "[9]"_json);
+    EXPECT_EQ(obj.to_json(), "[0, 1, 2]");
+}
+
+// Bug 4b (ASan): set(Slice) with step < -1 on an empty list writes list[-1].
+TEST(ObjectBug, EmptyListSetSliceNegativeStep) {
+    Object obj = "[]"_json;
+    obj.set("::-2"_slice, "[9]"_json);
+    EXPECT_EQ(obj.size(), 0UL);
+}
+
 // del(Slice) with a negative step and a stop before the start of the list.
 TEST(ObjectBug, ListDelSliceNegativeStepStopBeforeStart) {
     Object obj = "[0, 1, 2, 3, 4]"_json;
@@ -3114,7 +3128,20 @@ TEST(ObjectBug, ListDelIndexOutOfRange) {
     Object obj = "[0, 1, 2]"_json;
     obj.del(3);
     obj.del(10);
+    obj.del(-4);
     EXPECT_EQ(obj.to_json(), "[0, 1, 2]");
+    obj.del(-3);
+    EXPECT_EQ(obj.to_json(), "[1, 2]");
+    obj.del(1);
+    EXPECT_EQ(obj.to_json(), "[1]");
+}
+
+// Bug #5: del(Key) on an empty list.
+TEST(ObjectBug, EmptyListDelIndex) {
+    Object obj = "[]"_json;
+    obj.del(0);
+    obj.del(-1);
+    EXPECT_EQ(obj.size(), 0UL);
 }
 
 // Bug #6: elements removed by del(Slice) keep their parent.

@@ -49,7 +49,7 @@ DEFINITE BUGS
    clamps as Python does; sorted-map slice set uses the new
    to_unbounded_indices() instead of to_indices(0).
 
-4b. set(Slice) step >1 / < -1 writes list[start] before checking the range
+4b. [FIXED] set(Slice) step >1 / < -1 writes list[start] before checking the range
    (Object::set(const Slice&, ValueRange&&), step >1 and step < -1 loops)
    The loop body assigns list[start] and only then checks start >= stop,
    so an empty range (e.g. [5:20:2] on a 3-element list) writes one past
@@ -57,7 +57,7 @@ DEFINITE BUGS
    (it previously wrote even further out). Test:
    ObjectBug.ListSetSliceStepTwoEmptyRange (ASan).
 
-5. del(Key) on lists can erase end() (line 2211)
+5. [FIXED] del(Key) on lists can erase end() (line 2211)
    An index equal to the size is clamped to size, then
    list.erase(begin()+size) runs (UB). Out-of-range indexes should just
    return.
