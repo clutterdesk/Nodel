@@ -3172,6 +3172,65 @@ TEST(ObjectBug, ListSetSliceClearsParent) {
     EXPECT_TRUE(child.parent() == nil);
 }
 
+// Bug #6: elements replaced or erased by slice operations, for each step.
+TEST(ObjectBug, ListSliceOpsClearParent) {
+    auto make = [] () { return "[{}, {}, {}, {}, {}, {}]"_json; };
+    auto children = [] (const Object& list) { return algo::collect(list.iter_values()); };
+    auto all_detached = [] (const ObjectList& objs) {
+        return std::all_of(objs.begin(), objs.end(), [] (const Object& o) { return o.parent() == nil; });
+    };
+
+    // set: replace one and erase the rest, for steps 1, 2, -1 and -3
+    for (auto slice : {"0:4"_slice, "0:6:2"_slice, "3::-1"_slice, "5::-3"_slice}) {
+        auto obj = make();
+        auto before = children(obj);
+        obj.set(slice, "[1]"_json);
+        auto after = children(obj);
+        ObjectList removed;
+        for (auto& child : before)
+            if (std::none_of(after.begin(), after.end(), [&child] (const Object& o) { return o.is(child); }))
+                removed.push_back(child);
+        EXPECT_FALSE(removed.empty()) << slice.to_str();
+        EXPECT_TRUE(all_detached(removed)) << slice.to_str();
+    }
+
+    // del, for steps 1, 2, -1 and -3
+    for (auto slice : {"0:4"_slice, "0:6:2"_slice, "3::-1"_slice, "5::-3"_slice}) {
+        auto obj = make();
+        auto before = children(obj);
+        obj.del(slice);
+        EXPECT_EQ(before.size() - obj.size(), (size_t)std::count_if(before.begin(), before.end(),
+                  [] (const Object& o) { return o.parent() == nil; })) << slice.to_str();
+    }
+}
+
+// Bug #6 (ASan): a removed element must not refer to the freed list.
+TEST(ObjectBug, ListDelSliceChildOutlivesList) {
+    Object child;
+    {
+        Object obj = "[{}, {}]"_json;
+        child = obj.get(0);
+        obj.del(Slice{Key{0}, Key{1}});
+    }
+    EXPECT_TRUE(child.parent() == nil);
+}
+
+// set(Slice) step > 1 with fewer values than slots erases exactly the
+// remaining slots.
+TEST(ObjectBug, ListSetSliceStepTwoFewerValues) {
+    Object obj = "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]"_json;
+    obj.set(Slice{Key{0}, Key{10}, 2}, "[]"_json);
+    EXPECT_EQ(obj.to_json(), "[1, 3, 5, 7, 9, 10, 11]");
+}
+
+// set(Slice) step < -1 with fewer values than slots erases exactly the
+// remaining slots.
+TEST(ObjectBug, ListSetSliceNegativeStepFewerValues) {
+    Object obj = "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]"_json;
+    obj.set("9::-3"_slice, "[]"_json);
+    EXPECT_EQ(obj.to_json(), "[1, 2, 4, 5, 7, 8]");
+}
+
 // Bug #7: Subscript::is_unsaved() does not return a value.
 TEST(ObjectBug, SubscriptIsUnsaved) {
     Object obj = "{}"_json;

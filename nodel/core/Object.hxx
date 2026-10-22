@@ -2405,29 +2405,41 @@ void Object::set(const Slice& slice, ValueRange&& in_vals) {
             Int start = std::get<0>(indices);
             Int stop = std::get<1>(indices);
             Int step = std::get<2>(indices);
+
+            // replaced and erased elements must be detached from this list
+            auto replace = [&list] (Int index, const Object& val) {
+                list[index].clear_parent();
+                list[index] = val;
+            };
+            auto erase = [&list] (Int first, Int last) {
+                for (Int i = first; i < last; ++i)
+                    list[i].clear_parent();
+                list.erase(list.begin() + first, list.begin() + last);
+            };
+
             if (step == 1) {
                 for (auto val : in_vals) {
                     if (val.parent() != nil) val = val.copy();
                     if (start >= stop) {
                         list.insert(list.begin() + start, val);
                     } else {
-                        list[start++] = val;
+                        replace(start++, val);
                     }
                     val.set_parent(*this);
                 }
                 if (start < stop)
-                    list.erase(list.begin() + start, list.begin() + stop);
+                    erase(start, stop);
             } else if (step > 1) {
                 for (auto val : in_vals) {
                     if (start >= stop) break;
                     if (val.parent() != nil) val = val.copy();
-                    list[start] = val;
+                    replace(start, val);
                     val.set_parent(*this);
                     start += step;
                 }
                 --step;  // size reduced by one on each iteration
                 for (; start < stop && start < (Int)list.size(); start += step) {
-                    list.erase(list.begin() + start, list.begin() + start + 1);
+                    erase(start, start + 1);
                 }
             } else if (step == -1) {
                 for (auto val : in_vals) {
@@ -2435,23 +2447,23 @@ void Object::set(const Slice& slice, ValueRange&& in_vals) {
                     if (start <= stop) {
                         list.insert(list.begin() + start + 1, val);
                     } else {
-                        list[start--] = val;
+                        replace(start--, val);
                     }
                     val.set_parent(*this);
                 }
                 if (start > stop)
-                    list.erase(list.begin() + stop + 1, list.begin() + start + 1);
+                    erase(stop + 1, start + 1);
             } else if (step < -1) {
                 for (auto val : in_vals) {
                     if (start <= stop) break;
                     if (val.parent() != nil) val = val.copy();
-                    list[start] = val;
+                    replace(start, val);
                     val.set_parent(*this);
                     start += step;
                 }
                 ++step;  // size reduced by on on each iteration
                 for (; start > stop && start >= 0; start += step)
-                    list.erase(list.begin() + start, list.begin() + start + 1);
+                    erase(start, start + 1);
             }
             break;
         }
@@ -2485,19 +2497,27 @@ void Object::del(const Slice& slice) {
         case LIST: {
             auto& list = std::get<0>(*m_repr.pl);
             auto [start, stop, step] = slice.to_indices(list.size());
+
+            // erased elements must be detached from this list
+            auto erase = [&list] (Int first, Int last) {
+                for (Int i = first; i < last; ++i)
+                    list[i].clear_parent();
+                list.erase(list.begin() + first, list.begin() + last);
+            };
+
             if (step > 0) {
                 if (start >= stop) break;
                 if (step == 1) {
-                    list.erase(list.begin() + start, list.begin() + stop);
+                    erase(start, stop);
                 } else {
                     // erase from the back, so lower indices remain valid
                     Int last = start + ((stop - 1 - start) / step) * step;
                     for (Int i = last; i >= start; i -= step)
-                        list.erase(list.begin() + i);
+                        erase(i, i + 1);
                 }
             } else if (step < 0) {
                 for (Int i = start; i > stop; i += step)
-                    list.erase(list.begin() + i);
+                    erase(i, i + 1);
             }
             break;
         }

@@ -57,12 +57,27 @@ DEFINITE BUGS
    (it previously wrote even further out). Test:
    ObjectBug.ListSetSliceStepTwoEmptyRange (ASan).
 
+4c. set(Slice) step >1 / < -1 erases the wrong elements when there are
+   fewer values than slots
+   (Object::set(const Slice&, ValueRange&&), the tail loops after
+   `--step` and `++step`)
+   - Step >1: the loop compensates for the shrinking list by advancing
+     start by step-1, but compares it against the original stop, so it
+     can erase elements past the slice. [0..11] set [0:10:2] to [] gives
+     [1,3,5,7,9,11] instead of [1,3,5,7,9,10,11].
+   - Step < -1: erasing from the back doesn't shift lower indices, so the
+     ++step adjustment is wrong. [0..9] set [9::-3] to [] gives
+     [0,2,4,6,8] instead of [1,2,4,5,7,8].
+   Predates the other slice fixes. Tests:
+   ObjectBug.ListSetSliceStepTwoFewerValues,
+   ObjectBug.ListSetSliceNegativeStepFewerValues.
+
 5. [FIXED] del(Key) on lists can erase end() (line 2211)
    An index equal to the size is clamped to size, then
    list.erase(begin()+size) runs (UB). Out-of-range indexes should just
    return.
 
-6. Elements removed by slice operations keep a dangling parent pointer
+6. [FIXED] Elements removed by slice operations keep a dangling parent pointer
    (lines 2414, 2423, 2438, 2447, 2489-2495)
    Elements overwritten or erased never get clear_parent(). Parent
    pointers aren't reference-counted, so once the list is freed, calling
