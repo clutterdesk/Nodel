@@ -121,12 +121,6 @@ Object
 Key and support
 ---------------
 
-[ ] K6 [LIKELY] Int/float equality loses precision
-    Key::operator== converts the integer to double, so integers above 2^53
-    compare equal to nearby floats (e.g. Key(2^53 + 1) == Key(2^53 as
-    double)). Those pairs then hash differently (K2 fix hashes the float as
-    2^53). Same in <=> (m_repr.i <=> other.m_repr.f).
-
 [ ] K7 [LIKELY] NaN keys can be inserted but never found
     Key(NaN) != Key(NaN), so a NaN key in a map can't be looked up, and
     each insert adds another entry.
@@ -267,6 +261,9 @@ FIXED
 [x] K5  Key(2) == true (bools compared with numbers via (bool)), which
         disagreed with hash() and <=>. A bool now equals only 0 or 1.
                                                               c8db49665e
+[x] K6  Key(2^53 + 1) == Key(2^53 as double): ints were converted to
+        double for int/float == and <=>, which disagreed with hash().
+        Ints and floats now compare exactly.                  021f3a3bea
 [x] D1  DBManager::open never returned a newly opened DB to the caller,
         so every kvdb::DB leaked a reference and the RocksDB LOCK was
         never released; DB.Save failed with "lock hold by current
