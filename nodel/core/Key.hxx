@@ -213,8 +213,12 @@ class Key
 
     std::partial_ordering operator <=> (const Key& other) const {
         switch (m_repr_ix) {
+            case NIL: {
+                return (other.m_repr_ix == NIL)? std::partial_ordering::equivalent: std::partial_ordering::less;
+            }
             case BOOL: {
                 switch (other.m_repr_ix) {
+                    case NIL:   return std::partial_ordering::greater;
                     case BOOL:  return m_repr.b <=> other.m_repr.b;
                     case INT:   return (Int)m_repr.b <=> other.m_repr.i;
                     case UINT:  return (UInt)m_repr.b <=> other.m_repr.u;
@@ -225,6 +229,7 @@ class Key
             }
             case INT: {
                 switch (other.m_repr_ix) {
+                    case NIL:   return std::partial_ordering::greater;
                     case BOOL:  return m_repr.i <=> other.to_int();
                     case INT:   return m_repr.i <=> other.m_repr.i;
                     case UINT:  return compare(m_repr.i, other.m_repr.u);
@@ -235,6 +240,7 @@ class Key
             }
             case UINT: {
                 switch (other.m_repr_ix) {
+                    case NIL:   return std::partial_ordering::greater;
                     case BOOL:  return m_repr.u <=> other.to_uint();
                     case INT:   return compare(m_repr.u, other.m_repr.i);
                     case UINT:  return m_repr.u <=> other.m_repr.u;
@@ -245,6 +251,7 @@ class Key
             }
             case FLOAT: {
                 switch (other.m_repr_ix) {
+                    case NIL:   return std::partial_ordering::greater;
                     case BOOL:  return m_repr.f <=> other.to_float();
                     case INT:   return m_repr.f <=> other.m_repr.i;
                     case UINT:  return m_repr.f <=> other.m_repr.u;
@@ -255,6 +262,7 @@ class Key
             }
             case STR: {
                 switch (other.m_repr_ix) {
+                    case NIL:   return std::partial_ordering::greater;
                     case BOOL:  return std::partial_ordering::greater;
                     case INT:   return std::partial_ordering::greater;
                     case UINT:  return std::partial_ordering::greater;

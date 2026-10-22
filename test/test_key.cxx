@@ -5,6 +5,7 @@
 #include <fmt/core.h>
 #include <nodel/core/Key.hxx>
 #include <tsl/ordered_map.h>
+#include <map>
 
 using namespace nodel;
 
@@ -164,6 +165,25 @@ TEST(Key, CompareString) {
     EXPECT_TRUE(k.is_type<String>());
     EXPECT_EQ(k, "foo"s);
     EXPECT_EQ(k, Key{"foo"s});
+}
+
+TEST(Key, OrderNull) {
+    Key k;
+    EXPECT_TRUE((k <=> Key{}) == 0);
+    for (auto& other : {Key{false}, Key{-1}, Key{0u}, Key{-1.5}, Key{"foo"s}}) {
+        EXPECT_TRUE(k < other);
+        EXPECT_TRUE(other > k);
+    }
+}
+
+TEST(Key, SortedMapWithNullKey) {
+    std::map<Key, int> map;
+    map[Key{}] = 1;
+    map[Key{5}] = 2;
+    map[Key{"z"s}] = 3;
+    EXPECT_EQ(map.size(), 3);
+    EXPECT_EQ(map.begin()->first, nil);
+    EXPECT_EQ(map[Key{}], 1);
 }
 
 TEST(Key, HashNull) {
