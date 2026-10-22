@@ -42,6 +42,7 @@ struct Slice
     bool contains(const Key& key) const;
 
     std::tuple<Int, Int, Int> to_indices(UInt size) const;
+    std::tuple<Int, Int, Int> to_unbounded_indices() const;
     Slice normalize(UInt size) const;
 
     std::string to_str() const;
@@ -49,6 +50,10 @@ struct Slice
     const Endpoint& min() const { return m_min; }
     const Endpoint& max() const { return m_max; }
 
+  private:
+    std::tuple<Int, Int, Int> resolve_indices(UInt size, bool bounded) const;
+
+  public:
     Endpoint m_min;
     Endpoint m_max;
     Int m_step;
@@ -82,20 +87,45 @@ bool Slice::contains(const Key& key) const {
     return true;
 }
 
+/// Convert to (start, stop, step) indices into a sequence of the specified size.
+/// - Negative indices count from the end of the sequence.
+/// - As in Python, the indices are clamped to the sequence: [0, size] for a
+///   positive step, and [-1, size - 1] for a negative step.
 inline
 std::tuple<Int, Int, Int> Slice::to_indices(UInt size) const {
+    auto [start, stop, step] = resolve_indices(size, true);
+    Int n = static_cast<Int>(size);
+    if (step > 0) {
+        start = std::clamp(start, (Int)0, n);
+        stop = std::clamp(stop, (Int)0, n);
+    } else {
+        start = std::clamp(start, (Int)-1, n - 1);
+        stop = std::clamp(stop, (Int)-1, n - 1);
+    }
+    return std::make_tuple(start, stop, step);
+}
+
+/// Convert to (start, stop, step) indices without wrapping negative indices or
+/// clamping, for integer-keyed maps used as sparse arrays.
+inline
+std::tuple<Int, Int, Int> Slice::to_unbounded_indices() const {
+    return resolve_indices(0, false);
+}
+
+inline
+std::tuple<Int, Int, Int> Slice::resolve_indices(UInt size, bool bounded) const {
     Int min_i;
     Int max_i;
 
     switch (m_min.m_value.type()) {
         case Key::NIL: {
-            min_i = (m_step > 0)? 0: size - 1;
+            min_i = (m_step > 0)? 0: static_cast<Int>(size) - 1;
             ASSERT(m_min.m_kind == Endpoint::Kind::CLOSED);
             break;
         }
         case Key::INT: {
             min_i = m_min.m_value.to_int();
-            if (size > 0 && min_i < 0) min_i = std::max((Int)0, min_i + static_cast<Int>(size));
+            if (bounded && min_i < 0) min_i += static_cast<Int>(size);
             if (m_min.m_kind == Endpoint::Kind::OPEN) ++min_i;
             break;
         }
@@ -111,13 +141,13 @@ std::tuple<Int, Int, Int> Slice::to_indices(UInt size) const {
 
     switch (m_max.m_value.type()) {
         case Key::NIL: {
-            max_i = (m_step > 0)? size: -1;
+            max_i = (m_step > 0)? static_cast<Int>(size): -1;
             ASSERT(m_max.m_kind == Endpoint::Kind::OPEN);
             break;
         }
         case Key::INT: {
             max_i = m_max.m_value.to_int();
-            if (size > 0 && max_i < 0) max_i = std::max((Int)0, max_i + static_cast<Int>(size));
+            if (bounded && max_i < 0) max_i += static_cast<Int>(size);
             if (m_max.m_kind == Endpoint::Kind::CLOSED) ++max_i;
             break;
         }

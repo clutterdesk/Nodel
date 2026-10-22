@@ -2932,3 +2932,350 @@ TEST(Object, StdSwap) {
     EXPECT_EQ(obj1.get("id"_key), 2);
     EXPECT_EQ(obj2.get("id"_key), 1);
 }
+
+
+//////////////////////////////////////////////////////////////////////////////
+// Regression tests for the bugs listed in KNOWN_BUGS.txt.
+// These fail until the bugs are fixed, and some of them exercise memory
+// errors that may crash the process, so exclude them from routine runs with
+// --gtest_filter=-ObjectBug.*
+// Tests marked "ASan" only fail reliably in an AddressSanitizer build.
+//////////////////////////////////////////////////////////////////////////////
+
+// Bug #1: Object(const Key&) assumes the interned string is null-terminated.
+TEST(ObjectBug, KeyWithEmbeddedNullToObject) {
+    Key key = "ab\0cd"_key;
+    Object obj{key};
+    EXPECT_EQ(obj.size(), 5UL);
+    EXPECT_EQ(obj.as<String>(), String("ab\0cd", 5));
+}
+
+// Bug #1: same as above, through the Object(Key&&) constructor.
+TEST(ObjectBug, MovedKeyWithEmbeddedNullToObject) {
+    Object obj{"ab\0cd"_key};
+    EXPECT_EQ(obj.size(), 5UL);
+    EXPECT_EQ(obj.as<String>(), String("ab\0cd", 5));
+}
+
+// Bug #1 (ASan): interned copies of substrings have no null terminator.
+TEST(ObjectBug, KeyFromSubstringToObject) {
+    String source = "objectbug_substring_key_xyz";
+    Key key{StringView{source}.substr(0, 9)};
+    Object obj{key};
+    EXPECT_EQ(obj.size(), 9UL);
+    EXPECT_EQ(obj, "objectbug");
+}
+
+// Bug #2: appending a non-string to a string falls through to the DSRC case.
+TEST(ObjectBug, StringAppendNonString) {
+    Object obj{"tea"};
+    EXPECT_THROW(obj.append(Object{1}), WrongType);
+    EXPECT_EQ(obj, "tea");
+}
+
+// Bug #3: set(Slice, ...) with step 1 takes values that already have a parent.
+TEST(ObjectBug, ListSetSliceCopiesParentedValues) {
+    Object source{Object::LIST};
+    Object child = source.append(Object{Object::OMAP});
+    Object target = "[0]"_json;
+    target.set(Slice{Key{0}, Key{1}}, source);
+    EXPECT_FALSE(target.get(0).is(child));
+    EXPECT_TRUE(child.parent().is(source));
+    EXPECT_TRUE(target.get(0).parent().is(target));
+}
+
+// Bug #3: same as above, for the step -1 branch.
+TEST(ObjectBug, ListSetSliceNegativeStepCopiesParentedValues) {
+    Object source{Object::LIST};
+    Object child = source.append(Object{Object::OMAP});
+    Object target = "[0, 1]"_json;
+    target.set("1:0:-1"_slice, source);
+    ASSERT_EQ(target.size(), 2UL);
+    EXPECT_FALSE(target.get(1).is(child));
+    EXPECT_TRUE(child.parent().is(source));
+    EXPECT_TRUE(target.get(1).parent().is(target));
+}
+
+// Bug #4: del(Slice) with step > 1 runs past the end of the list.
+TEST(ObjectBug, ListDelSliceStepTwo) {
+    Object obj = "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]"_json;
+    obj.del(Slice{Key{0}, Key{10}, 2});
+    EXPECT_EQ(obj.to_json(), "[1, 3, 5, 7, 9]");
+}
+
+// Bug #4: del(Slice) ignores step values other than 1 and 2.
+TEST(ObjectBug, ListDelSliceStepThree) {
+    Object obj = "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]"_json;
+    obj.del(Slice{Key{0}, Key{10}, 3});
+    EXPECT_EQ(obj.to_json(), "[1, 2, 4, 5, 7, 8]");
+}
+
+// Bug #4: del(Slice) with a negative step deletes every element in range.
+TEST(ObjectBug, ListDelSliceNegativeStep) {
+    Object obj = "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]"_json;
+    obj.del(Slice{Key{8}, Key{0}, -3});
+    EXPECT_EQ(obj.to_json(), "[0, 1, 3, 4, 6, 7, 9]");
+}
+
+// Bug #4: del(Slice) with a stop beyond the end of the list.
+TEST(ObjectBug, ListDelSliceStopPastEnd) {
+    Object obj = "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]"_json;
+    obj.del(Slice{Key{0}, Key{20}, 2});
+    EXPECT_EQ(obj.to_json(), "[1, 3, 5, 7, 9]");
+    obj.del(Slice{Key{3}, Key{20}});
+    EXPECT_EQ(obj.to_json(), "[1, 3, 5]");
+}
+
+// Bug #4: del(Slice) with open-ended slices.
+TEST(ObjectBug, ListDelSliceOpenEnded) {
+    Object obj = "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]"_json;
+    obj.del("::-2"_slice);
+    EXPECT_EQ(obj.to_json(), "[0, 2, 4, 6, 8]");
+    obj.del("1::2"_slice);
+    EXPECT_EQ(obj.to_json(), "[0, 4, 8]");
+}
+
+// Bug #4: del(Slice) with step -1.
+TEST(ObjectBug, ListDelSliceStepMinusOne) {
+    Object obj = "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]"_json;
+    obj.del(Slice{Key{8}, Key{0}, -1});
+    EXPECT_EQ(obj.to_json(), "[0, 9]");
+}
+
+// Slice::to_indices clamps to the sequence, as in Python.
+TEST(ObjectBug, SliceToIndicesClamps) {
+    using Indices = std::tuple<Int, Int, Int>;
+    EXPECT_EQ(Slice(Key{0}, Key{20}).to_indices(10), (Indices{0, 10, 1}));
+    EXPECT_EQ(Slice(Key{-20}, Key{5}).to_indices(10), (Indices{0, 5, 1}));
+    EXPECT_EQ(Slice(Key{15}, Key{20}).to_indices(10), (Indices{10, 10, 1}));
+    EXPECT_EQ(Slice(Key{20}, Key{0}, -1).to_indices(10), (Indices{9, 0, -1}));
+    EXPECT_EQ(Slice(Key{8}, Key{-20}, -1).to_indices(10), (Indices{8, -1, -1}));
+    EXPECT_EQ(Slice(Key{0}, Key{5}).to_indices(0), (Indices{0, 0, 1}));
+    EXPECT_EQ(Slice(Key{-1}, Key{5}).to_indices(0), (Indices{0, 0, 1}));
+}
+
+// Slice::to_unbounded_indices neither wraps nor clamps.
+TEST(ObjectBug, SliceToUnboundedIndices) {
+    using Indices = std::tuple<Int, Int, Int>;
+    EXPECT_EQ(Slice(Key{100}, Key{200}, 2).to_unbounded_indices(), (Indices{100, 200, 2}));
+    EXPECT_EQ(Slice(Key{-1}, Key{5}).to_unbounded_indices(), (Indices{-1, 5, 1}));
+}
+
+// get(Slice) on a list with endpoints past the end.
+TEST(ObjectBug, ListGetSlicePastEnd) {
+    Object obj = "[0, 1, 2]"_json;
+    EXPECT_EQ(Object{obj.get(Slice{Key{1}, Key{20}})}.to_json(), "[1, 2]");
+    EXPECT_EQ(obj.get(Slice{Key{5}, Key{20}}).size(), 0UL);
+}
+
+// iter_values(Slice) on a list with endpoints past the end.
+TEST(ObjectBug, ListIterSlicePastEnd) {
+    Object obj = "[0, 1, 2]"_json;
+    auto values = algo::collect(obj.iter_values(Slice{Key{1}, Key{20}}));
+    ASSERT_EQ(values.size(), 2UL);
+    EXPECT_EQ(values[0], 1);
+    EXPECT_EQ(values[1], 2);
+    EXPECT_EQ(algo::collect(obj.iter_values(Slice{Key{5}, Key{20}})).size(), 0UL);
+}
+
+// set(Slice) on a list with a start past the end appends, as in Python.
+TEST(ObjectBug, ListSetSlicePastEnd) {
+    Object obj = "[0, 1]"_json;
+    obj.set(Slice{Key{5}, Key{6}}, "[9]"_json);
+    EXPECT_EQ(obj.to_json(), "[0, 1, 9]");
+}
+
+// set(Slice) (ASan) with step > 1 and an empty range writes list[size].
+// The documented behaviour is that extra values are ignored.
+TEST(ObjectBug, ListSetSliceStepTwoEmptyRange) {
+    Object obj = "[0, 1, 2]"_json;
+    obj.set(Slice{Key{5}, Key{20}, 2}, "[9]"_json);
+    EXPECT_EQ(obj.to_json(), "[0, 1, 2]");
+}
+
+// del(Slice) with a negative step and a stop before the start of the list.
+TEST(ObjectBug, ListDelSliceNegativeStepStopBeforeStart) {
+    Object obj = "[0, 1, 2, 3, 4]"_json;
+    obj.del(Slice{Key{2}, Key{-20}, -1});
+    EXPECT_EQ(obj.to_json(), "[3, 4]");
+}
+
+// del(Slice) on an empty list.
+TEST(ObjectBug, EmptyListDelSlice) {
+    Object obj = "[]"_json;
+    obj.del(Slice{Key{0}, Key{5}});
+    obj.del(Slice{Key{0}, Key{5}, 2});
+    obj.del("::-1"_slice);
+    EXPECT_EQ(obj.size(), 0UL);
+}
+
+// Bug #5: del(Key) with an index equal to the size erases end().
+TEST(ObjectBug, ListDelIndexOutOfRange) {
+    Object obj = "[0, 1, 2]"_json;
+    obj.del(3);
+    obj.del(10);
+    EXPECT_EQ(obj.to_json(), "[0, 1, 2]");
+}
+
+// Bug #6: elements removed by del(Slice) keep their parent.
+TEST(ObjectBug, ListDelSliceClearsParent) {
+    Object obj = "[{}, {}]"_json;
+    Object child = obj.get(0);
+    obj.del(Slice{Key{0}, Key{1}});
+    EXPECT_TRUE(child.parent() == nil);
+}
+
+// Bug #6: elements replaced by set(Slice, ...) keep their parent.
+TEST(ObjectBug, ListSetSliceClearsParent) {
+    Object obj = "[{}, {}]"_json;
+    Object child = obj.get(0);
+    obj.set(Slice{Key{0}, Key{1}}, "[1]"_json);
+    EXPECT_TRUE(child.parent() == nil);
+}
+
+// Bug #7: Subscript::is_unsaved() does not return a value.
+TEST(ObjectBug, SubscriptIsUnsaved) {
+    Object obj = "{}"_json;
+    obj.set("x"_key, new TestSimpleSource("{}"));
+    EXPECT_FALSE(obj["x"_key].is_unsaved());
+    obj["x"_key].set("y"_key, 1);
+    EXPECT_TRUE(obj["x"_key].is_unsaved());
+}
+
+struct TestBindingSource : public TestSimpleSource
+{
+    using TestSimpleSource::TestSimpleSource;
+
+    DataSource* resolve_data_source(const Object&, const Key& key, const Object& value) const override {
+        if (!nodel::is_container(value)) return nullptr;
+        bound_keys.push_back(key);
+        return new TestSimpleSource("null");
+    }
+
+    mutable KeyList bound_keys;
+};
+
+// Bug #8: DataSource::set(target, Slice, ...) discards the bound values and
+// computes indices from the number of values instead of the container size.
+TEST(ObjectBug, DataSourceSetSliceBindsChildren) {
+    auto dsrc = new TestBindingSource("[0, 1, 2, 3, 4]");
+    Object obj{dsrc};
+    obj.set(Slice{Key{3}, Key{5}}, "[[], []]"_json);
+    EXPECT_EQ(dsrc->bound_keys, (KeyList{3, 4}));
+    EXPECT_NE(obj.get(3).data_source<DataSource>(), nullptr);
+    EXPECT_NE(obj.get(4).data_source<DataSource>(), nullptr);
+}
+
+struct TestFailingWriteSource : public TestSimpleSource
+{
+    using TestSimpleSource::TestSimpleSource;
+
+    void write(const Object&, const Object&, const Object&) override {
+        write_called = true;
+        report_write_error("write failed");
+    }
+};
+
+// Bug #9: a failed write (with throw_write_error=false) is marked as saved.
+TEST(ObjectBug, FailedWriteStaysUnsaved) {
+    DataSource::Options options;
+    options.throw_write_error = false;
+    options.quiet_write = true;
+    auto dsrc = new TestFailingWriteSource(R"("Ceylon tea")", options);
+    Object obj{dsrc};
+    obj.set("Assam tea");
+    obj.save();
+    EXPECT_TRUE(dsrc->write_called);
+    EXPECT_TRUE(obj.is_unsaved());
+}
+
+// Self-assignment (ASan): operator= releases the old value before copying.
+TEST(ObjectBug, SelfCopyAssign) {
+    Object obj = "[1, 2, 3]"_json;
+    Object& ref = obj;
+    obj = ref;
+    EXPECT_EQ(obj.to_json(), "[1, 2, 3]");
+}
+
+// Self-assignment: move-assigning an Object to itself leaves it empty.
+TEST(ObjectBug, SelfMoveAssign) {
+    Object obj = "[1, 2, 3]"_json;
+    Object& ref = obj;
+    obj = std::move(ref);
+    ASSERT_FALSE(obj.is_empty());
+    EXPECT_EQ(obj.to_json(), "[1, 2, 3]");
+}
+
+// Non-const as<T>() on a bound Object returns a reference into a temporary.
+TEST(ObjectBug, DataSourceAsReferenceModifiesCache) {
+    Object obj{new TestSimpleSource("5")};
+    obj.as<Int>() = 7;
+    EXPECT_EQ(obj, 7);
+}
+
+// Subscript assignment after the subscript was read throws for non-containers.
+TEST(ObjectBug, SubscriptAssignAfterRead) {
+    Object obj = "{'x': 1}"_json;
+    auto sub = obj["x"_key];
+    EXPECT_EQ(sub.to_str(), "1");
+    EXPECT_NO_THROW(sub = 5);
+    EXPECT_EQ(obj.get("x"_key), 5);
+}
+
+// Subscript<OPath> assignment after read applies the path to the leaf's parent.
+TEST(ObjectBug, SubscriptPathAssignAfterRead) {
+    Object obj = "{'a': {'b': {}}}"_json;
+    auto sub = obj["a.b"_path];
+    EXPECT_EQ(sub.size(), 0UL);
+    sub = 5;
+    EXPECT_EQ(obj.get("a.b"_path), 5);
+    EXPECT_TRUE(obj.get("a.a"_path) == nil);
+}
+
+// OPath::parse_brace_key (ASan): reads past the end without a closing ']'.
+TEST(ObjectBug, ParsePathMissingCloseBracket) {
+    std::vector<char> spec{'[', '1'};
+    EXPECT_THROW(OPath(StringView{spec.data(), spec.size()}), parse::SyntaxError);
+}
+
+// OPath::parse_brace_key (ASan): reads past the end after a quoted key.
+TEST(ObjectBug, ParsePathQuotedKeyMissingCloseBracket) {
+    std::vector<char> spec{'[', '\'', 'a', '\''};
+    EXPECT_THROW(OPath(StringView{spec.data(), spec.size()}), parse::SyntaxError);
+}
+
+// WalkDF drops the separator before a bound Object that isn't the first child.
+TEST(ObjectBug, JsonSeparatorBeforeDataSource) {
+    Object obj = "{'a': 1}"_json;
+    obj.set("b"_key, new TestSimpleSource("2"));
+    EXPECT_EQ(obj.to_json(), R"({"a": 1, "b": 2})");
+}
+
+// JsonVisitor: a one-liner key on a non-container disables pretty-printing.
+TEST(ObjectBug, JsonPrettyOneLinerKeyOnScalar) {
+    auto obj = "{'x': 1, 'y': [1, 2]}"_json;
+    std::stringstream ss;
+    to_pretty_json(ss, obj, 1, "['x']"_json);
+    EXPECT_EQ(ss.str(), "{\n \"x\": 1, \n \"y\": [\n  1, \n  2\n ]\n}");
+}
+
+// Equality and ordering with a bound Object only work with it on the left.
+TEST(ObjectBug, DataSourceComparisonIsSymmetric) {
+    Object bound{new TestSimpleSource("5")};
+    EXPECT_TRUE(bound == Object{5});
+    EXPECT_TRUE(Object{5} == bound);
+    EXPECT_NO_THROW(EXPECT_TRUE(Object{1} < bound));
+}
+
+// Map equality treats a missing key as nil.
+TEST(ObjectBug, MapEqualityMissingKeyVsNil) {
+    auto lhs = "{'a': null}"_json;
+    auto rhs = "{'b': 1}"_json;
+    EXPECT_FALSE(lhs == rhs);
+}
+
+// hash() must agree with operator== across numeric types.
+TEST(ObjectBug, HashConsistentWithEquality) {
+    ASSERT_TRUE(Object{1} == Object{1.0});
+    EXPECT_EQ(Object{1}.hash(), Object{1.0}.hash());
+}

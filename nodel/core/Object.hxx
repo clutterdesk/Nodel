@@ -1350,7 +1350,7 @@ Object::Object(const Key& key) : m_fields{EMPTY} {
         case Key::FLOAT: m_fields.repr_ix = FLOAT; m_repr.f = key.as<Float>(); break;
         case Key::STR: {
             m_fields.repr_ix = STR;
-            m_repr.ps = new IRCString{String{key.as<StringView>().data()}, {}};
+            m_repr.ps = new IRCString{String{key.as<StringView>().data(), key.as<StringView>().size()}, {}};
             break;
         }
         default: throw std::invalid_argument("key");
@@ -1367,7 +1367,7 @@ Object::Object(Key&& key) : m_fields{EMPTY} {
         case Key::FLOAT: m_fields.repr_ix = FLOAT; m_repr.f = key.as<Float>(); break;
         case Key::STR: {
             m_fields.repr_ix = STR;
-            m_repr.ps = new IRCString{String{key.as<StringView>().data()}, {}};
+            m_repr.ps = new IRCString{String{key.as<StringView>().data(), key.as<StringView>().size()}, {}};
             break;
         }
         default: throw std::invalid_argument("key");
@@ -2180,6 +2180,7 @@ Object Object::append(const Object& in_val) {
                 str += in_val.as<String>();
                 return *this;
             }
+            break;
         }
         case DSRC: {
             return m_repr.ds->append(*this, in_val);
@@ -2407,7 +2408,7 @@ void Object::set(const Slice& slice, ValueRange&& in_vals) {
             Int step = std::get<2>(indices);
             if (step == 1) {
                 for (auto val : in_vals) {
-                    if (val.parent() == nil) val = val.copy();
+                    if (val.parent() != nil) val = val.copy();
                     if (start >= stop) {
                         list.insert(list.begin() + start, val);
                     } else {
@@ -2431,7 +2432,7 @@ void Object::set(const Slice& slice, ValueRange&& in_vals) {
                 }
             } else if (step == -1) {
                 for (auto val : in_vals) {
-                    if (val.parent() == nil) val = val.copy();
+                    if (val.parent() != nil) val = val.copy();
                     if (start <= stop) {
                         list.insert(list.begin() + start + 1, val);
                     } else {
@@ -2456,7 +2457,7 @@ void Object::set(const Slice& slice, ValueRange&& in_vals) {
             break;
         }
         case SMAP: {
-            auto indices = slice.to_indices(0);
+            auto indices = slice.to_unbounded_indices();
             Int start = std::get<0>(indices);
             Int stop = std::get<1>(indices);
             Int step = std::get<2>(indices);
@@ -2485,14 +2486,19 @@ void Object::del(const Slice& slice) {
         case LIST: {
             auto& list = std::get<0>(*m_repr.pl);
             auto [start, stop, step] = slice.to_indices(list.size());
-            if (step == 1) {
-                list.erase(list.begin() + start, list.begin() + stop);
-            } else if (step > 1) {
-                for (; start < stop; ++start)
-                    list.erase(list.begin() + start);
+            if (step > 0) {
+                if (start >= stop) break;
+                if (step == 1) {
+                    list.erase(list.begin() + start, list.begin() + stop);
+                } else {
+                    // erase from the back, so lower indices remain valid
+                    Int last = start + ((stop - 1 - start) / step) * step;
+                    for (Int i = last; i >= start; i -= step)
+                        list.erase(list.begin() + i);
+                }
             } else if (step < 0) {
-                for (; start > stop; --start)
-                    list.erase(list.begin() + start);
+                for (Int i = start; i > stop; i += step)
+                    list.erase(list.begin() + i);
             }
             break;
         }

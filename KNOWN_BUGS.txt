@@ -1,0 +1,156 @@
+KNOWN BUGS - nodel/core/Object.hxx
+==================================
+
+Found by reading the code (2026-10-22). Items marked [CONFIRMED by probe]
+were reproduced with a small test program built with AddressSanitizer;
+the rest are from code reading only. Nothing has been fixed yet. Line
+numbers refer to Object.hxx at commit 4cd6fe89f7.
+
+Confirmed by probe: #1, #2, #3, #4, #5, #6, self-assignment, map
+equality, Subscript assignment, hash (floats only). #2 is also flagged by
+clang -Wimplicit-fallthrough at line 2184.
+
+
+DEFINITE BUGS
+-------------
+
+1. [FIXED] Object(const Key&) / Object(Key&&) read past the end of a buffer
+   (lines 1353, 1370)
+   They do String{key.as<StringView>().data()}, which assumes the text
+   ends in a null byte. It doesn't: intern_string (support/intern.hxx:57)
+   copies exactly str.size() bytes with no terminator. Any key built from
+   a slice of a string (e.g. every key OPath parses) produces a string
+   with garbage on the end.
+   Fix: String{sv.data(), sv.size()}.
+
+2. [FIXED] append() on a string falls through to the data-source code
+   (lines 2177-2186)
+   If the argument isn't a string, the STR case has no break/throw, so it
+   runs m_repr.ds->append(...) on what is actually a string pointer.
+   Undefined behaviour instead of a WrongType error.
+
+3. [FIXED] "Copy if it already has a parent" check is backwards in
+   set(Slice, ValueRange&&) for step +/-1 (lines 2410, 2434)
+   Both use `if (val.parent() == nil) val = val.copy();`; the step >1 and
+   < -1 branches correctly use `!= nil`. Values with no parent get copied
+   needlessly, and values already in another container are taken over by
+   this list while still sitting in the original.
+
+4. [FIXED] del(Slice) on lists is wrong for any step other than 1
+   (lines 2490-2496)
+   - Step >1: the loop does ++start up to the original stop while the
+     list shrinks, so it runs past end() (UB). E.g. [0:10:2] on 10
+     elements reaches erase(begin()+5) on a 5-element list. It also
+     ignores step.
+   - Step <0: deletes every element in the range, ignoring step.
+   Root cause was partly Slice::to_indices (Slice.hxx), which did not clamp
+   to the sequence size, so get/set/del(Slice) and the list Key/Value/Item
+   range iterators could all index past the end. [FIXED] to_indices now
+   clamps as Python does; sorted-map slice set uses the new
+   to_unbounded_indices() instead of to_indices(0).
+
+4b. set(Slice) step >1 / < -1 writes list[start] before checking the range
+   (Object::set(const Slice&, ValueRange&&), step >1 and step < -1 loops)
+   The loop body assigns list[start] and only then checks start >= stop,
+   so an empty range (e.g. [5:20:2] on a 3-element list) writes one past
+   the end. Confirmed with AddressSanitizer; predates the to_indices fix
+   (it previously wrote even further out). Test:
+   ObjectBug.ListSetSliceStepTwoEmptyRange (ASan).
+
+5. del(Key) on lists can erase end() (line 2211)
+   An index equal to the size is clamped to size, then
+   list.erase(begin()+size) runs (UB). Out-of-range indexes should just
+   return.
+
+6. Elements removed by slice operations keep a dangling parent pointer
+   (lines 2414, 2423, 2438, 2447, 2489-2495)
+   Elements overwritten or erased never get clear_parent(). Parent
+   pointers aren't reference-counted, so once the list is freed, calling
+   parent() on a removed element is a use-after-free. Key-based del/set
+   handle this correctly.
+
+7. Subscript::is_unsaved() has no return (line 4114)
+   Flowing off the end of a non-void function is UB.
+
+8. DataSource::set(target, Slice, ...) loses its work (lines 3726-3729)
+   It throws away bind_child's return value, so the child data-source
+   binding is lost. It also computes slice indices from vals.size() (the
+   incoming values) instead of the container's size.
+
+9. A failed write is still marked as saved (line 3449)
+   report_write_error never sets m_write_failed = true, unlike its read
+   counterpart. With throw=false, save() clears m_unsaved after a failed
+   write, so changes are silently lost.
+
+
+LIKELY BUGS AND FRAGILE CODE
+----------------------------
+
+- Self-assignment can free the object first (lines 3104, 3161)
+  operator= calls dec_ref_count() before copying. `x = x` on the only
+  reference to a container frees it and then reads from it; a self-move
+  leaves x empty. Same when assigning from a reference to an element
+  inside the container being freed.
+
+- Non-const as<T>() returns a dangling reference for bound objects
+  (line 1483)
+  For number types on a data-source object, dsrc_read() returns a
+  temporary Object, and the T& points into that temporary.
+
+- Subscript assignment breaks after the subscript has been read
+  (lines 4099-4109)
+  - resolve() replaces m_obj with the looked-up value, so assignment then
+    calls m_obj.parent().set(m_sub, ...).
+  - If that value is a number, nil or missing, its parent is nil and set
+    throws. E.g. reading s = obj["x"] and then doing s = 5 throws.
+  - For Subscript<OPath>, the full path is applied to the leaf's parent
+    instead of the original container.
+
+- Some Subscript methods won't compile when used (lines 4025-4030)
+  key() calls m_sub.tail(), which OPath doesn't have (it has leaf()).
+  keys(), items() and values() call Object methods that don't exist.
+  They only fail if someone instantiates them.
+
+- OPath::parse_brace_key reads past the end of the input
+  (lines 776, 772)
+  The loop `++it, c = *it` reads end() when the closing ] is missing. The
+  quoted branch also reads *it at end() for input like "['a'".
+
+- clear_parent() reaches a data source through the alien pointer
+  (line 1590)
+  Uses m_repr.pany->m_parent instead of m_repr.ds->m_parent. Works only
+  because both classes happen to keep m_parent at the same offset.
+
+- id() reads a sorted map through the ordered-map pointer (line 2931)
+  Uses m_repr.pom; works only by the same kind of layout accident.
+
+- WalkDF loses the comma before a bound object (line 2738)
+  Pushes the cached value with FIRST_VALUE and drops the original event,
+  so a bound object that isn't the first child gets no ", " before it in
+  JSON output.
+
+- JsonVisitor one-liner depth leaks (line 2857)
+  Increments for any value whose key is a one-liner key, but only
+  decrements at the end of a container. A plain value under such a key
+  turns off pretty-printing for the rest of the output.
+
+- Equality is one-sided with bound objects (lines 2513, 2599)
+  bound == 5 loads the data and compares, but Object{5} == bound returns
+  false, and <=> throws.
+
+- Map equality treats missing keys as nil (line 2580)
+  Because a missing key reads as nil, {a: nil} == {b: 1} is true.
+
+- hash() disagrees with == for floats (line 2661)  [CONFIRMED by probe]
+  INT 1 and FLOAT 1.0 compare equal but hash differently, which breaks
+  hash containers. (INT 1 and UINT 1 do hash equally.)
+
+- OPath(const StringView&) only checks its input with assert
+  (lines 740-743)
+  Reads *it at end() for an empty or all-whitespace spec in release
+  builds.
+
+
+PRIORITY
+--------
+Highest impact: #1 (affects ordinary path and key use), #2 and #3.
