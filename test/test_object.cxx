@@ -2935,7 +2935,7 @@ TEST(Object, StdSwap) {
 
 
 //////////////////////////////////////////////////////////////////////////////
-// Regression tests for the bugs listed in KNOWN_BUGS.txt.
+// Regression tests for the bugs tracked as GitHub issues.
 // These fail until the bugs are fixed, and some of them exercise memory
 // errors that may crash the process, so exclude them from routine runs with
 // --gtest_filter=-ObjectBug.*
