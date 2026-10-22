@@ -11,6 +11,7 @@ IDs
   O = nodel/core/Object.hxx (incl. OPath, Subscript, DataSource, visitors)
   K = nodel/core/Key.hxx and the support headers it uses
   P = Python extension (pyext/)
+  D = nodel/kvdb (RocksDB data source)
   T = test-suite failures whose cause is not yet known
   O1-O10 keep the numbers of the original Object bug list, which commit
   messages refer to ("Fix Object bug #9").
@@ -231,13 +232,6 @@ Python extension
 Test-suite failures
 -------------------
 
-[ ] T1 [LIKELY] Filesystem.EnterOnlyDirectories fails when test_data/
-    contains test.kvdb/
-    The DB.* tests leave an untracked test_data/test.kvdb/ behind, and this
-    test walks into it and finds parents it doesn't expect. Passes once the
-    directory is removed. Either the DB tests should clean up, or this test
-    should not depend on the contents of test_data/.
-
 [ ] T2 [DEFINITE] Filesystem.VisitOnlyFiles crashes  (cause unknown)
 [ ] T3 [DEFINITE] Query.FindFiles crashes            (cause unknown)
 [ ] T4 [DEFINITE] Zip.Read aborts                    (cause unknown)
@@ -283,3 +277,9 @@ FIXED
 [x] K4  str_to_float read past the end of a StringView (and could parse
         trailing bytes, e.g. "2.5" followed by "7" gave 2.57).
                                                               7f0ef29933
+[x] D1  DBManager::open never returned a newly opened DB to the caller,
+        so every kvdb::DB leaked a reference and the RocksDB LOCK was
+        never released; DB.Save failed with "lock hold by current
+        process".                                             406ff86a6a
+[x] T1  Filesystem.EnterOnlyDirectories failed when the DB.* tests left
+        test_data/test.kvdb/ behind (caused by D1).           406ff86a6a
