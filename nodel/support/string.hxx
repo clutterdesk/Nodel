@@ -55,12 +55,11 @@ std::string int_to_str(uint64_t v) {
 
 inline
 std::string float_to_str(double v) {
-    char buf[26];
-    // There are 53-bits in IEEE 754 (64-bit float) standard, and log10(2**53) equals 15.95, so
-    // round to 15 digits precision.
-    auto len = std::snprintf(buf, 25, "%.15g", v);
-    assert (len > 0);
-    return {buf, (size_t)len};
+    // Shortest representation that parses back to the same value.
+    char buf[32];
+    auto [end, ec] = std::to_chars(buf, buf + sizeof(buf), v);
+    assert (ec == std::errc{});
+    return {buf, (size_t)(end - buf)};
 }
 
 inline

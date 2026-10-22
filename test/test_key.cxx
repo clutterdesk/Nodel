@@ -48,7 +48,7 @@ TEST(Key, Float) {
 
   Key k2 = -2.2250738585072020e-308;
   EXPECT_TRUE(k2.is_type<Float>());
-  EXPECT_EQ(k2.to_str(), "-2.2250738585072e-308");
+  EXPECT_EQ(k2.to_str(), "-2.225073858507202e-308");
 }
 
 TEST(Key, StringLiteral) {
@@ -123,7 +123,7 @@ TEST(Key, AssignFloat) {
   EXPECT_TRUE(k == nil);
   k = -2.2250738585072020e-308;
   EXPECT_TRUE(k.is_type<Float>());
-  EXPECT_EQ(k.to_str(), "-2.2250738585072e-308");
+  EXPECT_EQ(k.to_str(), "-2.225073858507202e-308");
 }
 
 TEST(Key, AssignStringLiteral) {
@@ -511,4 +511,18 @@ TEST(Key, StreamMatchesToStr) {
         ss << k;
         EXPECT_EQ(ss.str(), k.to_str());
     }
+}
+
+TEST(Key, FloatToStrRoundTrips) {
+    for (double v : {0.1, 1.0/3.0, 3.14, 7.3, -2.2250738585072014e-308, 1.7976931348623157e308, 5e-324}) {
+        auto s = Key{v}.to_str();
+        EXPECT_EQ(std::strtod(s.c_str(), nullptr), v) << s;
+    }
+    EXPECT_EQ(Key{0.1}.to_str(), "0.1");
+}
+
+TEST(Key, FloatToStrNonFinite) {
+    EXPECT_EQ(Key{std::numeric_limits<double>::infinity()}.to_str(), "inf");
+    EXPECT_EQ(Key{-std::numeric_limits<double>::infinity()}.to_str(), "-inf");
+    EXPECT_EQ(Key{std::numeric_limits<double>::quiet_NaN()}.to_str(), "nan");
 }
