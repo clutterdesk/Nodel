@@ -2437,9 +2437,11 @@ void Object::set(const Slice& slice, ValueRange&& in_vals) {
                     val.set_parent(*this);
                     start += step;
                 }
-                --step;  // size reduced by one on each iteration
-                for (; start < stop && start < (Int)list.size(); start += step) {
-                    erase(start, start + 1);
+                if (start < stop) {
+                    // erase the remaining slots from the back, so lower indices remain valid
+                    Int last = start + ((stop - 1 - start) / step) * step;
+                    for (Int i = last; i >= start; i -= step)
+                        erase(i, i + 1);
                 }
             } else if (step == -1) {
                 for (auto val : in_vals) {
@@ -2461,8 +2463,8 @@ void Object::set(const Slice& slice, ValueRange&& in_vals) {
                     val.set_parent(*this);
                     start += step;
                 }
-                ++step;  // size reduced by on on each iteration
-                for (; start > stop && start >= 0; start += step)
+                // the remaining slots descend, so erasing doesn't shift them
+                for (; start > stop; start += step)
                     erase(start, start + 1);
             }
             break;

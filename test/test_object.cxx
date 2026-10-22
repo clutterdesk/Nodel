@@ -3223,6 +3223,21 @@ TEST(ObjectBug, ListSetSliceStepTwoFewerValues) {
     EXPECT_EQ(obj.to_json(), "[1, 3, 5, 7, 9, 10, 11]");
 }
 
+// Bug 4c: partially filled slices with step > 1 and step < -1.
+TEST(ObjectBug, ListSetSliceStridedPartialFill) {
+    Object obj = "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]"_json;
+    obj.set("1::3"_slice, "[10]"_json);  // slots 1, 4, 7
+    EXPECT_EQ(obj.to_json(), "[0, 10, 2, 3, 5, 6, 8, 9]");
+
+    obj = "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]"_json;
+    obj.set("::-4"_slice, "[10, 11]"_json);  // slots 9, 5, 1
+    EXPECT_EQ(obj.to_json(), "[0, 2, 3, 4, 11, 6, 7, 8, 10]");
+
+    obj = "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]"_json;
+    obj.set("0:3:2"_slice, "[10, 11]"_json);  // slots 0, 2 (all filled)
+    EXPECT_EQ(obj.to_json(), "[10, 1, 11, 3, 4, 5, 6, 7, 8, 9]");
+}
+
 // set(Slice) step < -1 with fewer values than slots erases exactly the
 // remaining slots.
 TEST(ObjectBug, ListSetSliceNegativeStepFewerValues) {

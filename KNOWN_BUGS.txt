@@ -57,7 +57,7 @@ DEFINITE BUGS
    (it previously wrote even further out). Test:
    ObjectBug.ListSetSliceStepTwoEmptyRange (ASan).
 
-4c. set(Slice) step >1 / < -1 erases the wrong elements when there are
+4c. [FIXED] set(Slice) step >1 / < -1 erases the wrong elements when there are
    fewer values than slots
    (Object::set(const Slice&, ValueRange&&), the tail loops after
    `--step` and `++step`)
