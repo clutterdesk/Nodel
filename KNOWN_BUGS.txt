@@ -1,216 +1,285 @@
-KNOWN BUGS - nodel/core/Object.hxx (and its Python extension)
-=============================================================
+KNOWN BUGS
+==========
 
-Found by reading the code (2026-10-22). Items marked [CONFIRMED by probe]
-were reproduced with a small test program built with AddressSanitizer;
-the rest are from code reading only. Items marked [FIXED] have been fixed
-and have passing tests in the ObjectBug suite (test/test_object.cxx).
-Line numbers refer to Object.hxx at commit 4cd6fe89f7.
+Checklist of every known bug in nodel. Tick an item ([ ] -> [x]) when it is
+fixed and has a passing regression test, and add the commit.
 
-Confirmed by probe: #1, #2, #3, #4, #5, #6, #10, self-assignment, map
-equality, Subscript assignment, hash (floats only). #2 is also flagged by
-clang -Wimplicit-fallthrough at line 2184.
+Rebuilt 2026-10-22 at commit 7f0ef29933. Locations are given by function
+name because line numbers drift.
 
+IDs
+  O = nodel/core/Object.hxx (incl. OPath, Subscript, DataSource, visitors)
+  K = nodel/core/Key.hxx and the support headers it uses
+  P = Python extension (pyext/)
+  T = test-suite failures whose cause is not yet known
+  O1-O10 keep the numbers of the original Object bug list, which commit
+  messages refer to ("Fix Object bug #9").
 
-DEFINITE BUGS
--------------
-
-1. [FIXED] Object(const Key&) / Object(Key&&) read past the end of a buffer
-   (lines 1353, 1370)
-   They do String{key.as<StringView>().data()}, which assumes the text
-   ends in a null byte. It doesn't: intern_string (support/intern.hxx:57)
-   copies exactly str.size() bytes with no terminator. Any key built from
-   a slice of a string (e.g. every key OPath parses) produces a string
-   with garbage on the end.
-   Fix: String{sv.data(), sv.size()}.
-
-2. [FIXED] append() on a string falls through to the data-source code
-   (lines 2177-2186)
-   If the argument isn't a string, the STR case has no break/throw, so it
-   runs m_repr.ds->append(...) on what is actually a string pointer.
-   Undefined behaviour instead of a WrongType error.
-
-3. [FIXED] "Copy if it already has a parent" check is backwards in
-   set(Slice, ValueRange&&) for step +/-1 (lines 2410, 2434)
-   Both use `if (val.parent() == nil) val = val.copy();`; the step >1 and
-   < -1 branches correctly use `!= nil`. Values with no parent get copied
-   needlessly, and values already in another container are taken over by
-   this list while still sitting in the original.
-
-4. [FIXED] del(Slice) on lists is wrong for any step other than 1
-   (lines 2490-2496)
-   - Step >1: the loop does ++start up to the original stop while the
-     list shrinks, so it runs past end() (UB). E.g. [0:10:2] on 10
-     elements reaches erase(begin()+5) on a 5-element list. It also
-     ignores step.
-   - Step <0: deletes every element in the range, ignoring step.
-   Root cause was partly Slice::to_indices (Slice.hxx), which did not clamp
-   to the sequence size, so get/set/del(Slice) and the list Key/Value/Item
-   range iterators could all index past the end. [FIXED] to_indices now
-   clamps as Python does; sorted-map slice set uses the new
-   to_unbounded_indices() instead of to_indices(0).
-
-4b. [FIXED] set(Slice) step >1 / < -1 writes list[start] before checking the range
-   (Object::set(const Slice&, ValueRange&&), step >1 and step < -1 loops)
-   The loop body assigns list[start] and only then checks start >= stop,
-   so an empty range (e.g. [5:20:2] on a 3-element list) writes one past
-   the end. Confirmed with AddressSanitizer; predates the to_indices fix
-   (it previously wrote even further out). Test:
-   ObjectBug.ListSetSliceStepTwoEmptyRange (ASan).
-
-4c. [FIXED] set(Slice) step >1 / < -1 erases the wrong elements when there are
-   fewer values than slots
-   (Object::set(const Slice&, ValueRange&&), the tail loops after
-   `--step` and `++step`)
-   - Step >1: the loop compensates for the shrinking list by advancing
-     start by step-1, but compares it against the original stop, so it
-     can erase elements past the slice. [0..11] set [0:10:2] to [] gives
-     [1,3,5,7,9,11] instead of [1,3,5,7,9,10,11].
-   - Step < -1: erasing from the back doesn't shift lower indices, so the
-     ++step adjustment is wrong. [0..9] set [9::-3] to [] gives
-     [0,2,4,6,8] instead of [1,2,4,5,7,8].
-   Predates the other slice fixes. Tests:
-   ObjectBug.ListSetSliceStepTwoFewerValues,
-   ObjectBug.ListSetSliceNegativeStepFewerValues.
-
-4d. [FIXED] set(Slice) with step 1 inserts extra values in reverse order
-   (Object::set(const Slice&, ValueRange&&), step 1 loop)
-   When there are more values than slots, each extra value is inserted at
-   list.begin() + start, but start is not advanced after an insert. So
-   [0,1,2] set [1:2] to [10,11,12] gives [0,10,12,11,2], and appending
-   [10,11,12] at [3:3] gives [0,1,2,12,11,10]. (The step -1 branch inserts
-   at a fixed position on purpose, which yields the right order there.)
-   Test: ObjectBug.ListSetSliceInsertOrder.
-
-5. [FIXED] del(Key) on lists can erase end() (line 2211)
-   An index equal to the size is clamped to size, then
-   list.erase(begin()+size) runs (UB). Out-of-range indexes should just
-   return.
-
-6. [FIXED] Elements removed by slice operations keep a dangling parent pointer
-   (lines 2414, 2423, 2438, 2447, 2489-2495)
-   Elements overwritten or erased never get clear_parent(). Parent
-   pointers aren't reference-counted, so once the list is freed, calling
-   parent() on a removed element is a use-after-free. Key-based del/set
-   handle this correctly.
-
-7. [FIXED] Subscript::is_unsaved() has no return (line 4114)
-   Flowing off the end of a non-void function is UB.
-
-8. [FIXED] DataSource::set(target, Slice, ...) loses its work (lines 3726-3729)
-   It throws away bind_child's return value, so the child data-source
-   binding is lost. It also computes slice indices from vals.size() (the
-   incoming values) instead of the container's size.
-   Fixing it exposed a related bug in DataSource::bind_child, also fixed:
-   a value that already had a parent was bound in place, and bind() then
-   put the bound value back into that parent, so it was shared by two
-   containers (affects DataSource::set(Key) too).
-
-9. [FIXED] A failed write is still marked as saved
-   (DataSource::report_write_error; line 3449 at 4cd6fe89f7)
-   report_write_error never sets m_write_failed = true, unlike its read
-   counterpart. With throw=false, save() clears m_unsaved after a failed
-   write, so changes are silently lost.
-   Also fixed, in the sparse branch of DataSource::save: a failed
-   delete_key still removed the key's delete record from the cache, so a
-   later save would not retry the delete. Each write_key/delete_key is now
-   checked on its own, and only successful deletes clear their record.
-
-10. Python slice assignment orphans or aliases the assigned values
-   (pyext/NodelObject.cxx, NodelObject_mp_ass_subscript, slice branch)
-   [CONFIRMED by probe, replicating the extension's steps in C++; the
-   extension itself was not rebuilt]
-   The extension converts the value with Support::to_object(), calls
-   clear_parent() on each element "to prevent copying", then calls
-   self_obj.set(slice, nd_vals).
-   - Python list value, e.g. lst[0:1] = [[], []]: to_object() builds a
-     temporary nodel list. The values go into lst uncopied, then the
-     temporary's destructor clears the parent of every element it holds,
-     so the values in lst have no parent (parent() is nil, path() is
-     wrong, and assigning one elsewhere won't copy it).
-     REGRESSION: before the bug #3 fix, step +/-1 copied values with no
-     parent, which accidentally avoided this. With |step| > 1 it was
-     already broken.
-   - Nodel object value, e.g. lst2[0:1] = other: to_object() returns
-     `other` itself, not a temporary, so clear_parent() detaches other's
-     own elements while they are still in other. Before the #3 fix they
-     were then copied (other's elements left with no parent); now they are
-     inserted uncopied, so lst2 and other share them: other[0]['k'] = 1
-     also changes lst2[0].
-   Suggested fix: only clear parents when to_object() produced a new
-   temporary container (not for a NodelObject value), and release the
-   temporary's elements without clearing their parents afterwards, as
-   DataSource::set(Slice) now does.
+Tags
+  [DEFINITE]  Wrong behaviour that has been reproduced, or is certain from
+              the code.
+  [LIKELY]    Probably a bug, but not reproduced, or it depends on intended
+              behaviour that is not documented.
+  [FRAGILE]   Works today, but only by accident (layout coincidences, code
+              that is never instantiated, unchecked input). Will break on an
+              unrelated change.
+  [CONFIRMED] Reproduced, by an ObjectBug/Key test or an ASan probe.
+  [ASan]      The regression test only catches the bug when built with
+              AddressSanitizer; it passes in a normal build.
 
 
-LIKELY BUGS AND FRAGILE CODE
-----------------------------
+OPEN
+====
 
-- Self-assignment can free the object first (lines 3104, 3161)
-  operator= calls dec_ref_count() before copying. `x = x` on the only
-  reference to a container frees it and then reads from it; a self-move
-  leaves x empty. Same when assigning from a reference to an element
-  inside the container being freed.
+Object
+------
 
-- Non-const as<T>() returns a dangling reference for bound objects
-  (line 1483)
-  For number types on a data-source object, dsrc_read() returns a
-  temporary Object, and the T& points into that temporary.
+[ ] O11 [DEFINITE] [CONFIRMED] Self-assignment frees the object first
+    Object::operator=(const Object&) and operator=(Object&&) call
+    dec_ref_count() before copying. `x = x` on the only reference to a
+    container frees it and then reads from it; a self-move leaves x empty.
+    The same happens when assigning from a reference to an element inside
+    the container being freed.
+    Tests: ObjectBug.SelfCopyAssign (crashes), ObjectBug.SelfMoveAssign.
 
-- Subscript assignment breaks after the subscript has been read
-  (lines 4099-4109)
-  - resolve() replaces m_obj with the looked-up value, so assignment then
-    calls m_obj.parent().set(m_sub, ...).
-  - If that value is a number, nil or missing, its parent is nil and set
-    throws. E.g. reading s = obj["x"] and then doing s = 5 throws.
-  - For Subscript<OPath>, the full path is applied to the leaf's parent
-    instead of the original container.
+[ ] O13 [DEFINITE] [CONFIRMED] Subscript assignment breaks after the
+    subscript has been read
+    Subscript::operator= / resolve():
+    - resolve() replaces m_obj with the looked-up value, so assignment then
+      calls m_obj.parent().set(m_sub, ...).
+    - If that value is a number, nil or missing, its parent is nil and set
+      throws. E.g. reading s = obj["x"] and then doing s = 5 throws.
+    - For Subscript<OPath>, the full path is applied to the leaf's parent
+      instead of the original container.
+    Tests: ObjectBug.SubscriptAssignAfterRead,
+    ObjectBug.SubscriptPathAssignAfterRead.
 
-- Some Subscript methods won't compile when used (lines 4025-4030)
-  key() calls m_sub.tail(), which OPath doesn't have (it has leaf()).
-  keys(), items() and values() call Object methods that don't exist.
-  They only fail if someone instantiates them.
+[ ] O14 [DEFINITE] OPath::parse_brace_key reads past the end of the input
+    - Unquoted branch: `for (; it != spec.cend() && c != ']'; ++it, c = *it)`
+      dereferences end() when the closing ] is missing.
+    - Quoted branch: after consume_whitespace, `*it != ']'` reads end() for
+      input like "['a'".
+    Tests: ObjectBug.ParsePathMissingCloseBracket,
+    ObjectBug.ParsePathQuotedKeyMissingCloseBracket [ASan].
 
-- OPath::parse_brace_key reads past the end of the input
-  (lines 776, 772)
-  The loop `++it, c = *it` reads end() when the closing ] is missing. The
-  quoted branch also reads *it at end() for input like "['a'".
+[ ] O15 [DEFINITE] [CONFIRMED] JSON output loses the comma before a bound
+    object
+    WalkDF::next pushes a data-source object's cached value with
+    FIRST_VALUE and drops the original event, so a bound object that isn't
+    the first child gets no ", " before it.
+    Test: ObjectBug.JsonSeparatorBeforeDataSource.
 
-- clear_parent() reaches a data source through the alien pointer
-  (line 1590)
-  Uses m_repr.pany->m_parent instead of m_repr.ds->m_parent. Works only
-  because both classes happen to keep m_parent at the same offset.
+[ ] O16 [DEFINITE] [CONFIRMED] Pretty JSON one-liner depth leaks
+    JsonVisitor increments the one-liner depth for any value whose key is a
+    one-liner key, but only decrements at the end of a container. A scalar
+    under such a key turns off pretty-printing for the rest of the output.
+    Test: ObjectBug.JsonPrettyOneLinerKeyOnScalar.
 
-- id() reads a sorted map through the ordered-map pointer (line 2931)
-  Uses m_repr.pom; works only by the same kind of layout accident.
+[ ] O17 [DEFINITE] [CONFIRMED] Equality is one-sided with bound objects
+    Object::operator== / operator<=>: bound == 5 loads the data and
+    compares, but Object{5} == bound returns false, and <=> throws.
+    Test: ObjectBug.DataSourceComparisonIsSymmetric.
 
-- WalkDF loses the comma before a bound object (line 2738)
-  Pushes the cached value with FIRST_VALUE and drops the original event,
-  so a bound object that isn't the first child gets no ", " before it in
-  JSON output.
+[ ] O18 [DEFINITE] [CONFIRMED] Map equality treats missing keys as nil
+    Map comparison in Object::operator==: a missing key reads as nil, so
+    {a: nil} == {b: 1} is true.
+    Test: ObjectBug.MapEqualityMissingKeyVsNil.
 
-- JsonVisitor one-liner depth leaks (line 2857)
-  Increments for any value whose key is a one-liner key, but only
-  decrements at the end of a container. A plain value under such a key
-  turns off pretty-printing for the rest of the output.
+[ ] O19 [DEFINITE] [CONFIRMED] Object::hash() disagrees with == for floats
+    INT 1 and FLOAT 1.0 compare equal but hash differently (std::hash of
+    the double's bits), which breaks hash containers of Objects. Key had
+    the same bug (K2); its fix, Key::float_hash, can be reused.
+    Test: ObjectBug.HashConsistentWithEquality.
 
-- Equality is one-sided with bound objects (lines 2513, 2599)
-  bound == 5 loads the data and compares, but Object{5} == bound returns
-  false, and <=> throws.
+[ ] O20 [DEFINITE] OPath(const StringView&) only checks its input with
+    assert
+    In release builds an empty or all-whitespace spec reads *it at end().
 
-- Map equality treats missing keys as nil (line 2580)
-  Because a missing key reads as nil, {a: nil} == {b: 1} is true.
+[ ] O21 [DEFINITE] Floats are written with 15 significant digits
+    float_to_str (support/string.hxx) uses "%.15g", but a double needs 17
+    digits to round-trip. Object::to_str, JSON output (JsonVisitor) and
+    Key::to_str/to_step/to_json all lose precision: 0.1 + 0.2 is written as
+    0.3 and reads back as a different value.
 
-- hash() disagrees with == for floats (line 2661)  [CONFIRMED by probe]
-  INT 1 and FLOAT 1.0 compare equal but hash differently, which breaks
-  hash containers. (INT 1 and UINT 1 do hash equally.)
+[ ] O22 [FRAGILE] clear_parent() reaches a data source through the ANY
+    pointer
+    Object::clear_parent, DSRC case, uses m_repr.pany->m_parent instead of
+    m_repr.ds->m_parent. Works only because both classes keep m_parent at
+    the same offset. (set_parent's DSRC case is correct.)
 
-- OPath(const StringView&) only checks its input with assert
-  (lines 740-743)
-  Reads *it at end() for an empty or all-whitespace spec in release
-  builds.
+[ ] O23 [FRAGILE] id() reads a sorted map through the ordered-map pointer
+    Object::id, SMAP case, uses m_repr.pom instead of m_repr.psm. Works only
+    by the same kind of layout accident.
+
+[ ] O24 [FRAGILE] Some Subscript methods won't compile when used
+    Subscript::key() calls m_sub.tail(), which OPath doesn't have (it has
+    leaf()). keys(), items() and values() call Object methods that don't
+    exist. They only fail if someone instantiates them.
 
 
-PRIORITY
---------
-Highest impact: #1 (affects ordinary path and key use), #2 and #3.
+Key and support
+---------------
+
+[ ] K5 [DEFINITE] [CONFIRMED] Bool/number equality is not transitive and
+    disagrees with <=> and hash()
+    Key::operator== compares bools with numbers via (bool), so
+    Key(2) == true and true == Key(3), but Key(2) != Key(3). Key(2) and
+    Key(true) hash differently (2 vs 1), and <=> compares bools as 0/1, so
+    true <=> 2 is "less" while == says "equal". Needs a decision: bool
+    equals only 0/1, or bool never equals a number.
+
+[ ] K6 [LIKELY] Int/float equality loses precision
+    Key::operator== converts the integer to double, so integers above 2^53
+    compare equal to nearby floats (e.g. Key(2^53 + 1) == Key(2^53 as
+    double)). Those pairs then hash differently (K2 fix hashes the float as
+    2^53). Same in <=> (m_repr.i <=> other.m_repr.f).
+
+[ ] K7 [LIKELY] NaN keys can be inserted but never found
+    Key(NaN) != Key(NaN), so a NaN key in a map can't be looked up, and
+    each insert adds another entry.
+
+[ ] K8 [DEFINITE] [CONFIRMED] Key::to_json() writes `nil` for a nil key
+    Not valid JSON; should be `null`. JsonVisitor uses key.to_json() for
+    map keys.
+
+[ ] K9 [DEFINITE] [CONFIRMED] Key::to_bool() returns true for nil
+    The default case returns numeric_limits<Int>::max() (copied from
+    to_int), which converts to true.
+
+[ ] K10 [DEFINITE] [CONFIRMED] Key::to_step() produces paths OPath can't
+    read back
+    - Only keys containing `"`, `.` or a space are quoted, so "a[0]" comes
+      out as `.a[0]`, which parses as key "a" then index 0. Any character
+      parse_dot_key doesn't accept (not alnum or _) has the same problem.
+    - The empty string comes out as `.`, or nothing at all when is_first.
+    - Floats lose precision (O21).
+
+[ ] K11 [LIKELY] operator<<(ostream, Key) doesn't match Key::to_str()
+    Prints bools as 1/0 and floats with the stream's default 6-digit
+    precision, while to_str prints true/false and 15 digits.
+
+[ ] K12 [DEFINITE] Key::get_repr_ix<T>() has no fallback return
+    is_type<int>() or is_type<StringView>() flows off the end of a
+    non-void function (UB).
+
+[ ] K13 [FRAGILE] Mismatched friend declaration for ""_key
+    The friend declares `operator ""_key(const char*)`, a raw literal
+    operator that is never defined; the real one takes (const char*,
+    size_t). Something like 123_key would compile and fail to link.
+
+[ ] K14 [FRAGILE] Key{"abc"} doesn't compile
+    Ambiguous between the String and StringView constructors; callers must
+    use ""_key or an explicit String.
+
+[ ] K15 [LIKELY] str_to_int / str_to_uint return garbage on bad input
+    support/string.hxx: on a parse error they only ASSERT, so release builds
+    return an uninitialized value. Used by Key::to_int/to_uint,
+    OPath::parse_brace_key and kvdb deserialization.
+
+[ ] K16 [FRAGILE] String keys only work within one thread
+    Intern tables are thread-local, and string keys compare and hash by
+    pointer, so a string key made on one thread never equals the same text
+    made on another. By design (Objects are not thread-safe even for
+    reads), but nothing detects misuse: lookups just miss.
+
+[ ] K17 [FRAGILE] Interned strings are never freed
+    intern_string allocates a copy per distinct string and never deletes
+    it, even when its thread's table is destroyed. Unbounded key domains
+    (e.g. keys parsed from data) grow memory without limit.
+
+
+Python extension
+----------------
+
+[ ] P1 [DEFINITE] [CONFIRMED] Python slice assignment orphans or aliases
+    the assigned values  (was Object bug #10)
+    pyext/NodelObject.cxx, NodelObject_mp_ass_subscript, slice branch.
+    Confirmed by replicating the extension's steps in C++; the extension
+    itself was not rebuilt.
+    The extension converts the value with Support::to_object(), calls
+    clear_parent() on each element "to prevent copying", then calls
+    self_obj.set(slice, nd_vals).
+    - Python list value, e.g. lst[0:1] = [[], []]: to_object() builds a
+      temporary nodel list. The values go into lst uncopied, then the
+      temporary's destructor clears the parent of every element it holds,
+      so the values in lst have no parent (parent() is nil, path() is
+      wrong, and assigning one elsewhere won't copy it).
+      Regression from the O3 fix: step +/-1 used to copy values with no
+      parent, which accidentally avoided this. |step| > 1 was already
+      broken.
+    - Nodel object value, e.g. lst2[0:1] = other: to_object() returns
+      `other` itself, so clear_parent() detaches other's own elements while
+      they are still in other. They are now inserted uncopied, so lst2 and
+      other share them: other[0]['k'] = 1 also changes lst2[0].
+    Suggested fix: only clear parents when to_object() produced a new
+    temporary container (not for a NodelObject value), and release the
+    temporary's elements without clearing their parents afterwards, as
+    DataSource::set(Slice) does.
+
+
+[ ] P2 [LIKELY] In-place operators on bound values don't reach the data
+    source
+    pyext/NodelObject.cxx in-place number/string operators (+=, -=, ...,
+    string slice assignment and *=). Object::type() reports the cached type
+    of a bound Object, so these take the plain INT/UINT/FLOAT/STR branches:
+    - Since the O12 fix, `obj.as<T>() op= v` changes the cache, but nothing
+      calls set_unsaved(), so save() doesn't write it.
+    - The float branches use `obj = obj.as<T>() + v`, which replaces the
+      Python handle with an unbound value, detaching it from the source.
+
+
+Test-suite failures
+-------------------
+
+[ ] T1 [LIKELY] Filesystem.EnterOnlyDirectories fails when test_data/
+    contains test.kvdb/
+    The DB.* tests leave an untracked test_data/test.kvdb/ behind, and this
+    test walks into it and finds parents it doesn't expect. Passes once the
+    directory is removed. Either the DB tests should clean up, or this test
+    should not depend on the contents of test_data/.
+
+[ ] T2 [DEFINITE] Filesystem.VisitOnlyFiles crashes  (cause unknown)
+[ ] T3 [DEFINITE] Query.FindFiles crashes            (cause unknown)
+[ ] T4 [DEFINITE] Zip.Read aborts                    (cause unknown)
+[ ] T5 [DEFINITE] Zip.WriteFile segfaults            (cause unknown)
+    All four predate the 2026 parser and Object fixes (checked on master,
+    2026-10-02). Routine test runs exclude them.
+
+
+FIXED
+=====
+
+[x] O1  Object(const Key&) / Object(Key&&) read past the end of the key's
+        text (assumed a null terminator).                     6c224feac2
+[x] O2  append() on a string fell through to the data-source code.
+                                                              6c224feac2
+[x] O3  set(Slice, ...) step +/-1 copied values with no parent instead of
+        values that already had one.                          6c224feac2
+[x] O4  del(Slice) on lists was wrong for any step other than 1;
+        Slice::to_indices now clamps as Python does.          6c224feac2
+[x] O4b set(Slice) step >1 / < -1 wrote list[start] before checking the
+        range.                                                fe08b611f4
+[x] O4c set(Slice) step >1 / < -1 erased the wrong leftover slots.
+                                                              578a130bc2
+[x] O4d set(Slice) step 1 inserted extra values in reverse order.
+                                                              376561cdaa
+[x] O5  del(Key) on lists could erase end().                  fe08b611f4
+[x] O6  Elements removed by slice operations kept a dangling parent.
+                                                              35a08677e6
+[x] O7  Subscript::is_unsaved() had no return.                96371c08ad
+[x] O8  DataSource::set(target, Slice, ...) lost the child bindings;
+        bind_child shared already-parented values.            96371c08ad
+[x] O9  A failed write was still marked as saved; a failed sparse delete
+        was not retried.                                      31bfa6b0b8
+[x] O12 Non-const as<T>() on a bound object returned a reference into a
+        temporary copy of the cache; dsrc_read() now returns the cache by
+        reference.                                            3a3a4a712f
+[x] K1  A nil key was "unordered" with every key, so std::map<Key, ...>
+        (SortedMap) merged nil with all other keys.           450735368d
+[x] K2  Key(1) == Key(1.0) but they hashed differently. Also: interned
+        strings now compare by pointer, matching the pointer hash.
+                                                  7ca70481d4, c6f32e66bc
+[x] K3  Key self-assignment (k = k) made k nil.               7f0ef29933
+[x] K4  str_to_float read past the end of a StringView (and could parse
+        trailing bytes, e.g. "2.5" followed by "7" gave 2.57).
+                                                              7f0ef29933
