@@ -195,7 +195,7 @@ class Key
             case BOOL:  return (Float)m_repr.b == other;
             case INT:   return equal(m_repr.i, other);
             case UINT:  return equal(m_repr.u, other);
-            case FLOAT: return m_repr.f == other;
+            case FLOAT: return m_repr.f == other || (std::isnan(m_repr.f) && std::isnan(other));
             default:    return false;
         }
     }
@@ -214,6 +214,13 @@ class Key
     }
 
     std::partial_ordering operator <=> (const Key& other) const {
+        // NaN is equal to NaN and greater than every other number, so that
+        // NaN keys work in sorted maps.
+        if (is_nan() || other.is_nan()) {
+            auto rank = [] (const Key& k) { return k.is_nan()? 2: (k.m_repr_ix == NIL)? 0: (k.m_repr_ix == STR)? 3: 1; };
+            return rank(*this) <=> rank(other);
+        }
+
         switch (m_repr_ix) {
             case NIL: {
                 return (other.m_repr_ix == NIL)? std::partial_ordering::equivalent: std::partial_ordering::less;
@@ -454,6 +461,7 @@ class Key
     /// Return the hash value of the Key.
     /// - Numeric keys that compare equal have the same hash, so a FLOAT with
     ///   an integral value hashes like the equal INT or UINT.
+    /// - All NaN keys have the same hash.
     size_t hash() const {
         switch (m_repr_ix) {
             case NIL:   return 0;
@@ -477,8 +485,11 @@ class Key
             if (f >= -two_63 && f < two_63) return (size_t)(Int)f;
             if (f >= 0 && f < two_64)       return (size_t)(UInt)f;
         }
+        if (std::isnan(f)) return std::hash<Float>{}(std::numeric_limits<Float>::quiet_NaN());
         return std::hash<Float>{}(f);
     }
+
+    bool is_nan() const { return m_repr_ix == FLOAT && std::isnan(m_repr.f); }
 
     void release() {
         m_repr.z = nullptr;

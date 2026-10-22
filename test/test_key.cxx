@@ -315,7 +315,50 @@ TEST(Key, IntFloatOrderingIsExact) {
     EXPECT_TRUE((Key{-2} <=> Key{-1.5}) < 0);
     EXPECT_TRUE((Key{0ULL} <=> Key{-0.5}) > 0);
     EXPECT_TRUE((Key{1.5} <=> Key{1}) > 0);
-    EXPECT_TRUE((Key{1} <=> Key{std::nan("")}) == std::partial_ordering::unordered);
+    EXPECT_TRUE((Key{1} <=> Key{std::nan("")}) < 0);
+}
+
+TEST(Key, NaNEqualsNaN) {
+    Float nan = std::numeric_limits<Float>::quiet_NaN();
+    EXPECT_EQ(Key{nan}, Key{nan});
+    EXPECT_EQ(Key{nan}, Key{-nan});
+    EXPECT_EQ(Key{nan}, nan);
+    EXPECT_NE(Key{nan}, Key{1.0});
+    EXPECT_NE(Key{nan}, Key{1});
+    EXPECT_NE(Key{nan}, Key{true});
+    EXPECT_NE(Key{nan}, Key{});
+    EXPECT_EQ(std::hash<Key>{}(Key{nan}), std::hash<Key>{}(Key{-nan}));
+}
+
+TEST(Key, OrderNaN) {
+    Float nan = std::numeric_limits<Float>::quiet_NaN();
+    Float inf = std::numeric_limits<Float>::infinity();
+    EXPECT_TRUE((Key{nan} <=> Key{-nan}) == 0);
+    for (auto& other : {Key{true}, Key{-1}, Key{std::numeric_limits<UInt>::max()}, Key{inf}}) {
+        EXPECT_TRUE(Key{nan} > other);
+        EXPECT_TRUE(other < Key{nan});
+    }
+    EXPECT_TRUE(Key{nan} > Key{});
+    EXPECT_TRUE(Key{nan} < Key{"a"s});
+}
+
+TEST(Key, NaNKeysInMaps) {
+    Float nan = std::numeric_limits<Float>::quiet_NaN();
+    tsl::ordered_map<Key, int, KeyHash> hmap;
+    hmap[Key{nan}] = 1;
+    hmap[Key{-nan}] = 2;
+    hmap[Key{1}] = 3;
+    EXPECT_EQ(hmap.size(), 2);
+    EXPECT_EQ(hmap[Key{nan}], 2);
+
+    std::map<Key, int> smap;
+    smap[Key{nan}] = 1;
+    smap[Key{-nan}] = 2;
+    smap[Key{1}] = 3;
+    smap[Key{"a"s}] = 4;
+    EXPECT_EQ(smap.size(), 3);
+    EXPECT_EQ(smap[Key{nan}], 2);
+    EXPECT_EQ(smap[Key{1}], 3);
 }
 
 TEST(Key, NullToBool) {
