@@ -318,6 +318,10 @@ TEST(Key, IntFloatOrderingIsExact) {
     EXPECT_TRUE((Key{1} <=> Key{std::nan("")}) == std::partial_ordering::unordered);
 }
 
+TEST(Key, NullToBool) {
+    EXPECT_FALSE(Key{}.to_bool());
+}
+
 TEST(Key, NullToJson) {
     EXPECT_EQ(Key{}.to_json(), "null");
 }

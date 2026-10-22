@@ -306,6 +306,7 @@ class Key
     }
 
     /// Convert the backing data to a boolean.
+    /// Nil converts to false.
     /// Numeric types are converted via C++ cast to bool.
     /// String data is converted by calling `nodel::str_to_bool` (see nodel/support/string.h).
     bool to_bool() const {
@@ -315,8 +316,7 @@ class Key
             case UINT:  return (bool)m_repr.u;
             case FLOAT: return (bool)m_repr.f;
             case STR:   return str_to_bool(m_repr.s.data());
-            default: // TODO
-                return std::numeric_limits<Int>::max();
+            default:    return false;
         }
     }
 
