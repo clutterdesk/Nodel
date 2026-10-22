@@ -696,6 +696,7 @@ class OPath
     static void consume_whitespace(const StringView&, StringView::const_iterator&);
     static Key parse_brace_key(const StringView&, StringView::const_iterator&);
     static Key parse_dot_key(const StringView&, StringView::const_iterator&);
+    static Key parse_number_key(const StringView&, StringView::const_iterator, const StringView&);
 
   private:
     KeyList m_keys;
@@ -766,19 +767,51 @@ Key OPath::parse_brace_key(const StringView& spec, StringView::const_iterator& i
     auto key_start = it;
     char c = *it;
     if (c == '\'' || c == '"') {
-        auto key = parse_quoted(spec, it);
-        if (key.size() == 0) throw parse::SyntaxError{spec, key_start - spec.cbegin(), "Expected key:"};
+        auto quoted = parse_quoted(spec, it);
         consume_whitespace(spec, it);
         if (*it != ']') throw parse::SyntaxError{spec, key_start - spec.cbegin(), "Missing closing ']':"};
         ++it;
+        if (quoted.find('\\') == StringView::npos) return quoted;
+        String key;
+        key.reserve(quoted.size());
+        for (auto q_it = quoted.begin(); q_it != quoted.end(); ++q_it) {
+            if (*q_it == '\\' && q_it + 1 != quoted.end()) ++q_it;
+            key.push_back(*q_it);
+        }
         return key;
     } else {
         for (; it != spec.cend() && c != ']'; ++it, c = *it);
         if (it == spec.cend()) throw parse::SyntaxError{spec, key_start - spec.cbegin(), "Missing closing ']':"};
         StringView key{key_start, it};
-        if (it != spec.cend()) ++it;
-        return str_to_int(key);  // TODO: error handling
+        ++it;
+        auto beg = key.find_first_not_of(" \t\r\n");
+        auto end = key.find_last_not_of(" \t\r\n");
+        if (beg == StringView::npos) throw parse::SyntaxError{spec, key_start - spec.cbegin(), "Expected key:"};
+        key = key.substr(beg, end - beg + 1);
+        return parse_number_key(spec, key_start, key);
     }
+}
+
+inline
+Key OPath::parse_number_key(const StringView& spec, StringView::const_iterator key_start, const StringView& key) {
+    const char* beg = key.data();
+    const char* end = beg + key.size();
+
+    Int i;
+    auto i_result = std::from_chars(beg, end, i);
+    if (i_result.ec == std::errc() && i_result.ptr == end) return i;
+
+    UInt u;
+    auto u_result = std::from_chars(beg, end, u);
+    if (u_result.ec == std::errc() && u_result.ptr == end) return u;
+
+    // strtod requires a null-terminated string
+    String str{key};
+    char* f_end = nullptr;
+    Float f = std::strtod(str.c_str(), &f_end);
+    if (f_end == str.c_str() + str.size()) return f;
+
+    throw parse::SyntaxError{spec, key_start - spec.cbegin(), "Invalid key:"};
 }
 
 inline

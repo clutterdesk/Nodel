@@ -1822,6 +1822,40 @@ TEST(Object, ParsePathDotKeyStopsAtNonAscii) {
     EXPECT_THROW("a\xC3\xA9"_path, parse::SyntaxError);
 }
 
+TEST(Object, PathToStrRoundTrip) {
+    std::vector<Key> keys = {
+        "a"_key, "a[0]"_key, ""_key, "a.b"_key, "a b"_key, "a\"b"_key, "a\\b"_key,
+        "a'b"_key, "a-b"_key, "\xC3\xA9"_key, "7"_key, "]"_key,
+        0, -1, 0xFFFFFFFFFFFFFFFFULL, 7.5, -0.25, 1e20, true
+    };
+    for (auto& first : keys) {
+        for (auto& second : keys) {
+            OPath path;
+            path.append(first);
+            path.append(second);
+            auto str = path.to_str();
+            OPath parsed{StringView{str}};
+            ASSERT_EQ(parsed.keys().size(), 2u) << str;
+            EXPECT_EQ(parsed.keys()[0], first) << str;
+            EXPECT_EQ(parsed.keys()[1], second) << str;
+            // Bool keys are written as [0] or [1] and read back as integers.
+            auto read_type = [] (const Key& key) { return key.type() == Key::BOOL? Key::INT: key.type(); };
+            EXPECT_EQ(parsed.keys()[0].type(), read_type(first)) << str;
+            EXPECT_EQ(parsed.keys()[1].type(), read_type(second)) << str;
+        }
+    }
+}
+
+TEST(Object, ParsePathBracketKeys) {
+    EXPECT_EQ("[1.5]"_path.keys()[0], 1.5);
+    EXPECT_EQ("[18446744073709551615]"_path.keys()[0], 0xFFFFFFFFFFFFFFFFULL);
+    EXPECT_EQ("[ 3 ]"_path.keys()[0], 3);
+    EXPECT_EQ("['']"_path.keys()[0], ""_key);
+    EXPECT_EQ(R"(["a\"b"])"_path.keys()[0], "a\"b"_key);
+    EXPECT_THROW("[abc]"_path, parse::SyntaxError);
+    EXPECT_THROW("[]"_path, parse::SyntaxError);
+}
+
 TEST(Object, ManuallyCreatePath) {
     Object obj = json::parse("{}");
 

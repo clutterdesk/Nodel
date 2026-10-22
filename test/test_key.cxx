@@ -482,3 +482,24 @@ TEST(Key, StringWithDQuote) {
     k.to_step(ss);
     EXPECT_EQ(ss.str(), "[\"a\\\"b\"]");
 }
+
+TEST(Key, StringWithBracketStep) {
+    Key k = "a[0]"_key;
+    std::stringstream ss;
+    k.to_step(ss);
+    EXPECT_EQ(ss.str(), "[\"a[0]\"]");
+}
+
+TEST(Key, EmptyStringStep) {
+    Key k = ""_key;
+    std::stringstream ss;
+    k.to_step(ss, true);
+    EXPECT_EQ(ss.str(), "[\"\"]");
+}
+
+TEST(Key, FirstSimpleStringStep) {
+    Key k = "tea"_key;
+    std::stringstream ss;
+    k.to_step(ss, true);
+    EXPECT_EQ(ss.str(), "tea");
+}

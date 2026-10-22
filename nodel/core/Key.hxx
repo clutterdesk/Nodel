@@ -3,6 +3,7 @@
 /** @file */
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <iomanip>
@@ -380,14 +381,13 @@ class Key
     /// - A boolean Key is converted to `[0]` or `[1]`.
     /// - An integer Key is converted to a string of the form, `[<integer>]`.
     /// - A float key is converted to a string of the form, `[<float>]`.
-    /// - If `is_first` is true, a string key that does not contain a
-    ///   double-quote character is converted to a string of the form,
+    /// - If `is_first` is true, a non-empty string key made only of ASCII
+    ///   letters, digits and underscores is converted to a string of the form,
     ///   `<string>`.
-    /// - If `is_first` is false, a string key that does not contain a
-    ///   double-quote character is converted to a string of the form,
-    ///   `.<string>`.
-    /// - A string key that contains a double-quote character is converted
-    ///   to a string of the form, `["<string>"]`.
+    /// - If `is_first` is false, such a string key is converted to a string
+    ///   of the form, `.<string>`.
+    /// - Any other string key is converted to a string of the form,
+    ///   `["<string>"]`, with `"` and `\` escaped by a backslash.
     void to_step(std::ostream& stream, bool is_first = false) const {
         switch (m_repr_ix) {
             case BOOL:  stream << (m_repr.b? "[1]": "[0]"); break;
@@ -395,8 +395,9 @@ class Key
             case UINT:  stream << '[' << nodel::int_to_str(m_repr.u) << ']'; break;
             case FLOAT: stream << '[' << nodel::float_to_str(m_repr.f) << ']'; break;
             case STR: {
-                auto pos = m_repr.s.data().find_first_of("\". ");
-                if (pos != StringView::npos) {
+                auto& str = m_repr.s.data();
+                auto is_dot_char = [] (char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
+                if (str.empty() || !std::all_of(str.begin(), str.end(), is_dot_char)) {
                     stream << '[' << quoted(m_repr.s.data()) << ']';
                 } else {
                     if (!is_first) stream << '.';
