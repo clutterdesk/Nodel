@@ -497,7 +497,7 @@ class Object
     static bool norm_index(is_like_Int auto& index, UInt size);
     Object list_set(const Key& key, const Object& in_val);
 
-    Object dsrc_read() const;
+    Object& dsrc_read() const;
 
     void set_parent(const Object& parent) const;
     void clear_parent() const;
@@ -1475,6 +1475,9 @@ const T& Object::as() const requires std::is_same<T, String>::value {
 /// Get the stored data iff the data has the specified numeric type
 /// @tparam T One of the supported numeric data types
 /// - The supported data types are: bool, Int, UInt, Float
+/// @note If this Object has a DataSource and you modify the data
+///       returned by this method, then you must call @ref Object::set_unsaved
+///       to set the `unsaved` flag, before call @ref Object::save.
 /// @return Returns a reference to the stored data type
 /// @throw Throws a WrongType exception if the stored data type does not match
 template <typename T>
@@ -1511,9 +1514,11 @@ const T& Object::as() const {
     throw wrong_type(m_fields.repr_ix);
 }
 
+/// Returns a reference to the DataSource cache, so that as<T>() can return
+/// a reference into it, rather than into a temporary copy.
 inline
-Object Object::dsrc_read() const {
-    return const_cast<DataSourcePtr>(m_repr.ds)->get_cached(*this);
+Object& Object::dsrc_read() const {
+    return const_cast<Object&>(m_repr.ds->get_cached(*this));
 }
 
 inline
