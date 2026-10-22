@@ -121,14 +121,6 @@ Object
 Key and support
 ---------------
 
-[ ] K5 [DEFINITE] [CONFIRMED] Bool/number equality is not transitive and
-    disagrees with <=> and hash()
-    Key::operator== compares bools with numbers via (bool), so
-    Key(2) == true and true == Key(3), but Key(2) != Key(3). Key(2) and
-    Key(true) hash differently (2 vs 1), and <=> compares bools as 0/1, so
-    true <=> 2 is "less" while == says "equal". Needs a decision: bool
-    equals only 0/1, or bool never equals a number.
-
 [ ] K6 [LIKELY] Int/float equality loses precision
     Key::operator== converts the integer to double, so integers above 2^53
     compare equal to nearby floats (e.g. Key(2^53 + 1) == Key(2^53 as
@@ -272,6 +264,9 @@ FIXED
 [x] K4  str_to_float read past the end of a StringView (and could parse
         trailing bytes, e.g. "2.5" followed by "7" gave 2.57).
                                                               7f0ef29933
+[x] K5  Key(2) == true (bools compared with numbers via (bool)), which
+        disagreed with hash() and <=>. A bool now equals only 0 or 1.
+                                                              c8db49665e
 [x] D1  DBManager::open never returned a newly opened DB to the caller,
         so every kvdb::DB leaked a reference and the RocksDB LOCK was
         never released; DB.Save failed with "lock hold by current
