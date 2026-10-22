@@ -19,8 +19,6 @@
 #include <nodel/kvdb.hxx>
 #endif
 
-NODEL_INIT_CORE;
-NODEL_INIT_FILESYSTEM;
 
 using namespace nodel;
 using RefMgr = python::RefMgr;

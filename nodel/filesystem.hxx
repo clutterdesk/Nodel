@@ -13,25 +13,28 @@ namespace nodel::filesystem {
 
 namespace impl {
 
-/////////////////////////////////////////////////////////////////////////////
-/// Filesystem initialization macro.
-/// This macro must be instantiated before using nodel::filesystem services.
-/// It defines thread-local data-structures.
-/////////////////////////////////////////////////////////////////////////////
-#define NODEL_INIT_FILESYSTEM namespace nodel::filesystem::impl { thread_local Registry default_registry; }
-extern thread_local Registry default_registry;
+inline
+Registry& default_registry() {
+    static thread_local Registry registry;
+    return registry;
+}
 
 inline
-void init_default_registry() {
-    default_registry.set_directory_default<SubDirectory>();
-    default_registry.set_file_default(new StringSerializer());
-    default_registry.associate(".json", new JsonSerializer());
-    default_registry.associate(".csv", new CsvSerializer());
-    default_registry.associate(".txt", new StringSerializer());
-    default_registry.associate<ZipFile>(".zip");
+void init_default_registry(Registry& registry) {
+    registry.set_directory_default<SubDirectory>();
+    registry.set_file_default(new StringSerializer());
+    registry.associate(".json", new JsonSerializer());
+    registry.associate(".csv", new CsvSerializer());
+    registry.associate(".txt", new StringSerializer());
+    registry.associate<ZipFile>(".zip");
 }
 
 } // namespace impl
+
+/////////////////////////////////////////////////////////////////////////////
+/// Deprecated: no longer required, expands to nothing.
+/////////////////////////////////////////////////////////////////////////////
+#define NODEL_INIT_FILESYSTEM
 
 /////////////////////////////////////////////////////////////////////////////
 /// Returns the *thread-local* default registry.
@@ -40,10 +43,11 @@ void init_default_registry() {
 /////////////////////////////////////////////////////////////////////////////
 inline
 Registry& default_registry() {
-    if (impl::default_registry.is_empty()) {
-        impl::init_default_registry();
+    auto& registry = impl::default_registry();
+    if (registry.is_empty()) {
+        impl::init_default_registry(registry);
     }
-    return impl::default_registry;
+    return registry;
 }
 
 /////////////////////////////////////////////////////////////////////////////

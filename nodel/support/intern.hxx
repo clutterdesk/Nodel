@@ -7,8 +7,18 @@
 
 namespace nodel {
 
-#define NODEL_INIT_INTERNS namespace nodel { thread_local std::unordered_set<nodel::StringView> thread_interns; }
-extern thread_local std::unordered_set<nodel::StringView> thread_interns;
+namespace impl {
+
+/////////////////////////////////////////////////////////////////////////////
+/// Returns the *thread-local* set of interned strings.
+/////////////////////////////////////////////////////////////////////////////
+inline
+std::unordered_set<StringView>& thread_interns() {
+    static thread_local std::unordered_set<StringView> interns;
+    return interns;
+}
+
+} // namespace impl
 
 class intern_t
 {
@@ -29,6 +39,7 @@ class intern_t
 
 inline
 intern_t intern_string_literal(const StringView& literal) {
+    auto& thread_interns = impl::thread_interns();
     if (auto match = thread_interns.find(literal); match != thread_interns.end()) {
         return intern_t{*match};
     } else {
@@ -39,6 +50,7 @@ intern_t intern_string_literal(const StringView& literal) {
 
 inline
 intern_t intern_string(const StringView& str) {
+    auto& thread_interns = impl::thread_interns();
     if (auto match = thread_interns.find(str); match != thread_interns.end()) {
         return intern_t{*match};
     } else {

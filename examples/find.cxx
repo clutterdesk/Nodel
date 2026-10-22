@@ -4,8 +4,6 @@
 #include <nodel/filesystem.hxx>
 #include <regex>
 
-NODEL_INIT_CORE;
-NODEL_INIT_FILESYSTEM;
 
 using namespace nodel;
 

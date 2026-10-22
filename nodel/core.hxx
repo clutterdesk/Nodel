@@ -10,9 +10,6 @@
 #include <nodel/support/logging.hxx>
 
 /////////////////////////////////////////////////////////////////////////////
-/// Nodel initialization macro
-/// This macro must be instantiated before using nodel::* services.
+/// Deprecated: no longer required, expands to nothing.
 /////////////////////////////////////////////////////////////////////////////
-#define NODEL_INIT_CORE \
-    NODEL_INIT_INTERNS; \
-    NODEL_INIT_URI_SCHEMES;
+#define NODEL_INIT_CORE

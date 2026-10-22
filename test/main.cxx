@@ -11,8 +11,6 @@
 //#include <fmt/core.h>
 //#include <nodel/support/leak_detect.hxx>
 
-NODEL_INIT_CORE;
-NODEL_INIT_FILESYSTEM;
 //NODEL_INIT_LEAK_DETECT;
 
 

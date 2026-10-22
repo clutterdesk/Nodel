@@ -15,15 +15,33 @@ class URI;
 using DataSourceFactory = std::function<DataSource*(const URI& uri, DataSource::Origin origin)>;
 using URIMap = std::unordered_map<String, DataSourceFactory>;
 
-#define NODEL_INIT_URI_SCHEMES namespace nodel { \
-    std::mutex global_uri_map_mutex; \
-    URIMap global_uri_map; \
-    thread_local URIMap local_uri_map; \
+namespace impl {
+
+struct URIRegistry
+{
+    std::mutex mutex;
+    URIMap map;
+};
+
+/////////////////////////////////////////////////////////////////////////////
+/// Returns the process-wide URI scheme registry.
+/////////////////////////////////////////////////////////////////////////////
+inline
+URIRegistry& global_uri_registry() {
+    static URIRegistry registry;
+    return registry;
 }
 
-extern std::mutex global_uri_map_mutex;
-extern URIMap global_uri_map;
-extern thread_local URIMap local_uri_map;
+/////////////////////////////////////////////////////////////////////////////
+/// Returns the *thread-local* cache of the global URI scheme registry.
+/////////////////////////////////////////////////////////////////////////////
+inline
+URIMap& local_uri_map() {
+    static thread_local URIMap map;
+    return map;
+}
+
+} // namespace impl
 
 class URI : public Object
 {
@@ -89,23 +107,27 @@ void URI::parse(const String& spec) {
 
 template <typename Func>
 void register_uri_scheme(const String& scheme, Func&& func) {
-    local_uri_map[scheme] = std::forward<Func>(func);
-    std::scoped_lock lock{global_uri_map_mutex};
-    global_uri_map[scheme] = std::forward<Func>(func);
+    auto& global = impl::global_uri_registry();
+    impl::local_uri_map()[scheme] = func;
+    std::scoped_lock lock{global.mutex};
+    global.map[scheme] = std::forward<Func>(func);
 }
 
 inline
 void remove_uri_scheme(const String& scheme) {
-    local_uri_map.erase(scheme);
-    std::scoped_lock lock{global_uri_map_mutex};
-    global_uri_map.erase(scheme);
+    auto& global = impl::global_uri_registry();
+    impl::local_uri_map().erase(scheme);
+    std::scoped_lock lock{global.mutex};
+    global.map.erase(scheme);
 }
 
 inline
 DataSourceFactory lookup_uri_scheme(const String& scheme) {
+    auto& global = impl::global_uri_registry();
+    auto& local_uri_map = impl::local_uri_map();
     if (local_uri_map.size() == 0) {
-        std::scoped_lock lock{global_uri_map_mutex};
-        local_uri_map = global_uri_map;
+        std::scoped_lock lock{global.mutex};
+        local_uri_map = global.map;
         if (auto it = local_uri_map.find(scheme); it != local_uri_map.end())
             return std::get<1>(*it);
     } else {
@@ -116,10 +138,10 @@ DataSourceFactory lookup_uri_scheme(const String& scheme) {
         if (it != local_uri_map.end()) {
             return std::get<1>(*it);
         } else {
-            std::scoped_lock lock{global_uri_map_mutex};
-            it = global_uri_map.find(scheme);
-            if (it != global_uri_map.end()) {
-                local_uri_map = global_uri_map;
+            std::scoped_lock lock{global.mutex};
+            it = global.map.find(scheme);
+            if (it != global.map.end()) {
+                local_uri_map = global.map;
                 return std::get<1>(*it);
             }
         }

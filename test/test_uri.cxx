@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 #include <fmt/core.h>
 #include <nodel/core/uri.hxx>
+#include <thread>
 
 using namespace nodel;
 
@@ -125,3 +126,22 @@ TEST(URI, EmptyPath) {
     EXPECT_EQ(obj.get("path"_key), "/");
 }
 
+
+TEST(URI, SchemeRegisteredInOtherTranslationUnit) {
+    // test/main.cxx calls nodel::filesystem::configure(), which registers "file"
+    EXPECT_TRUE(lookup_uri_scheme("file"));
+}
+
+TEST(URI, SchemeVisibleFromOtherThread) {
+    std::string tag = "tag";
+    register_uri_scheme("test-scheme", [tag] (const URI&, DataSource::Origin) -> DataSource* { return nullptr; });
+    EXPECT_TRUE(lookup_uri_scheme("test-scheme"));
+
+    bool found = false;
+    std::thread thread{[&found] () { found = (bool)lookup_uri_scheme("test-scheme"); }};
+    thread.join();
+    EXPECT_TRUE(found);
+
+    remove_uri_scheme("test-scheme");
+    EXPECT_FALSE(lookup_uri_scheme("test-scheme"));
+}

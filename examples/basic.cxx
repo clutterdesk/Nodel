@@ -2,7 +2,6 @@
 /// @copyright Robert Dunnagan
 #include <nodel/core.hxx>
 
-NODEL_INIT_CORE;
 
 using namespace nodel;
 

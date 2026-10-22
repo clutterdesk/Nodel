@@ -4,8 +4,6 @@
 #include <nodel/rocksdb.hxx>
 #include <nodel/support/Stopwatch.hxx>
 
-NODEL_INIT_CORE;
-NODEL_INIT_FILESYSTEM;
 
 using namespace nodel;
 
