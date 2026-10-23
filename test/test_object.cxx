@@ -1483,6 +1483,15 @@ TEST(Object, SubscriptGetKey) {
     EXPECT_EQ(obj["x"_key].key(), "x");
 }
 
+// Instantiate every member of Subscript, so that a member which doesn't compile breaks the build.
+template class nodel::Object::Subscript<Key>;
+template class nodel::Object::Subscript<OPath>;
+
+TEST(Object, SubscriptGetKeyFromPath) {
+    Object obj = "{'x': {'y': 'tea'}}"_json;
+    EXPECT_EQ(obj["x.y"_path].key(), "y");
+}
+
 TEST(Object, KeyOf) {
     Object obj = json::parse(
         R"({"bool": true, 

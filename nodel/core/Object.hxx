@@ -684,7 +684,7 @@ class OPath
     void reverse()       { std::reverse(m_keys.begin(), m_keys.end()); }
     KeyList& keys()      { return m_keys; }
     KeyList keys() const { return m_keys; }
-    Key leaf()           { return m_keys[m_keys.size() - 1]; }
+    Key leaf() const     { return m_keys[m_keys.size() - 1]; }
 
     Iterator begin() { return m_keys.begin(); }
     Iterator end() { return m_keys.end(); }
@@ -916,10 +916,9 @@ OPath Object::path(const Object& root) const {
 ///   under-the-covers by all Object methods that return iterators, and
 ///   provide a seamless, memory-efficient, means of traversing the data.
 /// - Ultimately, it's up to the end-user of the Object class to insure that
-///   data is accessed efficiently. You should not, for example, call the
-///   `Object::keys()` method, which returns a KeyList, if you might be working
-///   with a very large domain of keys. Prefer the Object iteration methods,
-///   instead.
+///   data is accessed efficiently. You should not, for example, collect all
+///   of the keys into a KeyList, if you might be working with a very large
+///   domain of keys. Prefer the Object iteration methods, instead.
 /// - The first argument of each of the virtual methods is the Object that owns
 ///   the DataSource instance. This provides context to the DataSource
 ///   implementation. In particular, the implementation can use the path of
@@ -4114,12 +4113,9 @@ class Object::Subscript
         return resolve().iter_tree_if(std::forward<VisitPred>(visit_pred), std::forward<EnterPred>(enter_pred));
     }
 
-    const KeyList keys() const      { return resolve().keys(); }
-    const ItemList items() const    { return resolve().items(); }
-    const ObjectList values() const { return resolve().values(); }
-    size_t size() const             { return resolve().size(); }
+    size_t size() const { return resolve().size(); }
 
-    const Key key() const                     { if constexpr (std::is_same<AccessType, Key>::value) return m_sub; else return m_sub.tail(); }
+    const Key key() const                     { if constexpr (std::is_same<AccessType, Key>::value) return m_sub; else return m_sub.leaf(); }
     const Key key_of(const Object& obj) const { return resolve().key_of(obj); }
     OPath path() const                        { return resolve().path(); }
     OPath path(const Object& root) const      { return resolve().path(root); }
