@@ -3522,6 +3522,23 @@ TEST(Object, DataSourceAsReferenceModifiesCache) {
     EXPECT_EQ(obj, 7);
 }
 
+// hash() must agree with operator== across numeric types.
+TEST(Object, HashConsistentWithEquality) {
+    ASSERT_TRUE(Object{1} == Object{1.0});
+    EXPECT_EQ(Object{1}.hash(), Object{1.0}.hash());
+    EXPECT_EQ(Object{1ULL}.hash(), Object{1.0}.hash());
+    EXPECT_EQ(Object{-7}.hash(), Object{-7.0}.hash());
+    EXPECT_EQ(Object{0}.hash(), Object{-0.0}.hash());
+    EXPECT_EQ(Object{true}.hash(), Object{1}.hash());
+    EXPECT_EQ(Object{true}.hash(), Object{1.0}.hash());
+    EXPECT_EQ(Object{std::numeric_limits<Int>::min()}.hash(), Object{-9223372036854775808.0}.hash());
+    EXPECT_EQ(Object{9223372036854775808ULL}.hash(), Object{9223372036854775808.0}.hash());
+    EXPECT_EQ(Object{2.5}.hash(), Key{2.5}.hash());
+
+    std::unordered_set<Object> set{Object{1}};
+    EXPECT_EQ(set.count(Object{1.0}), 1u);
+}
+
 
 //////////////////////////////////////////////////////////////////////////////
 // Regression tests for the bugs tracked as GitHub issues.
@@ -3607,10 +3624,4 @@ TEST(ObjectBug, MapEqualityMissingKeyVsNil) {
     auto lhs = "{'a': null}"_json;
     auto rhs = "{'b': 1}"_json;
     EXPECT_FALSE(lhs == rhs);
-}
-
-// hash() must agree with operator== across numeric types.
-TEST(ObjectBug, HashConsistentWithEquality) {
-    ASSERT_TRUE(Object{1} == Object{1.0});
-    EXPECT_EQ(Object{1}.hash(), Object{1.0}.hash());
 }

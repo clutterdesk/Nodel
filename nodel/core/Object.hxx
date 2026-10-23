@@ -2725,10 +2725,11 @@ inline
 size_t Object::hash() const {
     switch (m_fields.repr_ix) {
          case NIL:   return std::hash<nullptr_t>{}(nullptr);
-         case BOOL:  return std::hash<bool>{}(m_repr.b);
-         case INT:   return std::hash<Int>{}(m_repr.i);
-         case UINT:  return std::hash<UInt>{}(m_repr.u);
-         case FLOAT: return std::hash<Float>{}(m_repr.f);
+         // Hash numbers like Key does, so values that compare equal hash equal.
+         case BOOL:  return (size_t)m_repr.b;
+         case INT:   return (size_t)m_repr.i;
+         case UINT:  return (size_t)m_repr.u;
+         case FLOAT: return Key::float_hash(m_repr.f);
          case STR:   return std::hash<String>{}(std::get<0>(*m_repr.ps));
          case DSRC:  return m_repr.ds->get_cached(*this).hash();
          default:    throw wrong_type(m_fields.repr_ix);

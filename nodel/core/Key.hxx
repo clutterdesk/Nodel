@@ -484,10 +484,8 @@ class Key
         }
     }
 
-    static WrongType wrong_type(ReprIX actual)                  { return type_name(actual); };
-    static WrongType wrong_type(ReprIX actual, ReprIX expected) { return {type_name(actual), type_name(expected)}; };
-
-  private:
+    /// Return the hash of a float, matching the hash of an equal INT or UINT.
+    /// - All NaN values have the same hash.
     static size_t float_hash(Float f) {
         constexpr Float two_63 = 9223372036854775808.0;   // 2^63
         constexpr Float two_64 = 18446744073709551616.0;  // 2^64
@@ -499,6 +497,10 @@ class Key
         return std::hash<Float>{}(f);
     }
 
+    static WrongType wrong_type(ReprIX actual)                  { return type_name(actual); };
+    static WrongType wrong_type(ReprIX actual, ReprIX expected) { return {type_name(actual), type_name(expected)}; };
+
+  private:
     bool is_nan() const { return m_repr_ix == FLOAT && std::isnan(m_repr.f); }
 
     void release() {
