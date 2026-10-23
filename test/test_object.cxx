@@ -3591,6 +3591,28 @@ TEST(Object, JsonSeparatorBeforeDataSource) {
     EXPECT_EQ(first.to_json(), "[1, 2]");
 }
 
+// Assigning to a Subscript after reading it sets the key in the original container.
+TEST(Object, SubscriptAssignAfterRead) {
+    Object obj = "{'x': 1}"_json;
+    auto sub = obj["x"_key];
+    EXPECT_EQ(sub.to_str(), "1");
+    EXPECT_NO_THROW(sub = 5);
+    EXPECT_EQ(obj.get("x"_key), 5);
+    EXPECT_EQ(sub, 5);
+    sub = 6;
+    EXPECT_EQ(obj.get("x"_key), 6);
+}
+
+// Assigning to a Subscript<OPath> after reading it applies the path to the original container.
+TEST(Object, SubscriptPathAssignAfterRead) {
+    Object obj = "{'a': {'b': {}}}"_json;
+    auto sub = obj["a.b"_path];
+    EXPECT_EQ(sub.size(), 0UL);
+    sub = 5;
+    EXPECT_EQ(obj.get("a.b"_path), 5);
+    EXPECT_TRUE(obj.get("a.a"_path) == nil);
+}
+
 
 //////////////////////////////////////////////////////////////////////////////
 // Regression tests for the bugs tracked as GitHub issues.
@@ -3615,25 +3637,6 @@ TEST(ObjectBug, SelfMoveAssign) {
     obj = std::move(ref);
     ASSERT_FALSE(obj.is_empty());
     EXPECT_EQ(obj.to_json(), "[1, 2, 3]");
-}
-
-// Subscript assignment after the subscript was read throws for non-containers.
-TEST(ObjectBug, SubscriptAssignAfterRead) {
-    Object obj = "{'x': 1}"_json;
-    auto sub = obj["x"_key];
-    EXPECT_EQ(sub.to_str(), "1");
-    EXPECT_NO_THROW(sub = 5);
-    EXPECT_EQ(obj.get("x"_key), 5);
-}
-
-// Subscript<OPath> assignment after read applies the path to the leaf's parent.
-TEST(ObjectBug, SubscriptPathAssignAfterRead) {
-    Object obj = "{'a': {'b': {}}}"_json;
-    auto sub = obj["a.b"_path];
-    EXPECT_EQ(sub.size(), 0UL);
-    sub = 5;
-    EXPECT_EQ(obj.get("a.b"_path), 5);
-    EXPECT_TRUE(obj.get("a.a"_path) == nil);
 }
 
 // OPath::parse_brace_key (ASan): reads past the end without a closing ']'.
