@@ -513,7 +513,6 @@ class Key
 
   friend std::ostream& operator<< (std::ostream& ostream, const Key& key);
   friend struct python::Support;
-  friend Key operator ""_key (const char*);
 };
 
 
