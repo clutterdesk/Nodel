@@ -2747,6 +2747,25 @@ TEST(Object, TestSimpleSource_ChildParent) {
     EXPECT_TRUE(obj.get("x"_key).parent().is(obj));
 }
 
+// Bug #16: clear_parent() must reach a data source through its own pointer.
+TEST(Object, TestSimpleSource_ClearParentOnDel) {
+    Object list{Object::LIST};
+    list.set(0, Object{new TestSimpleSource(R"({"x": "X"})")});
+    Object list_child = list.get(0);
+    EXPECT_TRUE(list_child.parent().is(list));
+    list.del(0);
+    EXPECT_TRUE(list_child.parent() == nil);
+    EXPECT_EQ(list_child.get("x"_key), "X");
+
+    Object map{Object::OMAP};
+    map.set("ds"_key, Object{new TestSimpleSource(R"({"x": "X"})")});
+    Object map_child = map.get("ds"_key);
+    EXPECT_TRUE(map_child.parent().is(map));
+    map.del("ds"_key);
+    EXPECT_TRUE(map_child.parent() == nil);
+    EXPECT_EQ(map_child.get("x"_key), "X");
+}
+
 TEST(Object, TestSimpleSource_Read) {
     auto dsrc = new TestSimpleSource(R"("Strong, black tea")");
     Object obj{dsrc};

@@ -1624,7 +1624,7 @@ void Object::clear_parent() const {
         case SMAP: p_parent = &(std::get<1>(*m_repr.psm)); break;
         case OMAP: p_parent = &(std::get<1>(*m_repr.pom)); break;
         case ANY:  p_parent = &(m_repr.pany->m_parent); break;
-        case DSRC: p_parent = &(m_repr.pany->m_parent); break;
+        case DSRC: p_parent = &(m_repr.ds->m_parent); break;
         default:   return;
     }
     p_parent->m_fields.repr_ix = NIL;
