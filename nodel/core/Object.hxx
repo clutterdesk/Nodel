@@ -4178,7 +4178,6 @@ class Object::Subscript
     Object copy() const                { return resolve().copy(); }
     refcnt_t ref_count() const         { return resolve().ref_count(); }
 
-    // TODO: not sure how to reduce the code, here
     Object operator = (const Subscript<Key>& sub)   { assign(sub); return *this; }
     Object operator = (Subscript<Key>&& sub)        { assign(std::forward<Subscript<Key>>(sub)); return *this; }
     Object operator = (const Subscript<OPath>& sub) { assign(sub); return *this; }
