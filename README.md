@@ -75,6 +75,25 @@ python3 -m build
 pip install dist/nodel*.whl
 ```
 
+### Cross-compiling for Windows
+The unit tests can be cross-compiled for Windows x64 (MSVC ABI) from macOS or Linux using clang-cl, lld-link,
+and an MSVC CRT / Windows SDK fetched with [xwin](https://github.com/Jake-Shadle/xwin).  The Python extension,
+RocksDB support and documentation are skipped when cross-compiling.
+
+```
+brew install llvm ninja
+cargo install xwin --locked     # Rust < 1.85: cargo install xwin --version 0.6.5 --locked
+xwin --accept-license --arch x86_64 --cache-dir ~/.xwin-cache splat --include-debug-libs --output ~/.xwin
+
+cmake --preset windows-x64
+cmake --build --preset windows-x64
+```
+
+The output is `build-win64/nodel_test.exe`, which needs the Visual C++ Redistributable to run.  `lld-link` is
+taken from Homebrew's `lld` if installed, otherwise from the rustup toolchain.  Keep xwin's `--cache-dir` on the
+same volume as `--output`; by default it caches in the current directory.  Tool locations can be overridden
+with `-DLLVM_ROOT=...`, `-DLLD_ROOT=...` and `-DXWIN_DIR=...`.
+
 ## Quick Start
 
 ```
