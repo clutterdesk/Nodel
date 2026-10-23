@@ -322,6 +322,7 @@ TEST(Object, GetId) {
     EXPECT_NE(Object(2.718).id().to_str(), "");
     EXPECT_NE(Object("tea").id().to_str(), "");
     EXPECT_NE(Object(Object::LIST).id().to_str(), "");
+    EXPECT_NE(Object(Object::SMAP).id().to_str(), "");
     EXPECT_NE(Object(Object::OMAP).id().to_str(), "");
 }
 
@@ -2153,6 +2154,14 @@ TEST(Object, PtrIDEquality) {
   Object obj{"etc"};
   Object copy{obj};
   EXPECT_EQ(obj.id(), copy.id());
+}
+
+TEST(Object, SortedMapIDEquality) {
+  Object obj{Object::SMAP};
+  Object copy{obj};
+  Object other{Object::SMAP};
+  EXPECT_EQ(obj.id(), copy.id());
+  EXPECT_NE(obj.id(), other.id());
 }
 
 TEST(Object, NumericIDEquality) {

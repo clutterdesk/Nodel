@@ -2992,7 +2992,7 @@ Oid Object::id() const {
         case FLOAT: return Oid{repr_ix, *((uint64_t*)(&m_repr.f))};;
         case STR:   return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.ps)))};
         case LIST:  return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.pl)))};
-        case SMAP:  return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.pom)))};
+        case SMAP:  return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.psm)))};
         case OMAP:  return Oid{repr_ix, (uint64_t)(&(std::get<0>(*m_repr.pom)))};
         case ANY:   return Oid{repr_ix, (uint64_t)(m_repr.pany)};
         case DSRC:  return Oid{repr_ix, (uint64_t)(m_repr.ds)};
