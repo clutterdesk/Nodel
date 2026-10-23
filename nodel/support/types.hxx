@@ -26,6 +26,14 @@ namespace nodel {
 #endif
 #endif // NODEL_ARCH
 
+// Prevents inlining of a function, e.g. to keep a rarely taken path out of a
+// hot inlined caller.  Place before the function's declaration specifiers.
+#if defined(_MSC_VER) && !defined(__clang__)
+#define NODEL_NOINLINE __declspec(noinline)
+#else
+#define NODEL_NOINLINE [[gnu::noinline]]
+#endif
+
 #if NODEL_ARCH == 32
 using refcnt_t = uint32_t;                     // only least-significant 28-bits used
 #else

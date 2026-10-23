@@ -160,7 +160,7 @@ class intern_t
 #endif
 
     /// Compares strings by content, when their storage differs but they may be equal.
-    [[gnu::noinline]] bool equal_content(intern_t other) const { return data() == other.data(); }
+    NODEL_NOINLINE bool equal_content(intern_t other) const { return data() == other.data(); }
 
     impl::InternHeader header() const { return impl::InternHeader::of(m_p); }
 
