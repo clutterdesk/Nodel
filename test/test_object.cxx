@@ -3614,6 +3614,41 @@ TEST(Object, SubscriptPathAssignAfterRead) {
 }
 
 
+// Copy-assigning an Object to itself keeps its value.
+TEST(Object, SelfCopyAssign) {
+    Object obj = "[1, 2, 3]"_json;
+    Object& ref = obj;
+    obj = ref;
+    EXPECT_EQ(obj.to_json(), "[1, 2, 3]");
+}
+
+// Move-assigning an Object to itself keeps its value.
+TEST(Object, SelfMoveAssign) {
+    Object obj = "[1, 2, 3]"_json;
+    Object& ref = obj;
+    obj = std::move(ref);
+    ASSERT_FALSE(obj.is_empty());
+    EXPECT_EQ(obj.to_json(), "[1, 2, 3]");
+}
+
+// Copy-assigning an element of a container to the only reference to the container.
+TEST(Object, CopyAssignOwnElement) {
+    TestObject test_obj = "['abc', 2]"_json;
+    Object& obj = test_obj;
+    Object& elem = std::get<0>(*test_obj.m_repr.pl)[0];
+    obj = elem;
+    EXPECT_EQ(obj, "abc");
+}
+
+// Move-assigning an element of a container to the only reference to the container.
+TEST(Object, MoveAssignOwnElement) {
+    TestObject test_obj = "['abc', 2]"_json;
+    Object& obj = test_obj;
+    Object& elem = std::get<0>(*test_obj.m_repr.pl)[0];
+    obj = std::move(elem);
+    EXPECT_EQ(obj, "abc");
+}
+
 //////////////////////////////////////////////////////////////////////////////
 // Regression tests for the bugs tracked as GitHub issues.
 // These fail until the bugs are fixed, and some of them exercise memory
@@ -3621,23 +3656,6 @@ TEST(Object, SubscriptPathAssignAfterRead) {
 // --gtest_filter=-ObjectBug.*
 // Tests marked "ASan" only fail reliably in an AddressSanitizer build.
 //////////////////////////////////////////////////////////////////////////////
-
-// Self-assignment (ASan): operator= releases the old value before copying.
-TEST(ObjectBug, SelfCopyAssign) {
-    Object obj = "[1, 2, 3]"_json;
-    Object& ref = obj;
-    obj = ref;
-    EXPECT_EQ(obj.to_json(), "[1, 2, 3]");
-}
-
-// Self-assignment: move-assigning an Object to itself leaves it empty.
-TEST(ObjectBug, SelfMoveAssign) {
-    Object obj = "[1, 2, 3]"_json;
-    Object& ref = obj;
-    obj = std::move(ref);
-    ASSERT_FALSE(obj.is_empty());
-    EXPECT_EQ(obj.to_json(), "[1, 2, 3]");
-}
 
 // OPath::parse_brace_key (ASan): reads past the end without a closing ']'.
 TEST(ObjectBug, ParsePathMissingCloseBracket) {

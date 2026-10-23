@@ -192,6 +192,7 @@ class Object
           AlienPtr     pany;
           DataSourcePtr ds;
       };
+      static_assert(std::is_trivially_copyable_v<Repr>);  // assignment copies the active member
 
       struct Fields
       {
@@ -3168,87 +3169,26 @@ void Object::release() {
 
 inline
 Object& Object::operator = (const Object& other) {
+    auto repr_ix = other.m_fields.repr_ix;
+    auto repr = other.m_repr;
+    if (repr_ix != EMPTY) other.inc_ref_count();  // before dec: other may be owned by this Object's value
     dec_ref_count();
-
-    m_fields.repr_ix = other.m_fields.repr_ix;
-    switch (m_fields.repr_ix) {
-        case EMPTY: m_repr.z = nullptr; break;
-        case NIL:   m_repr.z = nullptr; break;
-        case BOOL:  m_repr.b = other.m_repr.b; break;
-        case INT:   m_repr.i = other.m_repr.i; break;
-        case UINT:  m_repr.u = other.m_repr.u; break;
-        case FLOAT: m_repr.f = other.m_repr.f; break;
-        case STR: {
-            m_repr.ps = other.m_repr.ps;
-            inc_ref_count();
-            break;
-        }
-        case LIST: {
-            m_repr.pl = other.m_repr.pl;
-            inc_ref_count();
-            break;
-        }
-        case SMAP: {
-            m_repr.psm = other.m_repr.psm;
-            inc_ref_count();
-            break;
-        }
-        case OMAP: {
-            m_repr.pom = other.m_repr.pom;
-            inc_ref_count();
-            break;
-        }
-        case ANY: {
-            m_repr.pany = other.m_repr.pany;
-            inc_ref_count();
-            break;
-        }
-        case DSRC: {
-            m_repr.ds = other.m_repr.ds;
-            inc_ref_count();
-            break;
-        }
-        case DEL: {
-            m_repr.z = nullptr;
-            break;
-        }
-        case ERROR: {
-            m_repr.ps = other.m_repr.ps;
-            inc_ref_count();
-            break;
-        }
-        default:
-            throw wrong_type(m_fields.repr_ix);
-    }
+    m_fields.repr_ix = repr_ix;
+    static_assert(std::is_trivially_copyable_v<Repr>);  // m_repr = repr copies the active member
+    m_repr = repr;
     return *this;
 }
 
 inline
 Object& Object::operator = (Object&& other) {
+    auto repr_ix = other.m_fields.repr_ix;
+    auto repr = other.m_repr;
+    other.m_fields.repr_ix = EMPTY;  // before dec: other may be this Object, or owned by its value
+    other.m_repr.z = nullptr;
     dec_ref_count();
-
-    m_fields.repr_ix = other.m_fields.repr_ix;
-    switch (m_fields.repr_ix) {
-        case EMPTY: m_repr.z = nullptr; break;
-        case NIL:   m_repr.z = nullptr; break;
-        case BOOL:  m_repr.b = other.m_repr.b; break;
-        case INT:   m_repr.i = other.m_repr.i; break;
-        case UINT:  m_repr.u = other.m_repr.u; break;
-        case FLOAT: m_repr.f = other.m_repr.f; break;
-        case STR:   m_repr.ps = other.m_repr.ps; break;
-        case LIST:  m_repr.pl = other.m_repr.pl; break;
-        case SMAP:  m_repr.psm = other.m_repr.psm; break;
-        case OMAP:  m_repr.pom = other.m_repr.pom; break;
-        case ANY:   m_repr.pany = other.m_repr.pany; break;
-        case DSRC:  m_repr.ds = other.m_repr.ds; break;
-        case DEL:   m_repr.z = nullptr; break;
-        case ERROR: m_repr.ps = other.m_repr.ps; break;
-        default:    throw wrong_type(m_fields.repr_ix);
-    }
-
-    other.m_fields.repr_ix = EMPTY;
-    other.m_repr.z = nullptr; // safe, but may not be necessary
-
+    m_fields.repr_ix = repr_ix;
+    static_assert(std::is_trivially_copyable_v<Repr>);  // m_repr = repr copies the active member
+    m_repr = repr;
     return *this;
 }
 
