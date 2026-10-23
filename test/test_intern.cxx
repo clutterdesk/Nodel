@@ -9,7 +9,7 @@
 using namespace nodel;
 
 TEST(Intern, InternStringLiteral) {
-    impl::thread_interns().strings.clear();
+    clear_thread_interns();
     EXPECT_EQ(impl::thread_interns().strings.size(), 0UL);
 
     const char* literal = "tea";
@@ -33,7 +33,7 @@ TEST(Intern, InternStringLiteral) {
 }
 
 TEST(Intern, InternString) {
-    impl::thread_interns().strings.clear();
+    clear_thread_interns();
     EXPECT_EQ(impl::thread_interns().strings.size(), 0UL);
 
     auto intern = intern_string_literal("tea");
@@ -64,4 +64,19 @@ TEST(Intern, AcrossThreads) {
     EXPECT_EQ(tea.hash(), other_tea.hash());
     EXPECT_TRUE(tea == other_tea);
     EXPECT_FALSE(tea == other_coffee);
+}
+
+TEST(Intern, ClearThreadInterns) {
+    clear_thread_interns();
+    intern_string("tea");
+    intern_string(std::string(1000, 'x'));
+    EXPECT_EQ(impl::thread_interns().strings.size(), 2UL);
+
+    clear_thread_interns();
+    EXPECT_EQ(impl::thread_interns().strings.size(), 0UL);
+
+    auto tea = intern_string("tea");
+    EXPECT_EQ(tea.data(), "tea");
+    EXPECT_EQ(intern_string(std::string("tea")).data().data(), tea.data().data());
+    EXPECT_EQ(impl::thread_interns().strings.size(), 1UL);
 }

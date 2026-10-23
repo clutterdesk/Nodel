@@ -8,6 +8,7 @@
 #include <nodel/core/bind.hxx>
 #include <nodel/core/algo.hxx>
 #include <nodel/support/logging.hxx>
+#include <nodel/support/intern.hxx>
 
 /////////////////////////////////////////////////////////////////////////////
 /// Deprecated: no longer required, expands to nothing.

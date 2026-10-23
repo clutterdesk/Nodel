@@ -8,6 +8,7 @@
 #include <limits>
 #include <stdexcept>
 #include <unordered_set>
+#include <vector>
 #include <nodel/support/types.hxx>
 
 namespace nodel {
@@ -61,8 +62,9 @@ struct InternEqual
 /// A *thread-local* set of interned strings, and a process-wide unique
 /// identifier for the set.
 /// - Each interned string is preceded by an @ref InternHeader.
-/// - Interned strings are allocated in chunks, and are never freed, so they
-///   remain valid after the thread exits.
+/// - Interned strings are allocated in chunks, and are not freed when the
+///   thread exits, so they remain valid afterwards.  They are freed only by
+///   @ref clear.
 /////////////////////////////////////////////////////////////////////////////
 struct InternTable
 {
@@ -79,6 +81,16 @@ struct InternTable
         if (auto match = strings.find(query); match != strings.end())
             return *match;
         return *strings.insert(copy(query)).first;
+    }
+
+    /// Frees every interned string.
+    void clear() {
+        strings.clear();
+        for (auto p_block : m_blocks)
+            delete [] p_block;
+        m_blocks.clear();
+        m_chunk_next = nullptr;
+        m_chunk_end = nullptr;
     }
 
     std::unordered_set<const char*, InternHash, InternEqual> strings;
@@ -99,9 +111,9 @@ struct InternTable
     char* allocate(size_t size) {
         constexpr size_t chunk_size = 4096;
         size = (size + alignof(InternHeader) - 1) & ~(alignof(InternHeader) - 1);
-        if (size > chunk_size / 8) return new char[size];
+        if (size > chunk_size / 8) return new_block(size);
         if ((size_t)(m_chunk_end - m_chunk_next) < size) {
-            m_chunk_next = new char[chunk_size];
+            m_chunk_next = new_block(chunk_size);
             m_chunk_end = m_chunk_next + chunk_size;
         }
         char* p = m_chunk_next;
@@ -109,6 +121,12 @@ struct InternTable
         return p;
     }
 
+    char* new_block(size_t size) {
+        m_blocks.reserve(m_blocks.size() + 1);
+        return m_blocks.emplace_back(new char[size]);
+    }
+
+    std::vector<char*> m_blocks;
     char* m_chunk_next = nullptr;
     char* m_chunk_end = nullptr;
 };
@@ -179,6 +197,19 @@ inline
 intern_t intern_string(const StringView& str) {
     auto& interns = impl::thread_interns();
     return intern_t{interns.intern(str), interns.id};
+}
+
+/////////////////////////////////////////////////////////////////////////////
+/// Frees every string interned by the calling thread.
+/// - Use this to bound memory when string keys come from an unbounded domain,
+///   such as keys parsed from data.
+/// - Every intern_t, and so every Key and Object, holding a string interned
+///   by the calling thread is left dangling, including those held by other
+///   threads.  Destroy them, or stop using them, before calling this.
+/////////////////////////////////////////////////////////////////////////////
+inline
+void clear_thread_interns() {
+    impl::thread_interns().clear();
 }
 
 /// Literals are copied like other strings, since interned storage must be
