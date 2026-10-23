@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nodel Cross-Compiling</title>
+<style>
+:root {
+    --accent: #368C40;
+    --bg: #ffffff;
+    --fg: #1f2328;
+    --muted: #57606a;
+    --border: #d0d7de;
+    --code-bg: #f3f5f7;
+    --box-bg: #f6f8f6;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --accent: #6cc477;
+        --bg: #16181b;
+        --fg: #e6e8eb;
+        --muted: #9aa3ad;
+        --border: #343a41;
+        --code-bg: #22262b;
+        --box-bg: #1d2320;
+    }
+}
+:root[data-theme="dark"] {
+    --accent: #6cc477;
+    --bg: #16181b;
+    --fg: #e6e8eb;
+    --muted: #9aa3ad;
+    --border: #343a41;
+    --code-bg: #22262b;
+    --box-bg: #1d2320;
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: sans-serif;
+    font-size: 12pt;
+    line-height: 1.55;
+}
+main { max-width: 52rem; margin: 0 auto; padding: 2rem 16px 4rem; }
+h1 { color: var(--accent); font-size: 1.7rem; margin: 0 0 .25rem; }
+.subtitle { color: var(--muted); font-style: italic; margin: 0 0 2rem; }
+h2 { color: var(--accent); font-size: 1.25rem; margin: 2.25rem 0 .6rem; border-bottom: 1px solid var(--border); padding-bottom: .3rem; }
+h3 { font-size: 1.05rem; margin: 1.4rem 0 .4rem; }
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88em; }
+code { background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; margin: .5rem 0 1rem; font-size: .95em; }
+th, td { text-align: left; vertical-align: top; padding: .45rem .6rem; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 600; }
+.note { background: var(--box-bg); border-left: 4px solid var(--accent); padding: .7rem 1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; }
+.pipeline { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 1rem 0; }
+.pipeline .step { border: 1px solid var(--border); border-radius: 6px; padding: .45rem .7rem; background: var(--box-bg); }
+.pipeline .step small { display: block; color: var(--muted); }
+.pipeline .arrow { color: var(--muted); }
+ul, ol { padding-left: 1.4rem; }
+li { margin: .25rem 0; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Cross-Compiling Nodel for Windows</h1>
+<p class="subtitle">How the clang-cl + xwin build produces a Windows x64 <code>nodel_test.exe</code> on macOS</p>
+
+<h2>Overview</h2>
+<p>
+Nodel's unit tests can be built for Windows x64 without a Windows machine. The build targets the
+<strong>MSVC ABI</strong>, so the resulting binaries link against the same C/C++ runtime as code built with
+Visual Studio. It uses three pieces:
+</p>
+<ul>
+  <li><strong>clang-cl</strong>: LLVM's compiler, which accepts MSVC-style options and emits Windows object files.</li>
+  <li><strong>lld-link</strong>: LLVM's linker for Windows executables (PE/COFF).</li>
+  <li><strong>xwin</strong>: a tool that downloads Microsoft's CRT headers and libraries and the Windows SDK, and lays them out for use on a non-Windows host.</li>
+</ul>
+<div class="pipeline">
+  <div class="step"><code>cmake --preset windows-x64</code><small>CMakePresets.json</small></div>
+  <span class="arrow">&rarr;</span>
+  <div class="step">Toolchain file<small>picks tools and paths</small></div>
+  <span class="arrow">&rarr;</span>
+  <div class="step">clang-cl<small>headers from ~/.xwin</small></div>
+  <span class="arrow">&rarr;</span>
+  <div class="step">lld-link<small>libraries from ~/.xwin</small></div>
+  <span class="arrow">&rarr;</span>
+  <div class="step"><code>build-win64/nodel_test.exe</code></div>
+</div>
+<p>The Python extension, RocksDB support and the Doxygen docs are skipped when cross-compiling.</p>
+
+<h2>Quick start</h2>
+<pre><code>brew install llvm ninja
+cargo install xwin --locked     # Rust &lt; 1.85: cargo install xwin --version 0.6.5 --locked
+xwin --accept-license --arch x86_64 --cache-dir ~/.xwin-cache \
+     splat --include-debug-libs --output ~/.xwin
+
+cmake --preset windows-x64
+cmake --build --preset windows-x64</code></pre>
+<p>
+Running <code>xwin</code> with <code>--accept-license</code> means you accept Microsoft's license for the CRT and SDK.
+You only need to run it once, or again to update the SDK; the build itself doesn't run xwin.
+</p>
+
+<h2>What lives where</h2>
+<h3>In the repository</h3>
+<div class="table-wrap">
+<table>
+  <tr><th>File</th><th>Role</th></tr>
+  <tr><td><code>cmake/toolchains/windows-clang-cl.cmake</code></td><td>Finds the tools, sets the Windows target, and points the compiler and linker at the MSVC headers and libraries in <code>~/.xwin</code>.</td></tr>
+  <tr><td><code>CMakePresets.json</code></td><td>The <code>windows-x64</code> preset: Ninja, Release, output in <code>build-win64/</code>, builds <code>nodel_test</code>.</td></tr>
+  <tr><td><code>CMakeLists.txt</code></td><td>Builds ZipLib as a CMake library, guards platform-specific flags, and skips host-only parts when cross-compiling.</td></tr>
+  <tr><td><code>deps/ziplib/</code></td><td>Vendored ZipLib sources, compiled by CMake.</td></tr>
+</table>
+</div>
+
+<h3>Fetched by CMake at configure time</h3>
+<p>
+cpptrace, fmt, tsl-ordered-map and googletest are cloned from GitHub into <code>build-win64/_deps/</code>
+at the versions pinned in <code>CMakeLists.txt</code>, just as in the native build. Configuring needs network access.
+</p>
+
+<h3>Installed on the host, outside the repository</h3>
+<div class="table-wrap">
+<table>
+  <tr><th>What</th><th>Default location</th><th>Used for</th></tr>
+  <tr><td>Homebrew LLVM</td><td><code>/opt/homebrew/opt/llvm</code> (Apple Silicon) or <code>/usr/local/opt/llvm</code> (Intel)</td><td><code>clang-cl</code>, <code>llvm-lib</code>, <code>llvm-rc</code>, <code>llvm-mt</code></td></tr>
+  <tr><td>lld-link</td><td>Homebrew <code>lld</code> if installed, otherwise <code>~/.rustup/toolchains/*/lib/rustlib/*/bin/gcc-ld/lld-link</code></td><td>Linking</td></tr>
+  <tr><td>MSVC CRT + Windows SDK</td><td><code>~/.xwin</code> (about 800 MB)</td><td>Headers and import libraries. Under Microsoft's license, so it's never committed.</td></tr>
+  <tr><td>xwin</td><td><code>~/.cargo/bin/xwin</code></td><td>Only to create or refresh <code>~/.xwin</code></td></tr>
+  <tr><td>Ninja, CMake &ge; 3.25</td><td>Homebrew</td><td>Build tools. The presets file needs CMake 3.25 or newer.</td></tr>
+</table>
+</div>
+
+<h2>How the toolchain file works</h2>
+<ol>
+  <li><strong>Target system.</strong> Sets <code>CMAKE_SYSTEM_NAME Windows</code> and <code>AMD64</code>, which makes CMake treat the build as a cross-compile (<code>CMAKE_CROSSCOMPILING</code> is true and <code>WIN32</code> is set).</li>
+  <li><strong>Locations.</strong> <code>LLVM_ROOT</code>, <code>LLD_ROOT</code> and <code>XWIN_DIR</code> come from a <code>-D</code> option, then an environment variable of the same name, then the first default path that exists. Configuring stops with an error if <code>XWIN_DIR</code> doesn't contain a splat.</li>
+  <li><strong>Tools.</strong> <code>clang-cl</code> is the C/C++ compiler, <code>lld-link</code> the linker, <code>llvm-lib</code> the archiver, and <code>llvm-rc</code>/<code>llvm-mt</code> the resource and manifest tools. The target triple is <code>x86_64-pc-windows-msvc</code>.</li>
+  <li><strong>Headers.</strong> Each xwin include directory (CRT, ucrt, um, shared, winrt) is passed with <code>/imsvc</code>, which makes them system headers so their warnings stay quiet.</li>
+  <li><strong>Libraries.</strong> <code>/libpath:</code> entries for the CRT, um and ucrt <code>x86_64</code> library directories are added to the executable, shared and module linker flags.</li>
+  <li><strong>Runtime.</strong> Uses the dynamic CRT (<code>/MD</code>, or <code>/MDd</code> for Debug), which matches googletest's <code>gtest_force_shared_crt</code>.</li>
+  <li><strong>Isolation.</strong> Library, include and package searches are confined to the xwin directory, so host packages such as Homebrew RocksDB or Python can't leak into the Windows build.</li>
+</ol>
+
+<h2>Adjustments in CMakeLists.txt</h2>
+<ul>
+  <li><strong>ZipLib</strong> is an <code>add_library(nodel_ziplib STATIC …)</code> target, not a call to its Makefile, which hardcoded clang and had no Windows target. On Windows it compiles the Win32 lzma sources (the list from <code>lzma.vcxproj</code>); elsewhere it uses <code>extlibs/lzma/unix</code>. It's pinned to C++11, matching the Makefile.</li>
+  <li><strong>Threads</strong>: <code>Threads::Threads</code> replaces <code>-pthread</code>.</li>
+  <li><strong>Warnings</strong>: <code>NODEL_WFLAGS</code> (GCC/Clang syntax) is only passed to compilers that aren't MSVC-style.</li>
+  <li><strong>Host-only parts</strong>: RocksDB and the Python extension are skipped when <code>CMAKE_CROSSCOMPILING</code> is set, and Doxygen is optional.</li>
+  <li><strong>Third-party workarounds</strong> (vendored sources are left unmodified):
+    <ul>
+      <li>lzma's <code>CpuArch.c</code> is compiled with <code>/FIintrin.h</code>, because it calls <code>__cpuid</code>, which MSVC treats as a built-in but clang-cl needs declared.</li>
+      <li>googletest gets <code>-Wno-character-conversion</code> under clang-cl 21 or later. It builds with warnings-as-errors on MSVC, and that warning fires in <code>gtest-printers.h</code>.</li>
+    </ul>
+  </li>
+</ul>
+
+<h2>Running the result</h2>
+<p>
+<code>build-win64/nodel_test.exe</code> imports <code>MSVCP140.dll</code>, <code>VCRUNTIME140.dll</code>,
+<code>VCRUNTIME140_1.dll</code>, the <code>api-ms-win-crt-*</code> DLLs and <code>dbghelp.dll</code>.
+To run it, copy <code>build-win64/nodel_test.exe</code> and <code>build-win64/test_data/</code> to a Windows 10 or later
+machine with the <strong>Visual C++ Redistributable (x64)</strong> installed, or run it under Wine. To check the output
+without running it:
+</p>
+<pre><code>file build-win64/nodel_test.exe
+llvm-readobj --coff-imports build-win64/nodel_test.exe</code></pre>
+
+<h2>Overrides</h2>
+<pre><code>cmake --preset windows-x64 -DLLVM_ROOT=/path/to/llvm -DLLD_ROOT=/path/to/lld -DXWIN_DIR=/path/to/xwin
+# or
+export LLVM_ROOT=… LLD_ROOT=… XWIN_DIR=…</code></pre>
+<p>Tool paths are cached in <code>build-win64/CMakeCache.txt</code>. Delete <code>build-win64/</code> after changing them.</p>
+
+<h2>Troubleshooting</h2>
+<div class="table-wrap">
+<table>
+  <tr><th>Symptom</th><th>Cause and fix</th></tr>
+  <tr><td><code>MSVC CRT/SDK not found in XWIN_DIR</code></td><td>Run the <code>xwin … splat</code> command above, or set <code>XWIN_DIR</code>.</td></tr>
+  <tr><td>xwin fails with <code>Cross-device link (os error 18)</code></td><td>xwin caches in the current directory by default and can't move files across volumes. Pass <code>--cache-dir</code> on the same volume as <code>--output</code>.</td></tr>
+  <tr><td><code>cargo install xwin</code> fails parsing the manifest (edition 2024)</td><td>The newest xwin needs Rust 1.85 or later. Run <code>rustup update</code>, or install <code>--version 0.6.5</code>.</td></tr>
+  <tr><td><code>brew install lld</code> runs for hours</td><td>Homebrew is compiling LLVM from source because no prebuilt package exists for your Mac. Stop it and use the rustup <code>lld-link</code>, which the toolchain finds automatically.</td></tr>
+  <tr><td>Homebrew <code>clang-cl</code> fails with <code>Library not loaded: …libz3…</code></td><td>z3 was upgraded under LLVM. Run <code>brew reinstall z3 llvm</code>, or point <code>/usr/local/opt/z3</code> back at the version LLVM was built against.</td></tr>
+</table>
+</div>
+
+</main>
+</body>
+</html>
