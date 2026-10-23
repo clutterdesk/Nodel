@@ -290,7 +290,7 @@ PyObject* Support::to_str(const Key& key) {
         case Key::UINT:  return python::to_str(key.m_repr.u);
         case Key::FLOAT: return python::to_str(key.m_repr.f);
         case Key::STR: {
-            auto& str = key.m_repr.s.data();
+            auto str = key.m_repr.s.data();
             return python::to_str(str);
         }
         default: {
@@ -360,7 +360,7 @@ PyObject* Support::to_py(const Key& key) {
         case Key::UINT:  return PyLong_FromUnsignedLongLong(key.m_repr.u);
         case Key::FLOAT: return PyFloat_FromDouble(key.m_repr.f);
         case Key::STR: {
-            auto& str = key.m_repr.s.data();
+            auto str = key.m_repr.s.data();
             return python::to_str(str);
         }
         default: {

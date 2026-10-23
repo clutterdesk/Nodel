@@ -33,11 +33,12 @@ namespace nodel {
 ///     - floating point   (64-bit, as defined in nodel/support/types.h)
 ///     - string           (may represent either text, or binary data)
 /// - String keys are interned (see nodel/support/intern.h).
-/// - A literal operator `""_key` is provided, which is fast to create because
-///   it is known that the data is a read-only literal.
+/// - A literal operator `""_key` is provided.
 /// - String interning has several benefits including:
-///     - String keys can be compared by comparing pointers
-///     - A string key can be hashed by hashing its pointer
+///     - String keys interned by the same thread can be compared by comparing
+///       pointers.  String keys interned by different threads are compared
+///       by content.
+///     - A string key is hashed once, when it is interned
 ///     - A string key copy only has to assign a pointer
 /// - When creating Key instances from non-literal strings, the string must
 ///   first be interned at the cost of a hash table lookup and comparison.
@@ -166,7 +167,7 @@ class Key
     }
 
     bool operator == (is_like_string auto&& other) const {
-        return (m_repr_ix == STR)? (m_repr.s == other): false;
+        return (m_repr_ix == STR)? (m_repr.s.data() == other): false;
     }
 
     bool operator == (is_bool auto other) const {
@@ -316,7 +317,7 @@ class Key
     template <typename T> T as() const requires is_byvalue<T> && std::is_same<T, UInt>::value  { return m_repr.u; }
     template <typename T> T as() const requires is_byvalue<T> && std::is_same<T, Float>::value { return m_repr.f; }
 
-    template <typename T> const T& as() const requires std::is_same<T, StringView>::value {
+    template <typename T> T as() const requires std::is_same<T, StringView>::value {
         if (m_repr_ix != STR) throw wrong_type(m_repr_ix);
         return m_repr.s.data();
     }
@@ -403,7 +404,7 @@ class Key
             case UINT:  stream << '[' << nodel::int_to_str(m_repr.u) << ']'; break;
             case FLOAT: stream << '[' << nodel::float_to_str(m_repr.f) << ']'; break;
             case STR: {
-                auto& str = m_repr.s.data();
+                auto str = m_repr.s.data();
                 auto is_dot_char = [] (char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
                 if (str.empty() || !std::all_of(str.begin(), str.end(), is_dot_char)) {
                     stream << '[' << quoted(m_repr.s.data()) << ']';
@@ -441,7 +442,7 @@ class Key
             case UINT:  return nodel::int_to_str(m_repr.u);
             case FLOAT: return nodel::float_to_str(m_repr.f);
             case STR: {
-                auto& str = m_repr.s.data();
+                auto str = m_repr.s.data();
                 return {str.data(), str.size()};
             }
             default:
@@ -478,7 +479,7 @@ class Key
             case INT:   return (size_t)m_repr.i;
             case UINT:  return (size_t)m_repr.u;
             case FLOAT: return float_hash(m_repr.f);
-            case STR:   return (size_t)m_repr.s.data().data();
+            case STR:   return m_repr.s.hash();
             default:    throw wrong_type(m_repr_ix);
         }
     }

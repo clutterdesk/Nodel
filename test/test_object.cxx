@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 #include <fmt/format.h>
 #include <algorithm>
+#include <thread>
 
 #include <nodel/core/Object.hxx>
 #include <nodel/core.hxx>
@@ -1029,6 +1030,20 @@ TEST(Object, OrderedMapGet) {
   EXPECT_EQ(obj.get(2).cast<Int>(), 9);
   EXPECT_EQ(obj.get("name"_key).as<String>(), "Brian");
   EXPECT_TRUE(obj.get("blah"_key) == nil);
+}
+
+TEST(Object, OrderedMapKeyFromOtherThread) {
+  Object obj = json::parse(R"({0: 7, "name": "Brian"})");
+  Key key;
+  std::thread thread{[&] () { key = Key{std::string("name")}; }};
+  thread.join();
+  EXPECT_EQ(obj.get(key).as<String>(), "Brian");
+  obj.set(key, "Robert");
+  EXPECT_EQ(obj.size(), 2UL);
+  EXPECT_EQ(obj.get("name"_key).as<String>(), "Robert");
+  obj.del(key);
+  EXPECT_EQ(obj.size(), 1UL);
+  EXPECT_TRUE(obj.get("name"_key) == nil);
 }
 
 TEST(Object, SortedMapGet) {

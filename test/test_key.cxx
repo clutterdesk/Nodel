@@ -6,6 +6,7 @@
 #include <nodel/core/Key.hxx>
 #include <tsl/ordered_map.h>
 #include <map>
+#include <thread>
 
 using namespace nodel;
 
@@ -583,4 +584,14 @@ TEST(Key, FloatToStrNonFinite) {
     EXPECT_EQ(Key{std::numeric_limits<double>::infinity()}.to_str(), "inf");
     EXPECT_EQ(Key{-std::numeric_limits<double>::infinity()}.to_str(), "-inf");
     EXPECT_EQ(Key{std::numeric_limits<double>::quiet_NaN()}.to_str(), "nan");
+}
+
+TEST(Key, StringKeyAcrossThreads) {
+    Key other;
+    std::thread thread{[&] () { other = Key{std::string("unique_thread_key")}; }};
+    thread.join();
+    Key key{std::string("unique_thread_key")};
+    EXPECT_EQ(key, other);
+    EXPECT_EQ(key.hash(), other.hash());
+    EXPECT_NE(Key{"other"}, other);
 }
