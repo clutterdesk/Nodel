@@ -116,6 +116,41 @@ TEST(Key, StringToFloat) {
     EXPECT_EQ(str_to_float(String(100, '0') + "1.5"), 1.5);
 }
 
+TEST(Key, StringToInt) {
+    EXPECT_EQ(str_to_int("0"), 0);
+    EXPECT_EQ(str_to_int("-42"), -42);
+    EXPECT_EQ(str_to_int("+42"), 42);
+    EXPECT_EQ(str_to_int("9223372036854775807"), std::numeric_limits<Int>::max());
+    EXPECT_EQ(str_to_int("-9223372036854775808"), std::numeric_limits<Int>::min());
+    String text = "12" "3";
+    EXPECT_EQ(str_to_int(StringView{text}.substr(0, 2)), 12);
+    EXPECT_EQ(Key{StringView{text}.substr(0, 2)}.to_int(), 12);
+
+    EXPECT_THROW(str_to_int(""), InvalidNumber);
+    EXPECT_THROW(str_to_int("+"), InvalidNumber);
+    EXPECT_THROW(str_to_int("-"), InvalidNumber);
+    EXPECT_THROW(str_to_int("+-1"), InvalidNumber);
+    EXPECT_THROW(str_to_int("abc"), InvalidNumber);
+    EXPECT_THROW(str_to_int("12abc"), InvalidNumber);
+    EXPECT_THROW(str_to_int(" 12"), InvalidNumber);
+    EXPECT_THROW(str_to_int("12 "), InvalidNumber);
+    EXPECT_THROW(str_to_int("9223372036854775808"), InvalidNumber);
+    EXPECT_THROW(Key{"x"}.to_int(), InvalidNumber);
+}
+
+TEST(Key, StringToUInt) {
+    EXPECT_EQ(str_to_uint("0"), 0u);
+    EXPECT_EQ(str_to_uint("+7"), 7u);
+    EXPECT_EQ(str_to_uint("18446744073709551615"), std::numeric_limits<UInt>::max());
+
+    EXPECT_THROW(str_to_uint(""), InvalidNumber);
+    EXPECT_THROW(str_to_uint("-1"), InvalidNumber);
+    EXPECT_THROW(str_to_uint("+-1"), InvalidNumber);
+    EXPECT_THROW(str_to_uint("7x"), InvalidNumber);
+    EXPECT_THROW(str_to_uint("18446744073709551616"), InvalidNumber);
+    EXPECT_THROW(Key{"x"}.to_uint(), InvalidNumber);
+}
+
 TEST(Key, AssignBool) {
   Key k{7};
   EXPECT_TRUE(k.is_type<Int>());

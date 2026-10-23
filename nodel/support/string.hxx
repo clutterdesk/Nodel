@@ -67,26 +67,54 @@ bool str_to_bool(const StringView& str) {
     return (str == "true" || str == "1");
 }
 
-inline
-Int str_to_int(const StringView& str) {
-    // TODO: throw errors?
-    Int value;
+struct InvalidNumber : public NodelException
+{
+    InvalidNumber(const StringView& str, const char* type)
+      : NodelException(make_message(str, type)) {}
+
+    static std::string make_message(const StringView& str, const char* type) {
+        std::stringstream ss;
+        ss << "Invalid " << type << ": " << std::quoted(std::string{str});
+        return ss.str();
+    }
+};
+
+namespace detail {
+
+// Kept out of line so the throw does not bloat the inlined parse fast path.
+[[noreturn, gnu::cold, gnu::noinline]]
+inline void throw_invalid_number(const StringView& str, const char* type) {
+    throw InvalidNumber(str, type);
+}
+
+// Parse the entire string as an integer, accepting an optional leading '+'.
+// Throws InvalidNumber if the string is empty, contains anything other than
+// the number, or is out of range for T.
+template <typename T>
+inline T str_to_integral(const StringView& str, const char* type) {
     const char* beg = str.data();
     const char* end = beg + str.size();
-    auto result = std::from_chars(beg, end, value);
-    ASSERT(result.ec == std::errc());
+    if (beg != end && *beg == '+') {
+        ++beg;
+        if (beg != end && *beg == '-') throw_invalid_number(str, type);
+    }
+    T value;
+    auto [ptr, ec] = std::from_chars(beg, end, value);
+    if (ec != std::errc{} || ptr != end) [[unlikely]]
+        throw_invalid_number(str, type);
     return value;
+}
+
+} // namespace detail
+
+inline
+Int str_to_int(const StringView& str) {
+    return detail::str_to_integral<Int>(str, "integer");
 }
 
 inline
 UInt str_to_uint(const StringView& str) {
-    // TODO: throw errors?
-    UInt value;
-    const char* beg = str.data();
-    const char* end = beg + str.size();
-    auto result = std::from_chars(beg, end, value);
-    ASSERT(result.ec == std::errc());
-    return value;
+    return detail::str_to_integral<UInt>(str, "unsigned integer");
 }
 
 inline
