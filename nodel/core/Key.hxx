@@ -504,6 +504,7 @@ class Key
         else if constexpr (std::is_same<T, Float>::value)    return FLOAT;
         else if constexpr (std::is_same<T, intern_t>::value) return STR;
         else if constexpr (std::is_same<T, String>::value)   return STR;
+        throw wrong_type(m_repr_ix);
     }
 
   private:
