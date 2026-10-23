@@ -4,3 +4,5 @@
 **/.DS_Store
 **/.settings
 /Build*/
+/build-win64/
+/.xwin-cache/

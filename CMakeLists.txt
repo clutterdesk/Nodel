@@ -15,13 +15,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 # WORKAROUND for tsl-ordered-map
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
-if (WIN32)
-    set(OS_LIBRARY_EXT ".lib")
-else()
-    set(OS_LIBRARY_EXT ".a")
-endif()
+option(NODEL_DUMP_VARS "Print all CMake variables at configure time" OFF)
 
-find_program(MAKE make)
 include(FetchContent)
 
 #----------------------------------------------------------------------------
@@ -85,18 +80,57 @@ else()
     FetchContent_MakeAvailable(cpptrace fmtlib tsl-ordered-map googletest)
 endif()
 
+# googletest builds with warnings-as-errors under MSVC, and clang >= 21 warns about
+# char8_t -> char32_t conversions in gtest-printers.h
+if (MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 21)
+    target_compile_options(gtest PRIVATE -Wno-character-conversion)
+endif()
+
 #----------------------------------------------------------------------------
 # Dependency: ZipLib (LOCAL, statically linked)
 #----------------------------------------------------------------------------
-add_custom_target(nodel_ziplib
-                  COMMAND make Bin/libziplib${OS_LIBRARY_EXT} -j ${CMAKE_BUILD_PARALLEL_LEVEL}
-                  COMMENT "Build ZipLib static library"
-                  WORKING_DIRECTORY ${Nodel_SOURCE_DIR}/deps/ziplib)
+set(ZIPLIB_DIR ${Nodel_SOURCE_DIR}/deps/ziplib/Source/ZipLib)
+
+file(GLOB ZIPLIB_SRC
+    ${ZIPLIB_DIR}/*.cpp
+    ${ZIPLIB_DIR}/detail/*.cpp
+    ${ZIPLIB_DIR}/extlibs/zlib/*.c
+    ${ZIPLIB_DIR}/extlibs/bzip2/*.c
+)
+
+if (WIN32)
+    # Same lzma sources as extlibs/lzma/lzma.vcxproj (Win32 threads)
+    foreach(src 7zAlloc 7zBuf 7zBuf2 7zCrc 7zCrcOpt 7zDec 7zFile 7zIn 7zStream Alloc Bcj2 Bra Bra86
+                BraIA64 CpuArch Delta LzFind LzFindMt Lzma2Dec Lzma2Enc Lzma86Dec Lzma86Enc LzmaDec
+                LzmaEnc LzmaLib MtCoder Ppmd7 Ppmd7Dec Ppmd7Enc Sha256 Threads Xz XzCrc64 XzDec XzEnc XzIn)
+        list(APPEND ZIPLIB_SRC ${ZIPLIB_DIR}/extlibs/lzma/${src}.c)
+    endforeach()
+else()
+    file(GLOB ZIPLIB_SRC_LZMA ${ZIPLIB_DIR}/extlibs/lzma/unix/*.c)
+    list(APPEND ZIPLIB_SRC ${ZIPLIB_SRC_LZMA})
+endif()
+
+add_library(nodel_ziplib STATIC ${ZIPLIB_SRC})
+set_target_properties(nodel_ziplib PROPERTIES
+    OUTPUT_NAME ziplib
+    CXX_STANDARD 11
+    POSITION_INDEPENDENT_CODE ON)
+target_include_directories(nodel_ziplib PUBLIC ${Nodel_SOURCE_DIR}/deps/ziplib/Source)
+if (MSVC)
+    target_compile_definitions(nodel_ziplib PRIVATE _CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_DEPRECATE)
+    target_compile_options(nodel_ziplib PRIVATE /w)
+    # CpuArch.c relies on MSVC's built-in __cpuid; clang-cl needs the declaration
+    set_source_files_properties(${ZIPLIB_DIR}/extlibs/lzma/CpuArch.c PROPERTIES COMPILE_OPTIONS "/FIintrin.h")
+else()
+    target_compile_options(nodel_ziplib PRIVATE $<$<COMPILE_LANGUAGE:C>:-Wno-enum-conversion>)
+endif()
 
 #----------------------------------------------------------------------------
 # Optional Dependency: rocksdb (pre-installed)
 #----------------------------------------------------------------------------
-find_package(rocksdb CONFIG)
+if (NOT CMAKE_CROSSCOMPILING)
+    find_package(rocksdb CONFIG)
+endif()
 if (rocksdb_FOUND)
     get_target_property(ROCKSDB_INCLUDE RocksDB::rocksdb INTERFACE_INCLUDE_DIRECTORIES)
     get_target_property(ROCKSDB_LIBRARY RocksDB::rocksdb LOCATION)
@@ -146,13 +180,13 @@ if (rocksdb_FOUND)
     set(NODEL_TEST_SRC ${NODEL_TEST_SRC} ${NODEL_TEST_SRC_ROCKSDB})
 endif()
 
-message(WARNING ${NODEL_TEST_SRC})
+find_package(Threads REQUIRED)
 
 add_executable(nodel_test ${NODEL_TEST_SRC})
-add_dependencies(nodel_test nodel_ziplib)
 target_compile_features(nodel_test PRIVATE cxx_std_20)
-target_compile_options(nodel_test PRIVATE ${NODEL_WFLAGS})
-target_compile_options(nodel_test PRIVATE -pthread)
+if (NOT MSVC)
+    target_compile_options(nodel_test PRIVATE ${NODEL_WFLAGS})
+endif()
 
 if (rocksdb_FOUND)
     target_include_directories(nodel_test PRIVATE ${ROCKSDB_INCLUDE})
@@ -162,15 +196,15 @@ endif()
 target_include_directories(nodel_test PRIVATE
     ${Nodel_SOURCE_DIR}
     ${tsl-ordered-map_SOURCE_DIR}/include
-    ${Nodel_SOURCE_DIR}/deps/ziplib/Source
     ${gtest_SOURCE_DIR}/include
 )
 
 target_link_libraries(nodel_test PRIVATE
-    ${Nodel_SOURCE_DIR}/deps/ziplib/Bin/libziplib${OS_LIBRARY_EXT}
+    nodel_ziplib
     cpptrace::cpptrace
     fmt::fmt
     gtest
+    Threads::Threads
 )
 
 #----------------------------------------------------------------------------
@@ -185,7 +219,7 @@ add_custom_command(
 #----------------------------------------------------------------------------
 #-- Dump All Vars
 #----------------------------------------------------------------------------
-if (1)
+if (NODEL_DUMP_VARS)
     get_cmake_property(_variableNames VARIABLES)
     list (SORT _variableNames)
     foreach (_variableName ${_variableNames})
@@ -196,9 +230,14 @@ endif()
 #----------------------------------------------------------------------------
 #-- Python C-API Extension
 #----------------------------------------------------------------------------
-find_package (Python3 COMPONENTS Interpreter Development)
+if (NOT CMAKE_CROSSCOMPILING)
+    find_package (Python3 COMPONENTS Interpreter Development)
+endif()
 
-if (NOT Python3_FOUND)
+if (CMAKE_CROSSCOMPILING)
+    message(STATUS "Cross-compiling: skipping Python C-API extension.")
+
+elseif (NOT Python3_FOUND)
     message(WARNING "Python3 not found. Unable to build Python C-API extension.")
 
 else()
@@ -214,7 +253,7 @@ else()
     set(NODEL_PYEXT_LIB_PATH
         ${Nodel_SOURCE_DIR}/build/_deps/cpptrace-build
         ${Nodel_SOURCE_DIR}/build/_deps/fmtlib-build
-        ${Nodel_SOURCE_DIR}/deps/ziplib/Bin
+        $<TARGET_FILE_DIR:nodel_ziplib>
     )
 
     if(NOT WIN32)
@@ -232,7 +271,7 @@ else()
 
     add_custom_target(
         pyext ALL
-        DEPENDS nodel_test
+        DEPENDS nodel_test nodel_ziplib
                 ${CMAKE_SOURCE_DIR}/pyext/setup.py
                 ${CMAKE_SOURCE_DIR}/pyext/setup.cfg
         COMMAND ${Python3_EXECUTABLE} -m venv ${CMAKE_BINARY_DIR}/venv
@@ -253,15 +292,15 @@ endif()
 #----------------------------------------------------------------------------
 find_package(Doxygen)
 if(NOT DOXYGEN_FOUND)
-     message(FATAL_ERROR "Doxygen not found!")
-endif()
-
-set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in)
-set(DOXYGEN_OUT ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile)
-configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
+    message(STATUS "Doxygen not found: 'docs' target unavailable.")
+else()
+    set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in)
+    set(DOXYGEN_OUT ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile)
+    configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
 
     add_custom_target(docs
         COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         COMMENT "Build Documentation"
         VERBATIM)
+endif()
