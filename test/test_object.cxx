@@ -1905,6 +1905,16 @@ TEST(Object, ParsePathBracketKeys) {
     EXPECT_THROW("[]"_path, parse::SyntaxError);
 }
 
+TEST(Object, ParsePathMissingCloseBracket) {
+    std::vector<char> spec{'[', '1'};
+    EXPECT_THROW(OPath(StringView{spec.data(), spec.size()}), parse::SyntaxError);
+}
+
+TEST(Object, ParsePathQuotedKeyMissingCloseBracket) {
+    std::vector<char> spec{'[', '\'', 'a', '\''};
+    EXPECT_THROW(OPath(StringView{spec.data(), spec.size()}), parse::SyntaxError);
+}
+
 TEST(Object, ManuallyCreatePath) {
     Object obj = json::parse("{}");
 
@@ -3670,18 +3680,6 @@ TEST(Object, MoveAssignOwnElement) {
 // --gtest_filter=-ObjectBug.*
 // Tests marked "ASan" only fail reliably in an AddressSanitizer build.
 //////////////////////////////////////////////////////////////////////////////
-
-// OPath::parse_brace_key (ASan): reads past the end without a closing ']'.
-TEST(ObjectBug, ParsePathMissingCloseBracket) {
-    std::vector<char> spec{'[', '1'};
-    EXPECT_THROW(OPath(StringView{spec.data(), spec.size()}), parse::SyntaxError);
-}
-
-// OPath::parse_brace_key (ASan): reads past the end after a quoted key.
-TEST(ObjectBug, ParsePathQuotedKeyMissingCloseBracket) {
-    std::vector<char> spec{'[', '\'', 'a', '\''};
-    EXPECT_THROW(OPath(StringView{spec.data(), spec.size()}), parse::SyntaxError);
-}
 
 // Map equality treats a missing key as nil.
 TEST(ObjectBug, MapEqualityMissingKeyVsNil) {

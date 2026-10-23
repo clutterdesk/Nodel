@@ -770,7 +770,7 @@ Key OPath::parse_brace_key(const StringView& spec, StringView::const_iterator& i
     if (c == '\'' || c == '"') {
         auto quoted = parse_quoted(spec, it);
         consume_whitespace(spec, it);
-        if (*it != ']') throw parse::SyntaxError{spec, key_start - spec.cbegin(), "Missing closing ']':"};
+        if (it == spec.cend() || *it != ']') throw parse::SyntaxError{spec, key_start - spec.cbegin(), "Missing closing ']':"};
         ++it;
         if (quoted.find('\\') == StringView::npos) return quoted;
         String key;
@@ -781,7 +781,7 @@ Key OPath::parse_brace_key(const StringView& spec, StringView::const_iterator& i
         }
         return key;
     } else {
-        for (; it != spec.cend() && c != ']'; ++it, c = *it);
+        while (it != spec.cend() && *it != ']') ++it;
         if (it == spec.cend()) throw parse::SyntaxError{spec, key_start - spec.cbegin(), "Missing closing ']':"};
         StringView key{key_start, it};
         ++it;
