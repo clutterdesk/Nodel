@@ -66,6 +66,29 @@ TEST(Key, String) {
     EXPECT_EQ(k.as<StringView>(), "foo");
 }
 
+TEST(Key, CString) {
+    Key k1{"foo"};
+    EXPECT_TRUE(k1.is_type<String>());
+    EXPECT_EQ(k1.as<StringView>(), "foo");
+
+    Key k2 = "bar";
+    EXPECT_TRUE(k2.is_type<String>());
+    EXPECT_EQ(k2.as<StringView>(), "bar");
+
+    char buf[] = "baz";
+    Key k3{buf};
+    buf[0] = 'X';
+    EXPECT_EQ(k3.as<StringView>(), "baz");
+    EXPECT_EQ(k3, "baz"_key);
+}
+
+TEST(Key, AssignCString) {
+    Key k{1};
+    k = "foo";
+    EXPECT_TRUE(k.is_type<String>());
+    EXPECT_EQ(k.as<StringView>(), "foo");
+}
+
 TEST(Key, AssignNull) {
   Key k{1};
   EXPECT_TRUE(k.is_type<Int>());

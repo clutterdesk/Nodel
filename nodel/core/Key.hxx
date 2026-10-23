@@ -93,6 +93,7 @@ class Key
     Key(nil_t)                : m_repr{}, m_repr_ix{NIL} {}
     Key(const String& s)      : m_repr{intern_string(s)}, m_repr_ix{STR} {}
     Key(const StringView& s)  : m_repr{intern_string(s)}, m_repr_ix{STR} {}
+    Key(const char* s)        : m_repr{intern_string(s)}, m_repr_ix{STR} {}
     Key(is_bool auto v)       : m_repr{v}, m_repr_ix{BOOL} {}
     Key(is_like_Float auto v) : m_repr{v}, m_repr_ix{FLOAT} {}
     Key(is_like_Int auto v)   : m_repr{(Int)v}, m_repr_ix{INT} {}
@@ -135,6 +136,13 @@ class Key
     Key& operator = (Float v)              { release(); m_repr.f = v; m_repr_ix = FLOAT; return *this; }
 
     Key& operator = (const String& s) {
+        release();
+        m_repr.s = intern_string(s);
+        m_repr_ix = STR;
+        return *this;
+    }
+
+    Key& operator = (const char* s) {
         release();
         m_repr.s = intern_string(s);
         m_repr_ix = STR;
