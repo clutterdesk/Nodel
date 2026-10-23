@@ -3539,6 +3539,14 @@ TEST(Object, HashConsistentWithEquality) {
     EXPECT_EQ(set.count(Object{1.0}), 1u);
 }
 
+// Floats are written with enough digits to read back the same value.
+TEST(Object, FloatToStrRoundTrips) {
+    Object obj{0.1 + 0.2};
+    EXPECT_EQ(obj.to_str(), "0.30000000000000004");
+    EXPECT_EQ(json::parse(obj.to_json()), obj);
+    EXPECT_EQ(Object{0.1}.to_json(), "0.1");
+}
+
 
 //////////////////////////////////////////////////////////////////////////////
 // Regression tests for the bugs tracked as GitHub issues.
