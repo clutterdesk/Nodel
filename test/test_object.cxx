@@ -3574,6 +3574,23 @@ TEST(Object, DataSourceComparisonIsSymmetric) {
     EXPECT_TRUE((bound <=> other) == 0);
 }
 
+// JSON output puts a separator before a bound Object that isn't the first child.
+TEST(Object, JsonSeparatorBeforeDataSource) {
+    Object obj = "{'a': 1}"_json;
+    obj.set("b"_key, new TestSimpleSource("2"));
+    EXPECT_EQ(obj.to_json(), R"({"a": 1, "b": 2})");
+
+    Object list = "[1]"_json;
+    list.append(new TestSimpleSource("[2, 3]"));
+    list.append(new TestSimpleSource("4"));
+    EXPECT_EQ(list.to_json(), "[1, [2, 3], 4]");
+
+    Object first = "[]"_json;
+    first.append(new TestSimpleSource("1"));
+    first.append(2);
+    EXPECT_EQ(first.to_json(), "[1, 2]");
+}
+
 
 //////////////////////////////////////////////////////////////////////////////
 // Regression tests for the bugs tracked as GitHub issues.
@@ -3629,13 +3646,6 @@ TEST(ObjectBug, ParsePathMissingCloseBracket) {
 TEST(ObjectBug, ParsePathQuotedKeyMissingCloseBracket) {
     std::vector<char> spec{'[', '\'', 'a', '\''};
     EXPECT_THROW(OPath(StringView{spec.data(), spec.size()}), parse::SyntaxError);
-}
-
-// WalkDF drops the separator before a bound Object that isn't the first child.
-TEST(ObjectBug, JsonSeparatorBeforeDataSource) {
-    Object obj = "{'a': 1}"_json;
-    obj.set("b"_key, new TestSimpleSource("2"));
-    EXPECT_EQ(obj.to_json(), R"({"a": 1, "b": 2})");
 }
 
 // JsonVisitor: a one-liner key on a non-container disables pretty-printing.

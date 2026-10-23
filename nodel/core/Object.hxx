@@ -2801,7 +2801,7 @@ public:
                         break;
                     }
                     case Object::DSRC: {
-                        m_stack.emplace(parent, key, object.m_repr.ds->get_cached(object), FIRST_VALUE);
+                        m_stack.emplace(parent, key, object.m_repr.ds->get_cached(object), event);
                         break;
                     }
                     default: {
