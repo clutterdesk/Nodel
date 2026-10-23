@@ -2921,8 +2921,9 @@ class JsonVisitor {
                 if (m_indent.length() > 0 && one_liner_depth == 0)
                     m_os << std::endl << m_indent_chars;
             }
-            if (m_indent.length() > 0 && one_liner_keys.contains(key))
-                 ++one_liner_depth;
+            if (m_indent.length() > 0 && event & WalkDF::BEGIN_PARENT &&
+                (one_liner_depth > 0 || one_liner_keys.contains(key)))
+                ++one_liner_depth;
             if (nodel::is_map(parent)) {
                 m_os << key.to_json() << ": ";
             }

@@ -1359,6 +1359,20 @@ TEST(Object, JsonPrettyFormat) {
     EXPECT_EQ(ss.str(), "{\n \"multi_line\": [\n  1, \n  2\n ], \n \"one_line\": [1, 2]\n}");
 }
 
+TEST(Object, JsonPrettyOneLinerKeyOnScalar) {
+    auto obj = "{'x': 1, 'y': [1, 2]}"_json;
+    std::stringstream ss;
+    to_pretty_json(ss, obj, 1, "['x']"_json);
+    EXPECT_EQ(ss.str(), "{\n \"x\": 1, \n \"y\": [\n  1, \n  2\n ]\n}");
+}
+
+TEST(Object, JsonPrettyOneLinerNested) {
+    auto obj = "{'x': [[1], {'a': 2}, 3], 'y': [1, 2]}"_json;
+    std::stringstream ss;
+    to_pretty_json(ss, obj, 1, "['x']"_json);
+    EXPECT_EQ(ss.str(), "{\n \"x\": [[1], {\"a\": 2}, 3], \n \"y\": [\n  1, \n  2\n ]\n}");
+}
+
 TEST(Object, AlienAccess) {
     std::unique_ptr<Alien> p_alien{new TestObjectAlien{}};
     Object obj{p_alien};
@@ -3667,14 +3681,6 @@ TEST(ObjectBug, ParsePathMissingCloseBracket) {
 TEST(ObjectBug, ParsePathQuotedKeyMissingCloseBracket) {
     std::vector<char> spec{'[', '\'', 'a', '\''};
     EXPECT_THROW(OPath(StringView{spec.data(), spec.size()}), parse::SyntaxError);
-}
-
-// JsonVisitor: a one-liner key on a non-container disables pretty-printing.
-TEST(ObjectBug, JsonPrettyOneLinerKeyOnScalar) {
-    auto obj = "{'x': 1, 'y': [1, 2]}"_json;
-    std::stringstream ss;
-    to_pretty_json(ss, obj, 1, "['x']"_json);
-    EXPECT_EQ(ss.str(), "{\n \"x\": 1, \n \"y\": [\n  1, \n  2\n ]\n}");
 }
 
 // Map equality treats a missing key as nil.
