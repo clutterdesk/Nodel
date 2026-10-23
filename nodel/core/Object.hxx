@@ -738,9 +738,9 @@ OPath::OPath(const OPath& l_path, const OPath& r_path) {
 
 inline
 OPath::OPath(const StringView& spec) {
-    assert (spec.size() > 0);
     auto it = spec.cbegin();
     consume_whitespace(spec, it);
+    if (it == spec.cend()) [[unlikely]] return;
     char c = *it;
     if (c != '.' && c != '[') {
         append(parse_dot_key(spec, it));

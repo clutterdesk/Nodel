@@ -1842,6 +1842,16 @@ TEST(Object, ParsePathWithWhitespace) {
     EXPECT_EQ(R"(["a" ]["b"  ][1])"_path.to_str(), "a.b[1]");
 }
 
+TEST(Object, ParseEmptyPath) {
+    Object obj = "{'x': 1}"_json;
+    for (auto spec : {"", " ", " \t\r\n", "."}) {
+        OPath path{StringView{spec}};
+        EXPECT_EQ(path.keys().size(), 0u) << '"' << spec << '"';
+        EXPECT_TRUE(obj.get(path).is(obj)) << '"' << spec << '"';
+    }
+    EXPECT_EQ(OPath{StringView{OPath{}.to_str()}}.keys().size(), 0u);
+}
+
 TEST(Object, ParsePathDotKeyStopsAtNonAscii) {
     EXPECT_EQ("a_1.b2"_path.to_str(), "a_1.b2");
     EXPECT_THROW("a\xC3\xA9"_path, parse::SyntaxError);
