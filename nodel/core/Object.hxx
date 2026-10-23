@@ -4072,15 +4072,14 @@ class Object::Subscript
 {
   public:
     Object& resolve() const {
-        if (m_pend) {
+        if (m_obj.is_empty()) {
             m_obj = m_cont.get(m_sub);
-            m_pend = false;
         }
         return m_obj;
     }
 
   public:
-    Subscript(const Object& obj, const AccessType& sub) : m_cont{obj}, m_sub{sub}, m_pend{true} {}
+    Subscript(const Object& obj, const AccessType& sub) : m_cont{obj}, m_sub{sub} {}
 
     ReprIX type() const                { return resolve().type(); }
     std::string_view type_name() const { return resolve().type_name(); }
@@ -4159,7 +4158,7 @@ class Object::Subscript
     void del(const Key& key)     { resolve().del(key); }
     void del(const OPath& path)  { resolve().del(path); }
     void del(const Slice& slice) { resolve().del(slice); }
-    void del_from_parent()       { m_cont.del(m_sub); m_pend = true; }
+    void del_from_parent()       { m_cont.del(m_sub); m_obj.release(); }
     void clear()                 { resolve().clear(); }
 
     Subscript<OPath> operator [] (const Key& key);
@@ -4187,13 +4186,13 @@ class Object::Subscript
 
     Object operator = (const Object& other) {
         m_cont.set(m_sub, other);
-        m_pend = true;
+        m_obj.release();
         return *this;
     }
 
     Object operator = (Object&& other) {
         m_cont.set(m_sub, std::forward<Object>(other));
-        m_pend = true;
+        m_obj.release();
         return *this;
     }
 
@@ -4212,20 +4211,19 @@ class Object::Subscript
     template <class T>
     void assign(const Subscript<T>& sub) {
         m_cont.set(m_sub, sub.resolve());
-        m_pend = true;
+        m_obj.release();
     }
 
     template <class T>
     void assign(Subscript<T>&& sub) {
         m_cont.set(m_sub, sub.resolve());
-        m_pend = true;
+        m_obj.release();
     }
 
   private:
     Object m_cont;
     AccessType m_sub;
     mutable Object m_obj;
-    mutable bool m_pend;
 
   template <typename T> friend bool test::is_resolved(Subscript<T>& subscript);
 };
@@ -4239,7 +4237,7 @@ inline Object::Subscript<OPath> Object::operator [] (const OPath& path) { return
 
 template <class T>
 Object::Subscript<OPath> Object::Subscript<T>::operator [] (const Key& key) {
-    if (m_pend) return {m_cont, OPath{m_sub, key}};
+    if (m_obj.is_empty()) return {m_cont, OPath{m_sub, key}};
     OPath path;
     path.append(key);
     return {m_obj, path};
@@ -4247,7 +4245,7 @@ Object::Subscript<OPath> Object::Subscript<T>::operator [] (const Key& key) {
 
 template <class T>
 Object::Subscript<OPath> Object::Subscript<T>::operator [] (const OPath& path) {
-    if (m_pend) return {m_cont, OPath{m_sub, path}};
+    if (m_obj.is_empty()) return {m_cont, OPath{m_sub, path}};
     return {m_obj, path};
 }
 
@@ -4289,7 +4287,7 @@ class DataSourceTestInterface
 };
 
 
-template <typename T> bool is_resolved(Object::Subscript<T>& subscript) { return !subscript.m_pend; }
+template <typename T> bool is_resolved(Object::Subscript<T>& subscript) { return !subscript.m_obj.is_empty(); }
 
 /// @example examples/basic.cxx
 /// This is an example showing how to create an Object from JSON and access keys.
