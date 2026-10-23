@@ -130,13 +130,20 @@ InternTable& thread_interns() {
 ///   the same storage.
 /// - Strings interned by different threads are compared by content.
 /// - The hash is computed from the content, so it is the same on every thread.
+/// - On 32-bit builds, the table identifier is omitted so that intern_t is no
+///   larger than a StringView, and strings interned by the same thread with
+///   equal hashes are compared by content.
 /////////////////////////////////////////////////////////////////////////////
 class intern_t
 {
   public:
     bool operator == (intern_t other) const {
         if (m_p == other.m_p) return true;
+#if NODEL_ARCH == 32
+        if (m_hash != other.m_hash) return false;
+#else
         if (m_table == other.m_table || m_hash != other.m_hash) return false;
+#endif
         return equal_content(other);
     }
 
@@ -146,19 +153,27 @@ class intern_t
   private:
     /// @param p Characters of a string returned by @ref impl::InternTable::intern.
     /// @param table Identifier of the intern table that holds @p p.
+#if NODEL_ARCH == 32
+    intern_t(const char* p, uint32_t) : m_p{p}, m_hash{header().hash} {}
+#else
     intern_t(const char* p, uint32_t table) : m_p{p}, m_hash{header().hash}, m_table{table} {}
+#endif
 
-    /// Compares strings interned by different threads.
+    /// Compares strings by content, when their storage differs but they may be equal.
     [[gnu::noinline]] bool equal_content(intern_t other) const { return data() == other.data(); }
 
     impl::InternHeader header() const { return impl::InternHeader::of(m_p); }
 
     const char* m_p;
     uint32_t m_hash;
+#if NODEL_ARCH != 32
     uint32_t m_table;
+#endif
 
   friend intern_t intern_string(const StringView& str);
 };
+
+static_assert(sizeof(intern_t) <= sizeof(StringView), "intern_t must not increase the size of Key");
 
 inline
 intern_t intern_string(const StringView& str) {
