@@ -3557,6 +3557,23 @@ TEST(Object, FloatToStrRoundTrips) {
     EXPECT_EQ(Object{0.1}.to_json(), "0.1");
 }
 
+// Equality and ordering with a bound Object don't depend on which side it's on.
+TEST(Object, DataSourceComparisonIsSymmetric) {
+    Object bound{new TestSimpleSource("5")};
+    EXPECT_TRUE(bound == Object{5});
+    EXPECT_TRUE(Object{5} == bound);
+    EXPECT_FALSE(Object{6} == bound);
+    EXPECT_TRUE(Object{5.0} == bound);
+    EXPECT_NO_THROW(EXPECT_TRUE(Object{1} < bound));
+    EXPECT_TRUE(Object{9} > bound);
+    EXPECT_TRUE(bound < Object{9});
+    EXPECT_TRUE(bound > Object{1});
+
+    Object other{new TestSimpleSource("5")};
+    EXPECT_TRUE(bound == other);
+    EXPECT_TRUE((bound <=> other) == 0);
+}
+
 
 //////////////////////////////////////////////////////////////////////////////
 // Regression tests for the bugs tracked as GitHub issues.
@@ -3627,14 +3644,6 @@ TEST(ObjectBug, JsonPrettyOneLinerKeyOnScalar) {
     std::stringstream ss;
     to_pretty_json(ss, obj, 1, "['x']"_json);
     EXPECT_EQ(ss.str(), "{\n \"x\": 1, \n \"y\": [\n  1, \n  2\n ]\n}");
-}
-
-// Equality and ordering with a bound Object only work with it on the left.
-TEST(ObjectBug, DataSourceComparisonIsSymmetric) {
-    Object bound{new TestSimpleSource("5")};
-    EXPECT_TRUE(bound == Object{5});
-    EXPECT_TRUE(Object{5} == bound);
-    EXPECT_NO_THROW(EXPECT_TRUE(Object{1} < bound));
 }
 
 // Map equality treats a missing key as nil.

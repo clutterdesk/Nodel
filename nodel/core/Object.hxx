@@ -2578,6 +2578,9 @@ bool Object::operator == (const Object& obj) const {
     if (is_empty() || obj.is_empty()) throw empty_reference();
     if (is(obj)) return true;
 
+    // Load a bound right-hand side, so the result doesn't depend on operand order.
+    if (obj.m_fields.repr_ix == DSRC) return *this == obj.m_repr.ds->get_cached(obj);
+
     switch (m_fields.repr_ix) {
         case NIL: {
             return obj.m_fields.repr_ix == NIL;
@@ -2666,6 +2669,9 @@ std::partial_ordering Object::operator <=> (const Object& obj) const {
     if (is_empty() || obj.is_empty()) throw empty_reference();
     if (is(obj)) return ordering::equivalent;
 
+    // Load a bound right-hand side, so the result doesn't depend on operand order.
+    if (obj.m_fields.repr_ix == DSRC) return *this <=> obj.m_repr.ds->get_cached(obj);
+
     switch (m_fields.repr_ix) {
         case NIL: {
             if (obj.m_fields.repr_ix != NIL)
@@ -2711,12 +2717,7 @@ std::partial_ordering Object::operator <=> (const Object& obj) const {
                 throw wrong_type(m_fields.repr_ix);
             return std::get<0>(*m_repr.ps) <=> std::get<0>(*obj.m_repr.ps);
         }
-        case DSRC: {
-            auto result = obj <=> m_repr.ds->get_cached(*this);
-            if (result == std::partial_ordering::less) return std::partial_ordering::greater;
-            if (result == std::partial_ordering::greater) return std::partial_ordering::less;
-            return result;
-        }
+        case DSRC:   return m_repr.ds->get_cached(*this) <=> obj;
         default:     throw wrong_type(m_fields.repr_ix);
     }
 }
