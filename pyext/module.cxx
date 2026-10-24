@@ -272,23 +272,6 @@ static PyObject* mod_clear(PyObject* mod, PyObject* arg) {
     Py_RETURN_NONE;
 }
 
-constexpr auto del_from_parent_doc =
-"Removes this object from its parent container.\n"
-"nodel.clear(obj) -> None\n"
-"This method does nothing if the object does not have a parent.";
-
-static PyObject* mod_del_from_parent(PyObject* mod, PyObject* arg) {
-    NodelObject* nd_obj = as_nodel_object(arg);
-    if (nd_obj == NULL) return NULL;
-    try {
-        nd_obj->obj.del_from_parent();
-    } catch (const std::exception& ex) {
-        PyErr_SetString(PyExc_RuntimeError, ex.what());
-        return NULL;
-    }
-    Py_RETURN_NONE;
-}
-
 constexpr auto root_doc =
 "Returns the root of the tree containing the argument.\n"
 "nodel.root(obj) -> Object\n"
