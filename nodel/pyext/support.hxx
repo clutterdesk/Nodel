@@ -279,6 +279,7 @@ struct Support
 
     static void clear_parent(const Object&);
     static void release_values(Object&);
+    static void assign(Object&, const Object&);
 };
 
 
@@ -650,6 +651,17 @@ void Support::release_values(Object& object) {
         case Object::OMAP: std::get<0>(*object.m_repr.pom).clear(); break;
         default: break;
     }
+}
+
+/// Replace the value of an Object in place.
+/// - If the Object is bound to a DataSource, the value replaces the DataSource
+///   cache, so the Object stays bound, and is written by the next save.
+inline
+void Support::assign(Object& object, const Object& value) {
+    if (object.m_fields.repr_ix == Object::DSRC)
+        object.m_repr.ds->set(object, value);
+    else
+        object = value;
 }
 
 } // namespace python

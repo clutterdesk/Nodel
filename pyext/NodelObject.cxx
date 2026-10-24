@@ -390,6 +390,7 @@ static PyObject* inplace_add_string(NodelObject* arg1, PyObject* arg2) {
         arg2 = ref.get();
     }
     arg1->obj.as<String>().append(python::to_string_view(arg2));
+    arg1->obj.set_unsaved();
     Py_INCREF(arg1);
     return (PyObject*)arg1;
 }
@@ -432,7 +433,7 @@ static PyObject* NodelObject_inplace_add(PyObject* arg1, PyObject* arg2) {
                     obj.as<Int>() += PyLong_AsLongLong(arg2);
                     break;
                 } else if (PyFloat_Check(arg2)) {
-                    obj = obj.as<Int>() + PyFloat_AsDouble(arg2);
+                    support.assign(obj, obj.as<Int>() + PyFloat_AsDouble(arg2));
                     break;
                 } else {
                     python::raise_error(PyExc_ValueError, "Invalid argument type");
@@ -445,7 +446,7 @@ static PyObject* NodelObject_inplace_add(PyObject* arg1, PyObject* arg2) {
                     obj.as<UInt>() += PyLong_AsLongLong(arg2);
                     break;
                 } else if (PyFloat_Check(arg2)) {
-                    obj = obj.as<UInt>() + PyFloat_AsDouble(arg2);
+                    support.assign(obj, obj.as<UInt>() + PyFloat_AsDouble(arg2));
                     break;
                 } else {
                     python::raise_error(PyExc_ValueError, "Invalid argument type");
@@ -462,6 +463,7 @@ static PyObject* NodelObject_inplace_add(PyObject* arg1, PyObject* arg2) {
                 return NULL;
             }
         }
+        obj.set_unsaved();
         Py_INCREF(arg1);
         return arg1;
     }
@@ -480,7 +482,7 @@ static PyObject* NodelObject_inplace_subtract(PyObject* arg1, PyObject* arg2) {
                     obj.as<Int>() -= PyLong_AsLongLong(arg2);
                     break;
                 } else if (PyFloat_Check(arg2)) {
-                    obj = obj.as<Int>() - PyFloat_AsDouble(arg2);
+                    support.assign(obj, obj.as<Int>() - PyFloat_AsDouble(arg2));
                     break;
                 } else {
                     python::raise_error(PyExc_ValueError, "Invalid argument type");
@@ -493,7 +495,7 @@ static PyObject* NodelObject_inplace_subtract(PyObject* arg1, PyObject* arg2) {
                     obj.as<UInt>() -= PyLong_AsLongLong(arg2);
                     break;
                 } else if (PyFloat_Check(arg2)) {
-                    obj = obj.as<UInt>() - PyFloat_AsDouble(arg2);
+                    support.assign(obj, obj.as<UInt>() - PyFloat_AsDouble(arg2));
                     break;
                 } else {
                     python::raise_error(PyExc_ValueError, "Invalid argument type");
@@ -510,6 +512,7 @@ static PyObject* NodelObject_inplace_subtract(PyObject* arg1, PyObject* arg2) {
                 return NULL;
             }
         }
+        obj.set_unsaved();
         Py_INCREF(arg1);
         return arg1;
     } else {
@@ -518,8 +521,14 @@ static PyObject* NodelObject_inplace_subtract(PyObject* arg1, PyObject* arg2) {
     }
 }
 
+static PyObject* NodelObject_sq_inplace_repeat(PyObject* self, Py_ssize_t count);
+
 static PyObject* NodelObject_inplace_multiply(PyObject* arg1, PyObject* arg2) {
-    if (NodelObject_CheckExact(arg2)) {
+    if (NodelObject_CheckExact(arg1) && ((NodelObject*)arg1)->obj.type() == Object::STR && PyLong_Check(arg2)) {
+        auto count = PyLong_AsSsize_t(arg2);
+        if (count == -1 && PyErr_Occurred()) return NULL;
+        return NodelObject_sq_inplace_repeat(arg1, count);
+    } else if (NodelObject_CheckExact(arg2)) {
         RefMgr ref = num_to_py((NodelObject*)arg2);
         return NodelObject_inplace_multiply(arg1, ref.get());
     } else if (NodelObject_CheckExact(arg1)) {
@@ -531,7 +540,7 @@ static PyObject* NodelObject_inplace_multiply(PyObject* arg1, PyObject* arg2) {
                     obj.as<Int>() *= PyLong_AsLongLong(arg2);
                     break;
                 } else if (PyFloat_Check(arg2)) {
-                    obj = obj.as<Int>() * PyFloat_AsDouble(arg2);
+                    support.assign(obj, obj.as<Int>() * PyFloat_AsDouble(arg2));
                     break;
                 } else {
                     python::raise_error(PyExc_ValueError, "Invalid argument type");
@@ -544,7 +553,7 @@ static PyObject* NodelObject_inplace_multiply(PyObject* arg1, PyObject* arg2) {
                     obj.as<UInt>() *= PyLong_AsLongLong(arg2);
                     break;
                 } else if (PyFloat_Check(arg2)) {
-                    obj = obj.as<UInt>() * PyFloat_AsDouble(arg2);
+                    support.assign(obj, obj.as<UInt>() * PyFloat_AsDouble(arg2));
                     break;
                 } else {
                     python::raise_error(PyExc_ValueError, "Invalid argument type");
@@ -561,6 +570,7 @@ static PyObject* NodelObject_inplace_multiply(PyObject* arg1, PyObject* arg2) {
                 return NULL;
             }
         }
+        obj.set_unsaved();
         Py_INCREF(arg1);
         return arg1;
     } else {
@@ -584,7 +594,7 @@ static PyObject* NodelObject_inplace_remainder(PyObject* arg1, PyObject* arg2) {
                 } else if (PyFloat_Check(arg2)) {
                     auto y = PyFloat_AsDouble(arg2);
                     auto rem = std::remainder(obj.as<Int>(), y);
-                    obj = (rem < 0)? rem + y: rem;
+                    support.assign(obj, (rem < 0)? rem + y: rem);
                     break;
                 } else {
                     python::raise_error(PyExc_ValueError, "Invalid argument type");
@@ -599,7 +609,7 @@ static PyObject* NodelObject_inplace_remainder(PyObject* arg1, PyObject* arg2) {
                 } else if (PyFloat_Check(arg2)) {
                     auto y = PyFloat_AsDouble(arg2);
                     auto rem = std::remainder(obj.as<UInt>(), y);
-                    obj = (rem < 0)? rem + y: rem;
+                    support.assign(obj, (rem < 0)? rem + y: rem);
                     break;
                 } else {
                     python::raise_error(PyExc_ValueError, "Invalid argument type");
@@ -611,12 +621,12 @@ static PyObject* NodelObject_inplace_remainder(PyObject* arg1, PyObject* arg2) {
                 if (PyLong_Check(arg2)) {
                     auto y = PyLong_AsLongLong(arg2);
                     auto rem = std::remainder(obj.as<Float>(), y);
-                    obj = (rem < 0)? rem + y: rem;
+                    support.assign(obj, (rem < 0)? rem + y: rem);
                     break;
                 } else if (PyFloat_Check(arg2)) {
                     auto y = PyFloat_AsDouble(arg2);
                     auto rem = std::remainder(obj.as<UInt>(), y);
-                    obj = (rem < 0)? rem + y: rem;
+                    support.assign(obj, (rem < 0)? rem + y: rem);
                     break;
                 } else {
                     python::raise_error(PyExc_ValueError, "Invalid argument type");
@@ -629,6 +639,7 @@ static PyObject* NodelObject_inplace_remainder(PyObject* arg1, PyObject* arg2) {
                 return NULL;
             }
         }
+        obj.set_unsaved();
         Py_INCREF(arg1);
         return arg1;
     } else {
@@ -642,7 +653,7 @@ static PyObject* NodelObject_inplace_power(PyObject* arg1, PyObject* arg2, PyObj
         PyObject* result = NodelObject_power(arg1, arg2, arg3);
         if (result == NULL) return NULL;
         auto nd_obj = (NodelObject*)arg1;
-        nd_obj->obj = support.to_object(result);
+        support.assign(nd_obj->obj, support.to_object(result));
         Py_INCREF(arg1);
         return arg1;
     } else {
@@ -683,6 +694,7 @@ static PyObject* NodelObject_inplace_lshift(PyObject* arg1, PyObject* arg2) {
                 return NULL;
             }
         }
+        obj.set_unsaved();
         Py_INCREF(arg1);
         return arg1;
     } else {
@@ -724,6 +736,7 @@ static PyObject* NodelObject_inplace_rshift(PyObject* arg1, PyObject* arg2) {
                 return NULL;
             }
         }
+        obj.set_unsaved();
         Py_INCREF(arg1);
         return arg1;
     } else {
@@ -765,6 +778,7 @@ static PyObject* NodelObject_inplace_and(PyObject* arg1, PyObject* arg2) {
                 return NULL;
             }
         }
+        obj.set_unsaved();
         Py_INCREF(arg1);
         return arg1;
     } else {
@@ -806,6 +820,7 @@ static PyObject* NodelObject_inplace_xor(PyObject* arg1, PyObject* arg2) {
                 return NULL;
             }
         }
+        obj.set_unsaved();
         Py_INCREF(arg1);
         return arg1;
     } else {
@@ -847,6 +862,7 @@ static PyObject* NodelObject_inplace_or(PyObject* arg1, PyObject* arg2) {
                 return NULL;
             }
         }
+        obj.set_unsaved();
         Py_INCREF(arg1);
         return arg1;
     } else {
@@ -896,7 +912,7 @@ static PyObject* NodelObject_inplace_floor_divide(PyObject* arg1, PyObject* arg2
                     obj.as<Int>() /= PyLong_AsLongLong(arg2);
                     break;
                 } else if (PyFloat_Check(arg2)) {
-                    obj = std::floor(obj.as<Int>() / PyFloat_AsDouble(arg2));
+                    support.assign(obj, std::floor(obj.as<Int>() / PyFloat_AsDouble(arg2)));
                 } else {
                     python::raise_error(PyExc_ValueError, "Invalid argument type");
                     return NULL;
@@ -908,7 +924,7 @@ static PyObject* NodelObject_inplace_floor_divide(PyObject* arg1, PyObject* arg2
                     obj.as<UInt>() /= PyLong_AsLongLong(arg2);
                     break;
                 } else if (PyFloat_Check(arg2)) {
-                    obj = std::floor(obj.as<UInt>() / PyFloat_AsDouble(arg2));
+                    support.assign(obj, std::floor(obj.as<UInt>() / PyFloat_AsDouble(arg2)));
                 } else {
                     python::raise_error(PyExc_ValueError, "Invalid argument type");
                     return NULL;
@@ -917,10 +933,10 @@ static PyObject* NodelObject_inplace_floor_divide(PyObject* arg1, PyObject* arg2
             }
             case Object::FLOAT: {
                 if (PyLong_Check(arg2)) {
-                    obj = std::floor(obj.as<Float>() / PyLong_AsLongLong(arg2));
+                    support.assign(obj, std::floor(obj.as<Float>() / PyLong_AsLongLong(arg2)));
                     break;
                 } else if (PyFloat_Check(arg2)) {
-                    obj = std::floor(obj.as<Float>() / PyFloat_AsDouble(arg2));
+                    support.assign(obj, std::floor(obj.as<Float>() / PyFloat_AsDouble(arg2)));
                 } else {
                     python::raise_error(PyExc_ValueError, "Invalid argument type");
                     return NULL;
@@ -932,6 +948,7 @@ static PyObject* NodelObject_inplace_floor_divide(PyObject* arg1, PyObject* arg2
                 return NULL;
             }
         }
+        obj.set_unsaved();
         Py_INCREF(arg1);
         return arg1;
     } else {
@@ -950,10 +967,10 @@ static PyObject* NodelObject_inplace_true_divide(PyObject* arg1, PyObject* arg2)
         switch (obj.type()) {
             case Object::INT: {
                 if (PyLong_Check(arg2)) {
-                    obj = obj.as<Int>() / (double)PyLong_AsLongLong(arg2);
+                    support.assign(obj, obj.as<Int>() / (double)PyLong_AsLongLong(arg2));
                     break;
                 } else if (PyFloat_Check(arg2)) {
-                    obj = obj.as<Int>() / PyFloat_AsDouble(arg2);
+                    support.assign(obj, obj.as<Int>() / PyFloat_AsDouble(arg2));
                     break;
                 } else {
                     python::raise_error(PyExc_ValueError, "Invalid argument type");
@@ -966,7 +983,7 @@ static PyObject* NodelObject_inplace_true_divide(PyObject* arg1, PyObject* arg2)
                     obj.as<UInt>() /= PyLong_AsLongLong(arg2);
                     break;
                 } else if (PyFloat_Check(arg2)) {
-                    obj = obj.as<UInt>() / PyFloat_AsDouble(arg2);
+                    support.assign(obj, obj.as<UInt>() / PyFloat_AsDouble(arg2));
                     break;
                 } else {
                     python::raise_error(PyExc_ValueError, "Invalid argument type");
@@ -979,7 +996,7 @@ static PyObject* NodelObject_inplace_true_divide(PyObject* arg1, PyObject* arg2)
                     obj.as<Float>() /= PyLong_AsLongLong(arg2);
                     break;
                 } else if (PyFloat_Check(arg2)) {
-                    obj = obj.as<Float>() / PyFloat_AsDouble(arg2);
+                    support.assign(obj, obj.as<Float>() / PyFloat_AsDouble(arg2));
                     break;
                 } else {
                     python::raise_error(PyExc_ValueError, "Invalid argument type");
@@ -992,6 +1009,7 @@ static PyObject* NodelObject_inplace_true_divide(PyObject* arg1, PyObject* arg2)
                 return NULL;
             }
         }
+        obj.set_unsaved();
         Py_INCREF(arg1);
         return arg1;
     } else {
@@ -1136,6 +1154,7 @@ static int NodelObject_mp_ass_sub(PyObject* self, PyObject* key, PyObject* value
                 if (self_obj.type() == Object::STR) {
                     RefMgr empty_str = PyUnicode_FromString("");
                     self_obj.as<String>() = python::assign_slice(self_obj.as<String>(), key, empty_str);
+                    self_obj.set_unsaved();
                 } else {
                     auto slice = support.to_slice(key);
                     self_obj.del(slice);
@@ -1143,6 +1162,7 @@ static int NodelObject_mp_ass_sub(PyObject* self, PyObject* key, PyObject* value
             } else {
                 if (self_obj.type() == Object::STR) {
                     self_obj.as<String>() = python::assign_slice(self_obj.as<String>(), key, value);
+                    self_obj.set_unsaved();
                 } else {
                     auto slice = support.to_slice(key);
                     auto nd_vals = support.to_object(value);
@@ -1261,6 +1281,7 @@ static PyObject* NodelObject_sq_inplace_concat(PyObject* self, PyObject* arg) {
         RefMgr ref;
         if (PyUnicode_Check(arg)) {
             obj.as<String>().append(python::to_string_view(arg));
+            obj.set_unsaved();
             Py_INCREF(self);
             return self;
         } else {
@@ -1299,6 +1320,7 @@ static PyObject* NodelObject_sq_inplace_repeat(PyObject* self, Py_ssize_t count)
         for (Py_ssize_t i = 0; i < count; ++i)
             result.append(str);
         str = std::move(result);
+        obj.set_unsaved();
     } else if (type == Object::LIST) {
         ObjectList& list = obj.as<ObjectList>();
         ObjectList original = list;

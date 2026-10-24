@@ -55,6 +55,28 @@ class TestFilesystem(unittest.TestCase):
         finally:
             shutil.rmtree(os.path.join(path, 'tmp'))                               
 
+    def test_save_inplace_str(self):
+        try:
+            path = urllib.parse.quote(os.path.dirname(__file__))
+            wd = nd.bind(f'file://?path={path}&perm=rw')
+            wd.tmp = {'tea.txt': 'FTG', 'herb.txt': 'mint', 'note.txt': 'abcdef'}
+            nd.save(wd)
+            wd = nd.bind(f'file://?path={path}&perm=rw')
+            tea = wd.tmp['tea.txt']
+            tea += 'FOP'
+            self.assertTrue(nd.is_unsaved(tea))
+            herb = wd.tmp['herb.txt']
+            herb *= 2
+            note = wd.tmp['note.txt']
+            note[1:3] = 'X'
+            nd.save(wd)
+            wd = nd.bind(f'file://?path={path}&perm=r')
+            self.assertEqual(wd.tmp['tea.txt'], 'FTGFOP')
+            self.assertEqual(wd.tmp['herb.txt'], 'mintmint')
+            self.assertEqual(wd.tmp['note.txt'], 'aXdef')
+        finally:
+            shutil.rmtree(os.path.join(path, 'tmp'))
+
     def test_save_deeper(self):
         try:
             path = urllib.parse.quote(os.path.dirname(__file__))

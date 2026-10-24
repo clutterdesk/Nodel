@@ -43,7 +43,12 @@ class TestObject(unittest.TestCase):
         obj = nd.new({'word': 'tea'})
         obj.word += 'time'
         self.assertEqual(obj.word, "teatime")
-        
+
+    def test_string_repeat_inplace(self):
+        obj = nd.new('tea')
+        obj *= 2
+        self.assertEqual(obj, 'teatea')
+
     def test_string_slice(self):
         obj = nd.new('0123456789')
         self.assertEqual(obj[:3], '012')
