@@ -524,7 +524,8 @@ static PyObject* NodelObject_inplace_subtract(PyObject* arg1, PyObject* arg2) {
 static PyObject* NodelObject_sq_inplace_repeat(PyObject* self, Py_ssize_t count);
 
 static PyObject* NodelObject_inplace_multiply(PyObject* arg1, PyObject* arg2) {
-    if (NodelObject_CheckExact(arg1) && ((NodelObject*)arg1)->obj.type() == Object::STR && PyLong_Check(arg2)) {
+    if (NodelObject_CheckExact(arg1) && PyLong_Check(arg2) &&
+        (((NodelObject*)arg1)->obj.is_type<String>() || ((NodelObject*)arg1)->obj.is_type<ObjectList>())) {
         auto count = PyLong_AsSsize_t(arg2);
         if (count == -1 && PyErr_Occurred()) return NULL;
         return NodelObject_sq_inplace_repeat(arg1, count);
@@ -1322,11 +1323,17 @@ static PyObject* NodelObject_sq_inplace_repeat(PyObject* self, Py_ssize_t count)
         str = std::move(result);
         obj.set_unsaved();
     } else if (type == Object::LIST) {
-        ObjectList& list = obj.as<ObjectList>();
-        ObjectList original = list;
-        for (Py_ssize_t i = 1; i < count; ++i)
-            for (const auto& item : original)
-                list.push_back(item);
+        if (count <= 0) {
+            obj.clear();
+        } else {
+            ObjectList original;
+            for (const auto& item : obj.iter_values())
+                original.push_back(item);
+            // append copies each item, since it already has a parent
+            for (Py_ssize_t i = 1; i < count; ++i)
+                for (const auto& item : original)
+                    obj.append(item);
+        }
     } else {
         PyErr_SetString(PyExc_TypeError, "In-place repeat only supported for list or string");
         return NULL;

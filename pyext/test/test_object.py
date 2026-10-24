@@ -141,6 +141,18 @@ class TestObject(unittest.TestCase):
         list += [4, 5]
         self.assertEqual(list, [1, 2, 3, 4, 5])
 
+    def test_list_repeat_inplace(self):
+        list = nd.new([{}, []])
+        list *= 3
+        self.assertEqual(list, [{}, [], {}, [], {}, []])
+        for i in range(len(list)):
+            self.assertEqual(nd.id(nd.parent(list[i])), nd.id(list))
+            self.assertEqual(nd.path(list[i]), f'[{i}]')
+        list[0]['k'] = 1
+        self.assertEqual(list[2], {})
+        list *= 0
+        self.assertEqual(list, [])
+
     def test_list_del_subscript(self):
         list = nd.Object(['X', 'Y'])
         del list[1]

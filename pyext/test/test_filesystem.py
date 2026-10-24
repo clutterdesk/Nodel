@@ -77,6 +77,22 @@ class TestFilesystem(unittest.TestCase):
         finally:
             shutil.rmtree(os.path.join(path, 'tmp'))
 
+    def test_save_inplace_list(self):
+        try:
+            path = urllib.parse.quote(os.path.dirname(__file__))
+            wd = nd.bind(f'file://?path={path}&perm=rw')
+            wd.tmp = {'teas.json': ['Assam', 'Ceylon']}
+            nd.save(wd)
+            wd = nd.bind(f'file://?path={path}&perm=rw')
+            teas = wd.tmp['teas.json']
+            teas *= 2
+            self.assertTrue(nd.is_unsaved(teas))
+            nd.save(wd)
+            wd = nd.bind(f'file://?path={path}&perm=r')
+            self.assertEqual(wd.tmp['teas.json'], ['Assam', 'Ceylon', 'Assam', 'Ceylon'])
+        finally:
+            shutil.rmtree(os.path.join(path, 'tmp'))
+
     def test_save_deeper(self):
         try:
             path = urllib.parse.quote(os.path.dirname(__file__))
