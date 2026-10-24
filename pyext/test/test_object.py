@@ -49,6 +49,11 @@ class TestObject(unittest.TestCase):
         obj *= 2
         self.assertEqual(obj, 'teatea')
 
+    def test_float_remainder_inplace(self):
+        obj = nd.Object(7.5)
+        obj %= 2.0
+        self.assertEqual(obj, 1.5)
+
     def test_string_slice(self):
         obj = nd.new('0123456789')
         self.assertEqual(obj[:3], '012')

@@ -625,7 +625,7 @@ static PyObject* NodelObject_inplace_remainder(PyObject* arg1, PyObject* arg2) {
                     break;
                 } else if (PyFloat_Check(arg2)) {
                     auto y = PyFloat_AsDouble(arg2);
-                    auto rem = std::remainder(obj.as<UInt>(), y);
+                    auto rem = std::remainder(obj.as<Float>(), y);
                     support.assign(obj, (rem < 0)? rem + y: rem);
                     break;
                 } else {
