@@ -82,7 +82,7 @@ struct InvalidNumber : public NodelException
 namespace detail {
 
 // Kept out of line so the throw does not bloat the inlined parse fast path.
-[[noreturn, gnu::cold]] NODEL_NOINLINE
+[[noreturn]] NODEL_COLD NODEL_NOINLINE
 inline void throw_invalid_number(const StringView& str, const char* type) {
     throw InvalidNumber(str, type);
 }

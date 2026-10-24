@@ -26,6 +26,22 @@ namespace nodel {
 #define NODEL_NOINLINE [[gnu::noinline]]
 #endif
 
+// Forces inlining of a function on a hot path.  Use in place of the `inline`
+// keyword, since __forceinline replaces it.
+#if defined(_MSC_VER) && !defined(__clang__)
+#define NODEL_ALWAYS_INLINE __forceinline
+#else
+#define NODEL_ALWAYS_INLINE [[gnu::always_inline]] inline
+#endif
+
+// Marks a function as rarely called, e.g. one that only throws.  MSVC has no
+// equivalent, so it expands to nothing there.
+#if defined(_MSC_VER) && !defined(__clang__)
+#define NODEL_COLD
+#else
+#define NODEL_COLD [[gnu::cold]]
+#endif
+
 #if NODEL_ARCH == 32
 using refcnt_t = uint32_t;                     // only least-significant 28-bits used
 #else

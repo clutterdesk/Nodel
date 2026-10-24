@@ -1615,8 +1615,7 @@ void Object::set_parent(const Object& new_parent) const {
 }
 
 /// For internal use only
-[[gnu::always_inline]]
-inline
+NODEL_ALWAYS_INLINE
 void Object::clear_parent() const {
     Object* p_parent;
     switch (m_fields.repr_ix) {
