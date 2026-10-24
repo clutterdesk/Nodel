@@ -93,6 +93,26 @@ class TestFilesystem(unittest.TestCase):
         finally:
             shutil.rmtree(os.path.join(path, 'tmp'))
 
+    def test_inplace_list_write_protected(self):
+        try:
+            path = urllib.parse.quote(os.path.dirname(__file__))
+            wd = nd.bind(f'file://?path={path}&perm=rw')
+            wd.tmp = {'teas.json': ['Assam']}
+            nd.save(wd)
+            wd = nd.bind(f'file://?path={path}&perm=r')
+            teas = wd.tmp['teas.json']
+            with self.assertRaises(RuntimeError):
+                teas += ['Ceylon']
+            with self.assertRaises(RuntimeError):
+                teas *= 2
+            with self.assertRaises(RuntimeError):
+                teas *= 0
+            with self.assertRaises(RuntimeError):
+                teas.__iadd__(['Ceylon'])
+            self.assertEqual(teas, ['Assam'])
+        finally:
+            shutil.rmtree(os.path.join(path, 'tmp'))
+
     def test_save_deeper(self):
         try:
             path = urllib.parse.quote(os.path.dirname(__file__))

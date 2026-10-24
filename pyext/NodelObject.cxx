@@ -398,18 +398,24 @@ static PyObject* inplace_add_string(NodelObject* arg1, PyObject* arg2) {
 static PyObject* inplace_add_list(NodelObject* arg1, PyObject* arg2) {
     auto& obj = arg1->obj;
 
-    Object rhs;
-    if (PyList_Check(arg2)) {
-        rhs = support.to_object(arg2);
-    } else if (NodelObject_CheckExact(arg2)) {
-        rhs = ((NodelObject*)arg2)->obj;
-    } else {
-        PyErr_SetString(PyExc_TypeError, "Expected list object");
+    try {
+        Object rhs;
+        if (PyList_Check(arg2)) {
+            rhs = support.to_object(arg2);
+        } else if (NodelObject_CheckExact(arg2)) {
+            rhs = ((NodelObject*)arg2)->obj;
+        } else {
+            PyErr_SetString(PyExc_TypeError, "Expected list object");
+            return NULL;
+        }
+
+        for (const auto& val : rhs.iter_values())
+            obj.append(val);
+    } catch (const std::exception& ex) {
+        PyErr_SetString(PyExc_RuntimeError, ex.what());
         return NULL;
     }
 
-    for (const auto& val : rhs.iter_values())
-        obj.append(val);
     Py_INCREF(arg1);
     return (PyObject*)arg1;
 }
@@ -1291,17 +1297,22 @@ static PyObject* NodelObject_sq_inplace_concat(PyObject* self, PyObject* arg) {
         }
     } else if (type == Object::LIST) {
         // In-place list concatenation
-        Object rhs;
-        if (PyList_Check(arg)) {
-            rhs = support.to_object(arg);
-        } else if (NodelObject_CheckExact(arg)) {
-            rhs = ((NodelObject*)arg)->obj;
-        } else {
-            PyErr_SetString(PyExc_TypeError, "Expected list object");
+        try {
+            Object rhs;
+            if (PyList_Check(arg)) {
+                rhs = support.to_object(arg);
+            } else if (NodelObject_CheckExact(arg)) {
+                rhs = ((NodelObject*)arg)->obj;
+            } else {
+                PyErr_SetString(PyExc_TypeError, "Expected list object");
+                return NULL;
+            }
+            for (const auto& val : rhs.iter_values())
+                obj.append(val);
+        } catch (const std::exception& ex) {
+            PyErr_SetString(PyExc_RuntimeError, ex.what());
             return NULL;
         }
-        for (const auto& val : rhs.iter_values())
-            obj.append(val);
         Py_INCREF(self);
         return self;
     } else {
@@ -1323,16 +1334,21 @@ static PyObject* NodelObject_sq_inplace_repeat(PyObject* self, Py_ssize_t count)
         str = std::move(result);
         obj.set_unsaved();
     } else if (type == Object::LIST) {
-        if (count <= 0) {
-            obj.clear();
-        } else {
-            ObjectList original;
-            for (const auto& item : obj.iter_values())
-                original.push_back(item);
-            // append copies each item, since it already has a parent
-            for (Py_ssize_t i = 1; i < count; ++i)
-                for (const auto& item : original)
-                    obj.append(item);
+        try {
+            if (count <= 0) {
+                obj.clear();
+            } else {
+                ObjectList original;
+                for (const auto& item : obj.iter_values())
+                    original.push_back(item);
+                // append copies each item, since it already has a parent
+                for (Py_ssize_t i = 1; i < count; ++i)
+                    for (const auto& item : original)
+                        obj.append(item);
+            }
+        } catch (const std::exception& ex) {
+            PyErr_SetString(PyExc_RuntimeError, ex.what());
+            return NULL;
         }
     } else {
         PyErr_SetString(PyExc_TypeError, "In-place repeat only supported for list or string");
