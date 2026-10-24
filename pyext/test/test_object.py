@@ -76,6 +76,11 @@ class TestObject(unittest.TestCase):
         
     def test_string_len(self):
         self.assertEqual(len(nd.new('foo')), 3)
+
+    def test_len_non_container(self):
+        for example in [None, True, 5, 3.14]:
+            with self.assertRaises(TypeError):
+                len(nd.Object(example))
         
     def test_string_to_native(self):
         obj = nd.Object("teatime")

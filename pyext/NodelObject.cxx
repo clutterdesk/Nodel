@@ -1223,13 +1223,8 @@ static PyMappingMethods NodelObject_as_mapping = {
 //-----------------------------------------------------------------------------
 
 static Py_ssize_t NodelObject_sq_length(PyObject* self) {
-    NodelObject* nd_self = (NodelObject*)self;
-    auto& self_obj = nd_self->obj;
-    if (nodel::is_container(self_obj) || self_obj.is_type<nodel::String>()) {
-        return (Py_ssize_t)self_obj.size();
-    } else {
-        python::raise_type_error(self_obj);
-    }
+    // len() tries sq_length before mp_length
+    return NodelObject_mp_length(self);
 }
 
 static PyObject* NodelObject_sq_concat(PyObject* self, PyObject* arg) {
