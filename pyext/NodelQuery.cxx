@@ -220,7 +220,7 @@ constexpr auto query_type_doc =
 "spec - A query specification.  See nodel.query for the syntax.";
 
 PyTypeObject NodelQueryType = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base        = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name        = "nodel.Query",
     .tp_basicsize   = sizeof(NodelQuery),
     .tp_dealloc     = NodelQuery_dealloc,
@@ -234,7 +234,7 @@ PyTypeObject NodelQueryType = {
 };
 
 PyTypeObject NodelQueryIterType = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base        = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name        = "nodel.QueryIter",
     .tp_basicsize   = sizeof(NodelQueryIter),
     .tp_dealloc     = NodelQueryIter_dealloc,

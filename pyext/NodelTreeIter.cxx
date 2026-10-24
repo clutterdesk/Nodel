@@ -63,7 +63,7 @@ static PyObject* NodelTreeIter_iter_next(PyObject* self) {
 //-----------------------------------------------------------------------------
 
 PyTypeObject NodelTreeIterType = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base        = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name        = "nodel.TreeIter",
     .tp_basicsize   = sizeof(NodelTreeIter),
     .tp_dealloc     = NodelTreeIter_dealloc,

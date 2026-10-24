@@ -71,7 +71,7 @@ static PyObject* NodelItemIter_iter_next(PyObject* self) {
 //-----------------------------------------------------------------------------
 
 PyTypeObject NodelItemIterType = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base        = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name        = "nodel.ItemIter",
     .tp_basicsize   = sizeof(NodelItemIter),
     .tp_dealloc     = NodelItemIter_dealloc,

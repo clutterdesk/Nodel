@@ -1553,21 +1553,21 @@ constexpr auto NodelObject_doc = \
 "See `nodel.bind` for details.";
 
 PyTypeObject NodelObjectType = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base        = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name        = "nodel.Object",
     .tp_basicsize   = sizeof(NodelObject),
     .tp_dealloc     = (destructor)NodelObject_dealloc,
     .tp_repr        = (reprfunc)NodelObject_repr,
     .tp_as_number   = &NodelObject_as_number,
-    .tp_as_mapping  = &NodelObject_as_mapping,
     .tp_as_sequence = &NodelObject_as_sequence,
+    .tp_as_mapping  = &NodelObject_as_mapping,
+    .tp_hash        = (hashfunc)NodelObject_hash,
     .tp_str         = (reprfunc)NodelObject_str,
     .tp_getattro    = &NodelObject_getattro,
     .tp_setattro    = &NodelObject_setattro,
     .tp_doc         = PyDoc_STR(NodelObject_doc),
     .tp_richcompare = &NodelObject_richcompare,
-    .tp_hash        = (hashfunc)NodelObject_hash,
-    .tp_iter        = &NodelObject_iter,
+    .tp_iter       = &NodelObject_iter,
     .tp_methods     = NodelObject_methods,
     .tp_init        = NodelObject_init,
     .tp_new         = NodelObject_new,

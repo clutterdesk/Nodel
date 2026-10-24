@@ -1101,7 +1101,7 @@ static PyMethodDef nodel_methods[] = {
 PyDoc_STRVAR(module_doc, "Nodel Python Extension");
 
 PyModuleDef nodel_module_def = {
-    PyModuleDef_HEAD_INIT,
+    .m_base = PyModuleDef_HEAD_INIT,
     .m_name = "nodel",
     .m_doc = module_doc,
     .m_size = -1,
