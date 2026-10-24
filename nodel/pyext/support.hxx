@@ -278,6 +278,7 @@ struct Support
     static std::optional<KeyList> to_key_list(PyObject* py_list);
 
     static void clear_parent(const Object&);
+    static void release_values(Object&);
 };
 
 
@@ -637,6 +638,18 @@ Object Support::to_object(PyObject* po) {
 inline
 void Support::clear_parent(const Object& object) {
     object.clear_parent();
+}
+
+/// Empty a temporary container without clearing the parents of its values,
+/// which its destructor would otherwise do.
+inline
+void Support::release_values(Object& object) {
+    switch (object.m_fields.repr_ix) {
+        case Object::LIST: std::get<0>(*object.m_repr.pl).clear(); break;
+        case Object::SMAP: std::get<0>(*object.m_repr.psm).clear(); break;
+        case Object::OMAP: std::get<0>(*object.m_repr.pom).clear(); break;
+        default: break;
+    }
 }
 
 } // namespace python

@@ -137,6 +137,23 @@ class TestObject(unittest.TestCase):
         self.assertEqual(len(list), 1)
         self.assertEqual(list[0], 'X')
 
+    def test_list_slice_assign_python_list(self):
+        for slice_, indices in ((slice(0, 1), (0, 1)), (slice(0, 4, 2), (0, 2))):
+            list = nd.Object([0, 1, 2, 3])
+            list[slice_] = [[], {}]
+            for i in indices:
+                self.assertEqual(nd.id(nd.parent(list[i])), nd.id(list))
+                self.assertEqual(nd.path(list[i]), f'[{i}]')
+
+    def test_list_slice_assign_nodel_object(self):
+        list = nd.Object([0])
+        other = nd.Object([{}, {}])
+        list[0:1] = other
+        self.assertEqual(nd.id(nd.parent(list[0])), nd.id(list))
+        self.assertEqual(nd.id(nd.parent(other[0])), nd.id(other))
+        other[0]['k'] = 1
+        self.assertEqual(list[0], {})
+
     def test_map_len(self):
         self.assertEqual(len(nd.Object({'x': 1, 'y': 2, 'z': 3})), 3)
         

@@ -1146,9 +1146,19 @@ static int NodelObject_mp_ass_sub(PyObject* self, PyObject* key, PyObject* value
                 } else {
                     auto slice = support.to_slice(key);
                     auto nd_vals = support.to_object(value);
-                    for (auto& nd_val : nd_vals.iter_values())
-                        support.clear_parent(nd_val);  // prevent copying
-                    self_obj.set(slice, nd_vals);
+                    if (PyErr_Occurred()) return -1;
+                    if (NodelObject_CheckExact(value)) {
+                        // values still belong to the argument, so set copies them
+                        self_obj.set(slice, nd_vals);
+                    } else {
+                        // detach the values of the temporary container, so set does
+                        // not copy them, then release them without clearing the
+                        // parents set by self_obj.set
+                        for (auto& nd_val : nd_vals.iter_values())
+                            support.clear_parent(nd_val);
+                        self_obj.set(slice, nd_vals);
+                        support.release_values(nd_vals);
+                    }
                 }
             }
         } else {
