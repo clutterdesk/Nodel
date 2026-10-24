@@ -8,21 +8,13 @@
 
 namespace nodel {
 
+// Decided by pointer size rather than by architecture macro, so that every
+// 64-bit target (e.g. aarch64, riscv64) is covered.
 #ifndef NODEL_ARCH
-#if _WIN32 || _WIN64
-#if _WIN64
-#define NODEL_ARCH 64
-#else
+#if UINTPTR_MAX == 0xFFFFFFFFu
 #define NODEL_ARCH 32
-#endif
-#endif
-
-#if __GNUC__
-#if __x86_64__ || __ppc64__
-#define NODEL_ARCH 64
 #else
-#define NODEL_ARCH 32
-#endif
+#define NODEL_ARCH 64
 #endif
 #endif // NODEL_ARCH
 
