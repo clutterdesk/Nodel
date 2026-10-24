@@ -43,7 +43,7 @@ static bool require_number(const Object& obj) {
     return true;
 }
 
-static bool require_container(const Object& obj) {
+[[maybe_unused]] static bool require_container(const Object& obj) {
     if (!nodel::is_container(obj)) {
         python::raise_type_error(obj);
         return false;
@@ -51,7 +51,7 @@ static bool require_container(const Object& obj) {
     return true;
 }
 
-static bool require_sequence(const Object& obj) {
+[[maybe_unused]] static bool require_sequence(const Object& obj) {
     if (obj.type() != Object::LIST && !obj.is_type<nodel::String>()) {
         python::raise_type_error(obj);
         return false;
