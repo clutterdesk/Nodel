@@ -158,7 +158,7 @@ static PyObject* NodelObject_sq_repeat(PyObject* self, Py_ssize_t count);
 static PyObject* NodelObject_multiply(PyObject* arg1, PyObject* arg2) {
     if (NodelObject_CheckExact(arg1)) {
         NodelObject* nd_obj = (NodelObject*)arg1;
-        if (nodel::is_number(nd_obj)) {
+        if (nodel::is_number(nd_obj->obj)) {
             PyObject* val = num_to_py(nd_obj);
             if (val == NULL) return NULL;
             return PyNumber_Multiply(val, arg2);
