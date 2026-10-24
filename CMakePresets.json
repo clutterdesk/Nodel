@@ -9,7 +9,8 @@
       "binaryDir": "${sourceDir}/build-win64",
       "toolchainFile": "${sourceDir}/cmake/toolchains/windows-clang-cl.cmake",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "NODEL_WIN_PYTHON_VERSION": "3.12.10"
       }
     }
   ],
@@ -17,7 +18,7 @@
     {
       "name": "windows-x64",
       "configurePreset": "windows-x64",
-      "targets": [ "nodel_test" ]
+      "targets": [ "nodel_test", "pyext_win_wheel" ]
     }
   ]
 }

@@ -248,7 +248,69 @@ if (NOT CMAKE_CROSSCOMPILING)
     find_package (Python3 COMPONENTS Interpreter Development)
 endif()
 
-if (CMAKE_CROSSCOMPILING)
+set(NODEL_PYEXT_VERSION 0.2.0)
+
+if (CMAKE_CROSSCOMPILING AND WIN32)
+    # setuptools can't cross-compile, so build the extension as a CMake module against the
+    # headers and import library from the official NuGet CPython package
+    set(NODEL_WIN_PYTHON_VERSION "3.12.10" CACHE STRING "Windows CPython version to build the extension for")
+    string(REGEX MATCH "^([0-9]+)\\.([0-9]+)" _ "${NODEL_WIN_PYTHON_VERSION}")
+    set(NODEL_WIN_PYTHON_ABI "${CMAKE_MATCH_1}${CMAKE_MATCH_2}")
+
+    FetchContent_Declare(
+      win_python
+      URL https://www.nuget.org/api/v2/package/python/${NODEL_WIN_PYTHON_VERSION}
+      DOWNLOAD_NAME python.zip
+      DOWNLOAD_EXTRACT_TIMESTAMP ON
+    )
+    FetchContent_MakeAvailable(win_python)
+
+    # pyconfig.h links python3XX.lib itself via #pragma comment(lib), so only the search path is needed
+    add_library(nodel_win_python INTERFACE)
+    target_include_directories(nodel_win_python INTERFACE ${win_python_SOURCE_DIR}/tools/include)
+    target_link_directories(nodel_win_python INTERFACE ${win_python_SOURCE_DIR}/tools/libs)
+
+    file(GLOB NODEL_PYEXT_SRC ${CMAKE_SOURCE_DIR}/pyext/*.cxx)
+    add_library(nodel_pyext MODULE ${NODEL_PYEXT_SRC})
+    set_target_properties(nodel_pyext PROPERTIES OUTPUT_NAME nodel PREFIX "" SUFFIX ".pyd")
+    target_compile_features(nodel_pyext PRIVATE cxx_std_20)
+    target_compile_definitions(nodel_pyext PRIVATE PYNODEL_ROCKSDB=0)
+    target_include_directories(nodel_pyext PRIVATE
+        ${Nodel_SOURCE_DIR}
+        ${tsl-ordered-map_SOURCE_DIR}/include
+    )
+    target_link_libraries(nodel_pyext PRIVATE
+        nodel_ziplib
+        cpptrace::cpptrace
+        fmt::fmt
+        nodel_win_python
+    )
+
+    # pack the module into a wheel using a host Python
+    find_program(NODEL_HOST_PYTHON NAMES python3 python)
+    if (NOT NODEL_HOST_PYTHON)
+        message(WARNING "Host Python not found. Unable to package the Python C-API extension wheel.")
+    else()
+        set(NODEL_PYEXT_TAG "cp${NODEL_WIN_PYTHON_ABI}-cp${NODEL_WIN_PYTHON_ABI}-win_amd64")
+        set(NODEL_WHEEL_STAGE ${CMAKE_BINARY_DIR}/wheel/nodel-${NODEL_PYEXT_VERSION})
+        set(NODEL_WHEEL_DIST_INFO ${NODEL_WHEEL_STAGE}/nodel-${NODEL_PYEXT_VERSION}.dist-info)
+        configure_file(${CMAKE_SOURCE_DIR}/pyext/wheel/METADATA.in ${NODEL_WHEEL_DIST_INFO}/METADATA @ONLY)
+        configure_file(${CMAKE_SOURCE_DIR}/pyext/wheel/WHEEL.in ${NODEL_WHEEL_DIST_INFO}/WHEEL @ONLY)
+
+        set(NODEL_HOST_VENV_PYTHON ${CMAKE_BINARY_DIR}/venv-host/bin/python)
+        add_custom_target(
+            pyext_win_wheel ALL
+            DEPENDS nodel_pyext
+            COMMAND ${NODEL_HOST_PYTHON} -m venv ${CMAKE_BINARY_DIR}/venv-host
+            COMMAND ${NODEL_HOST_VENV_PYTHON} -m pip install --quiet wheel
+            COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:nodel_pyext> ${NODEL_WHEEL_STAGE}/
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/dist
+            COMMAND ${NODEL_HOST_VENV_PYTHON} -m wheel pack ${NODEL_WHEEL_STAGE} -d ${CMAKE_BINARY_DIR}/dist
+            COMMENT "Packaging Python C-API extension wheel (${NODEL_PYEXT_TAG})"
+        )
+    endif()
+
+elseif (CMAKE_CROSSCOMPILING)
     message(STATUS "Cross-compiling: skipping Python C-API extension.")
 
 elseif (NOT Python3_FOUND)

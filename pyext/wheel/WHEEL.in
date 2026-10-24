@@ -1,0 +1,4 @@
+Wheel-Version: 1.0
+Generator: nodel-cmake
+Root-Is-Purelib: false
+Tag: @NODEL_PYEXT_TAG@
