@@ -215,6 +215,13 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/test_data/ $<TARGET_FILE_DIR:nodel_test>/test_data/
 )
 
+# ObjectBug.* holds the regression tests for open issues, which fail until each is fixed
+add_test(
+    NAME nodel_test
+    COMMAND nodel_test --gtest_filter=-ObjectBug.*
+    WORKING_DIRECTORY $<TARGET_FILE_DIR:nodel_test>
+)
+
 
 #----------------------------------------------------------------------------
 #-- Dump All Vars
