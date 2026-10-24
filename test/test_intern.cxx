@@ -5,6 +5,7 @@
 #include <fmt/core.h>
 #include <nodel/support/intern.hxx>
 #include <thread>
+#include <cstring>
 
 using namespace nodel;
 
@@ -24,7 +25,7 @@ TEST(Intern, InternStringLiteral) {
     EXPECT_EQ(intern3.data().data(), intern.data().data());
 
     char* p_non_literal = new char[4];
-    strcpy(p_non_literal, "tea");
+    std::memcpy(p_non_literal, "tea", 4);
     auto intern4 = intern_string(p_non_literal);
     EXPECT_EQ(intern4.data().data(), intern.data().data());
     delete [] p_non_literal;

@@ -86,6 +86,13 @@ if (MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSI
     target_compile_options(gtest PRIVATE -Wno-character-conversion)
 endif()
 
+# clang-cl warns about third-party code we don't control: fmt discards a [[nodiscard]]
+# result in base.h, and CMake passes -TP when scanning cpptrace's C++20 module, which is unused
+if (MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_compile_options(fmt PRIVATE -Wno-unused-result)
+    target_compile_options(cpptrace-lib PRIVATE -Wno-unused-command-line-argument)
+endif()
+
 #----------------------------------------------------------------------------
 # Dependency: ZipLib (LOCAL, statically linked)
 #----------------------------------------------------------------------------

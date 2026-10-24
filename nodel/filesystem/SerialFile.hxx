@@ -8,8 +8,6 @@
 #include <nodel/support/Ref.hxx>
 #include <nodel/serializer/Serializer.hxx>
 
-#include <fstream>
-
 
 namespace nodel::filesystem {
 

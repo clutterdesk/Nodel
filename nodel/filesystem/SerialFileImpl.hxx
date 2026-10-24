@@ -12,7 +12,7 @@ void SerialFile::read(const Object& target) {
     if (!obj.is_valid()) {
         report_read_error(fpath, obj.to_str());
     } else if (f_in.bad()) {
-        report_read_error(fpath, strerror(errno));
+        report_read_error(fpath, std::generic_category().message(errno));
     } else if (!f_in.eof() && f_in.fail()) {
         report_read_error(fpath, "ostream::fail");
     } else {
@@ -27,6 +27,6 @@ void SerialFile::write(const Object& target, const Object& cache, const Object& 
 
     mr_serial->write(f_out, cache, options);
 
-    if (f_out.bad()) report_write_error(fpath, strerror(errno));
+    if (f_out.bad()) report_write_error(fpath, std::generic_category().message(errno));
     if (f_out.fail()) report_write_error(fpath, "ostream::fail()");
 }

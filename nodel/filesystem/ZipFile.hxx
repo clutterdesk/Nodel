@@ -7,6 +7,7 @@
 #include <nodel/support/Finally.hxx>
 
 #include <queue>
+#include <system_error>
 #include <ZipLib/ZipFile.h>
 
 namespace nodel {
@@ -174,7 +175,7 @@ void ZipFile::write(const Object& target, const Object& cache, const Object& sav
 
     mp_zip->WriteToStream(f_out);
 
-    if (f_out.bad()) report_write_error(fpath.string(), strerror(errno));
+    if (f_out.bad()) report_write_error(fpath.string(), std::generic_category().message(errno));
     if (f_out.fail()) report_write_error(fpath.string(), "ostream::fail()");
 }
 
@@ -199,7 +200,7 @@ void impl::ZipFileEntry::read(const Object& target) {
         if (!obj.is_valid()) {
             report_read_error(fpath.string(), obj.to_str());
         } else if (stream.bad()) {
-            report_read_error(fpath.string(), strerror(errno));
+            report_read_error(fpath.string(), std::generic_category().message(errno));
         } else if (!stream.eof() && stream.fail()) {
             report_read_error(fpath.string(), "ostream::fail");
         } else {

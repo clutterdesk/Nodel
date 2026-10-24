@@ -11,6 +11,7 @@
 #include <cerrno>
 #include <sstream>
 #include <fstream>
+#include <system_error>
 
 namespace nodel {
 namespace json {
@@ -218,7 +219,7 @@ bool Parser<StreamType>::parse_number() {
     m_scratch.clear();
 
     if (errno) {
-        create_error(strerror(errno));
+        create_error(std::generic_category().message(errno));
         errno = 0;
         return false;
     } else if (end != scratch_end) {

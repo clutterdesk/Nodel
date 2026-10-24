@@ -12,7 +12,9 @@
 #include <nodel/core/uri.hxx>
 
 #include <filesystem>
+#include <fstream>
 #include <regex>
+#include <system_error>
 
 #include <fmt/core.h>
 
