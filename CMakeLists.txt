@@ -5,7 +5,7 @@ project(Nodel
     DESCRIPTION "Fast Dynamic Object with Optional Data Source"
     LANGUAGES C CXX)
 
-#enable_testing()
+enable_testing()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -269,21 +269,46 @@ else()
         set(NODEL_PYEXT_LIB_PATH ${NODEL_PYEXT_LIB_PATH} ${ROCKSDB_LIB_PATH})
     endif()
 
+    if (WIN32)
+        set(NODEL_VENV_PYTHON ${CMAKE_BINARY_DIR}/venv/Scripts/python.exe)
+    else()
+        set(NODEL_VENV_PYTHON ${CMAKE_BINARY_DIR}/venv/bin/python)
+    endif()
+
     add_custom_target(
         pyext ALL
         DEPENDS nodel_test nodel_ziplib
                 ${CMAKE_SOURCE_DIR}/pyext/setup.py
                 ${CMAKE_SOURCE_DIR}/pyext/setup.cfg
         COMMAND ${Python3_EXECUTABLE} -m venv ${CMAKE_BINARY_DIR}/venv
-        COMMAND python3 -m pip install setuptools build
+        COMMAND ${NODEL_VENV_PYTHON} -m pip install setuptools build
         COMMAND ${CMAKE_COMMAND} -E env
             NODEL_PYEXT_INCLUDE="${NODEL_PYEXT_INCLUDE}"
             NODEL_PYEXT_LIB_PATH="${NODEL_PYEXT_LIB_PATH}"
             NODEL_PYEXT_ROCKSDB_FOUND="${rocksdb_FOUND}"
-            python3 -m build
+            ${NODEL_VENV_PYTHON} -m build
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/pyext/
         COMMENT "Building Python C-API extension"
     )
+
+    # install the wheel built by the pyext target into the venv, then run each test module
+    add_test(
+        NAME pyext_install
+        COMMAND ${NODEL_VENV_PYTHON} -m pip install --force-reinstall --no-deps
+                --no-index --only-binary :all: --find-links ${CMAKE_SOURCE_DIR}/pyext/dist nodel
+    )
+    set_tests_properties(pyext_install PROPERTIES FIXTURES_SETUP pyext)
+
+    file(GLOB NODEL_PYEXT_TESTS ${CMAKE_SOURCE_DIR}/pyext/test/test_*.py)
+    foreach(test_file ${NODEL_PYEXT_TESTS})
+        get_filename_component(test_module ${test_file} NAME_WE)
+        add_test(
+            NAME pyext_${test_module}
+            COMMAND ${NODEL_VENV_PYTHON} -m unittest -v ${test_module}
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/pyext/test
+        )
+        set_tests_properties(pyext_${test_module} PROPERTIES FIXTURES_REQUIRED pyext)
+    endforeach()
 endif()
 
 
