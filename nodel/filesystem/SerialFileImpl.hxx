@@ -4,7 +4,7 @@
 
 inline
 void SerialFile::read(const Object& target) {
-    auto fpath = path(target).string();
+    auto fpath = require_path(target).string();
     auto size = std::filesystem::file_size(fpath);
     std::ifstream f_in{fpath, std::ios::in | std::ios::binary};
 
@@ -22,7 +22,7 @@ void SerialFile::read(const Object& target) {
 
 inline
 void SerialFile::write(const Object& target, const Object& cache, const Object& options) {
-    auto fpath = path(target).string();
+    auto fpath = require_path(target).string();
     std::ofstream f_out{fpath, std::ios::out};
 
     mr_serial->write(f_out, cache, options);

@@ -136,6 +136,21 @@ class TestFilesystem(unittest.TestCase):
         wd = nd.bind(f'file://?path={path}&perm=rw')
         self.assertEqual(nd.fpath(wd), path)
 
+    def test_fpath_unbound(self):
+        self.assertIsNone(nd.fpath(nd.Object({})))
+
+    def test_fpath_after_reset(self):
+        path = urllib.parse.quote(os.path.dirname(__file__))
+        wd = nd.bind(f'file://?path={path}&perm=rw')
+        mod = wd['test_module.py']
+        text = str(mod)
+        self.assertEqual(nd.fpath(mod), os.path.join(path, 'test_module.py'))
+        nd.reset(wd)
+        self.assertIsNone(nd.fpath(mod))
+        self.assertEqual(str(mod), text)
+        nd.set_unsaved(mod, True)
+        self.assertRaises(RuntimeError, nd.save, mod)
+
     def test_is_bound(self):
         path = urllib.parse.quote(os.path.dirname(__file__))
         wd = nd.bind(f'file://?path={path}&perm=rw')

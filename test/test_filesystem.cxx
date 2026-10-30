@@ -464,6 +464,29 @@ TEST(Filesystem, Clear) {
     EXPECT_FALSE(path.get("example.csv"_key).is_nil());
 }
 
+TEST(Filesystem, OrphanedByReset) {
+    Object wd = bind("file://?path=test_data&perm=rw"_uri);
+    auto more = wd.get("more"_key);
+    auto csv = more.get("example.csv"_key);
+    auto size = csv.size();
+    EXPECT_FALSE(filesystem::path(csv).empty());
+
+    wd.reset();
+    EXPECT_TRUE(filesystem::path(more).empty());
+    EXPECT_TRUE(filesystem::path(csv).empty());
+    EXPECT_THROW(require_path(csv), NodelException);
+
+    // in-memory data is still readable
+    EXPECT_EQ(csv.size(), size);
+
+    // but nothing can reach the filesystem
+    csv.set_unsaved(true);
+    EXPECT_THROW(csv.save(), NodelException);
+    EXPECT_THROW(more.set("dummy.txt"_key, "tea"), NodelException);
+    more.reset();
+    EXPECT_THROW(more.size(), NodelException);
+}
+
 TEST(Filesystem, TooManyPathsInURI) {
     try {
         bind("file:///?path=."_uri);

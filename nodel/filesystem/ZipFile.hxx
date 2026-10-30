@@ -61,8 +61,8 @@ inline
 void ZipFile::read(const Object& target) {
     ASSERT(!mp_zip);
 
+    auto fpath = require_path(target);
     auto r_reg = get_registry(target);
-    auto fpath = path(target);
 
     try {
         mp_zip = ::ZipFile::Open(fpath.string());
@@ -113,7 +113,7 @@ void ZipFile::read(const Object& target) {
 
 inline
 void ZipFile::write(const Object& target, const Object& cache, const Object& save_options) {
-    auto fpath = path(target);
+    auto fpath = require_path(target);
     auto r_reg = get_registry(target);
 
     std::vector<std::stringstream*> streams;
@@ -186,8 +186,8 @@ void ZipFile::free_resources() {
 
 inline
 void impl::ZipFileEntry::read(const Object& target) {
+    auto fpath = require_path(target);
     auto r_reg = get_registry(target);
-    auto fpath = path(target);
     auto r_ser = r_reg->get_serializer(fpath);
     ASSERT(r_ser);
 

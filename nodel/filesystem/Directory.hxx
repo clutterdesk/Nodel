@@ -104,7 +104,7 @@ Object find_fs_root(const Object& obj) {
 inline
 Ref<Registry> get_registry(const Object& obj) {
     auto head_anc = find_fs_root(obj);
-    if (head_anc == nil) return {};
+    if (head_anc.is_empty()) return {};
     auto& head_ds = *(head_anc.data_source<Directory>());
     return head_ds.registry();
 }
@@ -123,6 +123,15 @@ std::filesystem::path path(const Object& obj) {
         fpath /= key.to_str();
 
     return fpath;
+}
+
+/// Like @ref path, but throws if the object is not attached to a filesystem root,
+/// which happens to references held across a reset of an ancestor.
+inline
+std::filesystem::path require_path(const Object& obj) {
+    if (find_fs_root(obj).is_empty())
+        throw NodelException("Object is not attached to a filesystem root (was an ancestor reset?)");
+    return path(obj);
 }
 
 #include "SerialFileImpl.hxx"
@@ -145,8 +154,8 @@ Predicate make_regex_filter(String&& regex) {
 
 inline
 void SubDirectory::read(const Object& target) {
+    auto fpath = require_path(target);
     auto r_reg = get_registry(target);
-    auto fpath = path(target);
     // TODO: handle directory_iterator failure
     for (const auto& entry : std::filesystem::directory_iterator(fpath)) {
         auto fname = entry.path().filename().string();
@@ -168,8 +177,8 @@ bool looks_like_directory(const Ref<Registry>& r_reg, const std::filesystem::pat
 
 inline
 void SubDirectory::write(const Object& target, const Object& cache, const Object&) {
+    auto fpath = require_path(target);
     auto r_reg = get_registry(target);
-    auto fpath = path(target);
 
     // create, if necessary
     if (!std::filesystem::exists(fpath)) {
@@ -220,8 +229,8 @@ void SubDirectory::write(const Object& target, const Object& cache, const Object
 inline
 DataSource* SubDirectory::resolve_data_source(const Object& parent, const Key& key, const Object& value) const {
     // Use the registry to determine the correct DataSource for the value
+    auto parent_fpath = require_path(parent);
     auto r_reg = get_registry(parent);
-    auto parent_fpath = path(parent);
     auto item_fpath = parent_fpath / key.to_str();
     // Use directory/file detection logic as in write()
     auto p_ds = r_reg->create_if_defined(parent, item_fpath, DataSource::Origin::MEMORY);

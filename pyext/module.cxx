@@ -680,7 +680,8 @@ constexpr auto reset_doc = \
 "nodel.reset(obj) -> None\n"
 "If the argument is bound (has data-source), then it's cleared and the data-source\n"
 "will re-load on the next data access. Any references to descendants will be\n"
-"orphaned, and cannot be re-loaded, themselves.";
+"orphaned: they keep their in-memory data, but nodel.fpath returns None for them,\n"
+"and loading or saving them raises RuntimeError.";
 
 static PyObject* mod_reset(PyObject* mod, PyObject* arg) {
     NodelObject* nd_obj = as_nodel_object(arg);
@@ -700,7 +701,8 @@ constexpr auto reset_key_doc = \
 "nodel.reset_key(obj, key) -> None\n"
 "If the object is bound (has data-source), then the key is cleared and the data-source\n"
 "will re-load the key on the next access. Any references to descendants of the value\n"
-"of the key will be orphaned, and cannot be re-loaded, themselves.";
+"of the key will be orphaned: they keep their in-memory data, but nodel.fpath returns\n"
+"None for them, and loading or saving them raises RuntimeError.";
 
 static PyObject* mod_reset_key(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
     if (nargs != 2) {
@@ -800,6 +802,7 @@ static PyObject* mod_fpath(PyObject* mod, PyObject* arg) {
 
     try {
         auto path = nodel::filesystem::path(nd_obj->obj);
+        if (path.empty()) Py_RETURN_NONE;
         return python::to_str(path.string());
     } catch (const std::exception& ex) {
         PyErr_SetString(PyExc_RuntimeError, ex.what());
