@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <mutex>
 #include <stdexcept>
 #include <unordered_set>
 #include <vector>
@@ -59,8 +60,11 @@ struct InternEqual
 };
 
 /////////////////////////////////////////////////////////////////////////////
-/// A *thread-local* set of interned strings, and a process-wide unique
-/// identifier for the set.
+/// A set of interned strings, and a process-wide unique identifier for the
+/// set.
+/// - The set is not synchronized.  Each thread has its own set (see
+///   @ref thread_interns), and the global set (see @ref global_interns) is
+///   guarded by a mutex.
 /// - Each interned string is preceded by an @ref InternHeader.
 /// - Interned strings are allocated in chunks, and are not freed when the
 ///   thread exits, so they remain valid afterwards.  They are freed only by
@@ -140,16 +144,58 @@ InternTable& thread_interns() {
     return interns;
 }
 
+/////////////////////////////////////////////////////////////////////////////
+/// The process-wide set of interned strings, shared by every thread that
+/// has called @ref nodel::use_global_interns.
+/// - The mutex guards @ref table, which must not be accessed without it.
+/////////////////////////////////////////////////////////////////////////////
+struct GlobalInternTable
+{
+    const char* intern(const StringView& str) {
+        std::lock_guard lock{mutex};
+        return table.intern(str);
+    }
+
+    void clear() {
+        std::lock_guard lock{mutex};
+        table.clear();
+    }
+
+    size_t size() {
+        std::lock_guard lock{mutex};
+        return table.strings.size();
+    }
+
+    std::mutex mutex;
+    InternTable table;
+};
+
+/////////////////////////////////////////////////////////////////////////////
+/// Returns the process-wide set of interned strings.
+/////////////////////////////////////////////////////////////////////////////
+inline
+GlobalInternTable& global_interns() {
+    static GlobalInternTable interns;
+    return interns;
+}
+
+/// Returns the calling thread's flag selecting the global intern table.
+inline
+bool& thread_uses_global_interns() {
+    static thread_local bool flag = false;
+    return flag;
+}
+
 } // namespace impl
 
 /////////////////////////////////////////////////////////////////////////////
-/// A string interned in a *thread-local* table.
-/// - Strings interned by the same thread are equal if and only if they share
+/// A string interned in a *thread-local* table, or in the global table.
+/// - Strings interned in the same table are equal if and only if they share
 ///   the same storage.
-/// - Strings interned by different threads are compared by content.
-/// - The hash is computed from the content, so it is the same on every thread.
+/// - Strings interned in different tables are compared by content.
+/// - The hash is computed from the content, so it is the same in every table.
 /// - On 32-bit builds, the table identifier is omitted so that intern_t is no
-///   larger than a StringView, and strings interned by the same thread with
+///   larger than a StringView, and strings interned in the same table with
 ///   equal hashes are compared by content.
 /////////////////////////////////////////////////////////////////////////////
 class intern_t
@@ -193,14 +239,79 @@ class intern_t
 
 static_assert(sizeof(intern_t) <= sizeof(StringView), "intern_t must not increase the size of Key");
 
+/////////////////////////////////////////////////////////////////////////////
+/// Interns @p str in the calling thread's table, or in the global table if
+/// the calling thread has called @ref use_global_interns.
+/////////////////////////////////////////////////////////////////////////////
 inline
 intern_t intern_string(const StringView& str) {
+    if (impl::thread_uses_global_interns()) {
+        auto& interns = impl::global_interns();
+        return intern_t{interns.intern(str), interns.table.id};
+    }
     auto& interns = impl::thread_interns();
     return intern_t{interns.intern(str), interns.id};
 }
 
 /////////////////////////////////////////////////////////////////////////////
-/// Frees every string interned by the calling thread.
+/// Selects the table in which the calling thread interns strings.
+/// - By default, each thread interns strings in its own thread-local table.
+///   Use the global table to build a model on one thread that will be used
+///   by others, so that its keys share storage and compare by pointer on
+///   every thread that also uses the global table.
+/// - The global table is synchronized, but Objects are not.  Objects shared
+///   between threads must be guarded by the application.
+/// - Strings interned in different tables still compare equal by content.
+/// @param enable true to use the global table, false to use the
+///        thread-local table.
+/// @return The previous selection.
+/////////////////////////////////////////////////////////////////////////////
+inline
+bool use_global_interns(bool enable = true) {
+    auto& flag = impl::thread_uses_global_interns();
+    bool prev = flag;
+    flag = enable;
+    return prev;
+}
+
+/// Returns true if the calling thread interns strings in the global table.
+inline
+bool using_global_interns() {
+    return impl::thread_uses_global_interns();
+}
+
+/////////////////////////////////////////////////////////////////////////////
+/// Makes the calling thread intern strings in the global table for the
+/// lifetime of the scope, then restores the previous selection.
+/// @see use_global_interns
+/////////////////////////////////////////////////////////////////////////////
+class GlobalInternScope
+{
+  public:
+    GlobalInternScope() : m_prev{use_global_interns(true)} {}
+    ~GlobalInternScope() { use_global_interns(m_prev); }
+
+    GlobalInternScope(const GlobalInternScope&) = delete;
+    GlobalInternScope& operator = (const GlobalInternScope&) = delete;
+
+  private:
+    bool m_prev;
+};
+
+/////////////////////////////////////////////////////////////////////////////
+/// Frees every string in the global intern table.
+/// - Every intern_t, and so every Key and Object, holding a string interned
+///   in the global table is left dangling, on every thread.  Destroy them,
+///   or stop using them, before calling this.
+/////////////////////////////////////////////////////////////////////////////
+inline
+void clear_global_interns() {
+    impl::global_interns().clear();
+}
+
+/////////////////////////////////////////////////////////////////////////////
+/// Frees every string interned in the calling thread's thread-local table.
+/// - This does not affect the global table (see @ref clear_global_interns).
 /// - Use this to bound memory when string keys come from an unbounded domain,
 ///   such as keys parsed from data.
 /// - Every intern_t, and so every Key and Object, holding a string interned

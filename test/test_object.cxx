@@ -1047,6 +1047,25 @@ TEST(Object, OrderedMapKeyFromOtherThread) {
   EXPECT_TRUE(obj.get("name"_key) == nil);
 }
 
+TEST(Object, OrderedMapBuiltWithGlobalInterns) {
+  Object obj;
+  std::thread thread{[&] () {
+    GlobalInternScope scope;
+    obj = json::parse(R"({"name": "Brian", "drink": "tea"})");
+    obj.set("cups", 2);
+  }};
+  thread.join();
+
+  GlobalInternScope scope;
+  EXPECT_EQ(obj.get("name"_key).as<String>(), "Brian");
+  EXPECT_EQ(obj.get("drink"_key).as<String>(), "tea");
+  EXPECT_EQ(obj.get("cups"_key).cast<Int>(), 2);
+  for (const auto& key : obj.iter_keys()) {
+    auto str = key.as<StringView>();
+    EXPECT_EQ(str.data(), intern_string(String{str}).data().data());
+  }
+}
+
 TEST(Object, SortedMapGet) {
   json::Options options; options.use_sorted_map = true;
   Object obj = json::parse(options, R"({0: 7, 1: 8, 2: 9, "name": "Brian"})");

@@ -32,19 +32,21 @@ namespace nodel {
 ///     - unsigned integer (64-bit, as defined in nodel/support/types.h)
 ///     - floating point   (64-bit, as defined in nodel/support/types.h)
 ///     - string           (may represent either text, or binary data)
-/// - String keys are interned (see nodel/support/intern.h).
+/// - String keys are interned (see nodel/support/intern.hxx).
 /// - A literal operator `""_key` is provided.
 /// - String interning has several benefits including:
-///     - String keys interned by the same thread can be compared by comparing
-///       pointers.  String keys interned by different threads are compared
+///     - String keys interned in the same table can be compared by comparing
+///       pointers.  String keys interned in different tables are compared
 ///       by content.
 ///     - A string key is hashed once, when it is interned
 ///     - A string key copy only has to assign a pointer
 /// - When creating Key instances from non-literal strings, the string must
 ///   first be interned at the cost of a hash table lookup and comparison.
-/// - Applications with a high thread-count, and or a large/unbounded string
-///   key domain, may see significant overhead from the per-thread intern
-///   tables. This can be addressed in the future.
+/// - By default, each thread interns strings in its own table.  A thread
+///   may instead use a single, synchronized, global table by calling
+///   @ref use_global_interns (or with a @ref GlobalInternScope), which
+///   avoids duplicating keys across threads, and lets models be passed
+///   between threads while keeping pointer comparison.
 /////////////////////////////////////////////////////////////////////////////
 class Key
 {

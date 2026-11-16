@@ -1033,6 +1033,92 @@ static PyObject* mod_query(PyObject* mod, PyObject *const *args, Py_ssize_t narg
     return NodelQueryIter_new(((NodelQuery*)query.get())->query, nd_obj->obj);
 }
 
+//-----------------------------------------------------------------------------
+// String interning
+//-----------------------------------------------------------------------------
+
+constexpr auto use_global_interns_doc =
+"Select the table in which the calling thread interns string keys.\n"
+"By default, each thread interns string keys in its own table.  Use the global\n"
+"table to build objects on one thread that will be used by other threads, so that\n"
+"their keys are shared rather than duplicated.  The global table is synchronized,\n"
+"but nodel objects are not: access to objects shared between threads must be\n"
+"serialized by the application.\n"
+"nodel.use_global_interns(enable=True) -> bool\n"
+"enable - True to use the global table, False to use the thread-local table.\n"
+"Returns the previous selection.";
+
+static PyObject* mod_use_global_interns(PyObject* mod, PyObject *const *args, Py_ssize_t nargs) {
+    if (nargs > 1) {
+        PyErr_SetString(PyExc_ValueError, "Wrong number of arguments");
+        return NULL;
+    }
+
+    bool enable = true;
+    if (nargs == 1) {
+        int truth = PyObject_IsTrue(args[0]);
+        if (truth < 0) return NULL;
+        enable = truth;
+    }
+
+    return PyBool_FromLong(use_global_interns(enable));
+}
+
+constexpr auto using_global_interns_doc =
+"Returns True if the calling thread interns string keys in the global table.\n"
+"See nodel.use_global_interns.\n"
+"nodel.using_global_interns() -> bool";
+
+static PyObject* mod_using_global_interns(PyObject* mod, PyObject*) {
+    return PyBool_FromLong(using_global_interns());
+}
+
+/// Context manager returned by nodel.global_interns().
+struct NodelGlobalInterns
+{
+    PyObject_HEAD
+    bool prev;
+};
+
+static PyObject* NodelGlobalInterns_enter(PyObject* self, PyObject*) {
+    ((NodelGlobalInterns*)self)->prev = use_global_interns(true);
+    Py_INCREF(self);
+    return self;
+}
+
+static PyObject* NodelGlobalInterns_exit(PyObject* self, PyObject *const *args, Py_ssize_t nargs) {
+    use_global_interns(((NodelGlobalInterns*)self)->prev);
+    Py_RETURN_FALSE;
+}
+
+static PyMethodDef NodelGlobalInterns_methods[] = {
+    {"__enter__", (PyCFunction)NodelGlobalInterns_enter, METH_NOARGS,   NULL},
+    {"__exit__",  (PyCFunction)NodelGlobalInterns_exit,  METH_FASTCALL, NULL},
+    {NULL, NULL, 0, NULL}
+};
+
+static PyTypeObject NodelGlobalInternsType = {
+    .ob_base        = PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name        = "nodel.GlobalInterns",
+    .tp_basicsize   = sizeof(NodelGlobalInterns),
+    .tp_flags       = Py_TPFLAGS_DEFAULT,
+    .tp_doc         = PyDoc_STR("Context manager returned by nodel.global_interns()"),
+    .tp_methods     = NodelGlobalInterns_methods,
+};
+
+constexpr auto global_interns_doc =
+"Returns a context manager in which the calling thread interns string keys in the\n"
+"global table, restoring the previous selection on exit.\n"
+"See nodel.use_global_interns.\n"
+"with nodel.global_interns(): ...";
+
+static PyObject* mod_global_interns(PyObject* mod, PyObject*) {
+    NodelGlobalInterns* self = PyObject_New(NodelGlobalInterns, &NodelGlobalInternsType);
+    if (self == NULL) return NULL;
+    self->prev = false;
+    return (PyObject*)self;
+}
+
 static PyMethodDef nodel_methods[] = {
     {"new",          (PyCFunction)mod_new,                 METH_O,        PyDoc_STR(new_doc)},
     {"list",         (PyCFunction)mod_list,                METH_NOARGS,   PyDoc_STR(list_doc)},
@@ -1076,6 +1162,13 @@ static PyMethodDef nodel_methods[] = {
     {"is_alien",     (PyCFunction)mod_is_alien,            METH_O,        PyDoc_STR(is_alien_doc)},
     {"native",       (PyCFunction)mod_native,              METH_O,        PyDoc_STR(native_doc)},
     {"ref_count",    (PyCFunction)mod_ref_count,           METH_O,        PyDoc_STR(ref_count_doc)},
+    {"use_global_interns",
+                     (PyCFunction)mod_use_global_interns,  METH_FASTCALL, PyDoc_STR(use_global_interns_doc)},
+    {"using_global_interns",
+                     (PyCFunction)mod_using_global_interns,
+                                                           METH_NOARGS,   PyDoc_STR(using_global_interns_doc)},
+    {"global_interns",
+                     (PyCFunction)mod_global_interns,      METH_NOARGS,   PyDoc_STR(global_interns_doc)},
     {NULL, NULL, 0, NULL}
 };
 
@@ -1114,6 +1207,7 @@ PyInit_nodel(void)
     if (PyType_Ready(&NodelTreeIterType) < 0) return NULL;
     if (PyType_Ready(&NodelQueryType) < 0) return NULL;
     if (PyType_Ready(&NodelQueryIterType) < 0) return NULL;
+    if (PyType_Ready(&NodelGlobalInternsType) < 0) return NULL;
 
     PyObject* module = PyModule_Create(&nodel_module_def);
     if (module == NULL) return NULL;

@@ -41,7 +41,11 @@ integration with the filesystem DataSource.  In this way, you can navigate throu
 json files, csv files, text files, binary files, as well as RocksDB databases, with a unified
 data model.
 
-Nodel interns string keys in a thread-local hash map.
+Nodel interns string keys in a thread-local hash map by default.  A thread may instead intern
+string keys in a single, synchronized, global hash map by calling `nodel::use_global_interns()`
+(or `nodel.use_global_interns()` / `with nodel.global_interns():` in Python), so that models
+built on one thread can be passed to other threads.  Nodel objects are not thread-safe, so the
+application must serialize access to models shared between threads.
 
 Nodel provides key and value iterators that transparently use DataSource-specific iterators.  For
 example, if you are iterating the keys of an Object backed by a [RocksDB](https://rocksdb.org/) database,

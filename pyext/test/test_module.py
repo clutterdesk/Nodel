@@ -2,6 +2,7 @@ import math
 import os
 import shutil
 import sys
+import threading
 import unittest
 import urllib.parse
 import nodel as nd
@@ -167,7 +168,54 @@ class TestModule(unittest.TestCase):
         root = nd.new([['pass']])
         b = nd.complete(root, [0, 0], 'fail')
         self.assertEqual(b, 'pass')
-        
-        
+
+    def test_use_global_interns(self):
+        self.assertFalse(nd.using_global_interns())
+        self.assertFalse(nd.use_global_interns())
+        try:
+            self.assertTrue(nd.using_global_interns())
+            other = []
+            thread = threading.Thread(target=lambda: other.append(nd.using_global_interns()))
+            thread.start()
+            thread.join()
+            self.assertEqual(other, [False])  # the selection is per-thread
+        finally:
+            self.assertTrue(nd.use_global_interns(False))
+        self.assertFalse(nd.using_global_interns())
+
+    def test_global_interns_context(self):
+        self.assertFalse(nd.using_global_interns())
+        with nd.global_interns():
+            self.assertTrue(nd.using_global_interns())
+            with nd.global_interns():
+                self.assertTrue(nd.using_global_interns())
+            self.assertTrue(nd.using_global_interns())
+        self.assertFalse(nd.using_global_interns())
+
+        with self.assertRaises(KeyError):
+            with nd.global_interns():
+                raise KeyError('tea')
+        self.assertFalse(nd.using_global_interns())
+
+    def test_global_interns_across_threads(self):
+        result = []
+        def build():
+            with nd.global_interns():
+                obj = nd.from_json('{"drink": "tea", "cups": 2}')
+                obj.grams = 3.5
+                result.append(obj)
+        thread = threading.Thread(target=build)
+        thread.start()
+        thread.join()
+
+        obj = result[0]
+        with nd.global_interns():
+            self.assertEqual(obj.drink, 'tea')
+            self.assertEqual(obj.cups, 2)
+            self.assertEqual(obj.grams, 3.5)
+            self.assertEqual(list(nd.iter_keys(obj)), ['drink', 'cups', 'grams'])
+        self.assertEqual(obj['drink'], 'tea')
+
+
 if __name__ == '__main__':
     unittest.main()
